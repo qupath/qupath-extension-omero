@@ -1,0 +1,11 @@
+.invalid-image {
+    -fx-text-fill: crimson;
+}
+
+.connected {
+    -fx-fill: green;
+}
+
+.disconnected {
+    -fx-fill: crimson;
+}

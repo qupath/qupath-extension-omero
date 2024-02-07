@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root spacing="10.0" type="VBox" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml">
+   <Label text="%DataTransporters.Forms.ImageSettings.selectUpdate">
+      <VBox.margin>
+         <Insets bottom="5.0" top="5.0"/>
+      </VBox.margin>
+   </Label>
+   <CheckBox fx:id="imageName" mnemonicParsing="false" selected="true"
+             text="%DataTransporters.Forms.ImageSettings.imageName"/>
+   <CheckBox fx:id="channelNames" mnemonicParsing="false" selected="true"
+             text="%DataTransporters.Forms.ImageSettings.channelNames"/>
+   <CheckBox fx:id="channelColors" mnemonicParsing="false" selected="true"
+             text="%DataTransporters.Forms.ImageSettings.channelColors"/>
+   <CheckBox fx:id="channelDisplayRanges" mnemonicParsing="false" selected="true"
+             text="%DataTransporters.Forms.ImageSettings.channelDisplayRanges"/>
+</fx:root>

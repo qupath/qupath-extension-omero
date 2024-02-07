@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root spacing="10.0" type="VBox" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml">
+    <children>
+        <Label text="%DataTransporters.Forms.KeyValues.selectUpdateOptions">
+         <VBox.margin>
+            <Insets bottom="5.0" top="5.0" />
+         </VBox.margin></Label>
+        <RadioButton fx:id="keepExisting" mnemonicParsing="false" text="%DataTransporters.Forms.KeyValues.keepExisting" />
+        <RadioButton fx:id="replaceExisting" mnemonicParsing="false" text="%DataTransporters.Forms.KeyValues.replaceExisting" />
+        <RadioButton fx:id="deleteAll" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.KeyValues.deleteAll" />
+    </children>
+</fx:root>
