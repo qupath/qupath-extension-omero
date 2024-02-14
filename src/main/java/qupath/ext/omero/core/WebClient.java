@@ -24,11 +24,14 @@ import java.util.concurrent.ExecutionException;
 /**
  * <p>Class representing an OMERO Web Client.</p>
  * <p>
- *     It handles creating a connection with an OMERO server, logging in, keeping the connection alive,
- *     and logging out.
+ *     It handles creating a connection with an OMERO server and keeping the connection alive.
  * </p>
  * <p>
  *     A client can be connected to a server without being authenticated if the server allows it.
+ * </p>
+ * <p>
+ *     One client corresponds to one user, which means a new client must be created to switch
+ *     user.
  * </p>
  * <p>
  *     It has a reference to a {@link ApisHandler}
@@ -47,13 +50,13 @@ public class WebClient implements AutoCloseable {
     private static final long PING_DELAY_MILLISECONDS = 60000L;
     private final ObservableList<PixelAPI> availablePixelAPIs = FXCollections.observableArrayList();
     private final ObservableList<PixelAPI> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelAPIs);
-    private final StringProperty username = new SimpleStringProperty("");
-    private final BooleanProperty authenticated = new SimpleBooleanProperty(false);
     private final ObjectProperty<PixelAPI> selectedPixelAPI = new SimpleObjectProperty<>();
     private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet();
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
     private Server server;
     private ApisHandler apisHandler;
+    private String username = null;
+    private boolean authenticated;
     private List<PixelAPI> allPixelAPIs;
     private Timer timeoutTimer;
     private String sessionUuid;
@@ -149,7 +152,7 @@ public class WebClient implements AutoCloseable {
                     username: %s
                     authenticated: %s
                     selectedPixelAPI: %s
-                """, status, username.get().isEmpty() ? "no username" : username.get(), authenticated.get(), selectedPixelAPI.get());
+                """, status, username == null ? "unauthenticated" : username, authenticated, selectedPixelAPI.get());
     }
 
     /**
@@ -182,19 +185,18 @@ public class WebClient implements AutoCloseable {
     }
 
     /**
-     * @return a read only property indicating if the client is currently authenticated.
-     * This property may be updated from any thread
+     * @return a whether the client is authenticated
      */
-    public ReadOnlyBooleanProperty getAuthenticated() {
+    public boolean isAuthenticated() {
         return authenticated;
     }
 
     /**
-     * @return a read only property indicating the username of the client if it is currently authenticated,
-     * or an empty String else. This property may be updated from any thread
+     * @return the username of the authenticated user, or an empty Optional if
+     * there is no authentication
      */
-    public ReadOnlyStringProperty getUsername() {
-        return username;
+    public Optional<String> getUsername() {
+        return Optional.ofNullable(username);
     }
 
     /**
@@ -228,7 +230,9 @@ public class WebClient implements AutoCloseable {
             throw new IllegalArgumentException("The provided pixel API is not part of the pixel APIs of this client");
         }
 
-        selectedPixelAPI.set(pixelAPI);
+        synchronized (this) {
+            selectedPixelAPI.set(pixelAPI);
+        }
     }
 
     /**
@@ -296,49 +300,6 @@ public class WebClient implements AutoCloseable {
         return !(QuPathGUI.getInstance() != null && QuPathGUI.getInstance().getAllViewers().stream()
                 .map(QuPathViewer::getServer)
                 .anyMatch(server -> server instanceof OmeroImageServer omeroImageServer && omeroImageServer.getClient().equals(this)));
-    }
-
-    /**
-     * <p>Attempt to authenticate to the server using the provided credentials.</p>
-     * <p>
-     *     A window (if the GUI is used) or the command line (else) will ask the user for credentials
-     *     if one of the parameter is null.
-     * </p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @param username  the username used for login
-     * @param password  the password used for login
-     * @return a CompletableFuture with the login response
-     */
-    public CompletableFuture<LoginResponse> login(@Nullable String username, @Nullable String password) {
-        return apisHandler.login(username, password).thenApply(loginResponse -> {
-            if (loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS)) {
-                setAuthenticationInformation(loginResponse);
-                startTimer();
-            }
-
-            return loginResponse;
-        });
-    }
-
-    /**
-     * <p>Attempt to authenticate to the server.</p>
-     * <p>
-     *     A window (if the GUI is used) or the command line (else) will ask the user for credentials.
-     * </p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @return a CompletableFuture with the login response
-     */
-    public CompletableFuture<LoginResponse> login() {
-        return apisHandler.login(null, null).thenApply(loginResponse -> {
-            if (loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS)) {
-                setAuthenticationInformation(loginResponse);
-                startTimer();
-            }
-
-            return loginResponse;
-        });
     }
 
     private CompletableFuture<WebClient> initialize(URI uri, boolean canSkipAuthentication, String... args) {
@@ -459,30 +420,6 @@ public class WebClient implements AutoCloseable {
         }
     }
 
-    private synchronized void setAuthenticationInformation(LoginResponse loginResponse) {
-        this.authenticated.set(true);
-
-        username.set(loginResponse.getUsername());
-        sessionUuid = loginResponse.getSessionUuid();
-    }
-
-    private synchronized void startTimer() {
-        if (timeoutTimer == null) {
-            timeoutTimer = new Timer("omero-keep-alive", true);
-            timeoutTimer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    apisHandler.ping().thenAccept(success -> {
-                        if (!success) {
-                            logger.warn("Ping failed. Removing client");
-                            WebClients.removeClient(WebClient.this);
-                        }
-                    });
-                }
-            }, PING_DELAY_MILLISECONDS, PING_DELAY_MILLISECONDS);
-        }
-    }
-
     private static Optional<String> getCredentialFromArgs(
             String credentialLabel,
             String credentialLabelAlternative,
@@ -498,6 +435,17 @@ public class WebClient implements AutoCloseable {
         }
 
         return Optional.ofNullable(credential);
+    }
+
+    private CompletableFuture<LoginResponse> login(@Nullable String username, @Nullable String password) {
+        return apisHandler.login(username, password).thenApply(loginResponse -> {
+            if (loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS)) {
+                setAuthenticationInformation(loginResponse);
+                startTimer();
+            }
+
+            return loginResponse;
+        });
     }
 
     private void setUpPixelAPIs() {
@@ -532,5 +480,28 @@ public class WebClient implements AutoCloseable {
                         .findAny()
                         .orElse(availablePixelAPIs.get(0))
         ));
+    }
+
+    private void setAuthenticationInformation(LoginResponse loginResponse) {
+        authenticated = true;
+        username = loginResponse.getUsername();
+        sessionUuid = loginResponse.getSessionUuid();
+    }
+
+    private void startTimer() {
+        if (timeoutTimer == null) {
+            timeoutTimer = new Timer("omero-keep-alive", true);
+            timeoutTimer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    apisHandler.ping().thenAccept(success -> {
+                        if (!success) {
+                            logger.warn("Ping failed. Removing client");
+                            WebClients.removeClient(WebClient.this);
+                        }
+                    });
+                }
+            }, PING_DELAY_MILLISECONDS, PING_DELAY_MILLISECONDS);
+        }
     }
 }
