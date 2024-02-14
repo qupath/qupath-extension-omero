@@ -162,7 +162,7 @@ class IceReader implements PixelAPIReader {
                     firstURI,
                     client.getApisHandler().getServerPort()
             ));
-        } catch (DSOutOfServiceException e) {
+        } catch (Exception e) {
             logger.warn(String.format(
                     "Can't connect to %s:%d. Trying %s:%d...",
                     firstURI,
