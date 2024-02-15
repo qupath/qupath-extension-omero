@@ -78,10 +78,7 @@ public class OrphanedFolder implements RepositoryEntity {
 
     @Override
     public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(
-                resources.getString("Web.Entities.RepositoryEntities.OrphanedFolder.orphanedImages") +
-                        " (" + numberOfImages + ")"
-        );
+        return new SimpleStringProperty(resources.getString("Web.Entities.RepositoryEntities.OrphanedFolder.orphanedImages"));
     }
 
     @Override
