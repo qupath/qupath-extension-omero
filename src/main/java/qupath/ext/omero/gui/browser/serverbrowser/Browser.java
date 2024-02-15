@@ -86,7 +86,9 @@ public class Browser extends Stage {
     @FXML
     private Label loadingThumbnail;
     @FXML
-    private MenuButton groupOwner;
+    private ChoiceBox<Group> group;
+    @FXML
+    private ChoiceBox<Owner> owner;
     @FXML
     private TreeView<RepositoryEntity> hierarchy;
     @FXML
@@ -279,34 +281,26 @@ public class Browser extends Stage {
         });
         pixelAPI.getSelectionModel().select(browserModel.getSelectedPixelAPI().get());
 
-        groupOwner.getItems().addAll(client.getServer().getGroups().stream()
-                .map(group -> {
-                    List<Owner> owners = group.equals(Group.getAllGroupsGroup()) ?
-                            client.getServer().getOwners() :
-                            group.getOwners();
+        group.getItems().addAll(client.getServer().getGroups());
+        group.getSelectionModel().select(client.getServer().getDefaultGroup().orElse(Group.getAllGroupsGroup()));
 
-                    if (!owners.isEmpty()) {
-                        Menu menu = new Menu(group.getName());
-                        menu.getItems().addAll(
-                                owners.stream()
-                                        .map(owner -> {
-                                            MenuItem ownerItem = new MenuItem(owner.getFullName());
-                                            ownerItem.setOnAction(ignoredEvent -> {
-                                                browserModel.getSelectedGroup().set(group);
-                                                browserModel.getSelectedOwner().set(owner);
-                                            });
-                                            return ownerItem;
-                                        })
-                                        .toList()
-                        );
-                        return menu;
-                    } else {
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .toList()
-        );
+        owner.getItems().clear();
+        if (group.getSelectionModel().getSelectedItem().equals(Group.getAllGroupsGroup())) {
+            owner.getItems().addAll(client.getServer().getOwners());
+        } else {
+            owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
+        }
+        owner.getSelectionModel().select(client.getServer().getDefaultOwner().orElse(Owner.getAllMembersOwner()));owner.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Owner object) {
+                return object == null ? "" : object.getFullName();
+            }
+
+            @Override
+            public Owner fromString(String string) {
+                return null;
+            }
+        });
 
         PredicateTextField<RepositoryEntity> predicateTextField = new PredicateTextField<>(entity ->
                 entity.getLabel().get()
@@ -399,10 +393,21 @@ public class Browser extends Stage {
         loadingThumbnail.visibleProperty().bind(Bindings.notEqual(browserModel.getNumberOfThumbnailsLoading(), 0));
         loadingThumbnail.managedProperty().bind(loadingThumbnail.visibleProperty());
 
-        groupOwner.textProperty().bind(Bindings.createStringBinding(
-                () -> String.format("%s     %s", browserModel.getSelectedGroup().get().getName(), browserModel.getSelectedOwner().get().getFullName()),
-                browserModel.getSelectedGroup(), browserModel.getSelectedOwner()
-        ));
+        browserModel.getSelectedGroup().addListener((p, o, n) -> {
+            owner.getItems().clear();
+
+            if (n != null) {
+                if (n.equals(Group.getAllGroupsGroup())) {
+                    owner.getItems().addAll(client.getServer().getOwners());
+                } else {
+                    owner.getItems().addAll(n.getOwners());
+                }
+            }
+
+            owner.getSelectionModel().selectFirst();
+        });
+        browserModel.getSelectedGroup().bind(group.getSelectionModel().selectedItemProperty());
+        browserModel.getSelectedOwner().bind(owner.getSelectionModel().selectedItemProperty());
 
         hierarchy.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
             updateCanvas();

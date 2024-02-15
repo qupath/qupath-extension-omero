@@ -55,7 +55,7 @@ public class BrowserCommand implements Runnable {
     @Override
     public void run() {
         if (browser == null) {
-            Optional<WebClient> existingClient = WebClients.getClients().stream()
+            Optional<WebClient> existingClient = BrowserModel.getClients().stream()
                     .filter(client -> client.getApisHandler().getWebServerURI().equals(uri))
                     .findAny();
 

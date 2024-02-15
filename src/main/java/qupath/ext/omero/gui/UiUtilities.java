@@ -229,9 +229,27 @@ public class UiUtilities {
 
         listToListen.addListener((ListChangeListener<? super T>) change -> Platform.runLater(() -> {
             if (Platform.isFxApplicationThread()) {
-                listToUpdate.setAll(change.getList());
+                while (change.next()) {
+                    if (change.wasAdded()) {
+                        listToUpdate.addAll(change.getAddedSubList());
+                    } else {
+                        listToUpdate.removeAll(change.getRemoved());
+                    }
+                }
+                // Change needs to be reset, otherwise calling this function several times
+                // with the same listToListen parameter will work for only one of them
+                change.reset();
             } else {
-                Platform.runLater(() -> listToUpdate.setAll(change.getList()));
+                Platform.runLater(() -> {
+                    while (change.next()) {
+                        if (change.wasAdded()) {
+                            listToUpdate.addAll(change.getAddedSubList());
+                        } else {
+                            listToUpdate.removeAll(change.getRemoved());
+                        }
+                    }
+                    change.reset();
+                });
             }
         }));
     }

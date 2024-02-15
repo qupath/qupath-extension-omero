@@ -4,10 +4,10 @@
 <?import javafx.scene.Scene?>
 <?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ChoiceBox?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.ContextMenu?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.MenuButton?>
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.control.SplitPane?>
@@ -69,12 +69,10 @@
                             </font>
                         </Label>
                         <Label text="%Browser.ServerBrowser.pixelAPI" GridPane.rowIndex="3" />
-                     <HBox alignment="CENTER" spacing="20.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
-                        <children>
-                              <ComboBox fx:id="pixelAPI" maxWidth="1.7976931348623157E308" />
-                              <Label fx:id="rawPixelAccess" />
-                        </children>
-                     </HBox>
+                        <HBox alignment="CENTER" spacing="20.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
+                            <ComboBox fx:id="pixelAPI" maxWidth="1.7976931348623157E308"/>
+                            <Label fx:id="rawPixelAccess"/>
+                        </HBox>
                     </GridPane>
                     <Region HBox.hgrow="ALWAYS" />
                     <VBox alignment="TOP_RIGHT">
@@ -110,11 +108,8 @@
                 <SplitPane dividerPositions="0.5" BorderPane.alignment="CENTER">
                     <VBox>
                         <HBox>
-                            <MenuButton fx:id="groupOwner" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" HBox.hgrow="ALWAYS">
-                                <tooltip>
-                                    <Tooltip text="%Browser.ServerBrowser.filterByGroupAndOwner" />
-                                </tooltip>
-                            </MenuButton>
+                        <ChoiceBox fx:id="group" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
+                        <ChoiceBox fx:id="owner" maxWidth="1.7976931348623157E308" HBox.hgrow="ALWAYS" />
                         </HBox>
                         <TreeView fx:id="hierarchy" onMouseClicked="#onImagesTreeClicked" prefWidth="600.0" showRoot="false" VBox.vgrow="ALWAYS">
                             <contextMenu>
