@@ -63,6 +63,8 @@ public class Connection extends VBox {
     @FXML
     private VBox imagesContainer;
 
+    //TODO: add logout button
+
     /**
      * Creates the connection pane using a {@link WebClient WebClient}.
      * Since a WebClient is present, there is already a connection with the server, so the user will have the possibility
@@ -208,7 +210,6 @@ public class Connection extends VBox {
         uri.setGraphic(UiUtilities.createStateNode(client != null));
 
         if (client == null) {
-
             buttons.getChildren().removeAll(browse, login, disconnect);
         } else {
             if (client.isAuthenticated() && client.getUsername().isPresent()) {
@@ -219,6 +220,8 @@ public class Connection extends VBox {
             if (client.isAuthenticated()) {
                 buttons.getChildren().remove(login);
             }
+
+            //TODO: add logout only if apisHandler.canSkipAuthentication
 
             for (URI uri: connectionModel.getOpenedImagesURIs()) {
                 imagesContainer.getChildren().add(new Image(client, uri));
