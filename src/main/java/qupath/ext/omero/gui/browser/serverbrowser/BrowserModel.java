@@ -28,8 +28,6 @@ import java.net.URI;
  */
 public class BrowserModel {
 
-    private final BooleanProperty authenticated = new SimpleBooleanProperty();
-    private final StringProperty username = new SimpleStringProperty();
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty();
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
     private final IntegerProperty numberOfOrphanedImages = new SimpleIntegerProperty();
@@ -55,8 +53,6 @@ public class BrowserModel {
      * @param client  the client whose properties and lists should be listened
      */
     public BrowserModel(WebClient client) {
-        UiUtilities.bindPropertyInUIThread(authenticated, client.getAuthenticated());
-        UiUtilities.bindPropertyInUIThread(username, client.getUsername());
         UiUtilities.bindPropertyInUIThread(numberOfEntitiesLoading, client.getApisHandler().getNumberOfEntitiesLoading());
         UiUtilities.bindPropertyInUIThread(areOrphanedImagesLoading, client.getApisHandler().areOrphanedImagesLoading());
         UiUtilities.bindPropertyInUIThread(numberOfOrphanedImagesLoaded, client.getApisHandler().getNumberOfOrphanedImagesLoaded());
@@ -86,20 +82,6 @@ public class BrowserModel {
         client.getApisHandler().getNumberOfOrphanedImages().thenAccept(numberOfOrphanedImages -> Platform.runLater(() ->
                 this.numberOfOrphanedImages.set(numberOfOrphanedImages))
         );
-    }
-
-    /**
-     * See {@link WebClient#getAuthenticated()}.
-     */
-    public ReadOnlyBooleanProperty getAuthenticated() {
-        return authenticated;
-    }
-
-    /**
-     * See {@link WebClient#getUsername()}.
-     */
-    public ReadOnlyStringProperty getUsername() {
-        return username;
     }
 
     /**

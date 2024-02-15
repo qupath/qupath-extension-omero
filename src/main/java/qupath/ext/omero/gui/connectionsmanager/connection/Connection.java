@@ -8,6 +8,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,14 +16,12 @@ import qupath.ext.omero.gui.OmeroExtension;
 import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
-import qupath.ext.omero.core.entities.login.LoginResponse;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -48,15 +47,21 @@ public class Connection extends VBox {
     @FXML
     private Label uri;
     @FXML
-    private TitledPane imagesPane;
-    @FXML
-    private VBox imagesContainer;
+    private HBox buttons;
     @FXML
     private Button browse;
     @FXML
-    private Button connection;
+    private Button connect;
+    @FXML
+    private Button login;
+    @FXML
+    private Button disconnect;
     @FXML
     private Button remove;
+    @FXML
+    private TitledPane imagesPane;
+    @FXML
+    private VBox imagesContainer;
 
     /**
      * Creates the connection pane using a {@link WebClient WebClient}.
@@ -105,87 +110,60 @@ public class Connection extends VBox {
     }
 
     @FXML
-    private void onConnectionClicked(ActionEvent ignoredEvent) {
-        if (client == null) {
-            WebClients.createClient(serverURI.toString(), true).thenAccept(newClient -> Platform.runLater(() -> {
-                if (newClient.getStatus().equals(WebClient.Status.SUCCESS)) {
+    private void onConnectClicked(ActionEvent ignoredEvent) {
+        NewConnectionOptions newConnectionOptions = null;
+        try {
+            newConnectionOptions = new NewConnectionOptions();
+        } catch (IOException e) {
+            logger.error("Error when creating the new connection options form", e);
+        }
+
+        boolean dialogConfirmed = newConnectionOptions != null && Dialogs.showConfirmDialog(
+                resources.getString("ConnectionsManager.NewConnectionOptions.title"),
+                newConnectionOptions
+        );
+
+        if (dialogConfirmed) {
+            WebClients.createClient(serverURI.toString(), newConnectionOptions.canSkipAuthentication()).thenAccept(client -> Platform.runLater(() -> {
+                if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                     Dialogs.showInfoNotification(
                             resources.getString("ConnectionsManager.Connection.webServer"),
                             MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectedTo"), serverURI.toString())
                     );
-                } else if (newClient.getStatus().equals(WebClient.Status.FAILED)) {
-                    Optional<WebClient.FailReason> failReason = newClient.getFailReason();
-                    String message = null;
-
-                    if (failReason.isPresent()) {
-                        if (failReason.get().equals(WebClient.FailReason.INVALID_URI_FORMAT)) {
-                            message = MessageFormat.format(resources.getString("ConnectionsManager.Connection.invalidURI"), serverURI.toString());
-                        } else if (failReason.get().equals(WebClient.FailReason.ALREADY_CREATING)) {
-                            message = MessageFormat.format(resources.getString("ConnectionsManager.Connection.alreadyCreating"), serverURI.toString());
-                        }
-                    } else {
-                        message = MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectionFailed"), serverURI.toString());
-                    }
-
-                    if (message != null) {
-                        Dialogs.showErrorMessage(
-                                resources.getString("ConnectionsManager.Connection.webServer"),
-                                message
-                        );
-                    }
+                } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
+                    showConnectionError(serverURI.toString(), client.getFailReason().orElse(null));
                 }
             }));
-        } else {
-            if (connectionModel.getAuthenticated().get()) {
-                if (client.canBeClosed()) {
-                    boolean logOutConfirmed = Dialogs.showConfirmDialog(
-                            resources.getString("ConnectionsManager.Connection.logout"),
-                            resources.getString("ConnectionsManager.Connection.logoutConfirmation")
-                    );
-
-                    if (logOutConfirmed) {
-                        WebClients.removeClient(client);
-                    }
-                } else {
-                    Dialogs.showMessageDialog(
-                            resources.getString("ConnectionsManager.Connection.removeClient"),
-                            resources.getString("ConnectionsManager.Connection.closeImages")
-                    );
-                }
-            } else {
-                client.login().thenAccept(loginResponse -> Platform.runLater(() -> {
-                    if (loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS)) {
-                        Dialogs.showInfoNotification(
-                                resources.getString("ConnectionsManager.Connection.login"),
-                                MessageFormat.format(
-                                        resources.getString("ConnectionsManager.Connection.loginSuccessful"),
-                                        client.getApisHandler().getWebServerURI(),
-                                        client.getUsername().get()
-                                )
-                        );
-                    } else if (loginResponse.getStatus().equals(LoginResponse.Status.FAILED)) {
-                        Dialogs.showErrorMessage(
-                                resources.getString("ConnectionsManager.Connection.loginToServer"),
-                                resources.getString("ConnectionsManager.Connection.loginFailed")
-                        );
-                    }
-                }));
-            }
         }
     }
 
     @FXML
-    private void onRemoveClicked(ActionEvent ignoredEvent) {
-        if (client == null) {
-            boolean deletionConfirmed = Dialogs.showConfirmDialog(
-                    resources.getString("ConnectionsManager.Connection.removeClient"),
-                    resources.getString("ConnectionsManager.Connection.removeClientConfirmation")
-            );
+    private void onLoginClicked(ActionEvent ignoredEvent) {
+        if (client != null) {
+            WebClients.removeClient(client);
 
-            if (deletionConfirmed) {
-                ClientsPreferencesManager.removeURI(serverURI);
-            }
-        } else {
+            WebClients.createClient(
+                    client.getApisHandler().getWebServerURI().toString(), false
+            ).thenAccept(client -> Platform.runLater(() -> {
+                if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+                    Dialogs.showInfoNotification(
+                            resources.getString("ConnectionsManager.Connection.login"),
+                            MessageFormat.format(
+                                    resources.getString("ConnectionsManager.Connection.loginSuccessful"),
+                                    client.getApisHandler().getWebServerURI(),
+                                    client.getUsername().orElse("")
+                            )
+                    );
+                } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
+                    showConnectionError(this.client.getApisHandler().getWebServerURI().toString(), client.getFailReason().orElse(null));
+                }
+            }));
+        }
+    }
+
+    @FXML
+    private void onDisconnectClicked(ActionEvent ignoredEvent) {
+        if (client != null) {
             if (client.canBeClosed()) {
                 boolean deletionConfirmed = Dialogs.showConfirmDialog(
                         resources.getString("ConnectionsManager.Connection.disconnectClient"),
@@ -204,6 +182,21 @@ public class Connection extends VBox {
         }
     }
 
+    @FXML
+    private void onRemoveClicked(ActionEvent ignoredEvent) {
+        boolean deletionConfirmed = Dialogs.showConfirmDialog(
+                resources.getString("ConnectionsManager.Connection.removeClient"),
+                resources.getString("ConnectionsManager.Connection.removeClientConfirmation")
+        );
+
+        if (deletionConfirmed) {
+            if (client != null) {
+                WebClients.removeClient(client);
+            }
+            ClientsPreferencesManager.removeURI(serverURI);
+        }
+    }
+
     private void initUI() throws IOException {
         UiUtilities.loadFXML(this, Connection.class.getResource("connection.fxml"));
 
@@ -211,24 +204,26 @@ public class Connection extends VBox {
         uri.setGraphic(UiUtilities.createStateNode(client != null));
 
         if (client == null) {
-            remove.setText(resources.getString("ConnectionsManager.Connection.removeClient"));
-            browse.setDisable(true);
+
+            buttons.getChildren().removeAll(browse, login, disconnect);
         } else {
+            if (client.isAuthenticated() && client.getUsername().isPresent()) {
+                uri.setText(String.format("%s (%s)", serverURI, client.getUsername().get()));
+            }
+
+            buttons.getChildren().remove(connect);
+            if (client.isAuthenticated()) {
+                buttons.getChildren().remove(login);
+            }
+
             for (URI uri: connectionModel.getOpenedImagesURIs()) {
                 imagesContainer.getChildren().add(new Image(client, uri));
             }
-
-            remove.setText(resources.getString("ConnectionsManager.Connection.disconnect"));
         }
     }
 
     private void setUpListeners() {
         if (client != null) {
-            uri.textProperty().bind(Bindings.when(connectionModel.getAuthenticated())
-                    .then(Bindings.concat(serverURI.toString(), " (", connectionModel.getUsername(), ")"))
-                    .otherwise(serverURI.toString())
-            );
-
             imagesPane.textProperty().bind(Bindings.concat(
                     Bindings.size(connectionModel.getOpenedImagesURIs()),
                     " ",
@@ -248,11 +243,24 @@ public class Connection extends VBox {
                     }
                 }
             });
-
-            connection.textProperty().bind(Bindings.when(connectionModel.getAuthenticated())
-                    .then(resources.getString("ConnectionsManager.Connection.logout"))
-                    .otherwise(resources.getString("ConnectionsManager.Connection.login"))
-            );
         }
+    }
+
+    private static void showConnectionError(String uri, WebClient.FailReason failReason) {
+        String message;
+
+        if (failReason == null) {
+            message = MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectionFailed"), uri);
+        } else {
+            message = switch (failReason) {
+                case ALREADY_CREATING -> MessageFormat.format(resources.getString("ConnectionsManager.Connection.alreadyCreating"), uri);
+                case INVALID_URI_FORMAT -> MessageFormat.format(resources.getString("ConnectionsManager.Connection.invalidURI"), uri);
+            };
+        }
+
+        Dialogs.showErrorMessage(
+                resources.getString("ConnectionsManager.Connection.webServer"),
+                message
+        );
     }
 }

@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.pixelapis.ice;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
@@ -55,7 +54,7 @@ public class IceAPI implements PixelAPI {
 
     @Override
     public ObservableBooleanValue isAvailable() {
-        return Bindings.and(client.getAuthenticated(), new SimpleBooleanProperty(gatewayAvailable));
+        return new SimpleBooleanProperty(client.isAuthenticated() && gatewayAvailable);
     }
 
     @Override

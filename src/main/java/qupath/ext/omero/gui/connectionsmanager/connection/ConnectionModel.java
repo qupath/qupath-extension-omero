@@ -1,6 +1,5 @@
 package qupath.ext.omero.gui.connectionsmanager.connection;
 
-import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableSet;
 import qupath.ext.omero.core.WebClient;
@@ -23,30 +22,11 @@ import java.net.URI;
  */
 class ConnectionModel {
 
-    private final BooleanProperty authenticated = new SimpleBooleanProperty();
-    private final StringProperty username = new SimpleStringProperty();
     private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet();
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
 
     public ConnectionModel(WebClient client) {
-        UiUtilities.bindPropertyInUIThread(authenticated, client.getAuthenticated());
-        UiUtilities.bindPropertyInUIThread(username, client.getUsername());
-
         UiUtilities.bindSetInUIThread(openedImagesURIs, client.getOpenedImagesURIs());
-    }
-
-    /**
-     * See {@link WebClient#getAuthenticated()}.
-     */
-    public ReadOnlyBooleanProperty getAuthenticated() {
-        return authenticated;
-    }
-
-    /**
-     * See {@link WebClient#getUsername()}.
-     */
-    public ReadOnlyStringProperty getUsername() {
-        return username;
     }
 
     /**

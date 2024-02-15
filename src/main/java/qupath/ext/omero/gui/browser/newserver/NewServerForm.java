@@ -30,10 +30,16 @@ public class NewServerForm extends VBox {
         url.setText(ClientsPreferencesManager.getLastServerURI());
     }
 
+    /**
+     * @return the URL of the server to create a connection to
+     */
     public String getURL() {
         return url.getText();
     }
 
+    /**
+     * @return whether to try skipping authentication when connecting to the server
+     */
     public boolean canSkipAuthentication() {
         return skipAuthentication.isSelected();
     }

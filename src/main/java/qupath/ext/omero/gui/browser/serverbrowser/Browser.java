@@ -256,6 +256,7 @@ public class Browser extends Stage {
 
     private void initUI() {
         serverHost.setText(client.getApisHandler().getWebServerURI().getHost());
+        username.setText(client.isAuthenticated() && client.getUsername().isPresent() ? client.getUsername().get() : "public");
 
         if (browserModel.getSelectedPixelAPI().get() != null && browserModel.getSelectedPixelAPI().get().canAccessRawPixels()) {
             rawPixelAccess.setText(resources.getString("Browser.ServerBrowser.accessRawPixels"));
@@ -361,11 +362,6 @@ public class Browser extends Stage {
     }
 
     private void setUpListeners() {
-        username.textProperty().bind(Bindings.when(browserModel.getAuthenticated())
-                .then(browserModel.getUsername())
-                .otherwise("public")
-        );
-
         numberOpenImages.textProperty().bind(Bindings.size(browserModel.getOpenedImagesURIs()).asString());
 
         browserModel.getSelectedPixelAPI().addListener(change -> {

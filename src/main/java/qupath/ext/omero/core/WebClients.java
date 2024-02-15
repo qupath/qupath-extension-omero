@@ -147,14 +147,6 @@ public class WebClients {
         return clientsImmutable;
     }
 
-    private static synchronized void updateClients(WebClient client, Operation operation) {
-        if (operation.equals(Operation.ADD)) {
-            clients.add(client);
-        } else {
-            clients.remove(client);
-        }
-    }
-
     private static Optional<URI> getServerURI(String url) {
         var uri = WebUtilities.createURI(url);
         if (uri.isPresent()) {
@@ -166,5 +158,13 @@ public class WebClients {
 
     private static Optional<WebClient> getExistingClient(URI uri) {
         return clients.stream().filter(e -> e.getApisHandler().getWebServerURI().equals(uri)).findAny();
+    }
+
+    private static synchronized void updateClients(WebClient client, Operation operation) {
+        if (operation.equals(Operation.ADD)) {
+            clients.add(client);
+        } else {
+            clients.remove(client);
+        }
     }
 }

@@ -69,7 +69,7 @@ public class TestWebClient extends OmeroServer {
         @Test
         @Override
         void Check_Client_Authentication() {
-            boolean isAuthenticated = client.getAuthenticated().get();
+            boolean isAuthenticated = client.isAuthenticated();
 
             Assertions.assertFalse(isAuthenticated);
         }
@@ -78,7 +78,7 @@ public class TestWebClient extends OmeroServer {
         void Check_Client_Username() {
             String expectedUsername = "";
 
-            String username = client.getUsername().get();
+            String username = client.getUsername().orElse("");
 
             Assertions.assertEquals(expectedUsername, username);
         }
@@ -103,7 +103,7 @@ public class TestWebClient extends OmeroServer {
         @Test
         @Override
         void Check_Client_Authentication() {
-            boolean isAuthenticated = client.getAuthenticated().get();
+            boolean isAuthenticated = client.isAuthenticated();
 
             Assertions.assertTrue(isAuthenticated);
         }
@@ -113,7 +113,7 @@ public class TestWebClient extends OmeroServer {
         void Check_Client_Username() {
             String expectedUsername = OmeroServer.getUserUsername();
 
-            String username = client.getUsername().get();
+            String username = client.getUsername().orElse("");
 
             Assertions.assertEquals(expectedUsername, username);
         }
