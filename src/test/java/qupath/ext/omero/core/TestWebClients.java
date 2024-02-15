@@ -105,22 +105,6 @@ public class TestWebClients extends OmeroServer {
         }
 
         @Test
-        void Check_Public_User_Can_Be_Logged_In() throws ExecutionException, InterruptedException {
-            WebClient client = createClient(OmeroServer.getWebServerURI());
-
-            WebClient newClient = WebClients.loginClient(
-                    client,
-                    "-u",
-                    OmeroServer.getRootUsername(),
-                    "-p",
-                    OmeroServer.getRootPassword()).get();
-
-            Assertions.assertTrue(newClient.isAuthenticated());
-
-            WebClients.removeClient(client);
-        }
-
-        @Test
         void Check_Client_List_After_Added() throws ExecutionException, InterruptedException {
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),

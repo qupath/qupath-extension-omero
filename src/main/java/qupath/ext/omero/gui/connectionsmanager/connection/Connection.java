@@ -39,7 +39,6 @@ import java.util.ResourceBundle;
  */
 public class Connection extends VBox {
 
-    //TODO: bug when connect as public user, login as root
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
     private final WebClient client;
@@ -141,18 +140,22 @@ public class Connection extends VBox {
     @FXML
     private void onLoginClicked(ActionEvent ignoredEvent) {
         if (client != null) {
-            WebClients.loginClient(client).thenAccept(newClient -> Platform.runLater(() -> {
-                if (newClient.getStatus().equals(WebClient.Status.SUCCESS)) {
+            WebClients.removeClient(client);
+
+            WebClients.createClient(
+                    client.getApisHandler().getWebServerURI().toString(), false
+            ).thenAccept(client -> Platform.runLater(() -> {
+                if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                     Dialogs.showInfoNotification(
                             resources.getString("ConnectionsManager.Connection.login"),
                             MessageFormat.format(
                                     resources.getString("ConnectionsManager.Connection.loginSuccessful"),
-                                    newClient.getApisHandler().getWebServerURI(),
-                                    newClient.getUsername().orElse("")
+                                    client.getApisHandler().getWebServerURI(),
+                                    client.getUsername().orElse("")
                             )
                     );
-                } else if (newClient.getStatus().equals(WebClient.Status.FAILED)) {
-                    showConnectionError(client.getApisHandler().getWebServerURI().toString(), newClient.getFailReason().orElse(null));
+                } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
+                    showConnectionError(this.client.getApisHandler().getWebServerURI().toString(), client.getFailReason().orElse(null));
                 }
             }));
         }
@@ -187,7 +190,9 @@ public class Connection extends VBox {
         );
 
         if (deletionConfirmed) {
-            WebClients.removeClient(client);
+            if (client != null) {
+                WebClients.removeClient(client);
+            }
             ClientsPreferencesManager.removeURI(serverURI);
         }
     }

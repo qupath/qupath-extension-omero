@@ -114,24 +114,6 @@ public class WebClients {
     }
 
     /**
-     * <p>Attempt to login a client. If the login is successful, the provided client is closed.</p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @param client  the client to login
-     * @param args  optional arguments to login. See {@link WebClient#create(URI, boolean, String...) WebClient.create()}
-     * @return a CompletableFuture with the client
-     */
-    public static CompletableFuture<WebClient> loginClient(WebClient client, String... args) {
-        return createClientAsync(client.getApisHandler().getWebServerURI(), false, args).thenApply(newClient -> {
-            if (newClient.getStatus().equals(WebClient.Status.SUCCESS)) {
-                removeClient(client);
-            }
-
-            return newClient;
-        });
-    }
-
-    /**
      * Close the given client connection.
      *
      * @param client  the client to remove
