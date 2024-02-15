@@ -104,7 +104,10 @@ public class BrowseMenu extends Menu {
                 if (dialogConfirmed) {
                     String url = newServerForm.getURL();
 
-                    WebClients.createClient(url, newServerForm.canSkipAuthentication()).thenAccept(client -> Platform.runLater(() -> {
+                    WebClients.createClient(
+                            url,
+                            newServerForm.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
+                    ).thenAccept(client -> Platform.runLater(() -> {
                         if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                             BrowserCommand browser = getBrowserCommand(client.getApisHandler().getWebServerURI());
                             browser.run();

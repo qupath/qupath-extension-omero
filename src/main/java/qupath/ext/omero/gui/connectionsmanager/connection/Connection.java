@@ -124,7 +124,10 @@ public class Connection extends VBox {
         );
 
         if (dialogConfirmed) {
-            WebClients.createClient(serverURI.toString(), newConnectionOptions.canSkipAuthentication()).thenAccept(client -> Platform.runLater(() -> {
+            WebClients.createClient(
+                    serverURI.toString(),
+                    newConnectionOptions.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
+            ).thenAccept(client -> Platform.runLater(() -> {
                 if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                     Dialogs.showInfoNotification(
                             resources.getString("ConnectionsManager.Connection.webServer"),
@@ -143,7 +146,8 @@ public class Connection extends VBox {
             WebClients.removeClient(client);
 
             WebClients.createClient(
-                    client.getApisHandler().getWebServerURI().toString(), false
+                    client.getApisHandler().getWebServerURI().toString(),
+                    WebClient.Authentication.ENFORCE
             ).thenAccept(client -> Platform.runLater(() -> {
                 if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                     Dialogs.showInfoNotification(

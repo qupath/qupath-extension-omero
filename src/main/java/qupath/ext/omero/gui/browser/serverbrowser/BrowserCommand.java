@@ -80,7 +80,10 @@ public class BrowserCommand implements Runnable {
                 );
 
                 if (dialogConfirmed) {
-                    WebClients.createClient(uri.toString(), newConnectionOptions.canSkipAuthentication()).thenAccept(client -> Platform.runLater(() -> {
+                    WebClients.createClient(
+                            uri.toString(),
+                            newConnectionOptions.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
+                    ).thenAccept(client -> Platform.runLater(() -> {
                         if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                             try {
                                 browser = new Browser(client);
