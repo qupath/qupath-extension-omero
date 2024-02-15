@@ -63,7 +63,17 @@ public class WebClients {
                     logger.warn(String.format("Client for %s already being created", serverURI.get()));
                     return CompletableFuture.completedFuture(WebClient.createInvalidClient(WebClient.FailReason.ALREADY_CREATING));
                 } else {
-                    return createClientAsync(serverURI.get(), canSkipAuthentication, args);
+                    clientsBeingCreated.add(serverURI.get());
+
+                    return WebClient.create(serverURI.get(), canSkipAuthentication, args).thenApply(client -> {
+                        if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+                            ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
+                            updateClients(client, Operation.ADD);
+                        }
+                        clientsBeingCreated.remove(serverURI.get());
+
+                        return client;
+                    });
                 }
             });
         } else {
@@ -148,20 +158,6 @@ public class WebClients {
 
     private static Optional<WebClient> getExistingClient(URI uri) {
         return clients.stream().filter(e -> e.getApisHandler().getWebServerURI().equals(uri)).findAny();
-    }
-
-    private static CompletableFuture<WebClient> createClientAsync(URI uri, boolean canSkipAuthentication, String... args) {
-        clientsBeingCreated.add(uri);
-
-        return WebClient.create(uri, canSkipAuthentication, args).thenApply(client -> {
-            if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-                ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
-                updateClients(client, Operation.ADD);
-            }
-            clientsBeingCreated.remove(uri);
-
-            return client;
-        });
     }
 
     private static synchronized void updateClients(WebClient client, Operation operation) {
