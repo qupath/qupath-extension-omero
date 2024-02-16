@@ -8,7 +8,10 @@ import qupath.lib.images.servers.*
 
 // Create a connection to an OMERO server
 def serverURL = "https://idr.openmicroscopy.org/"
-def client = WebClients.createClient(serverURL).get()
+def authentication = WebClient.Authentication.TRY_TO_SKIP       // try to skip authentication if the server allows it. Can be
+                                                                // WebClient.Authentication.ENFORCE to enforce authentication or
+                                                                // WebClient.Authentication.SKIP to skip authentication (even if the server doesn't allow it)
+def client = WebClients.createClient(serverURL, authentication).get()
 
 // List projects of the OMERO server
 def projects = client.getApisHandler().getProjects().get()
