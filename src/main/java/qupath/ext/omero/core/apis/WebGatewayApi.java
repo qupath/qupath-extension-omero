@@ -48,30 +48,23 @@ class WebGatewayApi {
     private static final String CHANGE_CHANNEL_DISPLAY_RANGES_AND_COLORS_URL = "%s/webgateway/saveImgRDef/%d/?m=c&c=%s";
     private final IntegerProperty numberOfThumbnailsLoading = new SimpleIntegerProperty(0);
     private final URI host;
-    private String token;
+    private final String token;
 
     /**
      * Creates a web gateway client.
      *
      * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     *               used by this session. This is needed to perform some functions of this API.
      */
-    public WebGatewayApi(URI host) {
+    public WebGatewayApi(URI host, String token) {
         this.host = host;
+        this.token = token;
     }
 
     @Override
     public String toString() {
         return String.format("WebGateway API of %s", host);
-    }
-
-    /**
-     * Set the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     * used by this session. This is needed to perform some functions of this API.
-     *
-     * @param token  the CSRF token of the session
-     */
-    public void setToken(String token) {
-        this.token = token;
     }
 
     /**

@@ -216,11 +216,12 @@ public abstract class OmeroServer {
     }
 
     protected static WebClient createUnauthenticatedClient() throws ExecutionException, InterruptedException {
-        return createValidClient();
+        return createValidClient(WebClient.Authentication.SKIP);
     }
 
     protected static WebClient createAuthenticatedClient() throws ExecutionException, InterruptedException {
         return createValidClient(
+                WebClient.Authentication.ENFORCE,
                 "-u",
                 getUserUsername(),
                 "-p",
@@ -230,6 +231,7 @@ public abstract class OmeroServer {
 
     protected static WebClient createRootClient() throws ExecutionException, InterruptedException {
         return createValidClient(
+                WebClient.Authentication.ENFORCE,
                 "-u",
                 getRootUsername(),
                 "-p",
@@ -707,12 +709,12 @@ public abstract class OmeroServer {
         }
     }
 
-    private static WebClient createValidClient(String... args) throws ExecutionException, InterruptedException {
+    private static WebClient createValidClient(WebClient.Authentication authentication, String... args) throws ExecutionException, InterruptedException {
         WebClient webClient;
         int attempt = 0;
 
         do {
-            webClient = WebClients.createClient(getWebServerURI(), true, args).get();
+            webClient = WebClients.createClient(getWebServerURI(), authentication, args).get();
         } while (!webClient.getStatus().equals(WebClient.Status.SUCCESS) && ++attempt < CLIENT_CREATION_ATTEMPTS);
 
         if (webClient.getStatus().equals(WebClient.Status.SUCCESS)) {

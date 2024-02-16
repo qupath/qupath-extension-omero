@@ -85,6 +85,8 @@ public class ConnectionsManager extends Stage {
         if (container.getChildren().isEmpty()) {
             container.getChildren().add(new Label(resources.getString("ConnectionsManager.ConnectionManager.noClients")));
         }
+
+        sizeToScene();
     }
 
     private static boolean clientWithURIExists(URI uri) {

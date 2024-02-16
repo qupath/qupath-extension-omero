@@ -15,6 +15,8 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.gui.OmeroExtension;
 import qupath.ext.omero.gui.browser.serverbrowser.hierarchy.HierarchyCellFactory;
 import qupath.ext.omero.gui.browser.serverbrowser.hierarchy.HierarchyItem;
 import qupath.ext.omero.gui.browser.serverbrowser.settings.Settings;
@@ -38,6 +40,8 @@ import java.text.MessageFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -73,6 +77,12 @@ public class Browser extends Stage {
     private Label serverHost;
     @FXML
     private Label username;
+    @FXML
+    private HBox usernameContainer;
+    @FXML
+    private Button login;
+    @FXML
+    private Button logout;
     @FXML
     private Label numberOpenImages;
     @FXML
@@ -128,6 +138,69 @@ public class Browser extends Stage {
 
         initUI();
         setUpListeners();
+    }
+
+    @FXML
+    private void onLoginClicked(ActionEvent ignoredEvent) {
+        WebClients.removeClient(client);
+
+        WebClients.createClient(
+                client.getApisHandler().getWebServerURI().toString(),
+                WebClient.Authentication.ENFORCE
+        ).thenAccept(client -> Platform.runLater(() -> {
+            if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+                Dialogs.showInfoNotification(
+                        resources.getString("Browser.ServerBrowser.login"),
+                        MessageFormat.format(
+                                resources.getString("Browser.ServerBrowser.loginSuccessful"),
+                                client.getApisHandler().getWebServerURI(),
+                                client.getUsername().orElse("")
+                        )
+                );
+
+                OmeroExtension.getBrowseMenu().openBrowserOfClient(client.getApisHandler().getWebServerURI());
+            } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
+                Dialogs.showErrorMessage(
+                        resources.getString("Browser.ServerBrowser.login"),
+                        resources.getString("Browser.ServerBrowser.loginFailed")
+                );
+            }
+        }));
+    }
+
+    @FXML
+    private void onLogoutClicked(ActionEvent ignoredEvent) {
+        WebClients.removeClient(client);
+
+        // The client may take some time to close, but it must be closed before
+        // attempting to create a new connection, so the unauthenticated client
+        // is created after 100ms
+        new Timer().schedule(
+                new TimerTask() {
+                    @Override
+                    public void run() {
+                        WebClients.createClient(
+                                client.getApisHandler().getWebServerURI().toString(),
+                                WebClient.Authentication.TRY_TO_SKIP
+                        ).thenAccept(client -> Platform.runLater(() -> {
+                            if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+                                Dialogs.showInfoNotification(
+                                        resources.getString("Browser.ServerBrowser.logout"),
+                                        resources.getString("Browser.ServerBrowser.logoutSuccessful")
+                                );
+
+                                OmeroExtension.getBrowseMenu().openBrowserOfClient(client.getApisHandler().getWebServerURI());
+                            } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
+                                Dialogs.showErrorMessage(
+                                        resources.getString("Browser.ServerBrowser.login"),
+                                        resources.getString("Browser.ServerBrowser.loginFailed")
+                                );
+                            }
+                        }));
+                    }
+                },
+                100
+        );
     }
 
     @FXML
@@ -258,7 +331,13 @@ public class Browser extends Stage {
 
     private void initUI() {
         serverHost.setText(client.getApisHandler().getWebServerURI().getHost());
-        username.setText(client.isAuthenticated() && client.getUsername().isPresent() ? client.getUsername().get() : "public");
+
+        username.setText(client.isAuthenticated() && client.getUsername().isPresent() ?
+                client.getUsername().get() :
+                resources.getString("Browser.ServerBrowser.unauthenticated")
+        );
+
+        usernameContainer.getChildren().remove(client.isAuthenticated() ? login : logout);
 
         if (browserModel.getSelectedPixelAPI().get() != null && browserModel.getSelectedPixelAPI().get().canAccessRawPixels()) {
             rawPixelAccess.setText(resources.getString("Browser.ServerBrowser.accessRawPixels"));

@@ -27,6 +27,11 @@
                <tooltip>
                   <Tooltip text="%ConnectionsManager.Connection.loginDescription" />
                </tooltip></Button>
+            <Button fx:id="logout" mnemonicParsing="false" onAction="#onLogoutClicked" text="%ConnectionsManager.Connection.logout">
+               <tooltip>
+                  <Tooltip text="%ConnectionsManager.Connection.logoutDescription" />
+               </tooltip>
+            </Button>
             <Button fx:id="disconnect" mnemonicParsing="false" onAction="#onDisconnectClicked" text="%ConnectionsManager.Connection.disconnect">
                <tooltip>
                   <Tooltip text="%ConnectionsManager.Connection.disconnectDescription" />

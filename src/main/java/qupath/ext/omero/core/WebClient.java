@@ -63,15 +63,55 @@ public class WebClient implements AutoCloseable {
     private Status status;
     private FailReason failReason;
 
+    /**
+     * Status of a client creation
+     */
     public enum Status {
+        /**
+         * The client creation was cancelled by the user
+         */
         CANCELED,
+        /**
+         * The client creation failed
+         */
         FAILED,
+        /**
+         * The client creation succeeded
+         */
         SUCCESS
     }
 
+    /**
+     * Reason why a client creation failed
+     */
     public enum FailReason {
+        /**
+         * A client with the same URI is already being created
+         */
         ALREADY_CREATING,
+        /**
+         * The format of the provided URI is incorrect
+         */
         INVALID_URI_FORMAT
+    }
+
+    /**
+     * How to handle authentication when creation a connection
+     */
+    public enum Authentication {
+        /**
+         * Enforce authentication
+         */
+        ENFORCE,
+        /**
+         * Try to skip authentication if the server allows it
+         */
+        TRY_TO_SKIP,
+        /**
+         * Skip authentication even if the server doesn't allow it. In this case,
+         * the client creation should fail.
+         */
+        SKIP
     }
 
     private WebClient() {}
@@ -83,7 +123,7 @@ public class WebClient implements AutoCloseable {
      * </p>
      * <p>
      *     This function should only be used by {@link WebClients WebClients}
-     *     which monitors opened clients (see {@link WebClients#createClient(String, boolean, String...)}).
+     *     which monitors opened clients (see {@link WebClients#createClient(String, Authentication, String...)}).
      * </p>
      * <p>
      *     Note that this function is not guaranteed to create a valid client. Call the
@@ -99,21 +139,21 @@ public class WebClient implements AutoCloseable {
      * <p>This function is asynchronous.</p>
      *
      * @param uri  the server URI to connect to
-     * @param canSkipAuthentication  whether authentication can be skipped if the server allows it
+     * @param authentication  how to handle authentication
      * @param args  optional arguments to authenticate (see description above)
      * @return a CompletableFuture with the client
      */
-    static CompletableFuture<WebClient> create(URI uri, boolean canSkipAuthentication, String... args) {
-        return new WebClient().initialize(uri, canSkipAuthentication, args);
+    static CompletableFuture<WebClient> create(URI uri, Authentication authentication, String... args) {
+        return new WebClient().initialize(uri, authentication, args);
     }
 
     /**
-     * <p>Synchronous version of {@link #create(URI, boolean, String...)}.</p>
+     * <p>Synchronous version of {@link #create(URI, Authentication, String...)}.</p>
      * <p>This function may block the calling thread for around a second.</p>
      */
-    static WebClient createSync(URI uri, boolean canSkipAuthentication, String... args) {
+    static WebClient createSync(URI uri, Authentication authentication, String... args) {
         WebClient webClient = new WebClient();
-        webClient.initializeSync(uri, canSkipAuthentication, args);
+        webClient.initializeSync(uri, authentication, args);
         return webClient;
     }
 
@@ -302,30 +342,11 @@ public class WebClient implements AutoCloseable {
                 .anyMatch(server -> server instanceof OmeroImageServer omeroImageServer && omeroImageServer.getClient().equals(this)));
     }
 
-    private CompletableFuture<WebClient> initialize(URI uri, boolean canSkipAuthentication, String... args) {
+    private CompletableFuture<WebClient> initialize(URI uri, Authentication authentication, String... args) {
         return ApisHandler.create(this, uri).thenApplyAsync(apisHandler -> {
             if (apisHandler.isPresent()) {
                 this.apisHandler = apisHandler.get();
-                try {
-                    Optional<String> usernameFromArgs = getCredentialFromArgs("--username", "-u", args);
-                    Optional<String> passwordFromArgs = getCredentialFromArgs("--password", "-p", args);
-
-                    if (
-                            (usernameFromArgs.isEmpty() || passwordFromArgs.isEmpty())
-                                    && canSkipAuthentication
-                                    && this.apisHandler.canSkipAuthentication().get()
-                    ) {
-                        return LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
-                    } else {
-                        return login(
-                                usernameFromArgs.orElse(null),
-                                passwordFromArgs.orElse(null)
-                        ).get();
-                    }
-                } catch (ExecutionException | InterruptedException e) {
-                    logger.error("Error initializing client", e);
-                    return LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED);
-                }
+                return authenticate(uri, authentication, args);
             } else {
                 return LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED);
             }
@@ -361,29 +382,14 @@ public class WebClient implements AutoCloseable {
         });
     }
 
-    private void initializeSync(URI uri, boolean canSkipAuthentication, String... args) {
+    private void initializeSync(URI uri, Authentication authentication, String... args) {
         try {
             var apisHandler = ApisHandler.create(this, uri).get();
 
             if (apisHandler.isPresent()) {
                 this.apisHandler = apisHandler.get();
 
-                Optional<String> usernameFromArgs = getCredentialFromArgs("--username", "-u", args);
-                Optional<String> passwordFromArgs = getCredentialFromArgs("--password", "-p", args);
-
-                LoginResponse loginResponse;
-                if (
-                        (usernameFromArgs.isEmpty() || passwordFromArgs.isEmpty())
-                                && canSkipAuthentication
-                                && this.apisHandler.canSkipAuthentication().get()
-                ) {
-                    loginResponse = LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
-                } else {
-                    loginResponse = login(
-                            usernameFromArgs.orElse(null),
-                            passwordFromArgs.orElse(null)
-                    ).get();
-                }
+                LoginResponse loginResponse = authenticate(uri, authentication, args);
 
                 LoginResponse.Status status = loginResponse.getStatus();
                 if (status.equals(LoginResponse.Status.SUCCESS) || status.equals(LoginResponse.Status.UNAUTHENTICATED)) {
@@ -420,32 +426,39 @@ public class WebClient implements AutoCloseable {
         }
     }
 
-    private static Optional<String> getCredentialFromArgs(
-            String credentialLabel,
-            String credentialLabelAlternative,
-            String... args
-    ) {
-        String credential = null;
-        int i = 0;
-        while (i < args.length-1) {
-            String parameter = args[i++];
-            if (credentialLabel.equals(parameter) || credentialLabelAlternative.equals(parameter)) {
-                credential = args[i++];
-            }
+    private LoginResponse authenticate(URI uri, Authentication authentication, String... args) {
+        try {
+            Optional<String> usernameFromArgs = getCredentialFromArgs("--username", "-u", args);
+            Optional<String> passwordFromArgs = getCredentialFromArgs("--password", "-p", args);
+
+            return switch (authentication) {
+                case ENFORCE -> login(
+                        usernameFromArgs.orElse(null),
+                        passwordFromArgs.orElse(null)
+                ).get();
+                case TRY_TO_SKIP -> {
+                    if (this.apisHandler.canSkipAuthentication()) {
+                        yield LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
+                    } else {
+                        yield login(
+                                usernameFromArgs.orElse(null),
+                                passwordFromArgs.orElse(null)
+                        ).get();
+                    }
+                }
+                case SKIP -> {
+                    if (this.apisHandler.canSkipAuthentication()) {
+                        yield LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
+                    } else {
+                        logger.warn(String.format("The server %s doesn't allow browsing without being authenticated", uri));
+                        yield LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED);
+                    }
+                }
+            };
+        } catch (ExecutionException | InterruptedException e) {
+            logger.error("Error initializing client", e);
+            return LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED);
         }
-
-        return Optional.ofNullable(credential);
-    }
-
-    private CompletableFuture<LoginResponse> login(@Nullable String username, @Nullable String password) {
-        return apisHandler.login(username, password).thenApply(loginResponse -> {
-            if (loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS)) {
-                setAuthenticationInformation(loginResponse);
-                startTimer();
-            }
-
-            return loginResponse;
-        });
     }
 
     private void setUpPixelAPIs() {
@@ -479,7 +492,35 @@ public class WebClient implements AutoCloseable {
                         .filter(PixelAPI::canAccessRawPixels)
                         .findAny()
                         .orElse(availablePixelAPIs.get(0))
-        ));
+                ));
+    }
+
+    private CompletableFuture<LoginResponse> login(@Nullable String username, @Nullable String password) {
+        return apisHandler.login(username, password).thenApply(loginResponse -> {
+            if (loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS)) {
+                setAuthenticationInformation(loginResponse);
+                startTimer();
+            }
+
+            return loginResponse;
+        });
+    }
+
+    private static Optional<String> getCredentialFromArgs(
+            String credentialLabel,
+            String credentialLabelAlternative,
+            String... args
+    ) {
+        String credential = null;
+        int i = 0;
+        while (i < args.length-1) {
+            String parameter = args[i++];
+            if (credentialLabel.equals(parameter) || credentialLabelAlternative.equals(parameter)) {
+                credential = args[i++];
+            }
+        }
+
+        return Optional.ofNullable(credential);
     }
 
     private void setAuthenticationInformation(LoginResponse loginResponse) {

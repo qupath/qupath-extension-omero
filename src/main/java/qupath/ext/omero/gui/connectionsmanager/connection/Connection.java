@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
 import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * <p>
@@ -54,6 +56,8 @@ public class Connection extends VBox {
     private Button connect;
     @FXML
     private Button login;
+    @FXML
+    private Button logout;
     @FXML
     private Button disconnect;
     @FXML
@@ -124,7 +128,10 @@ public class Connection extends VBox {
         );
 
         if (dialogConfirmed) {
-            WebClients.createClient(serverURI.toString(), newConnectionOptions.canSkipAuthentication()).thenAccept(client -> Platform.runLater(() -> {
+            WebClients.createClient(
+                    serverURI.toString(),
+                    newConnectionOptions.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
+            ).thenAccept(client -> Platform.runLater(() -> {
                 if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                     Dialogs.showInfoNotification(
                             resources.getString("ConnectionsManager.Connection.webServer"),
@@ -143,7 +150,8 @@ public class Connection extends VBox {
             WebClients.removeClient(client);
 
             WebClients.createClient(
-                    client.getApisHandler().getWebServerURI().toString(), false
+                    client.getApisHandler().getWebServerURI().toString(),
+                    WebClient.Authentication.ENFORCE
             ).thenAccept(client -> Platform.runLater(() -> {
                 if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                     Dialogs.showInfoNotification(
@@ -158,6 +166,35 @@ public class Connection extends VBox {
                     showConnectionError(this.client.getApisHandler().getWebServerURI().toString(), client.getFailReason().orElse(null));
                 }
             }));
+        }
+    }
+
+    @FXML
+    private void onLogoutClicked(ActionEvent ignoredEvent) {
+        if (client != null) {
+            WebClients.removeClient(client);
+
+            // The client may take some time to close, but it must be closed before
+            // attempting to create a new connection, so the unauthenticated client
+            // is created after 100ms
+            new Timer().schedule(
+                    new TimerTask() {
+                        @Override
+                        public void run() {
+                            WebClients.createClient(
+                                    client.getApisHandler().getWebServerURI().toString(),
+                                    WebClient.Authentication.SKIP
+                            ).thenAccept(client -> Platform.runLater(() -> Dialogs.showInfoNotification(
+                                    resources.getString("ConnectionsManager.Connection.logout"),
+                                    resources.getString(client.getStatus().equals(WebClient.Status.SUCCESS) ?
+                                            "ConnectionsManager.Connection.logoutSuccessful" :
+                                            "ConnectionsManager.Connection.logoutSuccessfulButNoUnauthenticated"
+                                    )
+                            )));
+                        }
+                    },
+                    100
+            );
         }
     }
 
@@ -204,8 +241,7 @@ public class Connection extends VBox {
         uri.setGraphic(UiUtilities.createStateNode(client != null));
 
         if (client == null) {
-
-            buttons.getChildren().removeAll(browse, login, disconnect);
+            buttons.getChildren().removeAll(browse, login, logout, disconnect);
         } else {
             if (client.isAuthenticated() && client.getUsername().isPresent()) {
                 uri.setText(String.format("%s (%s)", serverURI, client.getUsername().get()));
@@ -214,6 +250,12 @@ public class Connection extends VBox {
             buttons.getChildren().remove(connect);
             if (client.isAuthenticated()) {
                 buttons.getChildren().remove(login);
+
+                if (!client.getApisHandler().canSkipAuthentication()) {
+                    buttons.getChildren().remove(logout);
+                }
+            } else {
+                buttons.getChildren().remove(logout);
             }
 
             for (URI uri: connectionModel.getOpenedImagesURIs()) {

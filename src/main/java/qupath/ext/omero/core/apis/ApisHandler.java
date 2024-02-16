@@ -2,6 +2,8 @@ package qupath.ext.omero.core.apis;
 
 import com.drew.lang.annotations.Nullable;
 import javafx.beans.property.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
@@ -25,6 +27,7 @@ import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 /**
  * <p>This class provides functions to perform operations with an OMERO server.</p>
@@ -36,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ApisHandler implements AutoCloseable {
 
+    private static final Logger logger = LoggerFactory.getLogger(ApisHandler.class);
     private static final int THUMBNAIL_SIZE = 256;
     private static final Map<String, PixelType> PIXEL_TYPE_MAP = Map.of(
             "uint8", PixelType.UINT8,
@@ -48,19 +52,23 @@ public class ApisHandler implements AutoCloseable {
             "double", PixelType.FLOAT64
     );
     private final URI host;
+    private final JsonApi jsonApi;
     private final WebclientApi webclientApi;
     private final WebGatewayApi webGatewayApi;
     private final IViewerApi iViewerApi;
     private final Map<Long, BufferedImage> thumbnails = new ConcurrentHashMap<>();
     private final Map<Class<? extends RepositoryEntity>, BufferedImage> omeroIcons = new ConcurrentHashMap<>();
-    private JsonApi jsonApi;
+    private final boolean canSkipAuthentication;
 
-    private ApisHandler(URI host) {
+    private ApisHandler(URI host, JsonApi jsonApi, boolean canSkipAuthentication) {
         this.host = host;
 
-        webclientApi = new WebclientApi(host);
-        webGatewayApi = new WebGatewayApi(host);
-        iViewerApi = new IViewerApi(host);
+        this.jsonApi = jsonApi;
+        this.webclientApi = new WebclientApi(host, jsonApi.getToken());
+        this.webGatewayApi = new WebGatewayApi(host, jsonApi.getToken());
+        this.iViewerApi = new IViewerApi(host);
+
+        this.canSkipAuthentication = canSkipAuthentication;
     }
 
     /**
@@ -72,14 +80,14 @@ public class ApisHandler implements AutoCloseable {
      * @return a CompletableFuture with the request handler, an empty Optional if an error occurred
      */
     public static CompletableFuture<Optional<ApisHandler>> create(WebClient client, URI host) {
-        ApisHandler apisHandler = new ApisHandler(host);
-
-        return JsonApi.create(client, host).thenApply(jsonApi -> {
+        return JsonApi.create(client, host).thenApplyAsync(jsonApi -> {
             if (jsonApi.isPresent()) {
-                apisHandler.jsonApi = jsonApi.get();
-                apisHandler.webclientApi.setToken(jsonApi.get().getToken());
-                apisHandler.webGatewayApi.setToken(jsonApi.get().getToken());
-                return Optional.of(apisHandler);
+                try {
+                    return Optional.of(new ApisHandler(host, jsonApi.get(), jsonApi.get().canSkipAuthentication().get()));
+                } catch (InterruptedException | ExecutionException e) {
+                    logger.error("Error when creating APIs handler", e);
+                    return Optional.empty();
+                }
             } else {
                 return Optional.empty();
             }
@@ -139,6 +147,14 @@ public class ApisHandler implements AutoCloseable {
      */
     public int getServerPort() {
         return jsonApi.getServerPort();
+    }
+
+    /**
+     *
+     * @return whether the server can be browsed without being authenticated
+     */
+    public boolean canSkipAuthentication() {
+        return canSkipAuthentication;
     }
 
     /**
@@ -468,13 +484,6 @@ public class ApisHandler implements AutoCloseable {
                 return thumbnail;
             });
         }
-    }
-
-    /**
-     * See {@link JsonApi#canSkipAuthentication()}.
-     */
-    public CompletableFuture<Boolean> canSkipAuthentication() {
-        return jsonApi.canSkipAuthentication();
     }
 
     /**
