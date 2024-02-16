@@ -13,7 +13,7 @@ public class TestWebClients extends OmeroServer {
 
     abstract static class GenericWebClientCreation {
 
-        protected abstract WebClient createClient(String url, String... args) throws ExecutionException, InterruptedException;
+        protected abstract WebClient createClient(String url, WebClient.Authentication authentication, String... args) throws ExecutionException, InterruptedException;
 
         @Test
         void Check_Client_Creation_With_Public_User() throws ExecutionException, InterruptedException {
@@ -23,7 +23,7 @@ public class TestWebClients extends OmeroServer {
 
             int attempt = 0;
             do {
-                client = createClient(OmeroServer.getWebServerURI());
+                client = createClient(OmeroServer.getWebServerURI(), WebClient.Authentication.SKIP);
             } while (!client.getStatus().equals(expectedStatus) && ++attempt < numberOfAttempts);
             WebClient.Status status = client.getStatus();
 
@@ -36,6 +36,7 @@ public class TestWebClients extends OmeroServer {
         void Check_Client_Creation_With_Root_User() throws ExecutionException, InterruptedException {
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
+                    WebClient.Authentication.ENFORCE,
                     "-u",
                     OmeroServer.getRootUsername(),
                     "-p",
@@ -54,6 +55,7 @@ public class TestWebClients extends OmeroServer {
         void Check_Client_Creation_With_Incorrect_Username() throws ExecutionException, InterruptedException {
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
+                    WebClient.Authentication.ENFORCE,
                     "-u",
                     "incorrect_username",
                     "-p",
@@ -72,6 +74,7 @@ public class TestWebClients extends OmeroServer {
         void Check_Client_Creation_With_Incorrect_Password() throws ExecutionException, InterruptedException {
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
+                    WebClient.Authentication.ENFORCE,
                     "-u",
                     OmeroServer.getRootUsername(),
                     "-p",
@@ -90,6 +93,7 @@ public class TestWebClients extends OmeroServer {
         void Check_Client_Creation_With_Invalid_URI() throws ExecutionException, InterruptedException {
             WebClient client = createClient(
                     "",
+                    WebClient.Authentication.ENFORCE,
                     "-u",
                     OmeroServer.getRootUsername(),
                     "-p",
@@ -108,6 +112,7 @@ public class TestWebClients extends OmeroServer {
         void Check_Client_List_After_Added() throws ExecutionException, InterruptedException {
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
+                    WebClient.Authentication.ENFORCE,
                     "-u",
                     OmeroServer.getRootUsername(),
                     "-p",
@@ -126,6 +131,7 @@ public class TestWebClients extends OmeroServer {
         void Check_Client_List_After_Removed() throws ExecutionException, InterruptedException {
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
+                    WebClient.Authentication.ENFORCE,
                     "-u",
                     OmeroServer.getRootUsername(),
                     "-p",
@@ -144,8 +150,8 @@ public class TestWebClients extends OmeroServer {
     class AsyncCreation extends GenericWebClientCreation {
 
         @Override
-        protected WebClient createClient(String url, String... args) throws ExecutionException, InterruptedException {
-            return WebClients.createClient(url, WebClient.Authentication.TRY_TO_SKIP, args).get();
+        protected WebClient createClient(String url, WebClient.Authentication authentication, String... args) throws ExecutionException, InterruptedException {
+            return WebClients.createClient(url, authentication, args).get();
         }
     }
 
@@ -153,8 +159,8 @@ public class TestWebClients extends OmeroServer {
     class SyncCreation extends GenericWebClientCreation {
 
         @Override
-        protected WebClient createClient(String url, String... args) {
-            return WebClients.createClientSync(url, WebClient.Authentication.TRY_TO_SKIP, args);
+        protected WebClient createClient(String url, WebClient.Authentication authentication, String... args) {
+            return WebClients.createClientSync(url, authentication, args);
         }
     }
 }
