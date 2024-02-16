@@ -181,18 +181,16 @@ public class Connection extends VBox {
                     new TimerTask() {
                         @Override
                         public void run() {
-                            Platform.runLater(() ->
-                                    WebClients.createClient(
-                                            client.getApisHandler().getWebServerURI().toString(),
-                                            WebClient.Authentication.SKIP
-                                    ).thenAccept(client -> Platform.runLater(() -> Dialogs.showInfoNotification(
-                                            resources.getString("ConnectionsManager.Connection.logout"),
-                                            resources.getString(client.getStatus().equals(WebClient.Status.SUCCESS) ?
-                                                    "ConnectionsManager.Connection.logoutSuccessful" :
-                                                    "ConnectionsManager.Connection.logoutSuccessfulButNoUnauthenticated"
-                                            )
-                                    )))
-                            );
+                            WebClients.createClient(
+                                    client.getApisHandler().getWebServerURI().toString(),
+                                    WebClient.Authentication.SKIP
+                            ).thenAccept(client -> Platform.runLater(() -> Dialogs.showInfoNotification(
+                                    resources.getString("ConnectionsManager.Connection.logout"),
+                                    resources.getString(client.getStatus().equals(WebClient.Status.SUCCESS) ?
+                                            "ConnectionsManager.Connection.logoutSuccessful" :
+                                            "ConnectionsManager.Connection.logoutSuccessfulButNoUnauthenticated"
+                                    )
+                            )));
                         }
                     },
                     100
@@ -249,7 +247,16 @@ public class Connection extends VBox {
                 uri.setText(String.format("%s (%s)", serverURI, client.getUsername().get()));
             }
 
-            buttons.getChildren().removeAll(connect, client.isAuthenticated() ? login : logout);
+            buttons.getChildren().remove(connect);
+            if (client.isAuthenticated()) {
+                buttons.getChildren().remove(login);
+
+                if (!client.getApisHandler().canSkipAuthentication()) {
+                    buttons.getChildren().remove(logout);
+                }
+            } else {
+                buttons.getChildren().remove(logout);
+            }
 
             for (URI uri: connectionModel.getOpenedImagesURIs()) {
                 imagesContainer.getChildren().add(new Image(client, uri));

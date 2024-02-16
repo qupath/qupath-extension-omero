@@ -437,7 +437,7 @@ public class WebClient implements AutoCloseable {
                         passwordFromArgs.orElse(null)
                 ).get();
                 case TRY_TO_SKIP -> {
-                    if (this.apisHandler.canSkipAuthentication().get()) {
+                    if (this.apisHandler.canSkipAuthentication()) {
                         yield LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
                     } else {
                         yield login(
@@ -447,7 +447,7 @@ public class WebClient implements AutoCloseable {
                     }
                 }
                 case SKIP -> {
-                    if (this.apisHandler.canSkipAuthentication().get()) {
+                    if (this.apisHandler.canSkipAuthentication()) {
                         yield LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
                     } else {
                         logger.warn(String.format("The server %s doesn't allow browsing without being authenticated", uri));

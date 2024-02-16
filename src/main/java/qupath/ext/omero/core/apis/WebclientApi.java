@@ -68,15 +68,18 @@ class WebclientApi implements AutoCloseable {
     );
     private final URI host;
     private final URI pingUri;
-    private String token;
+    private final String token;
 
     /**
      * Creates a web client.
      *
      * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     *               used by this session. This is needed to properly close this API.
      */
-    public WebclientApi(URI host) {
+    public WebclientApi(URI host, String token) {
         this.host = host;
+        this.token = token;
 
         pingUri = WebUtilities.createURI(String.format(PING_URL, host)).orElse(null);
     }
@@ -96,16 +99,6 @@ class WebclientApi implements AutoCloseable {
     @Override
     public String toString() {
         return String.format("Webclient API of %s", host);
-    }
-
-    /**
-     * Set the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     * used by this session. This is needed to properly close this API.
-     *
-     * @param token  the CSRF token of the session
-     */
-    public void setToken(String token) {
-        this.token = token;
     }
 
     /**

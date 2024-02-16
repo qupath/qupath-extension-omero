@@ -57,11 +57,25 @@
                             </font>
                         </Label>
                         <Label text="%Browser.ServerBrowser.username" GridPane.rowIndex="1" />
-                        <Label fx:id="username" GridPane.columnIndex="1" GridPane.rowIndex="1">
-                            <font>
-                                <Font name="System Bold" size="13.0" />
-                            </font>
-                        </Label>
+                     <HBox fx:id="usernameContainer" alignment="CENTER_LEFT" spacing="10.0" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                        <children>
+                              <Label fx:id="username">
+                                  <font>
+                                      <Font name="System Bold" size="13.0" />
+                                  </font>
+                              </Label>
+                           <Button fx:id="login" mnemonicParsing="false" onAction="#onLoginClicked" text="%Browser.ServerBrowser.login">
+                              <tooltip>
+                                 <Tooltip text="%Browser.ServerBrowser.loginDescription" />
+                              </tooltip>
+                           </Button>
+                           <Button fx:id="logout" mnemonicParsing="false" onAction="#onLogoutClicked" text="%Browser.ServerBrowser.logout">
+                              <tooltip>
+                                 <Tooltip text="%Browser.ServerBrowser.logoutDescription" />
+                              </tooltip>
+                           </Button>
+                        </children>
+                     </HBox>
                         <Label text="%Browser.ServerBrowser.openedImages" GridPane.rowIndex="2" />
                         <Label fx:id="numberOpenImages" GridPane.columnIndex="1" GridPane.rowIndex="2">
                             <font>
@@ -70,8 +84,8 @@
                         </Label>
                         <Label text="%Browser.ServerBrowser.pixelAPI" GridPane.rowIndex="3" />
                         <HBox alignment="CENTER" spacing="20.0" GridPane.columnIndex="1" GridPane.rowIndex="3">
-                            <ComboBox fx:id="pixelAPI" maxWidth="1.7976931348623157E308"/>
-                            <Label fx:id="rawPixelAccess"/>
+                            <ComboBox fx:id="pixelAPI" maxWidth="1.7976931348623157E308" />
+                            <Label fx:id="rawPixelAccess" />
                         </HBox>
                     </GridPane>
                     <Region HBox.hgrow="ALWAYS" />
