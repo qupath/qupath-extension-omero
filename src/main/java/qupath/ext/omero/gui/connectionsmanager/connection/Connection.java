@@ -181,18 +181,18 @@ public class Connection extends VBox {
                     new TimerTask() {
                         @Override
                         public void run() {
-                            Platform.runLater(() -> {
-                                WebClients.createClient(
-                                        client.getApisHandler().getWebServerURI().toString(),
-                                        WebClient.Authentication.SKIP
-                                ).thenAccept(client -> Platform.runLater(() -> Dialogs.showInfoNotification(
-                                        resources.getString("ConnectionsManager.Connection.logout"),
-                                        resources.getString(client.getStatus().equals(WebClient.Status.SUCCESS) ?
-                                                "ConnectionsManager.Connection.logoutSuccessful" :
-                                                "ConnectionsManager.Connection.logoutSuccessfulButNoUnauthenticated"
-                                        )
-                                )));
-                            });
+                            Platform.runLater(() ->
+                                    WebClients.createClient(
+                                            client.getApisHandler().getWebServerURI().toString(),
+                                            WebClient.Authentication.SKIP
+                                    ).thenAccept(client -> Platform.runLater(() -> Dialogs.showInfoNotification(
+                                            resources.getString("ConnectionsManager.Connection.logout"),
+                                            resources.getString(client.getStatus().equals(WebClient.Status.SUCCESS) ?
+                                                    "ConnectionsManager.Connection.logoutSuccessful" :
+                                                    "ConnectionsManager.Connection.logoutSuccessfulButNoUnauthenticated"
+                                            )
+                                    )))
+                            );
                         }
                     },
                     100
