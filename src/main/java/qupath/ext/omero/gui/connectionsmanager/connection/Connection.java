@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
 import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * <p>
@@ -55,6 +57,8 @@ public class Connection extends VBox {
     @FXML
     private Button login;
     @FXML
+    private Button logout;
+    @FXML
     private Button disconnect;
     @FXML
     private Button remove;
@@ -62,8 +66,6 @@ public class Connection extends VBox {
     private TitledPane imagesPane;
     @FXML
     private VBox imagesContainer;
-
-    //TODO: add logout button
 
     /**
      * Creates the connection pane using a {@link WebClient WebClient}.
@@ -168,6 +170,37 @@ public class Connection extends VBox {
     }
 
     @FXML
+    private void onLogoutClicked(ActionEvent ignoredEvent) {
+        if (client != null) {
+            WebClients.removeClient(client);
+
+            // The client may take some time to close, but it must be closed before
+            // attempting to create a new connection, so the unauthenticated client
+            // is created after 100ms
+            new Timer().schedule(
+                    new TimerTask() {
+                        @Override
+                        public void run() {
+                            Platform.runLater(() -> {
+                                WebClients.createClient(
+                                        client.getApisHandler().getWebServerURI().toString(),
+                                        WebClient.Authentication.SKIP
+                                ).thenAccept(client -> Platform.runLater(() -> Dialogs.showInfoNotification(
+                                        resources.getString("ConnectionsManager.Connection.logout"),
+                                        resources.getString(client.getStatus().equals(WebClient.Status.SUCCESS) ?
+                                                "ConnectionsManager.Connection.logoutSuccessful" :
+                                                "ConnectionsManager.Connection.logoutSuccessfulButNoUnauthenticated"
+                                        )
+                                )));
+                            });
+                        }
+                    },
+                    100
+            );
+        }
+    }
+
+    @FXML
     private void onDisconnectClicked(ActionEvent ignoredEvent) {
         if (client != null) {
             if (client.canBeClosed()) {
@@ -210,18 +243,13 @@ public class Connection extends VBox {
         uri.setGraphic(UiUtilities.createStateNode(client != null));
 
         if (client == null) {
-            buttons.getChildren().removeAll(browse, login, disconnect);
+            buttons.getChildren().removeAll(browse, login, logout, disconnect);
         } else {
             if (client.isAuthenticated() && client.getUsername().isPresent()) {
                 uri.setText(String.format("%s (%s)", serverURI, client.getUsername().get()));
             }
 
-            buttons.getChildren().remove(connect);
-            if (client.isAuthenticated()) {
-                buttons.getChildren().remove(login);
-            }
-
-            //TODO: add logout only if apisHandler.canSkipAuthentication
+            buttons.getChildren().removeAll(connect, client.isAuthenticated() ? login : logout);
 
             for (URI uri: connectionModel.getOpenedImagesURIs()) {
                 imagesContainer.getChildren().add(new Image(client, uri));

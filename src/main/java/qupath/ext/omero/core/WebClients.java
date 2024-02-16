@@ -124,7 +124,8 @@ public class WebClients {
     }
 
     /**
-     * Close the given client connection.
+     * Close the given client connection. The function may return
+     * before the connection is actually closed.
      *
      * @param client  the client to remove
      */
