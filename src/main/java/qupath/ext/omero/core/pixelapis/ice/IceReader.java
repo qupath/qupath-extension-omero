@@ -13,7 +13,6 @@ import omero.gateway.model.PixelsData;
 import omero.model.ExperimenterGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
@@ -48,14 +47,15 @@ class IceReader implements PixelAPIReader {
     /**
      * Creates a new Ice reader.
      *
-     * @param client  the WebClient owning the image to open
+     * @param apisHandler  the ApisHandler owning the image to open
+     * @param sessionUuid  the session UUID of the client connection
      * @param imageID  the ID of the image to open
      * @param channels  the channels of the image to open
      * @throws IOException  when the reader creation fails
      */
-    public IceReader(WebClient client, long imageID, List<ImageChannel> channels) throws IOException {
+    public IceReader(ApisHandler apisHandler, String sessionUuid, long imageID, List<ImageChannel> channels) throws IOException {
         try {
-            ExperimenterData user = connect(client);
+            ExperimenterData user = connect(apisHandler, sessionUuid);
 
             context = new SecurityContext(user.getGroupId());
 
@@ -147,35 +147,36 @@ class IceReader implements PixelAPIReader {
      * used, and if not successful, the OMERO server host will be used (see
      * {@link ApisHandler#getServerURI()}).
      *
-     * @param client  the connection to use
+     * @param apisHandler  the ApisHandler owning the image to open
+     * @param sessionUuid  the session UUID of the client connection
      * @return a valid connection
      * @throws DSOutOfServiceException when a connection cannot be established
      */
-    private ExperimenterData connect(WebClient client) throws DSOutOfServiceException {
-        String firstURI = client.getApisHandler().getWebServerURI().getHost();
-        String secondURI = client.getApisHandler().getServerURI();
+    private ExperimenterData connect(ApisHandler apisHandler, String sessionUuid) throws DSOutOfServiceException {
+        String firstURI = apisHandler.getWebServerURI().getHost();
+        String secondURI = apisHandler.getServerURI();
 
         try {
             return gateway.connect(new LoginCredentials(
-                    client.getSessionUuid().orElse(""),
-                    client.getSessionUuid().orElse(""),
+                    sessionUuid,
+                    sessionUuid,
                     firstURI,
-                    client.getApisHandler().getServerPort()
+                    apisHandler.getServerPort()
             ));
         } catch (Exception e) {
             logger.warn(String.format(
                     "Can't connect to %s:%d. Trying %s:%d...",
                     firstURI,
-                    client.getApisHandler().getServerPort(),
+                    apisHandler.getServerPort(),
                     secondURI,
-                    client.getApisHandler().getServerPort()
+                    apisHandler.getServerPort()
             ), e);
 
             return gateway.connect(new LoginCredentials(
-                    client.getSessionUuid().orElse(""),
-                    client.getSessionUuid().orElse(""),
+                    sessionUuid,
+                    sessionUuid,
                     secondURI,
-                    client.getApisHandler().getServerPort()
+                    apisHandler.getServerPort()
             ));
         }
     }

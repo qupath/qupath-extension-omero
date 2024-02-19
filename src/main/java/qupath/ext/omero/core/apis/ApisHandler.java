@@ -1,7 +1,8 @@
 package qupath.ext.omero.core.apis;
 
 import com.drew.lang.annotations.Nullable;
-import javafx.beans.property.*;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
@@ -14,13 +15,13 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.lib.images.servers.*;
-import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.entities.imagemetadata.ImageMetadataResponse;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.lib.images.servers.PixelType;
+import qupath.lib.images.servers.TileRequest;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
@@ -75,12 +76,11 @@ public class ApisHandler implements AutoCloseable {
      * <p>Attempt to create a request handler.</p>
      * <p>This function is asynchronous.</p>
      *
-     * @param client  the corresponding web client
      * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
      * @return a CompletableFuture with the request handler, an empty Optional if an error occurred
      */
-    public static CompletableFuture<Optional<ApisHandler>> create(WebClient client, URI host) {
-        return JsonApi.create(client, host).thenApplyAsync(jsonApi -> {
+    public static CompletableFuture<Optional<ApisHandler>> create(URI host) {
+        return JsonApi.create(host).thenApplyAsync(jsonApi -> {
             if (jsonApi.isPresent()) {
                 try {
                     return Optional.of(new ApisHandler(host, jsonApi.get(), jsonApi.get().canSkipAuthentication().get()));
@@ -280,17 +280,27 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getNumberOfOrphanedImages()}.
+     * <p>Attempt to get the number of orphaned images of this server.</p>
+     *
+     * @return a CompletableFuture with the number of orphaned images, or 0 if it couldn't be retrieved
      */
     public CompletableFuture<Integer> getNumberOfOrphanedImages() {
-        return jsonApi.getNumberOfOrphanedImages();
+        return getOrphanedImagesIds().thenApply(jsonApi::getNumberOfOrphanedImages);
     }
 
     /**
-     * See {@link JsonApi#populateOrphanedImagesIntoList(List)}.
+     * <p>
+     *     Populate all orphaned images of this server to the list specified in parameter.
+     *     This function populates and doesn't return a list because the number of images can
+     *     be large, so this operation can take tens of seconds.
+     * </p>
+     * <p>The list can be updated from any thread.</p>
+     *
+     * @param children  the list which should be populated by the orphaned images. It should
+     *                  be possible to add elements to this list
      */
     public void populateOrphanedImagesIntoList(List<Image> children) {
-        jsonApi.populateOrphanedImagesIntoList(children);
+        getOrphanedImagesIds().thenAccept(orphanedImageIds -> jsonApi.populateOrphanedImagesIntoList(children, orphanedImageIds));
     }
 
     /**

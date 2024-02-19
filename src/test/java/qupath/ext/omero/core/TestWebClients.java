@@ -6,7 +6,9 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
 
+import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
 public class TestWebClients extends OmeroServer {
@@ -106,6 +108,43 @@ public class TestWebClients extends OmeroServer {
             Assertions.assertEquals(expectedFailReason, failReason);
 
             WebClients.removeClient(client);
+        }
+
+        @Test
+        void Check_Client_Can_Be_Retrieved_After_Added() throws ExecutionException, InterruptedException {
+            URI uri = URI.create(OmeroServer.getWebServerURI());
+            WebClient expectedClient = createClient(
+                    uri.toString(),
+                    WebClient.Authentication.ENFORCE,
+                    "-u",
+                    OmeroServer.getRootUsername(),
+                    "-p",
+                    OmeroServer.getRootPassword()
+            );
+
+            WebClient client = WebClients.getClientFromURI(uri).orElse(null);
+
+            Assertions.assertEquals(expectedClient, client);
+
+            WebClients.removeClient(expectedClient);
+        }
+
+        @Test
+        void Check_Client_Cannot_Be_Retrieved_After_Removed() throws ExecutionException, InterruptedException {
+            URI uri = URI.create(OmeroServer.getWebServerURI());
+            WebClient removedClient = createClient(
+                    uri.toString(),
+                    WebClient.Authentication.ENFORCE,
+                    "-u",
+                    OmeroServer.getRootUsername(),
+                    "-p",
+                    OmeroServer.getRootPassword()
+            );
+
+            WebClients.removeClient(removedClient);
+            Optional<WebClient> client = WebClients.getClientFromURI(uri);
+
+            Assertions.assertTrue(client.isEmpty());
         }
 
         @Test

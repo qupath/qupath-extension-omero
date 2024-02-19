@@ -2,14 +2,19 @@ package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.common.collect.Lists;
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.*;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import qupath.ext.omero.core.apis.ApisHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 
+import java.net.URI;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public class PlateAcquisition extends ServerEntity {
 
+    private static final Logger logger = LoggerFactory.getLogger(PlateAcquisition.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final String[] ATTRIBUTES = new String[] {
             resources.getString("Web.Entities.PlateAcquisition.name"),
@@ -34,7 +40,7 @@ public class PlateAcquisition extends ServerEntity {
     private final transient ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final transient StringProperty label = new SimpleStringProperty((this.name == null ? "" : this.name) + " (0)");
     private transient boolean childrenPopulated = false;
-    private transient ApisHandler apisHandler;
+    private transient URI webServerURI;
     private transient boolean isPopulating = false;
     private transient int numberOfWells = 0;
     @SerializedName(value = "omero:wellsampleIndex") private List<Integer> wellSampleIndices;
@@ -61,7 +67,7 @@ public class PlateAcquisition extends ServerEntity {
     }
 
     /**
-     * @throws IllegalStateException when the APIs handler has not been set (see {@link #setApisHandler(ApisHandler)})
+     * @throws IllegalStateException when the web server URI has not been set (see {@link #setWebServerURI(URI)})
      */
     @Override
     public ObservableList<? extends RepositoryEntity> getChildren() {
@@ -124,12 +130,12 @@ public class PlateAcquisition extends ServerEntity {
     }
 
     /**
-     * Set the APIs handler for this plate acquisition. This is needed to populate its children.
+     * Set the web server URI of the server owning this plate acquisition. This is needed to populate its children.
      *
-     * @param apisHandler the APIs handler of this browser
+     * @param webServerURI the web server URI of this server
      */
-    public void setApisHandler(ApisHandler apisHandler) {
-        this.apisHandler = apisHandler;
+    public void setWebServerURI(URI webServerURI) {
+        this.webServerURI = webServerURI;
     }
 
     /**
@@ -143,35 +149,41 @@ public class PlateAcquisition extends ServerEntity {
     }
 
     private void populateChildren() {
-        if (apisHandler == null) {
+        if (webServerURI == null) {
             throw new IllegalStateException(
-                    "The APIs handler has not been set on this plate acquisition. See the setApisHandler(ApisHandler) function."
+                    "The web server URI has not been set on this plate acquisition. See the setWebServerURI(URI) function."
             );
         } else {
-            isPopulating = true;
+            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+                isPopulating = true;
 
-            int wellSampleIndex = 0;
-            if (wellSampleIndices != null && wellSampleIndices.size() > 1) {
-                wellSampleIndex = wellSampleIndices.get(0);
-            }
-
-            apisHandler.getWellsFromPlateAcquisition(getId(), wellSampleIndex).thenAcceptAsync(wells -> {
-                List<Long> ids = wells.stream()
-                        .map(well -> well.getImagesIds(true))
-                        .flatMap(List::stream)
-                        .toList();
-                List<List<Long>> batches = Lists.partition(ids, 16);
-
-                for (List<Long> batch: batches) {
-                    children.addAll(batch.stream()
-                            .map(id -> apisHandler.getImage(id))
-                            .map(CompletableFuture::join)
-                            .flatMap(Optional::stream)
-                            .toList());
+                int wellSampleIndex = 0;
+                if (wellSampleIndices != null && wellSampleIndices.size() > 1) {
+                    wellSampleIndex = wellSampleIndices.get(0);
                 }
 
-                isPopulating = false;
-            });
+                client.getApisHandler().getWellsFromPlateAcquisition(getId(), wellSampleIndex).thenAcceptAsync(wells -> {
+                    List<Long> ids = wells.stream()
+                            .map(well -> well.getImagesIds(true))
+                            .flatMap(List::stream)
+                            .toList();
+                    List<List<Long>> batches = Lists.partition(ids, 16);
+
+                    for (List<Long> batch: batches) {
+                        children.addAll(batch.stream()
+                                .map(id -> client.getApisHandler().getImage(id))
+                                .map(CompletableFuture::join)
+                                .flatMap(Optional::stream)
+                                .toList());
+                    }
+
+                    isPopulating = false;
+                });
+            }, () -> logger.warn(String.format(
+                    "Could not find the web client corresponding to %s. Impossible to get the children of this plate acquisition (%s).",
+                    webServerURI,
+                    this
+            )));
         }
     }
 }

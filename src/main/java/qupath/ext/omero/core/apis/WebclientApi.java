@@ -11,7 +11,12 @@ import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.FileAnnotation;
 import qupath.ext.omero.core.entities.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
@@ -46,14 +51,14 @@ class WebclientApi implements AutoCloseable {
     private static final String LOGOUT_URL = "%s/webclient/logout/";
     private static final String ORPHANED_IMAGES_URL = "%s/webclient/api/images/?orphaned=true";
     private static final String READ_ANNOTATION_URL = "%s/webclient/api/annotations/?%s=%d";
-    private final static String SEARCH_URL = "%s/webclient/load_searching/form/" +
+    private static final String SEARCH_URL = "%s/webclient/load_searching/form/" +
             "?query=%s&%s&%s&searchGroup=%s&ownedBy=%s" +
             "&useAcquisitionDate=false&startdateinput=&enddateinput=&_=%d";
-    private final static String WRITE_KEY_VALUES_URL = "%s/webclient/annotate_map/";
-    private final static String WRITE_NAME_URL = "%s/webclient/action/savename/image/%d/";
-    private final static String WRITE_CHANNEL_NAMES_URL = "%s/webclient/edit_channel_names/%d/";
-    private final static String SEND_ATTACHMENT_URL = "%s/webclient/annotate_file/";
-    private final static String DELETE_ATTACHMENT_URL = "%s/webclient/action/delete/file/%d/";
+    private static final String WRITE_KEY_VALUES_URL = "%s/webclient/annotate_map/";
+    private static final String WRITE_NAME_URL = "%s/webclient/action/savename/image/%d/";
+    private static final String WRITE_CHANNEL_NAMES_URL = "%s/webclient/edit_channel_names/%d/";
+    private static final String SEND_ATTACHMENT_URL = "%s/webclient/annotate_file/";
+    private static final String DELETE_ATTACHMENT_URL = "%s/webclient/action/delete/file/%d/";
     private static final String IMAGE_ICON_URL = "%s/static/webclient/image/image16.png";
     private static final String SCREEN_ICON_URL = "%s/static/webclient/image/folder_screen16.png";
     private static final String PLATE_ICON_URL = "%s/static/webclient/image/folder_plate16.png";

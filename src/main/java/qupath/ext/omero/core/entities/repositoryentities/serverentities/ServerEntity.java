@@ -1,16 +1,22 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -80,12 +86,12 @@ public abstract class ServerEntity implements RepositoryEntity {
      * If an entity cannot be created from a JSON element, it is discarded.
      *
      * @param jsonElements  the JSON elements supposed to represent server entities
-     * @param client the corresponding web client
+     * @param uri  the URI of the corresponding web server
      * @return a stream of server entities
      */
-    public static Stream<ServerEntity> createFromJsonElements(List<JsonElement> jsonElements, WebClient client) {
+    public static Stream<ServerEntity> createFromJsonElements(List<JsonElement> jsonElements, URI uri) {
         return jsonElements.stream()
-                .map(jsonElement -> createFromJsonElement(jsonElement, client))
+                .map(jsonElement -> createFromJsonElement(jsonElement, uri))
                 .flatMap(Optional::stream);
     }
 
@@ -93,11 +99,11 @@ public abstract class ServerEntity implements RepositoryEntity {
      * Creates a server entity from a JSON element.
      *
      * @param jsonElement  the JSON element supposed to represent a server entity
-     * @param client the corresponding web client
+     * @param uri  the URI of the corresponding web server
      * @return a server entity, or an empty Optional if it was impossible to create
      */
-    public static Optional<ServerEntity> createFromJsonElement(JsonElement jsonElement, WebClient client) {
-        Gson deserializer = new GsonBuilder().registerTypeAdapter(ServerEntity.class, new ServerEntityDeserializer(client)).setLenient().create();
+    public static Optional<ServerEntity> createFromJsonElement(JsonElement jsonElement, URI uri) {
+        Gson deserializer = new GsonBuilder().registerTypeAdapter(ServerEntity.class, new ServerEntityDeserializer(uri)).setLenient().create();
 
         try {
             return Optional.ofNullable(deserializer.fromJson(jsonElement, ServerEntity.class));
@@ -128,7 +134,7 @@ public abstract class ServerEntity implements RepositoryEntity {
         return group;
     }
 
-    private record ServerEntityDeserializer(WebClient client) implements JsonDeserializer<ServerEntity> {
+    private record ServerEntityDeserializer(URI uri) implements JsonDeserializer<ServerEntity> {
         @Override
         public ServerEntity deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) {
             try {
@@ -137,22 +143,22 @@ public abstract class ServerEntity implements RepositoryEntity {
                 ServerEntity serverEntity = null;
                 if (Image.isImage(type)) {
                     serverEntity = context.deserialize(json, Image.class);
-                    ((Image) serverEntity).setWebClient(client);
+                    ((Image) serverEntity).setWebServerURI(uri);
                 } else if (Dataset.isDataset(type)) {
                     serverEntity = context.deserialize(json, Dataset.class);
-                    ((Dataset) serverEntity).setApisHandler(client.getApisHandler());
+                    ((Dataset) serverEntity).setWebServerURI(uri);
                 } else if (Project.isProject(type)) {
                     serverEntity = context.deserialize(json, Project.class);
-                    ((Project) serverEntity).setApisHandler(client.getApisHandler());
+                    ((Project) serverEntity).setWebServerURI(uri);
                 } else if (Screen.isScreen(type)) {
                     serverEntity = context.deserialize(json, Screen.class);
-                    ((Screen) serverEntity).setApisHandler(client.getApisHandler());
+                    ((Screen) serverEntity).setWebServerURI(uri);
                 } else if (Plate.isPlate(type)) {
                     serverEntity = context.deserialize(json, Plate.class);
-                    ((Plate) serverEntity).setApisHandler(client.getApisHandler());
+                    ((Plate) serverEntity).setWebServerURI(uri);
                 } else if (PlateAcquisition.isPlateAcquisition(type)) {
                     serverEntity = context.deserialize(json, PlateAcquisition.class);
-                    ((PlateAcquisition) serverEntity).setApisHandler(client.getApisHandler());
+                    ((PlateAcquisition) serverEntity).setWebServerURI(uri);
                 } else if (Well.isWell(type)) {
                     serverEntity = context.deserialize(json, Well.class);
                 } else {

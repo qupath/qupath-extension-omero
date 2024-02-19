@@ -1,16 +1,30 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities.image;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
+import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 
-import java.util.*;
+import java.net.URI;
+import java.util.Date;
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.ResourceBundle;
+import java.util.Set;
 
 /**
  * <p>
@@ -22,6 +36,7 @@ import java.util.*;
  */
 public class Image extends ServerEntity {
 
+    private static final Logger logger = LoggerFactory.getLogger(Image.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final String[] ATTRIBUTES = new String[] {
             resources.getString("Web.Entities.Image.name"),
@@ -44,9 +59,21 @@ public class Image extends ServerEntity {
     private transient BooleanProperty isSupported;
     @SerializedName(value = "AcquisitionDate") private long acquisitionDate;
     @SerializedName(value = "Pixels") private PixelInfo pixels;
+    /**
+     * The reason why an image may not be supported by a pixel API
+     */
     public enum UnsupportedReason {
+        /**
+         * The selected pixel API does not support images with this number of channels
+         */
         NUMBER_OF_CHANNELS,
+        /**
+         * The selected pixel API does not support images with this pixel type
+         */
         PIXEL_TYPE,
+        /**
+         * The selected pixel API is not available
+         */
         PIXEL_API_UNAVAILABLE
     }
 
@@ -156,28 +183,36 @@ public class Image extends ServerEntity {
     }
 
     /**
-     * Set the web client of this image. This is needed to determine if this image
+     * Indicate the web server URI corresponding to this image. This is needed to determine if this image
      * can be opened.
      *
-     * @param client the web client of this image
+     * @param webServerURI the web server URI of this image
      */
-    public void setWebClient(WebClient client) {
-        isSupported = new SimpleBooleanProperty();
+    public void setWebServerURI(URI webServerURI) {
+        isSupported = new SimpleBooleanProperty(false);
         unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
 
-        setSupported(client);
-        client.getSelectedPixelAPI().addListener(change -> setSupported(client));
+        WebClients.getClientFromURI(webServerURI).map(WebClient::getSelectedPixelAPI).ifPresentOrElse(selectedPixelAPI -> {
+            setSupported(selectedPixelAPI);
+            selectedPixelAPI.addListener(change -> setSupported(selectedPixelAPI));
+        }, () ->
+                logger.warn(String.format(
+                        "Could not find the web client corresponding to %s. Impossible to determine if this image (%s) is supported.",
+                        webServerURI,
+                        this
+                ))
+        );
     }
 
     /**
      * @return whether this image can be opened within QuPath. This property may be updated
      * from any thread
-     * @throws IllegalStateException when the web client has not been set (see {@link #setWebClient(WebClient)})
+     * @throws IllegalStateException when the web server URI has not been set (see {@link #setWebServerURI(URI)})
      */
     public ReadOnlyBooleanProperty isSupported() {
         if (isSupported == null) {
             throw new IllegalStateException(
-                    "The web client has not been set on this image. See the setWebClient(WebClient) function."
+                    "The web server URI has not been set on this image. See the setWebServerURI(URI) function."
             );
         }
         return isSupported;
@@ -185,12 +220,12 @@ public class Image extends ServerEntity {
 
     /**
      * @return the reasons why this image is unsupported (empty if this image is supported)
-     * @throws IllegalStateException when the web client has not been set (see {@link #setWebClient(WebClient)})
+     * @throws IllegalStateException when the web server URI has not been set (see {@link #setWebServerURI(URI)})
      */
     public Set<UnsupportedReason> getUnsupportedReasons() {
         if (unsupportedReasons == null) {
             throw new IllegalStateException(
-                    "The web client has not been set on this image. See the setWebClient(WebClient) function."
+                    "The web server URI has not been set on this image. See the setWebServerURI(URI) function."
             );
         }
         return unsupportedReasons;
@@ -220,17 +255,17 @@ public class Image extends ServerEntity {
         return pixels == null ? Optional.empty() : pixels.getPhysicalSizeZ();
     }
 
-    private void setSupported(WebClient client) {
+    private synchronized void setSupported(ReadOnlyObjectProperty<PixelAPI> selectedPixelAPI) {
         isSupported.set(true);
         unsupportedReasons.clear();
 
-        if (client.getSelectedPixelAPI() == null) {
+        if (selectedPixelAPI == null) {
             isSupported.set(false);
             unsupportedReasons.add(UnsupportedReason.PIXEL_API_UNAVAILABLE);
         } else {
             if (!getPixelType()
                     .flatMap(ApisHandler::getPixelType)
-                    .map(pixelType -> client.getSelectedPixelAPI().get().canReadImage(pixelType))
+                    .map(pixelType -> selectedPixelAPI.get().canReadImage(pixelType))
                     .orElse(false)
             ) {
                 isSupported.set(false);
@@ -238,7 +273,7 @@ public class Image extends ServerEntity {
             }
 
             if (!getImageDimensions()
-                    .map(imageDimensions -> client.getSelectedPixelAPI().get().canReadImage(imageDimensions[3]))
+                    .map(imageDimensions -> selectedPixelAPI.get().canReadImage(imageDimensions[3]))
                     .orElse(false)
             ) {
                 isSupported.set(false);
