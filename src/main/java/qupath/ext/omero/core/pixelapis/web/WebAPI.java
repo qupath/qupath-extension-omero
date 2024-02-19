@@ -1,10 +1,14 @@
 package qupath.ext.omero.core.pixelapis.web;
 
-import javafx.beans.property.*;
+import javafx.beans.property.FloatProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyFloatProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleFloatProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ClientsPreferencesManager;
-import qupath.ext.omero.core.WebClient;
+import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
@@ -23,18 +27,18 @@ public class WebAPI implements PixelAPI {
     private static final float DEFAULT_JPEG_QUALITY = 0.9F;
     private static final String JPEG_QUALITY_PARAMETER = "--jpegQuality";
     private static final Logger logger = LoggerFactory.getLogger(WebAPI.class);
-    private final WebClient client;
+    private final ApisHandler apisHandler;
     private final FloatProperty jpegQuality;
 
     /**
      * Creates a new WebAPI.
      *
-     * @param client  the WebClient owning this API
+     * @param apisHandler  the api handler owning this API
      */
-    public WebAPI(WebClient client) {
-        this.client = client;
+    public WebAPI(ApisHandler apisHandler) {
+        this.apisHandler = apisHandler;
         jpegQuality = new SimpleFloatProperty(
-                ClientsPreferencesManager.getWebJpegQuality(client.getApisHandler().getWebServerURI()).orElse(DEFAULT_JPEG_QUALITY)
+                ClientsPreferencesManager.getWebJpegQuality(apisHandler.getWebServerURI()).orElse(DEFAULT_JPEG_QUALITY)
         );
     }
 
@@ -44,12 +48,12 @@ public class WebAPI implements PixelAPI {
             return true;
         if (!(obj instanceof WebAPI webAPI))
             return false;
-        return webAPI.client.equals(client);
+        return webAPI.apisHandler.equals(apisHandler);
     }
 
     @Override
     public int hashCode() {
-        return client.hashCode();
+        return apisHandler.hashCode();
     }
 
     @Override
@@ -105,7 +109,7 @@ public class WebAPI implements PixelAPI {
         }
 
         return new WebReader(
-                client.getApisHandler(),
+                apisHandler,
                 id,
                 metadata.getPreferredTileWidth(),
                 metadata.getPreferredTileHeight(),
@@ -115,7 +119,7 @@ public class WebAPI implements PixelAPI {
 
     @Override
     public String toString() {
-        return String.format("Web API of %s", client.getApisHandler().getWebServerURI());
+        return String.format("Web API of %s", apisHandler.getWebServerURI());
     }
 
     /**
@@ -136,7 +140,7 @@ public class WebAPI implements PixelAPI {
             this.jpegQuality.set(jpegQuality);
 
             ClientsPreferencesManager.setWebJpegQuality(
-                    client.getApisHandler().getWebServerURI(),
+                    apisHandler.getWebServerURI(),
                     jpegQuality
             );
         } else {

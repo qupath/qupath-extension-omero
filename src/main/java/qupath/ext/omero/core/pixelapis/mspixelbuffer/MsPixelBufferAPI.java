@@ -1,13 +1,17 @@
 package qupath.ext.omero.core.pixelapis.mspixelbuffer;
 
-import javafx.beans.property.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebUtilities;
+import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -30,7 +34,7 @@ public class MsPixelBufferAPI implements PixelAPI {
     private static final int DEFAULT_PORT = 8082;
     private static final String PORT_PARAMETER = "--msPixelBufferPort";
     private static final Logger logger = LoggerFactory.getLogger(MsPixelBufferAPI.class);
-    private final WebClient client;
+    private final ApisHandler apisHandler;
     private final BooleanProperty isAvailable = new SimpleBooleanProperty(false);
     private final IntegerProperty port;
     private String host;
@@ -38,12 +42,12 @@ public class MsPixelBufferAPI implements PixelAPI {
     /**
      * Creates a new MsPixelBufferAPI.
      *
-     * @param client  the WebClient owning this API
+     * @param apisHandler  the apis handler owning this API
      */
-    public MsPixelBufferAPI(WebClient client) {
-        this.client = client;
+    public MsPixelBufferAPI(ApisHandler apisHandler) {
+        this.apisHandler = apisHandler;
         port = new SimpleIntegerProperty(
-                ClientsPreferencesManager.getMsPixelBufferPort(client.getApisHandler().getWebServerURI()).orElse(DEFAULT_PORT)
+                ClientsPreferencesManager.getMsPixelBufferPort(apisHandler.getWebServerURI()).orElse(DEFAULT_PORT)
         );
 
         setHost();
@@ -103,7 +107,6 @@ public class MsPixelBufferAPI implements PixelAPI {
         }
 
         return new MsPixelBufferReader(
-                client,
                 host,
                 id,
                 metadata.getPixelType(),
@@ -118,17 +121,17 @@ public class MsPixelBufferAPI implements PixelAPI {
             return true;
         if (!(obj instanceof MsPixelBufferAPI msPixelBufferAPI))
             return false;
-        return msPixelBufferAPI.client.equals(client);
+        return msPixelBufferAPI.apisHandler.equals(apisHandler);
     }
 
     @Override
     public int hashCode() {
-        return client.hashCode();
+        return apisHandler.hashCode();
     }
 
     @Override
     public String toString() {
-        return String.format("Ms pixel buffer API of %s", client.getApisHandler().getWebServerURI());
+        return String.format("Ms pixel buffer API of %s", apisHandler.getWebServerURI());
     }
 
     /**
@@ -153,7 +156,7 @@ public class MsPixelBufferAPI implements PixelAPI {
         this.port.set(port);
 
         ClientsPreferencesManager.setMsPixelBufferPort(
-                client.getApisHandler().getWebServerURI(),
+                apisHandler.getWebServerURI(),
                 port
         );
 
@@ -162,11 +165,11 @@ public class MsPixelBufferAPI implements PixelAPI {
     }
 
     private void setHost() {
-        Optional<URI> uri = changePortOfURI(client.getApisHandler().getWebServerURI(), port.get());
+        Optional<URI> uri = changePortOfURI(apisHandler.getWebServerURI(), port.get());
         if (uri.isPresent()) {
             host = uri.get().toString();
         } else {
-            host = client.getApisHandler().getWebServerURI().toString();
+            host = apisHandler.getWebServerURI().toString();
         }
     }
 

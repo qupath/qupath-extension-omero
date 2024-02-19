@@ -2,7 +2,6 @@ package qupath.ext.omero.core.pixelapis.mspixelbuffer;
 
 import loci.formats.gui.AWTImageTools;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
 import qupath.lib.color.ColorModelFactory;
@@ -10,7 +9,17 @@ import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 
-import java.awt.image.*;
+import java.awt.image.BandedSampleModel;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferDouble;
+import java.awt.image.DataBufferFloat;
+import java.awt.image.DataBufferInt;
+import java.awt.image.DataBufferShort;
+import java.awt.image.DataBufferUShort;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -23,7 +32,6 @@ import java.util.stream.IntStream;
 class MsPixelBufferReader implements PixelAPIReader {
 
     private static final String TILE_URI = "%s/tile/%d/%d/%d/%d?x=%d&y=%d&w=%d&h=%d&format=tif&resolution=%d";
-    private final WebClient client;
     private final String host;
     private final long imageID;
     private final PixelType pixelType;
@@ -34,7 +42,6 @@ class MsPixelBufferReader implements PixelAPIReader {
     /**
      * Create a new MsPixelBuffer reader.
      *
-     * @param client  the WebClient owning the image to open
      * @param host  the URI from which this microservice is available
      * @param imageID  the ID of the image to open
      * @param pixelType  the pixel type of the image to open
@@ -42,14 +49,12 @@ class MsPixelBufferReader implements PixelAPIReader {
      * @param numberOfLevels  the number of resolution levels of the image to open
      */
     public MsPixelBufferReader(
-            WebClient client,
             String host,
             long imageID,
             PixelType pixelType,
             List<ImageChannel> channels,
             int numberOfLevels
     ) {
-        this.client = client;
         this.host = host;
         this.imageID = imageID;
         this.pixelType = pixelType;
@@ -118,7 +123,7 @@ class MsPixelBufferReader implements PixelAPIReader {
         return String.format(
                 "Ms pixel buffer reader for image %d of %s",
                 imageID,
-                client.getApisHandler().getWebServerURI()
+                host
         );
     }
 

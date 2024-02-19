@@ -19,27 +19,43 @@ public class LoginResponse {
 
     private static final Logger logger = LoggerFactory.getLogger(LoginResponse.class);
     private final Status status;
-    private Group group;
-    private int userId;
-    private String username;
-    private String sessionUuid;
+    private final Group group;
+    private final int userId;
+    private final String username;
+    private final String sessionUuid;
+
+    /**
+     * The login status
+     */
     public enum Status {
+        /**
+         * The login was cancelled by the user
+         */
         CANCELED,
+        /**
+         * The login failed
+         */
         FAILED,
+        /**
+         * The guest account (without authentication) is used
+         */
         UNAUTHENTICATED,
+        /**
+         * The login succeeded
+         */
         SUCCESS
     }
 
-    private LoginResponse(Status reason) {
-        this.status = reason;
-    }
-
-    private LoginResponse(Group group, int userId, String username, String sessionUuid) {
-        this(Status.SUCCESS);
+    private LoginResponse(Status status, Group group, int userId, String username, String sessionUuid) {
+        this.status = status;
         this.group = group;
         this.userId = userId;
         this.username = username;
         this.sessionUuid = sessionUuid;
+    }
+
+    private LoginResponse(Status status) {
+        this(status, null, -1, null, null);
     }
 
     @Override
@@ -74,6 +90,7 @@ public class LoginResponse {
             JsonElement element = JsonParser.parseString(serverResponse).getAsJsonObject().get("eventContext");
 
             return new LoginResponse(
+                    Status.SUCCESS,
                     new Gson().fromJson(element, Group.class),
                     element.getAsJsonObject().get("userId").getAsInt(),
                     element.getAsJsonObject().get("userName").getAsString(),
@@ -93,7 +110,7 @@ public class LoginResponse {
     }
 
     /**
-     * @return the user ID of the authenticated user, or 0 if the login
+     * @return the user ID of the authenticated user, or -1 if the login
      * attempt failed
      */
     public int getUserId() {

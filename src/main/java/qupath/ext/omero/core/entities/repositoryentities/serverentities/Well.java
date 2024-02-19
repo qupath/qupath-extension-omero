@@ -41,11 +41,10 @@ public class Well extends ServerEntity {
 
     @Override
     public boolean hasChildren() {
-        return wellSamples != null && wellSamples.stream()
+        return wellSamples != null && !wellSamples.stream()
                 .map(WellSample::getImage)
                 .flatMap(Optional::stream)
-                .toList()
-                .size() > 0;
+                .toList().isEmpty();
     }
 
     @Override

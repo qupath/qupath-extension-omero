@@ -124,6 +124,16 @@ public class WebClients {
     }
 
     /**
+     * Retrieve the client corresponding to the provided uri.
+     *
+     * @param uri  the web server URI of the client to retrieve
+     * @return the client corresponding to the URI, or an empty Optional if not found
+     */
+    public static Optional<WebClient> getClientFromURI(URI uri) {
+        return clients.stream().filter(client -> client.getApisHandler().getWebServerURI().equals(uri)).findAny();
+    }
+
+    /**
      * Close the given client connection. The function may return
      * before the connection is actually closed.
      *

@@ -1,10 +1,11 @@
 package qupath.ext.omero.core.pixelapis.ice;
 
+import com.drew.lang.annotations.Nullable;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClient;
+import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
@@ -23,7 +24,9 @@ public class IceAPI implements PixelAPI {
     private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
     static final String NAME = "Ice";
     private static boolean gatewayAvailable;
-    private final WebClient client;
+    private final ApisHandler apisHandler;
+    private final boolean isAuthenticated;
+    private final String sessionUuid;
 
     static {
         try {
@@ -41,10 +44,14 @@ public class IceAPI implements PixelAPI {
     /**
      * Creates a new IceAPI.
      *
-     * @param client  the WebClient owning this API
+     * @param apisHandler  the apis handler owning this API
+     * @param isAuthenticated  whether the user is currently authenticated to the OMERO server
+     * @param sessionUuid  the session UUID of the client connection. Can be null if the user is not authenticated
      */
-    public IceAPI(WebClient client) {
-        this.client = client;
+    public IceAPI(ApisHandler apisHandler, boolean isAuthenticated, @Nullable String sessionUuid) {
+        this.apisHandler = apisHandler;
+        this.isAuthenticated = isAuthenticated;
+        this.sessionUuid = sessionUuid;
     }
 
     @Override
@@ -54,7 +61,7 @@ public class IceAPI implements PixelAPI {
 
     @Override
     public ObservableBooleanValue isAvailable() {
-        return new SimpleBooleanProperty(client.isAuthenticated() && gatewayAvailable);
+        return new SimpleBooleanProperty(isAuthenticated && gatewayAvailable);
     }
 
     @Override
@@ -74,14 +81,14 @@ public class IceAPI implements PixelAPI {
 
     @Override
     public PixelAPIReader createReader(long id, ImageServerMetadata metadata) throws IOException {
-        if (!isAvailable().get()) {
+        if (!isAvailable().get() || sessionUuid == null) {
             throw new IllegalStateException("This API is not available and cannot be used");
         }
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        return new IceReader(client, id, metadata.getChannels());
+        return new IceReader(apisHandler, sessionUuid, id, metadata.getChannels());
     }
 
     @Override
@@ -90,16 +97,16 @@ public class IceAPI implements PixelAPI {
             return true;
         if (!(obj instanceof IceAPI iceAPI))
             return false;
-        return iceAPI.client.equals(client);
+        return iceAPI.apisHandler.equals(apisHandler);
     }
 
     @Override
     public int hashCode() {
-        return client.hashCode();
+        return apisHandler.hashCode();
     }
 
     @Override
     public String toString() {
-        return String.format("Ice API of %s", client.getApisHandler().getWebServerURI());
+        return String.format("Ice API of %s", apisHandler.getWebServerURI());
     }
 }

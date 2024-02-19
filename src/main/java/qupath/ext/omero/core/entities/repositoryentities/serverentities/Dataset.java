@@ -5,12 +5,15 @@ import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import qupath.ext.omero.core.apis.ApisHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
+import java.net.URI;
 import java.util.ResourceBundle;
 
 /**
@@ -20,6 +23,7 @@ import java.util.ResourceBundle;
  */
 public class Dataset extends ServerEntity {
 
+    private static final Logger logger = LoggerFactory.getLogger(Dataset.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final String[] ATTRIBUTES = new String[] {
             resources.getString("Web.Entities.Dataset.name"),
@@ -32,7 +36,7 @@ public class Dataset extends ServerEntity {
     private final transient ObservableList<Image> children = FXCollections.observableArrayList();
     private final transient ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private transient boolean childrenPopulated = false;
-    private transient ApisHandler apisHandler;
+    private transient URI webServerURI;
     private transient boolean isPopulating = false;
     @SerializedName(value = "Description") private String description;
     @SerializedName(value = "omero:childCount") private int childCount;
@@ -58,7 +62,7 @@ public class Dataset extends ServerEntity {
     }
 
     /**
-     * @throws IllegalStateException when the APIs handler has not been set (see {@link #setApisHandler(ApisHandler)})
+     * @throws IllegalStateException when the web server URI has not been set (see {@link #setWebServerURI(URI)})
      */
     @Override
     public ObservableList<? extends RepositoryEntity> getChildren() {
@@ -123,25 +127,31 @@ public class Dataset extends ServerEntity {
     }
 
     /**
-     * Set the APIs handler for this dataset. This is needed to populate its children.
+     * Set the web server URI of the server owning this dataset. This is needed to populate its children.
      *
-     * @param apisHandler the request handler of this browser
+     * @param webServerURI the web server URI of this server
      */
-    public void setApisHandler(ApisHandler apisHandler) {
-        this.apisHandler = apisHandler;
+    public void setWebServerURI(URI webServerURI) {
+        this.webServerURI = webServerURI;
     }
 
     private void populateChildren() {
-        if (apisHandler == null) {
+        if (webServerURI == null) {
             throw new IllegalStateException(
-                    "The APIs handler has not been set on this dataset. See the setApisHandler(ApisHandler) function."
+                    "The web server URI has not been set on this dataset. See the setWebServerURI(URI) function."
             );
         } else {
-            isPopulating = true;
-            apisHandler.getImages(getId()).thenAccept(images -> {
-                children.addAll(images);
-                isPopulating = false;
-            });
+            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+                isPopulating = true;
+                client.getApisHandler().getImages(getId()).thenAccept(images -> {
+                    children.addAll(images);
+                    isPopulating = false;
+                });
+            }, () -> logger.warn(String.format(
+                    "Could not find the web client corresponding to %s. Impossible to get the children of this dataset (%s).",
+                    webServerURI,
+                    this
+            )));
         }
     }
 }
