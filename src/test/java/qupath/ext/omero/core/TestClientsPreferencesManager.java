@@ -192,4 +192,51 @@ public class TestClientsPreferencesManager {
 
         Assertions.assertEquals(expectedJpegQuality, jpegQuality);
     }
+
+    @Test
+    void Check_Ice_address_Empty() {
+        URI uri = URI.create("https://github.com/qupath");
+
+        Optional<String> iceAddress = ClientsPreferencesManager.getIceAddress(uri);
+
+        Assertions.assertTrue(iceAddress.isEmpty());
+    }
+
+    @Test
+    void Check_Ice_address() {
+        String expectedIceAddress = "https://omero.server.com/";
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+
+        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+
+        Assertions.assertEquals(expectedIceAddress, iceAddress);
+    }
+
+    @Test
+    void Check_Ice_address_When_Set_Twice() {
+        String unexpectedIceAddress = "https://unexpected.omero.server.com/";
+        String expectedIceAddress = "https://omero.server.com/";
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIceAddress(uri, unexpectedIceAddress);
+        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+
+        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+
+        Assertions.assertEquals(expectedIceAddress, iceAddress);
+    }
+
+    @Test
+    void Check_Ice_address_When_Other_URI_Set() {
+        URI otherUri = URI.create("https://qupath.readthedocs.io");
+        String otherIceAddress = "https://other.omero.server.com/";
+        ClientsPreferencesManager.setIceAddress(otherUri, otherIceAddress);
+        String expectedIceAddress = "https://omero.server.com/";
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+
+        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+
+        Assertions.assertEquals(expectedIceAddress, iceAddress);
+    }
 }

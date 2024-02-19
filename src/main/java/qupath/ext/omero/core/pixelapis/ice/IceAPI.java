@@ -2,9 +2,12 @@ package qupath.ext.omero.core.pixelapis.ice;
 
 import com.drew.lang.annotations.Nullable;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
@@ -23,10 +26,12 @@ public class IceAPI implements PixelAPI {
 
     private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
     static final String NAME = "Ice";
+    private static final String ADDRESS_PARAMETER = "--serverAddress";
     private static boolean gatewayAvailable;
     private final ApisHandler apisHandler;
     private final boolean isAuthenticated;
     private final String sessionUuid;
+    private final StringProperty serverAddress;
 
     static {
         try {
@@ -52,11 +57,28 @@ public class IceAPI implements PixelAPI {
         this.apisHandler = apisHandler;
         this.isAuthenticated = isAuthenticated;
         this.sessionUuid = sessionUuid;
+        this.serverAddress = new SimpleStringProperty(
+                ClientsPreferencesManager.getIceAddress(apisHandler.getWebServerURI()).orElse("")
+        );
     }
 
     @Override
     public String getName() {
         return NAME;
+    }
+
+    @Override
+    public String[] getArgs() {
+        return new String[] {ADDRESS_PARAMETER, serverAddress.get()};
+    }
+
+    @Override
+    public void setParametersFromArgs(String... args) {
+        for (int i=0; i<args.length-1; ++i) {
+            if (args[i].equals(ADDRESS_PARAMETER)) {
+                setServerAddress(args[i+1]);
+            }
+        }
     }
 
     @Override
@@ -108,5 +130,19 @@ public class IceAPI implements PixelAPI {
     @Override
     public String toString() {
         return String.format("Ice API of %s", apisHandler.getWebServerURI());
+    }
+
+    /**
+     * Set the address used to communicate with the OMERO server.
+     *
+     * @param serverAddress  the URL of the OMERO server
+     */
+    public void setServerAddress(String serverAddress) {
+        this.serverAddress.set(serverAddress);
+
+        ClientsPreferencesManager.setIceAddress(
+                apisHandler.getWebServerURI(),
+                serverAddress
+        );
     }
 }
