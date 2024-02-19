@@ -8,11 +8,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +68,6 @@ class JsonApi {
     private static final String WELLS_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
     private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%s";
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
-    private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
     private final URI webURI;
     private final Map<String, String> urls;
@@ -398,7 +394,7 @@ class JsonApi {
      * <p>
      *     Populate all orphaned images of this server to the list specified in parameter.
      *     This function populates and doesn't return a list because the number of images can
-     *     be large, so this operation can take tens of seconds.
+     *     be large, so this operation can take tens of seconds and should be run in a background thread.
      * </p>
      * <p>The list can be updated from any thread.</p>
      *
@@ -407,38 +403,25 @@ class JsonApi {
      * @param orphanedImagesIds  the Ids of all orphaned images of the server
      */
     public void populateOrphanedImagesIntoList(List<Image> children, List<Long> orphanedImagesIds) {
-        setOrphanedImagesLoading(true);
         resetNumberOfOrphanedImagesLoaded();
 
         List<URI> orphanedImagesURIs = getOrphanedImagesURIs(orphanedImagesIds);
-        CompletableFuture.runAsync(() -> {
-            // The number of parallel requests is limited to 16
-            // to avoid too many concurrent streams
-            List<List<URI>> batches = Lists.partition(orphanedImagesURIs, 16);
-            for (List<URI> batch: batches) {
-                children.addAll(batch.stream()
-                        .map(this::requestImageInfo)
-                        .map(CompletableFuture::join)
-                        .flatMap(Optional::stream)
-                        .map(jsonObject -> ServerEntity.createFromJsonElement(jsonObject, webURI))
-                        .flatMap(Optional::stream)
-                        .map(serverEntity -> (Image) serverEntity)
-                        .toList()
-                );
+        // The number of parallel requests is limited to 16
+        // to avoid too many concurrent streams
+        List<List<URI>> batches = Lists.partition(orphanedImagesURIs, 16);
+        for (List<URI> batch: batches) {
+            children.addAll(batch.stream()
+                    .map(this::requestImageInfo)
+                    .map(CompletableFuture::join)
+                    .flatMap(Optional::stream)
+                    .map(jsonObject -> ServerEntity.createFromJsonElement(jsonObject, webURI))
+                    .flatMap(Optional::stream)
+                    .map(serverEntity -> (Image) serverEntity)
+                    .toList()
+            );
 
-                addToNumberOfOrphanedImagesLoaded(batch.size());
-            }
-
-            setOrphanedImagesLoading(false);
-        });
-    }
-
-    /**
-     * @return whether orphaned images are currently being loaded.
-     * This property may be updated from any thread
-     */
-    public ReadOnlyBooleanProperty areOrphanedImagesLoading() {
-        return areOrphanedImagesLoading;
+            addToNumberOfOrphanedImagesLoaded(batch.size());
+        }
     }
 
     /**
@@ -635,10 +618,6 @@ class JsonApi {
             logger.error("Couldn't find the URL corresponding to " + url);
             return CompletableFuture.completedFuture(Optional.empty());
         }
-    }
-
-    private synchronized void setOrphanedImagesLoading(boolean orphanedImagesLoading) {
-        areOrphanedImagesLoading.set(orphanedImagesLoading);
     }
 
     private List<URI> getOrphanedImagesURIs(List<Long> orphanedImagesIds) {

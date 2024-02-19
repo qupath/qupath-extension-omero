@@ -1,8 +1,10 @@
 package qupath.ext.omero.core.apis;
 
 import com.drew.lang.annotations.Nullable;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
@@ -25,7 +27,11 @@ import qupath.lib.images.servers.TileRequest;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -57,6 +63,7 @@ public class ApisHandler implements AutoCloseable {
     private final WebclientApi webclientApi;
     private final WebGatewayApi webGatewayApi;
     private final IViewerApi iViewerApi;
+    private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
     private final Map<Long, BufferedImage> thumbnails = new ConcurrentHashMap<>();
     private final Map<Class<? extends RepositoryEntity>, BufferedImage> omeroIcons = new ConcurrentHashMap<>();
     private final boolean canSkipAuthentication;
@@ -300,14 +307,19 @@ public class ApisHandler implements AutoCloseable {
      *                  be possible to add elements to this list
      */
     public void populateOrphanedImagesIntoList(List<Image> children) {
-        getOrphanedImagesIds().thenAccept(orphanedImageIds -> jsonApi.populateOrphanedImagesIntoList(children, orphanedImageIds));
+        setOrphanedImagesLoading(true);
+
+        getOrphanedImagesIds()
+                .thenAcceptAsync(orphanedImageIds -> jsonApi.populateOrphanedImagesIntoList(children, orphanedImageIds))
+                .thenRun(() -> setOrphanedImagesLoading(false));
     }
 
     /**
-     * See {@link JsonApi#areOrphanedImagesLoading()}.
+     * @return whether orphaned images are currently being loaded.
+     * This property may be updated from any thread
      */
     public ReadOnlyBooleanProperty areOrphanedImagesLoading() {
-        return jsonApi.areOrphanedImagesLoading();
+        return areOrphanedImagesLoading;
     }
 
     /**
@@ -563,5 +575,9 @@ public class ApisHandler implements AutoCloseable {
      */
     public CompletableFuture<Optional<ImageSettings>> getImageSettings(long imageId) {
         return iViewerApi.getImageSettings(imageId);
+    }
+
+    private synchronized void setOrphanedImagesLoading(boolean orphanedImagesLoading) {
+        areOrphanedImagesLoading.set(orphanedImagesLoading);
     }
 }
