@@ -43,6 +43,14 @@ public class ClientsPreferencesManager {
             "omero_ext.web_jpeg_quality",
             ""
     );
+    private static final StringProperty iceAddressPreference = PathPrefs.createPersistentPreference(
+            "omero_ext.ice_address",
+            ""
+    );
+    private static final StringProperty icePortPreference = PathPrefs.createPersistentPreference(
+            "omero_ext.ice_port",
+            ""
+    );
     private static final ObservableList<URI> uris;
     private static final ObservableList<URI> urisImmutable;
 
@@ -76,6 +84,8 @@ public class ClientsPreferencesManager {
         latestUsernamePreference.set("");
         msPixelBufferPortPreference.set("");
         webJpegQualityPreference.set("");
+        iceAddressPreference.set("");
+        icePortPreference.set("");
     }
 
     /**
@@ -151,42 +161,103 @@ public class ClientsPreferencesManager {
      * Get the saved port used by the pixel buffer microservice of the OMERO server
      * corresponding to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO server to whose port should be retrieved
+     * @param serverURI  the URI of the OMERO web server to whose port should be retrieved
      * @return the port, or an empty optional if not found
      */
     public static Optional<Integer> getMsPixelBufferPort(URI serverURI) {
-        return getProperty(msPixelBufferPortPreference, serverURI).map(Double::intValue);
+        return getProperty(msPixelBufferPortPreference, serverURI).map(property -> {
+            try {
+                return Integer.parseInt(property);
+            } catch (NumberFormatException e) {
+                logger.warn(String.format("Could not convert saved ms pixel buffer port %s to an integer", property), e);
+                return null;
+            }
+        });
     }
 
     /**
      * Set the saved port used by the pixel buffer microservice of the OMERO server
      * corresponding to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO server to whose port should be set
+     * @param serverURI  the URI of the OMERO web server to whose port should be set
      * @param port  the pixel buffer microservice port
      */
     public static void setMsPixelBufferPort(URI serverURI, int port) {
-        setProperty(msPixelBufferPortPreference, serverURI, port);
+        setProperty(msPixelBufferPortPreference, serverURI, String.valueOf(port));
     }
 
     /**
      * Get the saved JPEG quality used by the pixel web API corresponding to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO server to whose JPEG quality should be retrieved
+     * @param serverURI  the URI of the OMERO web server to whose JPEG quality should be retrieved
      * @return the JPEG quality, or an empty optional if not found
      */
     public static Optional<Float> getWebJpegQuality(URI serverURI) {
-        return getProperty(webJpegQualityPreference, serverURI).map(Double::floatValue);
+        return getProperty(webJpegQualityPreference, serverURI).map(property -> {
+            try {
+                return Float.parseFloat(property);
+            } catch (NumberFormatException e) {
+                logger.warn(String.format("Could not convert saved web JPEG quality %s to a float", property), e);
+                return null;
+            }
+        });
     }
 
     /**
      * Set the saved JPEG quality used by the pixel web API corresponding to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO server to whose port should be set
+     * @param serverURI  the URI of the OMERO web server to whose port should be set
      * @param jpegQuality  the JPEG quality
      */
     public static void setWebJpegQuality(URI serverURI, float jpegQuality) {
-        setProperty(webJpegQualityPreference, serverURI, jpegQuality);
+        setProperty(webJpegQualityPreference, serverURI, String.valueOf(jpegQuality));
+    }
+
+    /**
+     * Get the saved address of the OMERO (Ice) server corresponding to the provided URI of web server.
+     *
+     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server address should be retrieved
+     * @return the OMERO (Ice) server address, or an empty optional if not found
+     */
+    public static Optional<String> getIceAddress(URI serverURI) {
+        return getProperty(iceAddressPreference, serverURI);
+    }
+
+    /**
+     * Set the saved OMERO (Ice) server address corresponding to the provided URI of web server.
+     *
+     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server address should be set
+     * @param iceAddress  the OMERO (Ice) server address
+     */
+    public static void setIceAddress(URI serverURI, String iceAddress) {
+        setProperty(iceAddressPreference, serverURI, iceAddress);
+    }
+
+    /**
+     * Get the saved port of the OMERO (Ice) server corresponding to the provided URI of web server.
+     *
+     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server port should be retrieved
+     * @return the OMERO (Ice) server port, or an empty optional if not found
+     */
+    public static Optional<Integer> getIcePort(URI serverURI) {
+        return getProperty(icePortPreference, serverURI).map(property -> {
+            try {
+                return Integer.parseInt(property);
+            } catch (NumberFormatException e) {
+                logger.warn(String.format("Could not convert saved ice port %s to an integer", property), e);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * Set the saved OMERO (Ice) server port corresponding to the provided URI of web server.
+     *
+     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server port should be set
+     * @param icePort  the OMERO (Ice) server port
+     */
+    public static void setIcePort(URI serverURI, int icePort) {
+        setProperty(icePortPreference, serverURI, String.valueOf(icePort));
     }
 
     private static synchronized void setServerListPreference() {
@@ -194,13 +265,12 @@ public class ClientsPreferencesManager {
         ClientsPreferencesManager.serverListPreference.set(gson.toJson(uris));
     }
 
-    private static synchronized Optional<Double> getProperty(StringProperty preference, URI serverURI) {
+    private static synchronized Optional<String> getProperty(StringProperty preference, URI serverURI) {
         Gson gson = new Gson();
-        Type type = new TypeToken<Map<URI, Double>>() {}.getType();
-
+        Type type = new TypeToken<Map<URI, String>>() {}.getType();
 
         try {
-            Map<URI, Double> uriProperties = gson.fromJson(preference.get(), type);
+            Map<URI, String> uriProperties = gson.fromJson(preference.get(), type);
 
             if (uriProperties == null) {
                 return Optional.empty();
@@ -213,12 +283,12 @@ public class ClientsPreferencesManager {
         }
     }
 
-    public static synchronized <T> void setProperty(StringProperty preference, URI serverURI, T property) {
+    public static synchronized void setProperty(StringProperty preference, URI serverURI, String property) {
         Gson gson = new Gson();
-        Type type = new TypeToken<Map<URI, T>>() {}.getType();
+        Type type = new TypeToken<Map<URI, String>>() {}.getType();
 
         try {
-            Map<URI, T> uriProperties = gson.fromJson(preference.get(), type);
+            Map<URI, String> uriProperties = gson.fromJson(preference.get(), type);
             if (uriProperties == null) {
                 uriProperties = Map.of(serverURI, property);
             } else {

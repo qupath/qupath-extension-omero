@@ -192,4 +192,98 @@ public class TestClientsPreferencesManager {
 
         Assertions.assertEquals(expectedJpegQuality, jpegQuality);
     }
+
+    @Test
+    void Check_Ice_Address_Empty() {
+        URI uri = URI.create("https://github.com/qupath");
+
+        Optional<String> iceAddress = ClientsPreferencesManager.getIceAddress(uri);
+
+        Assertions.assertTrue(iceAddress.isEmpty());
+    }
+
+    @Test
+    void Check_Ice_Address() {
+        String expectedIceAddress = "https://omero.server.com/";
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+
+        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+
+        Assertions.assertEquals(expectedIceAddress, iceAddress);
+    }
+
+    @Test
+    void Check_Ice_Address_When_Set_Twice() {
+        String unexpectedIceAddress = "https://unexpected.omero.server.com/";
+        String expectedIceAddress = "https://omero.server.com/";
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIceAddress(uri, unexpectedIceAddress);
+        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+
+        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+
+        Assertions.assertEquals(expectedIceAddress, iceAddress);
+    }
+
+    @Test
+    void Check_Ice_Address_When_Other_URI_Set() {
+        URI otherUri = URI.create("https://qupath.readthedocs.io");
+        String otherIceAddress = "https://other.omero.server.com/";
+        ClientsPreferencesManager.setIceAddress(otherUri, otherIceAddress);
+        String expectedIceAddress = "https://omero.server.com/";
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+
+        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+
+        Assertions.assertEquals(expectedIceAddress, iceAddress);
+    }
+
+    @Test
+    void Check_Ice_Port_Empty() {
+        URI uri = URI.create("https://github.com/qupath");
+
+        Optional<Integer> icePort = ClientsPreferencesManager.getIcePort(uri);
+
+        Assertions.assertTrue(icePort.isEmpty());
+    }
+
+    @Test
+    void Check_Ice_Port() {
+        int expectedIcePort = 2024;
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIcePort(uri, expectedIcePort);
+
+        int icePort = ClientsPreferencesManager.getIcePort(uri).orElse(-1);
+
+        Assertions.assertEquals(expectedIcePort, icePort);
+    }
+
+    @Test
+    void Check_Ice_Port_When_Set_Twice() {
+        int unexpectedIcePort = 8080;
+        int expectedIcePort = 4646;
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIcePort(uri, unexpectedIcePort);
+        ClientsPreferencesManager.setIcePort(uri, expectedIcePort);
+
+        int icePort = ClientsPreferencesManager.getIcePort(uri).orElse(-1);
+
+        Assertions.assertEquals(expectedIcePort, icePort);
+    }
+
+    @Test
+    void Check_Ice_Port_When_Other_URI_Set() {
+        URI otherUri = URI.create("https://qupath.readthedocs.io");
+        int otherIcePort = 1412;
+        ClientsPreferencesManager.setIcePort(otherUri, otherIcePort);
+        int expectedIcePort = 7878;
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setIcePort(uri, expectedIcePort);
+
+        int iceAddress = ClientsPreferencesManager.getIcePort(uri).orElse(-1);
+
+        Assertions.assertEquals(expectedIcePort, iceAddress);
+    }
 }

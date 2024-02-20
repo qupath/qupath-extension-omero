@@ -13,7 +13,6 @@ import omero.gateway.model.PixelsData;
 import omero.model.ExperimenterGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
@@ -47,41 +46,44 @@ class IceReader implements PixelAPIReader {
     /**
      * Creates a new Ice reader.
      *
-     * @param apisHandler  the ApisHandler owning the image to open
-     * @param sessionUuid  the session UUID of the client connection
+     * @param loginCredentials  a list of credentials to use to connect to the server. Once a connection
+     *                          is established, the remaining credentials are not used
      * @param imageID  the ID of the image to open
      * @param channels  the channels of the image to open
      * @throws IOException  when the reader creation fails
      */
-    public IceReader(ApisHandler apisHandler, String sessionUuid, long imageID, List<ImageChannel> channels) throws IOException {
+    public IceReader(List<LoginCredentials> loginCredentials, long imageID, List<ImageChannel> channels) throws IOException {
         try {
-            ExperimenterData user = connect(apisHandler, sessionUuid);
+            Optional<ExperimenterData> user = connect(loginCredentials);
+            if (user.isPresent()) {
+                context = new SecurityContext(user.get().getGroupId());
 
-            context = new SecurityContext(user.getGroupId());
+                var imageData = getImage(imageID);
+                if (imageData.isPresent()) {
+                    PixelsData pixelsData = imageData.get().getDefaultPixels();
 
-            var imageData = getImage(imageID);
-            if (imageData.isPresent()) {
-                PixelsData pixelsData = imageData.get().getDefaultPixels();
-
-                reader = gateway.getPixelsStore(context);
-                reader.setPixelsId(pixelsData.getId(), false);
-                numberOfResolutionLevels = reader.getResolutionLevels();
-                nChannels = channels.size();
-                effectiveNChannels = pixelsData.getSizeC();
-                pixelType = switch (pixelsData.getPixelType()) {
-                    case PixelsData.INT8_TYPE -> PixelType.INT8;
-                    case PixelsData.UINT8_TYPE -> PixelType.UINT8;
-                    case PixelsData.INT16_TYPE -> PixelType.INT16;
-                    case PixelsData.UINT16_TYPE -> PixelType.UINT16;
-                    case PixelsData.UINT32_TYPE -> PixelType.UINT32;
-                    case PixelsData.INT32_TYPE -> PixelType.INT32;
-                    case PixelsData.FLOAT_TYPE -> PixelType.FLOAT32;
-                    case PixelsData.DOUBLE_TYPE -> PixelType.FLOAT64;
-                    default -> throw new IllegalArgumentException("Unsupported pixel type " + pixelsData.getPixelType());
-                };
-                colorModel = ColorModelFactory.createColorModel(pixelType, channels);
+                    reader = gateway.getPixelsStore(context);
+                    reader.setPixelsId(pixelsData.getId(), false);
+                    numberOfResolutionLevels = reader.getResolutionLevels();
+                    nChannels = channels.size();
+                    effectiveNChannels = pixelsData.getSizeC();
+                    pixelType = switch (pixelsData.getPixelType()) {
+                        case PixelsData.INT8_TYPE -> PixelType.INT8;
+                        case PixelsData.UINT8_TYPE -> PixelType.UINT8;
+                        case PixelsData.INT16_TYPE -> PixelType.INT16;
+                        case PixelsData.UINT16_TYPE -> PixelType.UINT16;
+                        case PixelsData.UINT32_TYPE -> PixelType.UINT32;
+                        case PixelsData.INT32_TYPE -> PixelType.INT32;
+                        case PixelsData.FLOAT_TYPE -> PixelType.FLOAT32;
+                        case PixelsData.DOUBLE_TYPE -> PixelType.FLOAT64;
+                        default -> throw new IllegalArgumentException("Unsupported pixel type " + pixelsData.getPixelType());
+                    };
+                    colorModel = ColorModelFactory.createColorModel(pixelType, channels);
+                } else {
+                    throw new IOException("Couldn't find requested image of ID " + imageID);
+                }
             } else {
-                throw new IOException("Couldn't find requested image of ID " + imageID);
+                throw new IOException("Could not connect to the ICE server");
             }
         } catch (DSOutOfServiceException | ExecutionException | ServerError e) {
             throw new IOException(e);
@@ -142,43 +144,19 @@ class IceReader implements PixelAPIReader {
         return String.format("Ice reader for %s", context.getServerInformation());
     }
 
-    /**
-     * Attempt to create a connection with the server. The OMERO web host will be
-     * used, and if not successful, the OMERO server host will be used (see
-     * {@link ApisHandler#getServerURI()}).
-     *
-     * @param apisHandler  the ApisHandler owning the image to open
-     * @param sessionUuid  the session UUID of the client connection
-     * @return a valid connection
-     * @throws DSOutOfServiceException when a connection cannot be established
-     */
-    private ExperimenterData connect(ApisHandler apisHandler, String sessionUuid) throws DSOutOfServiceException {
-        String firstURI = apisHandler.getWebServerURI().getHost();
-        String secondURI = apisHandler.getServerURI();
-
-        try {
-            return gateway.connect(new LoginCredentials(
-                    sessionUuid,
-                    sessionUuid,
-                    firstURI,
-                    apisHandler.getServerPort()
-            ));
-        } catch (Exception e) {
-            logger.warn(String.format(
-                    "Can't connect to %s:%d. Trying %s:%d...",
-                    firstURI,
-                    apisHandler.getServerPort(),
-                    secondURI,
-                    apisHandler.getServerPort()
-            ), e);
-
-            return gateway.connect(new LoginCredentials(
-                    sessionUuid,
-                    sessionUuid,
-                    secondURI,
-                    apisHandler.getServerPort()
-            ));
+    private Optional<ExperimenterData> connect(List<LoginCredentials> loginCredentials) {
+        for (LoginCredentials loginCredential: loginCredentials) {
+            try {
+                return Optional.ofNullable(gateway.connect(loginCredential));
+            } catch (Exception e) {
+                logger.info(String.format(
+                        "Can't connect to %s:%d",
+                        loginCredential.getServer().getHost(),
+                        loginCredential.getServer().getPort()
+                ), e);
+            }
         }
+        return Optional.empty();
     }
 
     private Optional<ImageData> getImage(long imageID) throws ExecutionException, DSOutOfServiceException, ServerError {

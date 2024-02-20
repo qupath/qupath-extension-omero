@@ -1,10 +1,18 @@
 package qupath.ext.omero.core.pixelapis.ice;
 
 import com.drew.lang.annotations.Nullable;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
+import omero.gateway.LoginCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
@@ -12,6 +20,7 @@ import qupath.ext.omero.core.pixelapis.PixelAPIReader;
 import qupath.lib.images.servers.PixelType;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * <p>
@@ -23,10 +32,14 @@ public class IceAPI implements PixelAPI {
 
     private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
     static final String NAME = "Ice";
+    private static final String ADDRESS_PARAMETER = "--serverAddress";
+    private static final String PORT_PARAMETER = "--serverPort";
     private static boolean gatewayAvailable;
     private final ApisHandler apisHandler;
     private final boolean isAuthenticated;
     private final String sessionUuid;
+    private final StringProperty serverAddress;
+    private final IntegerProperty serverPort;
 
     static {
         try {
@@ -52,11 +65,41 @@ public class IceAPI implements PixelAPI {
         this.apisHandler = apisHandler;
         this.isAuthenticated = isAuthenticated;
         this.sessionUuid = sessionUuid;
+        this.serverAddress = new SimpleStringProperty(
+                ClientsPreferencesManager.getIceAddress(apisHandler.getWebServerURI()).orElse("")
+        );
+        this.serverPort = new SimpleIntegerProperty(
+                ClientsPreferencesManager.getIcePort(apisHandler.getWebServerURI()).orElse(0)
+        );
     }
 
     @Override
     public String getName() {
         return NAME;
+    }
+
+    @Override
+    public String[] getArgs() {
+        return new String[] {
+                ADDRESS_PARAMETER, serverAddress.get(),
+                PORT_PARAMETER, String.valueOf(serverPort.get())
+        };
+    }
+
+    @Override
+    public void setParametersFromArgs(String... args) {
+        for (int i=0; i<args.length-1; ++i) {
+            if (args[i].equals(ADDRESS_PARAMETER)) {
+                setServerAddress(args[i+1]);
+            }
+            if (args[i].equals(PORT_PARAMETER)) {
+                try {
+                    setServerPort(Integer.parseInt(args[i + 1]));
+                } catch (NumberFormatException e) {
+                    logger.warn(String.format("Can't convert %s to integer", args[i+1]), e);
+                }
+            }
+        }
     }
 
     @Override
@@ -88,7 +131,30 @@ public class IceAPI implements PixelAPI {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        return new IceReader(apisHandler, sessionUuid, id, metadata.getChannels());
+        return new IceReader(
+                List.of(
+                        new LoginCredentials(
+                                sessionUuid,
+                                sessionUuid,
+                                apisHandler.getWebServerURI().getHost(),
+                                apisHandler.getServerPort()
+                        ),
+                        new LoginCredentials(
+                                sessionUuid,
+                                sessionUuid,
+                                apisHandler.getServerURI(),
+                                apisHandler.getServerPort()
+                        ),
+                        new LoginCredentials(
+                                sessionUuid,
+                                sessionUuid,
+                                serverAddress.get(),
+                                serverPort.get()
+                        )
+                ),
+                id,
+                metadata.getChannels()
+        );
     }
 
     @Override
@@ -108,5 +174,49 @@ public class IceAPI implements PixelAPI {
     @Override
     public String toString() {
         return String.format("Ice API of %s", apisHandler.getWebServerURI());
+    }
+
+    /**
+     * @return the address used to communicate with the OMERO server.
+     * This property may be updated from any thread
+     */
+    public ReadOnlyStringProperty getServerAddress() {
+        return serverAddress;
+    }
+
+    /**
+     * Set the address used to communicate with the OMERO server.
+     *
+     * @param serverAddress  the URL of the OMERO server
+     */
+    public void setServerAddress(String serverAddress) {
+        this.serverAddress.set(serverAddress);
+
+        ClientsPreferencesManager.setIceAddress(
+                apisHandler.getWebServerURI(),
+                serverAddress
+        );
+    }
+
+    /**
+     * @return the port used to communicate with the OMERO server.
+     * This property may be updated from any thread
+     */
+    public ReadOnlyIntegerProperty getServerPort() {
+        return serverPort;
+    }
+
+    /**
+     * Set the port used to communicate with the OMERO server.
+     *
+     * @param serverPort  the port of the OMERO server
+     */
+    public void setServerPort(int serverPort) {
+        this.serverPort.set(serverPort);
+
+        ClientsPreferencesManager.setIcePort(
+                apisHandler.getWebServerURI(),
+                serverPort
+        );
     }
 }
