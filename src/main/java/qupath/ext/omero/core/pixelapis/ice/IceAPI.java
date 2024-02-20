@@ -1,9 +1,7 @@
 package qupath.ext.omero.core.pixelapis.ice;
 
 import com.drew.lang.annotations.Nullable;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
+import javafx.beans.property.*;
 import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,6 +128,14 @@ public class IceAPI implements PixelAPI {
     @Override
     public String toString() {
         return String.format("Ice API of %s", apisHandler.getWebServerURI());
+    }
+
+    /**
+     * @return the address used to communicate with the OMERO server.
+     * This property may be updated from any thread
+     */
+    public ReadOnlyStringProperty getServerAddress() {
+        return serverAddress;
     }
 
     /**
