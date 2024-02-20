@@ -23,8 +23,6 @@ class ImageTooltip extends VBox {
     @FXML
     private Canvas canvas;
     @FXML
-    private Label name;
-    @FXML
     private VBox errorContainer;
     @FXML
     private VBox errors;
@@ -38,8 +36,6 @@ class ImageTooltip extends VBox {
      */
     public ImageTooltip(Image image, WebClient client) throws IOException {
         UiUtilities.loadFXML(this, ImageTooltip.class.getResource("image_tooltip.fxml"));
-
-        name.setText(image.getLabel().get());
 
         setErrorLine(image);
         image.isSupported().addListener(change -> Platform.runLater(() -> setErrorLine(image)));
