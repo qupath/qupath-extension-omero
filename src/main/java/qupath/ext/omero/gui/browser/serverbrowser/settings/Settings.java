@@ -17,6 +17,7 @@ import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
 import java.util.ResourceBundle;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
 /**
@@ -35,6 +36,8 @@ public class Settings extends Stage {
     private TextField webJpegQuality;
     @FXML
     private TextField omeroAddress;
+    @FXML
+    private TextField omeroPort;
 
     /**
      * Creates the settings window.
@@ -72,19 +75,19 @@ public class Settings extends Stage {
     private void initUI(Stage ownerWindow) throws IOException {
         UiUtilities.loadFXML(this, Settings.class.getResource("settings.fxml"));
 
-        TextFormatter<String> integerFormatter = new TextFormatter<>(change ->
-                Pattern.matches("^\\d*$", change.getControlNewText()) ? change : null
-        );
-        msPixelBufferAPIPort.setTextFormatter(integerFormatter);
+        UnaryOperator<TextFormatter.Change> integerFilter = change ->
+                Pattern.matches("^\\d*$", change.getControlNewText()) ? change : null;
+        msPixelBufferAPIPort.setTextFormatter(new TextFormatter<>(integerFilter));
+        omeroPort.setTextFormatter(new TextFormatter<>(integerFilter));
 
-        TextFormatter<String> floatFormatter = new TextFormatter<>(change ->
-                Pattern.matches("^\\d*\\.?\\d*$", change.getControlNewText()) ? change : null
-        );
-        webJpegQuality.setTextFormatter(floatFormatter);
+        UnaryOperator<TextFormatter.Change> floatFilter = change ->
+                Pattern.matches("^\\d*\\.?\\d*$", change.getControlNewText()) ? change : null;
+        webJpegQuality.setTextFormatter(new TextFormatter<>(floatFilter));
 
         msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferAPI.getPort().get()));
         webJpegQuality.setText(String.valueOf(webAPI.getJpegQuality().get()));
         omeroAddress.setText(iceAPI.getServerAddress().get());
+        omeroPort.setText(String.valueOf(iceAPI.getServerPort().get()));
 
         initOwner(ownerWindow);
         show();
@@ -100,6 +103,9 @@ public class Settings extends Stage {
         iceAPI.getServerAddress().addListener((p, o, n) -> Platform.runLater(() ->
                 omeroAddress.setText(n)
         ));
+        iceAPI.getServerPort().addListener((p, o, n) -> Platform.runLater(() ->
+                omeroPort.setText(String.valueOf(n))
+        ));
     }
 
     private boolean save() {
@@ -107,11 +113,13 @@ public class Settings extends Stage {
             msPixelBufferAPI.setPort(Integer.parseInt(msPixelBufferAPIPort.getText()), false);
             webAPI.setJpegQuality(Float.parseFloat(webJpegQuality.getText()));
             iceAPI.setServerAddress(omeroAddress.getText());
+            iceAPI.setServerPort(Integer.parseInt(omeroPort.getText()));
 
             // Reset the texts, as the user input may have had incorrect values and been ignored
             msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferAPI.getPort().get()));
             webJpegQuality.setText(String.valueOf(webAPI.getJpegQuality().get()));
             omeroAddress.setText(iceAPI.getServerAddress().get());
+            omeroPort.setText(String.valueOf(iceAPI.getServerPort().get()));
 
             Dialogs.showInfoNotification(
                     resources.getString("Browser.ServerBrowser.Settings.saved"),

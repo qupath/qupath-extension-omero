@@ -47,6 +47,10 @@ public class ClientsPreferencesManager {
             "omero_ext.ice_address",
             ""
     );
+    private static final StringProperty icePortPreference = PathPrefs.createPersistentPreference(
+            "omero_ext.ice_port",
+            ""
+    );
     private static final ObservableList<URI> uris;
     private static final ObservableList<URI> urisImmutable;
 
@@ -81,6 +85,7 @@ public class ClientsPreferencesManager {
         msPixelBufferPortPreference.set("");
         webJpegQualityPreference.set("");
         iceAddressPreference.set("");
+        icePortPreference.set("");
     }
 
     /**
@@ -226,6 +231,33 @@ public class ClientsPreferencesManager {
      */
     public static void setIceAddress(URI serverURI, String iceAddress) {
         setProperty(iceAddressPreference, serverURI, iceAddress);
+    }
+
+    /**
+     * Get the saved port of the OMERO (Ice) server corresponding to the provided URI of web server.
+     *
+     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server port should be retrieved
+     * @return the OMERO (Ice) server port, or an empty optional if not found
+     */
+    public static Optional<Integer> getIcePort(URI serverURI) {
+        return getProperty(icePortPreference, serverURI).map(property -> {
+            try {
+                return Integer.parseInt(property);
+            } catch (NumberFormatException e) {
+                logger.warn(String.format("Could not convert saved ice port %s to an integer", property), e);
+                return null;
+            }
+        });
+    }
+
+    /**
+     * Set the saved OMERO (Ice) server port corresponding to the provided URI of web server.
+     *
+     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server port should be set
+     * @param icePort  the OMERO (Ice) server port
+     */
+    public static void setIcePort(URI serverURI, int icePort) {
+        setProperty(icePortPreference, serverURI, String.valueOf(icePort));
     }
 
     private static synchronized void setServerListPreference() {

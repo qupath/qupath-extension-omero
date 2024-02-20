@@ -9,3 +9,7 @@
 .disconnected {
     -fx-fill: crimson;
 }
+
+.title {
+    -fx-font-weight: bold;
+}

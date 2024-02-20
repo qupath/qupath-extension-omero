@@ -27,11 +27,13 @@ public class IceAPI implements PixelAPI {
     private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
     static final String NAME = "Ice";
     private static final String ADDRESS_PARAMETER = "--serverAddress";
+    private static final String PORT_PARAMETER = "--serverPort";
     private static boolean gatewayAvailable;
     private final ApisHandler apisHandler;
     private final boolean isAuthenticated;
     private final String sessionUuid;
     private final StringProperty serverAddress;
+    private final IntegerProperty serverPort;
 
     static {
         try {
@@ -60,6 +62,9 @@ public class IceAPI implements PixelAPI {
         this.serverAddress = new SimpleStringProperty(
                 ClientsPreferencesManager.getIceAddress(apisHandler.getWebServerURI()).orElse("")
         );
+        this.serverPort = new SimpleIntegerProperty(
+                ClientsPreferencesManager.getIcePort(apisHandler.getWebServerURI()).orElse(0)
+        );
     }
 
     @Override
@@ -69,7 +74,10 @@ public class IceAPI implements PixelAPI {
 
     @Override
     public String[] getArgs() {
-        return new String[] {ADDRESS_PARAMETER, serverAddress.get()};
+        return new String[] {
+                ADDRESS_PARAMETER, serverAddress.get(),
+                PORT_PARAMETER, String.valueOf(serverPort.get())
+        };
     }
 
     @Override
@@ -77,6 +85,13 @@ public class IceAPI implements PixelAPI {
         for (int i=0; i<args.length-1; ++i) {
             if (args[i].equals(ADDRESS_PARAMETER)) {
                 setServerAddress(args[i+1]);
+            }
+            if (args[i].equals(PORT_PARAMETER)) {
+                try {
+                    setServerPort(Integer.parseInt(args[i + 1]));
+                } catch (NumberFormatException e) {
+                    logger.warn(String.format("Can't convert %s to integer", args[i+1]), e);
+                }
             }
         }
     }
@@ -128,7 +143,7 @@ public class IceAPI implements PixelAPI {
                                 sessionUuid,
                                 sessionUuid,
                                 serverAddress.get(),
-                                apisHandler.getServerPort()     //TODO: change
+                                serverPort.get()
                         )
                 ),
                 id,
@@ -174,6 +189,28 @@ public class IceAPI implements PixelAPI {
         ClientsPreferencesManager.setIceAddress(
                 apisHandler.getWebServerURI(),
                 serverAddress
+        );
+    }
+
+    /**
+     * @return the port used to communicate with the OMERO server.
+     * This property may be updated from any thread
+     */
+    public ReadOnlyIntegerProperty getServerPort() {
+        return serverPort;
+    }
+
+    /**
+     * Set the port used to communicate with the OMERO server.
+     *
+     * @param serverPort  the port of the OMERO server
+     */
+    public void setServerPort(int serverPort) {
+        this.serverPort.set(serverPort);
+
+        ClientsPreferencesManager.setIcePort(
+                apisHandler.getWebServerURI(),
+                serverPort
         );
     }
 }
