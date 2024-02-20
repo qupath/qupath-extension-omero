@@ -10,7 +10,7 @@ plugins {
 }
 
 ext.moduleName = 'qupath.extension.omero'
-version = "0.1.0-rc1"
+version = "0.1.0-rc2"
 description = "QuPath extension to support image reading using OMERO APIs."
 ext.qupathVersion = gradle.ext.qupathVersion
 ext.qupathJavaVersion = 17
