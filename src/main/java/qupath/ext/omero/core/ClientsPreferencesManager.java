@@ -160,7 +160,14 @@ public class ClientsPreferencesManager {
      * @return the port, or an empty optional if not found
      */
     public static Optional<Integer> getMsPixelBufferPort(URI serverURI) {
-        return getProperty(msPixelBufferPortPreference, serverURI);
+        return getProperty(msPixelBufferPortPreference, serverURI).map(property -> {
+            try {
+                return Integer.parseInt(property);
+            } catch (NumberFormatException e) {
+                logger.warn(String.format("Could not convert saved ms pixel buffer port %s to an integer", property), e);
+                return null;
+            }
+        });
     }
 
     /**
@@ -171,7 +178,7 @@ public class ClientsPreferencesManager {
      * @param port  the pixel buffer microservice port
      */
     public static void setMsPixelBufferPort(URI serverURI, int port) {
-        setProperty(msPixelBufferPortPreference, serverURI, port);
+        setProperty(msPixelBufferPortPreference, serverURI, String.valueOf(port));
     }
 
     /**
@@ -181,7 +188,14 @@ public class ClientsPreferencesManager {
      * @return the JPEG quality, or an empty optional if not found
      */
     public static Optional<Float> getWebJpegQuality(URI serverURI) {
-        return getProperty(webJpegQualityPreference, serverURI);
+        return getProperty(webJpegQualityPreference, serverURI).map(property -> {
+            try {
+                return Float.parseFloat(property);
+            } catch (NumberFormatException e) {
+                logger.warn(String.format("Could not convert saved web JPEG quality %s to a float", property), e);
+                return null;
+            }
+        });
     }
 
     /**
@@ -191,7 +205,7 @@ public class ClientsPreferencesManager {
      * @param jpegQuality  the JPEG quality
      */
     public static void setWebJpegQuality(URI serverURI, float jpegQuality) {
-        setProperty(webJpegQualityPreference, serverURI, jpegQuality);
+        setProperty(webJpegQualityPreference, serverURI, String.valueOf(jpegQuality));
     }
 
     /**
@@ -219,12 +233,12 @@ public class ClientsPreferencesManager {
         ClientsPreferencesManager.serverListPreference.set(gson.toJson(uris));
     }
 
-    private static synchronized <T> Optional<T> getProperty(StringProperty preference, URI serverURI) {
+    private static synchronized Optional<String> getProperty(StringProperty preference, URI serverURI) {
         Gson gson = new Gson();
-        Type type = new TypeToken<Map<URI, T>>() {}.getType();
+        Type type = new TypeToken<Map<URI, String>>() {}.getType();
 
         try {
-            Map<URI, T> uriProperties = gson.fromJson(preference.get(), type);
+            Map<URI, String> uriProperties = gson.fromJson(preference.get(), type);
 
             if (uriProperties == null) {
                 return Optional.empty();
@@ -237,12 +251,12 @@ public class ClientsPreferencesManager {
         }
     }
 
-    public static synchronized <T> void setProperty(StringProperty preference, URI serverURI, T property) {
+    public static synchronized void setProperty(StringProperty preference, URI serverURI, String property) {
         Gson gson = new Gson();
-        Type type = new TypeToken<Map<URI, T>>() {}.getType();
+        Type type = new TypeToken<Map<URI, String>>() {}.getType();
 
         try {
-            Map<URI, T> uriProperties = gson.fromJson(preference.get(), type);
+            Map<URI, String> uriProperties = gson.fromJson(preference.get(), type);
             if (uriProperties == null) {
                 uriProperties = Map.of(serverURI, property);
             } else {
