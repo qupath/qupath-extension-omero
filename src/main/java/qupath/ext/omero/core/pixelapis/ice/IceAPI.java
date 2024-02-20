@@ -3,6 +3,7 @@ package qupath.ext.omero.core.pixelapis.ice;
 import com.drew.lang.annotations.Nullable;
 import javafx.beans.property.*;
 import javafx.beans.value.ObservableBooleanValue;
+import omero.gateway.LoginCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ClientsPreferencesManager;
@@ -13,6 +14,7 @@ import qupath.ext.omero.core.pixelapis.PixelAPIReader;
 import qupath.lib.images.servers.PixelType;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * <p>
@@ -108,7 +110,30 @@ public class IceAPI implements PixelAPI {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        return new IceReader(apisHandler, sessionUuid, id, metadata.getChannels());
+        return new IceReader(
+                List.of(
+                        new LoginCredentials(
+                                sessionUuid,
+                                sessionUuid,
+                                apisHandler.getWebServerURI().getHost(),
+                                apisHandler.getServerPort()
+                        ),
+                        new LoginCredentials(
+                                sessionUuid,
+                                sessionUuid,
+                                apisHandler.getServerURI(),
+                                apisHandler.getServerPort()
+                        ),
+                        new LoginCredentials(
+                                sessionUuid,
+                                sessionUuid,
+                                serverAddress.get(),
+                                apisHandler.getServerPort()     //TODO: change
+                        )
+                ),
+                id,
+                metadata.getChannels()
+        );
     }
 
     @Override
