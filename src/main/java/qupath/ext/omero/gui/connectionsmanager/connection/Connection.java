@@ -6,6 +6,7 @@ import javafx.collections.SetChangeListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.HBox;
@@ -63,6 +64,8 @@ public class Connection extends VBox {
     @FXML
     private Button remove;
     @FXML
+    private CheckBox skipAuthentication;
+    @FXML
     private TitledPane imagesPane;
     @FXML
     private VBox imagesContainer;
@@ -115,33 +118,19 @@ public class Connection extends VBox {
 
     @FXML
     private void onConnectClicked(ActionEvent ignoredEvent) {
-        NewConnectionOptions newConnectionOptions = null;
-        try {
-            newConnectionOptions = new NewConnectionOptions();
-        } catch (IOException e) {
-            logger.error("Error when creating the new connection options form", e);
-        }
-
-        boolean dialogConfirmed = newConnectionOptions != null && Dialogs.showConfirmDialog(
-                resources.getString("ConnectionsManager.NewConnectionOptions.title"),
-                newConnectionOptions
-        );
-
-        if (dialogConfirmed) {
-            WebClients.createClient(
-                    serverURI.toString(),
-                    newConnectionOptions.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
-            ).thenAccept(client -> Platform.runLater(() -> {
-                if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-                    Dialogs.showInfoNotification(
-                            resources.getString("ConnectionsManager.Connection.webServer"),
-                            MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectedTo"), serverURI.toString())
-                    );
-                } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
-                    showConnectionError(serverURI.toString(), client.getFailReason().orElse(null));
-                }
-            }));
-        }
+        WebClients.createClient(
+                serverURI.toString(),
+                skipAuthentication.isSelected() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
+        ).thenAccept(client -> Platform.runLater(() -> {
+            if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+                Dialogs.showInfoNotification(
+                        resources.getString("ConnectionsManager.Connection.webServer"),
+                        MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectedTo"), serverURI.toString())
+                );
+            } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
+                showConnectionError(serverURI.toString(), client.getFailReason().orElse(null));
+            }
+        }));
     }
 
     @FXML
@@ -234,6 +223,11 @@ public class Connection extends VBox {
         }
     }
 
+    @FXML
+    private void onSkipAuthenticationClicked(ActionEvent ignoredEvent) {
+        ClientsPreferencesManager.setEnableUnauthenticated(serverURI, skipAuthentication.isSelected());
+    }
+
     private void initUI() throws IOException {
         UiUtilities.loadFXML(this, Connection.class.getResource("connection.fxml"));
 
@@ -262,6 +256,8 @@ public class Connection extends VBox {
                 imagesContainer.getChildren().add(new Image(client, uri));
             }
         }
+
+        skipAuthentication.setSelected(ClientsPreferencesManager.getEnableUnauthenticated(serverURI).orElse(true));
     }
 
     private void setUpListeners() {

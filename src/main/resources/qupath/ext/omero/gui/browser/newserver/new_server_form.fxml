@@ -17,7 +17,7 @@
          <Tooltip text="%Browser.NewServer.enterOmeroUrl" />
       </tooltip>
    </TextField>
-   <CheckBox fx:id="skipAuthentication" mnemonicParsing="false" selected="true" text="%Browser.BrowseMenu.enablePublic">
+   <CheckBox fx:id="skipAuthentication" mnemonicParsing="false" text="%Browser.BrowseMenu.enablePublic">
       <tooltip>
          <Tooltip text="%Browser.BrowseMenu.skipAuthentication" />
       </tooltip>

@@ -68,6 +68,10 @@ public class WebClients {
                     return WebClient.create(serverURI.get(), authentication, args).thenApply(client -> {
                         if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                             ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
+                            ClientsPreferencesManager.setEnableUnauthenticated(client.getApisHandler().getWebServerURI(), switch (authentication) {
+                                case ENFORCE -> false;
+                                case TRY_TO_SKIP, SKIP -> true;
+                            });
                             updateClients(client, Operation.ADD);
                         }
                         clientsBeingCreated.remove(serverURI.get());
