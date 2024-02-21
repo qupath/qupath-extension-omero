@@ -2,6 +2,7 @@ package qupath.ext.omero.core.imageserver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.ext.omero.core.WebClient;
@@ -84,7 +85,12 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     private static Optional<WebClient> getClientAndCheckURIReachable(URI uri, String... args) {
         try {
             if (RequestSender.isLinkReachableWithGet(uri).get()) {
-                WebClient client = WebClients.createClientSync(uri.toString(), WebClient.Authentication.TRY_TO_SKIP, args);
+                WebClient client = WebClients.createClientSync(
+                        uri.toString(),
+                        ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(true) ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE,
+                        args
+                );
+
                 if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                     return Optional.of(client);
                 } else {

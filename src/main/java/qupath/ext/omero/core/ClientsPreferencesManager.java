@@ -35,6 +35,10 @@ public class ClientsPreferencesManager {
             "omero_ext.last_username",
             ""
     );
+    private static final StringProperty enableUnauthenticatedPreference = PathPrefs.createPersistentPreference(
+            "omero_ext.enable_unauthenticated",
+            ""
+    );
     private static final StringProperty msPixelBufferPortPreference = PathPrefs.createPersistentPreference(
             "omero_ext.ms_pixel_buffer_port",
             ""
@@ -82,6 +86,7 @@ public class ClientsPreferencesManager {
         uris.clear();
         latestServerPreference.set("");
         latestUsernamePreference.set("");
+        enableUnauthenticatedPreference.set("");
         msPixelBufferPortPreference.set("");
         webJpegQualityPreference.set("");
         iceAddressPreference.set("");
@@ -155,6 +160,26 @@ public class ClientsPreferencesManager {
      */
     public static synchronized void setLastUsername(String username) {
         latestUsernamePreference.set(username);
+    }
+
+    /**
+     * Return whether to enable logging as an unauthenticated user when connecting to the provided URI.
+     *
+     * @param serverURI  the URI of the OMERO web server to connect to
+     * @return whether to enable logging as an unauthenticated user, or an empty optional if not defined
+     */
+    public static Optional<Boolean> getEnableUnauthenticated(URI serverURI) {
+        return getProperty(enableUnauthenticatedPreference, serverURI).map(Boolean::parseBoolean);
+    }
+
+    /**
+     * Set whether to enable logging as an unauthenticated user when connecting to the provided URI.
+     *
+     * @param serverURI  the URI of the OMERO web server to connect to
+     * @param enableUnauthenticated  whether to enable logging as an unauthenticated user for this URI
+     */
+    public static void setEnableUnauthenticated(URI serverURI, boolean enableUnauthenticated) {
+        setProperty(enableUnauthenticatedPreference, serverURI, String.valueOf(enableUnauthenticated));
     }
 
     /**
