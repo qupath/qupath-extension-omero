@@ -20,6 +20,7 @@ import qupath.ext.omero.core.pixelapis.PixelAPIReader;
 import qupath.lib.images.servers.PixelType;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -131,30 +132,14 @@ public class IceAPI implements PixelAPI {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        return new IceReader(
-                List.of(
-                        new LoginCredentials(
-                                sessionUuid,
-                                sessionUuid,
-                                apisHandler.getWebServerURI().getHost(),
-                                apisHandler.getServerPort()
-                        ),
-                        new LoginCredentials(
-                                sessionUuid,
-                                sessionUuid,
-                                apisHandler.getServerURI(),
-                                apisHandler.getServerPort()
-                        ),
-                        new LoginCredentials(
-                                sessionUuid,
-                                sessionUuid,
-                                serverAddress.get(),
-                                serverPort.get()
-                        )
-                ),
-                id,
-                metadata.getChannels()
-        );
+        List<LoginCredentials> credentials = new ArrayList<>();
+        credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
+        credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
+        if (serverAddress.get() != null) {
+            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
+        }
+
+        return new IceReader(credentials, id, metadata.getChannels());
     }
 
     @Override

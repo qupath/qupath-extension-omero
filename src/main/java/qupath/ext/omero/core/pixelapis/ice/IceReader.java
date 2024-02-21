@@ -145,15 +145,25 @@ class IceReader implements PixelAPIReader {
     }
 
     private Optional<ExperimenterData> connect(List<LoginCredentials> loginCredentials) {
-        for (LoginCredentials loginCredential: loginCredentials) {
+        for (int i=0; i<loginCredentials.size(); i++) {
             try {
-                return Optional.ofNullable(gateway.connect(loginCredential));
+                return Optional.ofNullable(gateway.connect(loginCredentials.get(i)));
             } catch (Exception e) {
-                logger.info(String.format(
-                        "Can't connect to %s:%d",
-                        loginCredential.getServer().getHost(),
-                        loginCredential.getServer().getPort()
-                ), e);
+                if (i < loginCredentials.size()-1) {
+                    logger.warn(String.format(
+                            "Ice can't connect to %s:%d. Trying %s:%d...",
+                            loginCredentials.get(i).getServer().getHost(),
+                            loginCredentials.get(i).getServer().getPort(),
+                            loginCredentials.get(i+1).getServer().getHost(),
+                            loginCredentials.get(i+1).getServer().getPort()
+                    ), e);
+                } else {
+                    logger.warn(String.format(
+                            "Ice can't connect to %s:%d. No more credentials available",
+                            loginCredentials.get(i).getServer().getHost(),
+                            loginCredentials.get(i).getServer().getPort()
+                    ), e);
+                }
             }
         }
         return Optional.empty();
