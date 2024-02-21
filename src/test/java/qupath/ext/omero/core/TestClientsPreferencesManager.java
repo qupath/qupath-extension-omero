@@ -100,6 +100,53 @@ public class TestClientsPreferencesManager {
     }
 
     @Test
+    void Check_Enable_Unauthenticated_Empty() {
+        URI uri = URI.create("https://github.com/qupath");
+
+        Optional<Boolean> enableUnauthenticated = ClientsPreferencesManager.getEnableUnauthenticated(uri);
+
+        Assertions.assertTrue(enableUnauthenticated.isEmpty());
+    }
+
+    @Test
+    void Check_Enable_Unauthenticated() {
+        boolean expectedEnableUnauthenticated = true;
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
+
+        Boolean enableUnauthenticated = ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(null);
+
+        Assertions.assertEquals(expectedEnableUnauthenticated, enableUnauthenticated);
+    }
+
+    @Test
+    void Check_Enable_Unauthenticated_When_Set_Twice() {
+        boolean unexpectedEnableUnauthenticated = false;
+        boolean expectedEnableUnauthenticated = true;
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setEnableUnauthenticated(uri, unexpectedEnableUnauthenticated);
+        ClientsPreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
+
+        Boolean enableUnauthenticated = ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(null);
+
+        Assertions.assertEquals(expectedEnableUnauthenticated, enableUnauthenticated);
+    }
+
+    @Test
+    void Check_Enable_Unauthenticated_When_Other_URI_Set() {
+        URI otherUri = URI.create("https://qupath.readthedocs.io");
+        boolean otherEnableUnauthenticated = false;
+        ClientsPreferencesManager.setEnableUnauthenticated(otherUri, otherEnableUnauthenticated);
+        boolean expectedEnableUnauthenticated = true;
+        URI uri = URI.create("https://github.com/qupath");
+        ClientsPreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
+
+        Boolean enableUnauthenticated = ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(null);
+
+        Assertions.assertEquals(expectedEnableUnauthenticated, enableUnauthenticated);
+    }
+
+    @Test
     void Check_Ms_Pixel_Buffer_Port_Empty() {
         URI uri = URI.create("https://github.com/qupath");
 
