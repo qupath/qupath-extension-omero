@@ -147,7 +147,15 @@ class IceReader implements PixelAPIReader {
     private Optional<ExperimenterData> connect(List<LoginCredentials> loginCredentials) {
         for (int i=0; i<loginCredentials.size(); i++) {
             try {
-                return Optional.ofNullable(gateway.connect(loginCredentials.get(i)));
+                ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
+                if (experimenterData != null) {
+                    logger.info(String.format(
+                            "Connected to the OMERO.server instance at %s with user %s",
+                            loginCredentials.get(i).getServer(),
+                            experimenterData.getUserName())
+                    );
+                    return Optional.of(experimenterData);
+                }
             } catch (Exception e) {
                 if (i < loginCredentials.size()-1) {
                     logger.warn(String.format(

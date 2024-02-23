@@ -159,6 +159,14 @@ public class WebClient implements AutoCloseable {
         if (allPixelAPIs != null) {
             setUpPixelAPIs();
         }
+
+        if (status.equals(Status.SUCCESS)) {
+            String message = String.format("Connected to the OMERO.web instance at %s", apisHandler.getWebServerURI());
+            if (authenticated) {
+                message += String.format(" with user %s", username);
+            }
+            logger.info(message);
+        }
     }
 
     private WebClient(Status status, FailReason failReason) {
@@ -241,6 +249,9 @@ public class WebClient implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        if (status.equals(Status.SUCCESS)) {
+            logger.info(String.format("Disconnected from the OMERO.web instance at %s", apisHandler.getWebServerURI()));
+        }
         if (apisHandler != null) {
             apisHandler.close();
         }
