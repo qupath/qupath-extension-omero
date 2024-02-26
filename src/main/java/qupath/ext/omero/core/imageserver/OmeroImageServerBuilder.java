@@ -94,10 +94,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                     return Optional.of(client);
                 } else {
-                    logger.error("Client creation failed");
+                    logger.debug("Client creation failed");
                     return Optional.empty();
                 }
             } else {
+                logger.debug(String.format("Link %s not reachable; OMERO can't open it", uri));
                 return Optional.empty();
             }
         } catch (InterruptedException | ExecutionException e) {
