@@ -42,7 +42,7 @@ JPEG compression artifacts would be problematic.
   * This method can read every image and access raw pixel values.
   * However, you have to install the OMERO Java dependencies to enable it: from the
 [OMERO download page](https://www.openmicroscopy.org/omero/downloads/), under
-"OMERO Java", download the .zip file, unzip it and copy the content of the *libs* folder in
+"OMERO Java", download the .zip file, unzip it and copy the *libs* folder in
 your extension directory.
   * Note that it is not possible to use the Ice API when accessing an OMERO server with
 a guest account, you have to be authenticated.
