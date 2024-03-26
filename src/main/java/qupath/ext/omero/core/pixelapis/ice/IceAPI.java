@@ -22,6 +22,8 @@ import qupath.lib.images.servers.PixelType;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>
@@ -32,6 +34,7 @@ import java.util.List;
 public class IceAPI implements PixelAPI {
 
     private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
+    private static final Map<Long, IceReader> readerCache = new ConcurrentHashMap<>();
     static final String NAME = "Ice";
     private static final String ADDRESS_PARAMETER = "--serverAddress";
     private static final String PORT_PARAMETER = "--serverPort";
@@ -132,14 +135,18 @@ public class IceAPI implements PixelAPI {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        List<LoginCredentials> credentials = new ArrayList<>();
-        if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
-            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
-        }
-        credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
-        credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
+        if (!readerCache.containsKey(id)) {
+            List<LoginCredentials> credentials = new ArrayList<>();
+            if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
+                credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
+            }
+            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
+            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
 
-        return new IceReader(credentials, id, metadata.getChannels());
+            readerCache.put(id, new IceReader(credentials, id, metadata.getChannels()));
+        }
+
+        return readerCache.get(id);
     }
 
     @Override
@@ -159,6 +166,13 @@ public class IceAPI implements PixelAPI {
     @Override
     public String toString() {
         return String.format("Ice API of %s", apisHandler.getWebServerURI());
+    }
+
+    @Override
+    public void close() throws Exception {
+        for (IceReader iceReader: readerCache.values()) {
+            iceReader.close();
+        }
     }
 
     /**

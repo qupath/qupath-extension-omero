@@ -93,6 +93,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                         client.addOpenedImage(uri);
 
                         PixelAPIReader apiReader = pixelAPI.createReader(id.getAsLong(), originalMetadata.get());
+
                         return Optional.of(new OmeroImageServer(
                                 uri,
                                 client,
@@ -194,13 +195,6 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         }
 
         return pathObjects;
-    }
-
-    @Override
-    public void close() throws Exception {
-        if (pixelAPIReader != null) {
-            pixelAPIReader.close();
-        }
     }
 
     @Override

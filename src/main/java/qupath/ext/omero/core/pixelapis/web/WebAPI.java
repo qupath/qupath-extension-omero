@@ -122,6 +122,9 @@ public class WebAPI implements PixelAPI {
         return String.format("Web API of %s", apisHandler.getWebServerURI());
     }
 
+    @Override
+    public void close() throws Exception {}
+
     /**
      * @return the JPEG quality used by this pixel API.
      * This property may be updated from any thread

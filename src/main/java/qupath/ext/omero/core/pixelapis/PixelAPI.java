@@ -7,11 +7,14 @@ import qupath.lib.images.servers.PixelType;
 import java.io.IOException;
 
 /**
- * This interface provides information (e.g. types of image supported) on a specific API to access
- * pixel values of an OMERO image. It can also be used to create a {@link PixelAPIReader}
- * corresponding to this API.
+ * <p>
+ *     This interface provides information (e.g. types of image supported) on a specific API to access
+ *     pixel values of an OMERO image. It can also be used to create a {@link PixelAPIReader}
+ *     corresponding to this API.
+ * </p>
+ * <p>A PixelAPI must be {@link #close() closed} once no longer used.</p>
  */
-public interface PixelAPI {
+public interface PixelAPI extends AutoCloseable {
 
     /**
      * @return a human-readable name of this API

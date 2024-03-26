@@ -134,6 +134,9 @@ public class MsPixelBufferAPI implements PixelAPI {
         return String.format("Ms pixel buffer API of %s", apisHandler.getWebServerURI());
     }
 
+    @Override
+    public void close() throws Exception {}
+
     /**
      * @return the port used by this microservice on the OMERO server.
      * This property may be updated from any thread

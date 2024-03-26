@@ -252,6 +252,11 @@ public class WebClient implements AutoCloseable {
         if (status.equals(Status.SUCCESS)) {
             logger.info(String.format("Disconnected from the OMERO.web instance at %s", apisHandler.getWebServerURI()));
         }
+        if (allPixelAPIs != null) {
+            for (PixelAPI pixelAPI: allPixelAPIs) {
+                pixelAPI.close();
+            }
+        }
         if (apisHandler != null) {
             apisHandler.close();
         }
