@@ -64,9 +64,10 @@ public class ApisHandler implements AutoCloseable {
     private final WebGatewayApi webGatewayApi;
     private final IViewerApi iViewerApi;
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
-    private final Map<Long, BufferedImage> thumbnails = new ConcurrentHashMap<>();
+    private final Map<IdSizeWrapper, BufferedImage> thumbnailsCache = new ConcurrentHashMap<>();
     private final Map<Class<? extends RepositoryEntity>, BufferedImage> omeroIcons = new ConcurrentHashMap<>();
     private final boolean canSkipAuthentication;
+    private record IdSizeWrapper(long id, int size) {}
 
     private ApisHandler(URI host, JsonApi jsonApi, boolean canSkipAuthentication) {
         this.host = host;
@@ -498,11 +499,13 @@ public class ApisHandler implements AutoCloseable {
      * See {@link WebGatewayApi#getThumbnail(long, int)}.
      */
     public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id, int size) {
-        if (thumbnails.containsKey(id)) {
-            return CompletableFuture.completedFuture(Optional.of(thumbnails.get(id)));
+        IdSizeWrapper key = new IdSizeWrapper(id, size);
+
+        if (thumbnailsCache.containsKey(key)) {
+            return CompletableFuture.completedFuture(Optional.of(thumbnailsCache.get(key)));
         } else {
             return webGatewayApi.getThumbnail(id, size).thenApply(thumbnail -> {
-                thumbnail.ifPresent(bufferedImage -> thumbnails.put(id, bufferedImage));
+                thumbnail.ifPresent(bufferedImage -> thumbnailsCache.put(key, bufferedImage));
                 return thumbnail;
             });
         }

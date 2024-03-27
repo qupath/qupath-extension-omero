@@ -128,7 +128,10 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     public BufferedImage getDefaultThumbnail(int z, int t) throws IOException {
         if (isRGB()) {
             try {
-                return client.getApisHandler().getThumbnail(id).get().orElse(null);
+                return client.getApisHandler().getThumbnail(
+                        id,
+                        Math.max(originalMetadata.getLevel(0).getWidth(), originalMetadata.getLevel(0).getHeight())
+                ).get().orElse(null);
             } catch (InterruptedException | ExecutionException e) {
                 throw new IOException(e);
             }
