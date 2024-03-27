@@ -55,8 +55,10 @@ import java.util.concurrent.TimeUnit;
  * <p>
  *     If a Docker container containing a working OMERO server is already
  *     running on the host machine, set the {@link #IS_LOCAL_OMERO_SERVER_RUNNING}
- *     variable to {@code true}. This will prevent this class to create a new container,
+ *     variable to {@code true}. This will prevent this class to create new containers,
  *     gaining some time when running the tests.
+ *     A local OMERO server can be started by running the qupath-extension-omero/src/test/resources/server.sh
+ *     script.
  * </p>
  */
 public abstract class OmeroServer {
