@@ -1,22 +1,35 @@
 package qupath.ext.omero.core.imageserver;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.lib.images.servers.*;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 
-import java.awt.image.*;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -27,7 +40,10 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServer.class);
     private static final String PIXEL_API_ARGUMENT = "--pixelAPI";
-    private static final Map<URI, CompletableFuture<Optional<ImageServerMetadata>>> metadataCache = new ConcurrentHashMap<>();
+    private static final int METADATA_CACHE_SIZE = 50;
+    private static final Cache<URI, CompletableFuture<Optional<ImageServerMetadata>>> metadataCache = CacheBuilder.newBuilder()
+            .maximumSize(METADATA_CACHE_SIZE)
+            .build();
     private final URI uri;
     private final WebClient client;
     private final PixelAPIReader pixelAPIReader;
@@ -249,60 +265,80 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     }
 
     /**
-     * Attempt to retrieve metadata associated with the image specified by the
-     * provided parameters.
+     * <p>
+     *     Attempt to retrieve metadata associated with the image specified by the
+     *     provided parameters.
+     * </p>
+     * <p>
+     *     The results are cached in a cache of size {@link #METADATA_CACHE_SIZE}.
+     * </p>
      *
      * @param uri  the URI of the image
      * @param client  the client of the corresponding server
      * @return a CompletableFuture with the metadata, or an empty Optional if the request failed
      */
     public static CompletableFuture<Optional<ImageServerMetadata>> getOriginalMetadata(URI uri, WebClient client) {
-        return metadataCache.computeIfAbsent(uri, u -> {
-            OptionalLong id = WebUtilities.parseEntityId(u);
+        try {
+            CompletableFuture<Optional<ImageServerMetadata>> request = metadataCache.get(
+                    uri,
+                    () -> {
+                        OptionalLong id = WebUtilities.parseEntityId(uri);
 
-            if (id.isPresent()) {
-                return client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(imageMetadataResponse -> {
-                    if (imageMetadataResponse.isPresent()) {
-                        ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
-                                OmeroImageServer.class,
-                                u.toString(),
-                                imageMetadataResponse.get().getSizeX(),
-                                imageMetadataResponse.get().getSizeY()
-                        )
-                                .name(imageMetadataResponse.get().getImageName())
-                                .sizeT(imageMetadataResponse.get().getSizeT())
-                                .sizeZ(imageMetadataResponse.get().getSizeZ())
-                                .preferredTileSize(imageMetadataResponse.get().getTileSizeX(), imageMetadataResponse.get().getTileSizeY())
-                                .levels(imageMetadataResponse.get().getLevels())
-                                .pixelType(imageMetadataResponse.get().getPixelType())
-                                .channels(imageMetadataResponse.get().getChannels())
-                                .rgb(imageMetadataResponse.get().isRGB());
+                        if (id.isPresent()) {
+                            return client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(imageMetadataResponse -> {
+                                if (imageMetadataResponse.isPresent()) {
+                                    ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
+                                            OmeroImageServer.class,
+                                            uri.toString(),
+                                            imageMetadataResponse.get().getSizeX(),
+                                            imageMetadataResponse.get().getSizeY()
+                                    )
+                                            .name(imageMetadataResponse.get().getImageName())
+                                            .sizeT(imageMetadataResponse.get().getSizeT())
+                                            .sizeZ(imageMetadataResponse.get().getSizeZ())
+                                            .preferredTileSize(imageMetadataResponse.get().getTileSizeX(), imageMetadataResponse.get().getTileSizeY())
+                                            .levels(imageMetadataResponse.get().getLevels())
+                                            .pixelType(imageMetadataResponse.get().getPixelType())
+                                            .channels(imageMetadataResponse.get().getChannels())
+                                            .rgb(imageMetadataResponse.get().isRGB());
 
-                        if (imageMetadataResponse.get().getMagnification().isPresent()) {
-                            builder.magnification(imageMetadataResponse.get().getMagnification().get());
+                                    if (imageMetadataResponse.get().getMagnification().isPresent()) {
+                                        builder.magnification(imageMetadataResponse.get().getMagnification().get());
+                                    }
+
+                                    if (imageMetadataResponse.get().getPixelWidthMicrons().isPresent() && imageMetadataResponse.get().getPixelHeightMicrons().isPresent()) {
+                                        builder.pixelSizeMicrons(
+                                                imageMetadataResponse.get().getPixelWidthMicrons().get(),
+                                                imageMetadataResponse.get().getPixelHeightMicrons().get()
+                                        );
+                                    }
+
+                                    if (imageMetadataResponse.get().getZSpacingMicrons().isPresent() && imageMetadataResponse.get().getZSpacingMicrons().get() > 0) {
+                                        builder.zSpacingMicrons(imageMetadataResponse.get().getZSpacingMicrons().get());
+                                    }
+
+                                    return Optional.of(builder.build());
+                                } else {
+                                    return Optional.empty();
+                                }
+                            });
+                        } else {
+                            logger.warn("Could not get image ID from " + uri);
+                            return CompletableFuture.completedFuture(Optional.empty());
                         }
-
-                        if (imageMetadataResponse.get().getPixelWidthMicrons().isPresent() && imageMetadataResponse.get().getPixelHeightMicrons().isPresent()) {
-                            builder.pixelSizeMicrons(
-                                    imageMetadataResponse.get().getPixelWidthMicrons().get(),
-                                    imageMetadataResponse.get().getPixelHeightMicrons().get()
-                            );
-                        }
-
-                        if (imageMetadataResponse.get().getZSpacingMicrons().isPresent() && imageMetadataResponse.get().getZSpacingMicrons().get() > 0) {
-                            builder.zSpacingMicrons(imageMetadataResponse.get().getZSpacingMicrons().get());
-                        }
-
-                        return Optional.of(builder.build());
-                    } else {
-                        return Optional.empty();
                     }
-                });
-            } else {
-                logger.warn("Could not get image ID from " + uri);
-                return CompletableFuture.completedFuture(Optional.empty());
-            }
-        });
+            );
+
+            request.thenAccept(response -> {
+                if (response.isEmpty()) {
+                    metadataCache.invalidate(uri);
+                }
+            });
+            return request;
+        } catch (ExecutionException e) {
+            logger.error("Error when retrieving metadata", e);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
     }
 
     private static Optional<PixelAPI> getPixelAPIFromArgs(WebClient client, String... args) {

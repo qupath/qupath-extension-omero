@@ -1,6 +1,8 @@
 package qupath.ext.omero.core.apis;
 
 import com.drew.lang.annotations.Nullable;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
@@ -48,6 +50,7 @@ public class ApisHandler implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(ApisHandler.class);
     private static final int THUMBNAIL_SIZE = 256;
+    private static final int THUMBNAIL_CACHE_SIZE = 1000;
     private static final Map<String, PixelType> PIXEL_TYPE_MAP = Map.of(
             "uint8", PixelType.UINT8,
             "int8", PixelType.INT8,
@@ -64,8 +67,10 @@ public class ApisHandler implements AutoCloseable {
     private final WebGatewayApi webGatewayApi;
     private final IViewerApi iViewerApi;
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
-    private final Map<IdSizeWrapper, BufferedImage> thumbnailsCache = new ConcurrentHashMap<>();
-    private final Map<Class<? extends RepositoryEntity>, BufferedImage> omeroIcons = new ConcurrentHashMap<>();
+    private final Cache<IdSizeWrapper, CompletableFuture<Optional<BufferedImage>>> thumbnailsCache = CacheBuilder.newBuilder()
+            .maximumSize(THUMBNAIL_CACHE_SIZE)
+            .build();
+    private final Map<Class<? extends RepositoryEntity>, BufferedImage> omeroIconsCache = new ConcurrentHashMap<>();
     private final boolean canSkipAuthentication;
     private record IdSizeWrapper(long id, int size) {}
 
@@ -437,48 +442,49 @@ public class ApisHandler implements AutoCloseable {
     /**
      * <p>Attempt to retrieve the icon of an OMERO entity.</p>
      * <p>Icons for orphaned folders, projects, datasets, images, screens, plates, and plate acquisitions can be retrieved.</p>
+     * <p>Icons are cached.</p>
      * <p>This function is asynchronous.</p>
      *
      * @param type  the class of the entity whose icon is to be retrieved
      * @return a CompletableFuture with the icon if the operation succeeded, or an empty Optional otherwise
      */
     public CompletableFuture<Optional<BufferedImage>> getOmeroIcon(Class<? extends RepositoryEntity> type) {
-        if (omeroIcons.containsKey(type)) {
-            return CompletableFuture.completedFuture(Optional.of(omeroIcons.get(type)));
+        if (omeroIconsCache.containsKey(type)) {
+            return CompletableFuture.completedFuture(Optional.of(omeroIconsCache.get(type)));
         } else {
             if (type.equals(Project.class)) {
                 return webGatewayApi.getProjectIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIcons.put(type, bufferedImage));
+                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
                     return icon;
                 });
             } else if (type.equals(Dataset.class)) {
                 return webGatewayApi.getDatasetIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIcons.put(type, bufferedImage));
+                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
                     return icon;
                 });
             } else if (type.equals(OrphanedFolder.class)) {
                 return webGatewayApi.getOrphanedFolderIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIcons.put(type, bufferedImage));
+                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
                     return icon;
                 });
             } else if (type.equals(Image.class)) {
                 return webclientApi.getImageIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIcons.put(type, bufferedImage));
+                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
                     return icon;
                 });
             } else if (type.equals(Screen.class)) {
                 return webclientApi.getScreenIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIcons.put(type, bufferedImage));
+                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
                     return icon;
                 });
             } else if (type.equals(Plate.class)) {
                 return webclientApi.getPlateIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIcons.put(type, bufferedImage));
+                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
                     return icon;
                 });
             } else if (type.equals(PlateAcquisition.class)) {
                 return webclientApi.getPlateAcquisitionIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIcons.put(type, bufferedImage));
+                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
                     return icon;
                 });
             } else {
@@ -497,17 +503,25 @@ public class ApisHandler implements AutoCloseable {
 
     /**
      * See {@link WebGatewayApi#getThumbnail(long, int)}.
+     * Thumbnails are cached in a cache of size {@link #THUMBNAIL_CACHE_SIZE}.
      */
     public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id, int size) {
-        IdSizeWrapper key = new IdSizeWrapper(id, size);
+        try {
+            IdSizeWrapper key = new IdSizeWrapper(id, size);
+            CompletableFuture<Optional<BufferedImage>> request = thumbnailsCache.get(
+                    key,
+                    () -> webGatewayApi.getThumbnail(id, size)
+            );
 
-        if (thumbnailsCache.containsKey(key)) {
-            return CompletableFuture.completedFuture(Optional.of(thumbnailsCache.get(key)));
-        } else {
-            return webGatewayApi.getThumbnail(id, size).thenApply(thumbnail -> {
-                thumbnail.ifPresent(bufferedImage -> thumbnailsCache.put(key, bufferedImage));
-                return thumbnail;
+            request.thenAccept(response -> {
+                if (response.isEmpty()) {
+                    thumbnailsCache.invalidate(key);
+                }
             });
+            return request;
+        } catch (ExecutionException e) {
+            logger.error("Error when retrieving thumbnail", e);
+            return CompletableFuture.completedFuture(Optional.empty());
         }
     }
 

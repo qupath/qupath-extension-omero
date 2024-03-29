@@ -41,7 +41,8 @@ class IceReader implements PixelAPIReader {
     private final int effectiveNChannels;
     private final PixelType pixelType;
     private final ColorModel colorModel;
-    private SecurityContext context;
+    private final SecurityContext context;
+    private record ImageContextWrapper(ImageData image, SecurityContext context) {}
 
     /**
      * Creates a new Ice reader.
@@ -54,13 +55,13 @@ class IceReader implements PixelAPIReader {
      */
     public IceReader(List<LoginCredentials> loginCredentials, long imageID, List<ImageChannel> channels) throws IOException {
         try {
-            Optional<ExperimenterData> user = connect(loginCredentials);
+            Optional<ExperimenterData> user = connect(gateway, loginCredentials);
             if (user.isPresent()) {
-                context = new SecurityContext(user.get().getGroupId());
 
-                var imageData = getImage(imageID);
-                if (imageData.isPresent()) {
-                    PixelsData pixelsData = imageData.get().getDefaultPixels();
+                var imageAndContext = getImageAndContext(gateway, imageID, user.get().getGroupId());
+                if (imageAndContext.isPresent()) {
+                    context = imageAndContext.get().context;
+                    PixelsData pixelsData = imageAndContext.get().image.getDefaultPixels();
 
                     reader = gateway.getPixelsStore(context);
                     reader.setPixelsId(pixelsData.getId(), false);
@@ -144,7 +145,7 @@ class IceReader implements PixelAPIReader {
         return String.format("Ice reader for %s", context.getServerInformation());
     }
 
-    private Optional<ExperimenterData> connect(List<LoginCredentials> loginCredentials) {
+    private static Optional<ExperimenterData> connect(Gateway gateway, List<LoginCredentials> loginCredentials) {
         for (int i=0; i<loginCredentials.size(); i++) {
             try {
                 ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
@@ -177,10 +178,14 @@ class IceReader implements PixelAPIReader {
         return Optional.empty();
     }
 
-    private Optional<ImageData> getImage(long imageID) throws ExecutionException, DSOutOfServiceException, ServerError {
+    private static Optional<ImageContextWrapper> getImageAndContext(Gateway gateway, long imageID, long userGroupId) throws ExecutionException, DSOutOfServiceException, ServerError {
+        SecurityContext context = new SecurityContext(userGroupId);
         BrowseFacility browser = gateway.getFacility(BrowseFacility.class);
         try {
-            return Optional.of(browser.getImage(context, imageID));
+            return Optional.of(new ImageContextWrapper(
+                    browser.getImage(context, imageID),
+                    context
+            ));
         } catch (Exception ignored) {}
 
         List<ExperimenterGroup> groups = gateway.getAdminService(context).containedGroups(gateway.getLoggedInUser().asExperimenter().getId().getValue());
@@ -188,7 +193,10 @@ class IceReader implements PixelAPIReader {
             context = new SecurityContext(group.getId().getValue());
 
             try {
-                return Optional.of(browser.getImage(context, imageID));
+                return Optional.of(new ImageContextWrapper(
+                        browser.getImage(context, imageID),
+                        context
+                ));
             } catch (Exception ignored) {}
         }
         return Optional.empty();
