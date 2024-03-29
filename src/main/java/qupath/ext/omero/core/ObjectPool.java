@@ -19,6 +19,9 @@ import java.util.function.Supplier;
  * <p>
  *     Once no longer used, this pool must be {@link #close() closed}.
  * </p>
+ * <p>
+ *     This class is thread-safe.
+ * </p>
  *
  * @param <E>  the type of the object to store
  */
