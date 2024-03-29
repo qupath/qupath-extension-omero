@@ -13,6 +13,7 @@ import omero.gateway.model.PixelsData;
 import omero.model.ExperimenterGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ObjectPool;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
@@ -34,8 +35,10 @@ import java.util.concurrent.ExecutionException;
 class IceReader implements PixelAPIReader {
 
     private static final Logger logger = LoggerFactory.getLogger(IceReader.class);
+    private static final int NUMBER_OF_READERS = Runtime.getRuntime().availableProcessors() + 5;    // Tasks that include I/O or other blocking operations
+                                                                                                    // should use a bit more than the number of cores
     private final Gateway gateway = new Gateway(new IceLogger());
-    private final RawPixelsStorePrx reader;
+    private final ObjectPool<RawPixelsStorePrx> readerPool;
     private final int numberOfResolutionLevels;
     private final int nChannels;
     private final int effectiveNChannels;
@@ -63,9 +66,33 @@ class IceReader implements PixelAPIReader {
                     context = imageAndContext.get().context;
                     PixelsData pixelsData = imageAndContext.get().image.getDefaultPixels();
 
-                    reader = gateway.getPixelsStore(context);
-                    reader.setPixelsId(pixelsData.getId(), false);
-                    numberOfResolutionLevels = reader.getResolutionLevels();
+                    readerPool = new ObjectPool<>(
+                            NUMBER_OF_READERS,
+                            () -> {
+                                try {
+                                    RawPixelsStorePrx readerPool;
+                                    readerPool = gateway.getPixelsStore(context);
+                                    readerPool.setPixelsId(pixelsData.getId(), false);
+                                    return readerPool;
+                                } catch (DSOutOfServiceException | ServerError e) {
+                                    logger.error("Error when creating RawPixelsStorePrx", e);
+                                    return null;
+                                }
+                            }
+                    );
+
+                    try {
+                        var reader = readerPool.get();
+                        if (reader.isPresent()) {
+                            numberOfResolutionLevels = reader.get().getResolutionLevels();
+                            readerPool.giveBack(reader.get());
+                        } else {
+                            throw new IOException("Cannot create RawPixelsStorePrx");
+                        }
+                    } catch (InterruptedException e) {
+                        throw new IOException(e);
+                    }
+
                     nChannels = channels.size();
                     effectiveNChannels = pixelsData.getSizeC();
                     pixelType = switch (pixelsData.getPixelType()) {
@@ -95,16 +122,14 @@ class IceReader implements PixelAPIReader {
     public BufferedImage readTile(TileRequest tileRequest) throws IOException {
         byte[][] bytes = new byte[effectiveNChannels][];
 
-        synchronized (reader) {
-            try {
-                reader.setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
-            } catch (ServerError e) {
-                throw new IOException(e);
-            }
+        Optional<RawPixelsStorePrx> reader = Optional.empty();
+        try {
+            reader = readerPool.get();
+            if (reader.isPresent()) {
+                reader.get().setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
 
-            for (int channel = 0; channel < effectiveNChannels; channel++) {
-                try {
-                    bytes[channel] = reader.getTile(
+                for (int channel = 0; channel < effectiveNChannels; channel++) {
+                    bytes[channel] = reader.get().getTile(
                             tileRequest.getZ(),
                             channel,
                             tileRequest.getT(),
@@ -113,10 +138,14 @@ class IceReader implements PixelAPIReader {
                             tileRequest.getTileWidth(),
                             tileRequest.getTileHeight()
                     );
-                } catch (ServerError e) {
-                    throw new IOException(e);
                 }
+            } else {
+                throw new IOException("Cannot create RawPixelsStorePrx");
             }
+        } catch (Exception e) {
+            throw new IOException(e);
+        } finally {
+            reader.ifPresent(readerPool::giveBack);
         }
 
         OMEPixelParser omePixelParser = new OMEPixelParser.Builder()
