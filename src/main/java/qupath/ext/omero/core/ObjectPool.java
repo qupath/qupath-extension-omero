@@ -42,6 +42,7 @@ public class ObjectPool<E> implements AutoCloseable {
      *
      * @param size  the capacity of the pool
      * @param objectCreator  a function to create an object
+     * @throws IllegalArgumentException when size is less than 1
      */
     public ObjectPool(int size, Supplier<E> objectCreator) {
         this(size, objectCreator, null);
@@ -50,9 +51,10 @@ public class ObjectPool<E> implements AutoCloseable {
     /**
      * Create the pool of objects. This will not create any object yet.
      *
-     * @param size  the capacity of the pool
+     * @param size  the capacity of the pool (greater than 0)
      * @param objectCreator  a function to create an object
      * @param objectCloser  a function that will be called on each object of this pool when it is closed
+     * @throws IllegalArgumentException when size is less than 1
      */
     public ObjectPool(int size, Supplier<E> objectCreator, Consumer<E> objectCloser) {
         queue = new ArrayBlockingQueue<>(size);
@@ -159,7 +161,7 @@ public class ObjectPool<E> implements AutoCloseable {
                                 numberOfObjectsCreated--;
                             }
                         }
-                        return new ObjectWrapper<>(Optional.ofNullable(objectCreator.get()), true);
+                        return new ObjectWrapper<>(Optional.ofNullable(object), true);
                     },
                     objectCreationService
             );
