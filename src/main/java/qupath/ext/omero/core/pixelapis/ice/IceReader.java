@@ -70,13 +70,19 @@ class IceReader implements PixelAPIReader {
                             NUMBER_OF_READERS,
                             () -> {
                                 try {
-                                    RawPixelsStorePrx readerPool;
-                                    readerPool = gateway.getPixelsStore(context);
-                                    readerPool.setPixelsId(pixelsData.getId(), false);
-                                    return readerPool;
+                                    RawPixelsStorePrx reader = gateway.getPixelsStore(context);
+                                    reader.setPixelsId(pixelsData.getId(), false);
+                                    return reader;
                                 } catch (DSOutOfServiceException | ServerError e) {
                                     logger.error("Error when creating RawPixelsStorePrx", e);
                                     return null;
+                                }
+                            },
+                            reader -> {
+                                try {
+                                    reader.close();
+                                } catch (ServerError e) {
+                                    logger.error("Error when closing reader", e);
                                 }
                             }
                     );
@@ -165,8 +171,9 @@ class IceReader implements PixelAPIReader {
     }
 
     @Override
-    public void close() {
-        gateway.disconnect();
+    public void close() throws Exception {
+        readerPool.close();
+        gateway.close();
     }
 
     @Override

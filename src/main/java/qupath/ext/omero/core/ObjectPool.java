@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -23,7 +24,7 @@ import java.util.function.Supplier;
  *     This class is thread-safe.
  * </p>
  *
- * @param <E>  the type of the object to store
+ * @param <E>  the type of object to store
  */
 public class ObjectPool<E> implements AutoCloseable {
 
@@ -32,6 +33,7 @@ public class ObjectPool<E> implements AutoCloseable {
     private final ArrayBlockingQueue<E> queue;
     private final int queueSize;
     private final Supplier<E> objectCreator;
+    private final Consumer<E> objectCloser;
     private int numberOfObjectsCreated = 0;
     private record ObjectWrapper<V>(Optional<V> object, boolean useThisObject) {}
 
@@ -42,14 +44,33 @@ public class ObjectPool<E> implements AutoCloseable {
      * @param objectCreator  a function to create an object
      */
     public ObjectPool(int size, Supplier<E> objectCreator) {
-        queue = new ArrayBlockingQueue<>(size);
-        this.queueSize = size;
-        this.objectCreator = objectCreator;
+        this(size, objectCreator, null);
     }
 
     /**
-     * Close this pool. If some objects are being created, this function will wait
-     * for their creation to end.
+     * Create the pool of objects. This will not create any object yet.
+     *
+     * @param size  the capacity of the pool
+     * @param objectCreator  a function to create an object
+     * @param objectCloser  a function that will be called on each object of this pool when it is closed
+     */
+    public ObjectPool(int size, Supplier<E> objectCreator, Consumer<E> objectCloser) {
+        queue = new ArrayBlockingQueue<>(size);
+        this.queueSize = size;
+        this.objectCreator = objectCreator;
+        this.objectCloser = objectCloser;
+    }
+
+    /**
+     * <p>
+     *     Close this pool. If some objects are being created, this function will wait
+     *     for their creation to end.
+     * </p>
+     * <p>
+     *     If defined, the objectCloser parameter of {@link #ObjectPool(int,Supplier,Consumer)} will be
+     *     called on each object currently present in the pool, but not on objects taken from the pool
+     *     and not given back yet.
+     * </p>
      *
      * @throws Exception when an error occurs while waiting for the object creation to end
      */
@@ -58,7 +79,9 @@ public class ObjectPool<E> implements AutoCloseable {
         objectCreationService.shutdown();
         objectCreationService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 
-        //TODO: handle when objects are instances of AutoCloseable
+        if (objectCloser != null) {
+            queue.forEach(objectCloser);
+        }
     }
 
     /**
@@ -109,7 +132,7 @@ public class ObjectPool<E> implements AutoCloseable {
      * Give an object back to this pool. This function must be used once an object
      * returned {@link #get()} is not used anymore.
      *
-     * @param object  the object to give back. If it's null, nothing will happen
+     * @param object  the object to give back. Nothing will happen if the object is null
      */
     public void giveBack(E object) {
         if (object != null) {
