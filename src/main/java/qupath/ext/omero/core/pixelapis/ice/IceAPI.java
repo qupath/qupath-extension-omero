@@ -9,7 +9,9 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
+import omero.gateway.Gateway;
 import omero.gateway.LoginCredentials;
+import omero.gateway.model.ExperimenterData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ClientsPreferencesManager;
@@ -22,8 +24,6 @@ import qupath.lib.images.servers.PixelType;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>
@@ -33,12 +33,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class IceAPI implements PixelAPI {
 
-    private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
-    private static final Map<Long, IceReader> readerCache = new ConcurrentHashMap<>();
     static final String NAME = "Ice";
+    private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
     private static final String ADDRESS_PARAMETER = "--serverAddress";
     private static final String PORT_PARAMETER = "--serverPort";
-    private static boolean gatewayAvailable;
+    private static final boolean gatewayAvailable;
+    private final Gateway gateway = new Gateway(new IceLogger());
     private final ApisHandler apisHandler;
     private final boolean isAuthenticated;
     private final String sessionUuid;
@@ -46,15 +46,15 @@ public class IceAPI implements PixelAPI {
     private final IntegerProperty serverPort;
 
     static {
+        boolean available = false;
+
         try {
             Class.forName("omero.gateway.Gateway");
-            gatewayAvailable = true;
+            available = true;
         } catch (ClassNotFoundException e) {
-            logger.debug(
-                    "OMERO Ice gateway is unavailable ('omero.gateway.Gateway' not found)." +
-                            "Falling back to the JSON API."
-            );
-            gatewayAvailable = false;
+            logger.debug("OMERO Ice gateway is unavailable ('omero.gateway.Gateway' not found).");
+        } finally {
+            gatewayAvailable = available;
         }
     }
 
@@ -135,7 +135,9 @@ public class IceAPI implements PixelAPI {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        if (!readerCache.containsKey(id)) {
+        if (gateway.isConnected()) {
+            return new IceReader(gateway, id, metadata.getChannels());
+        } else {
             List<LoginCredentials> credentials = new ArrayList<>();
             if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
                 credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
@@ -143,10 +145,12 @@ public class IceAPI implements PixelAPI {
             credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
             credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
 
-            readerCache.put(id, new IceReader(credentials, id, metadata.getChannels()));
+            if (connect(credentials)) {
+                return new IceReader(gateway, id, metadata.getChannels());
+            } else {
+                throw new IOException("Could not connect to Ice server");
+            }
         }
-
-        return readerCache.get(id);
     }
 
     @Override
@@ -170,9 +174,7 @@ public class IceAPI implements PixelAPI {
 
     @Override
     public void close() throws Exception {
-        for (IceReader iceReader: readerCache.values()) {
-            iceReader.close();
-        }
+        gateway.close();
     }
 
     /**
@@ -217,5 +219,38 @@ public class IceAPI implements PixelAPI {
                 apisHandler.getWebServerURI(),
                 serverPort
         );
+    }
+
+    private boolean connect(List<LoginCredentials> loginCredentials) {
+        for (int i=0; i<loginCredentials.size(); i++) {
+            try {
+                ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
+                if (experimenterData != null) {
+                    logger.info(String.format(
+                            "Connected to the OMERO.server instance at %s with user %s",
+                            loginCredentials.get(i).getServer(),
+                            experimenterData.getUserName())
+                    );
+                    return true;
+                }
+            } catch (Exception e) {
+                if (i < loginCredentials.size()-1) {
+                    logger.warn(String.format(
+                            "Ice can't connect to %s:%d. Trying %s:%d...",
+                            loginCredentials.get(i).getServer().getHost(),
+                            loginCredentials.get(i).getServer().getPort(),
+                            loginCredentials.get(i+1).getServer().getHost(),
+                            loginCredentials.get(i+1).getServer().getPort()
+                    ), e);
+                } else {
+                    logger.warn(String.format(
+                            "Ice can't connect to %s:%d. No more credentials available",
+                            loginCredentials.get(i).getServer().getHost(),
+                            loginCredentials.get(i).getServer().getPort()
+                    ), e);
+                }
+            }
+        }
+        return false;
     }
 }

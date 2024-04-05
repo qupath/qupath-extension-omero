@@ -3,11 +3,9 @@ package qupath.ext.omero.core.pixelapis.ice;
 import omero.ServerError;
 import omero.api.RawPixelsStorePrx;
 import omero.gateway.Gateway;
-import omero.gateway.LoginCredentials;
 import omero.gateway.SecurityContext;
 import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.facility.BrowseFacility;
-import omero.gateway.model.ExperimenterData;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.PixelsData;
 import omero.model.ExperimenterGroup;
@@ -37,7 +35,6 @@ class IceReader implements PixelAPIReader {
     private static final Logger logger = LoggerFactory.getLogger(IceReader.class);
     private static final int NUMBER_OF_READERS = Runtime.getRuntime().availableProcessors() + 5;    // Tasks that include I/O or other blocking operations
                                                                                                     // should use a bit more than the number of cores
-    private final Gateway gateway = new Gateway(new IceLogger());
     private final ObjectPool<RawPixelsStorePrx> readerPool;
     private final int numberOfResolutionLevels;
     private final int nChannels;
@@ -50,18 +47,15 @@ class IceReader implements PixelAPIReader {
     /**
      * Creates a new Ice reader.
      *
-     * @param loginCredentials  a list of credentials to use to connect to the server. Once a connection
-     *                          is established, the remaining credentials are not used
+     * @param gateway  a valid connection with an ICE server
      * @param imageID  the ID of the image to open
      * @param channels  the channels of the image to open
      * @throws IOException  when the reader creation fails
      */
-    public IceReader(List<LoginCredentials> loginCredentials, long imageID, List<ImageChannel> channels) throws IOException {
+    public IceReader(Gateway gateway, long imageID, List<ImageChannel> channels) throws IOException {
         try {
-            Optional<ExperimenterData> user = connect(gateway, loginCredentials);
-            if (user.isPresent()) {
-
-                var imageAndContext = getImageAndContext(gateway, imageID, user.get().getGroupId());
+            if (gateway.isConnected()) {
+                var imageAndContext = getImageAndContext(gateway, imageID, gateway.getLoggedInUser().getGroupId());
                 if (imageAndContext.isPresent()) {
                     context = imageAndContext.get().context;
                     PixelsData pixelsData = imageAndContext.get().image.getDefaultPixels();
@@ -154,15 +148,14 @@ class IceReader implements PixelAPIReader {
             reader.ifPresent(readerPool::giveBack);
         }
 
-        OMEPixelParser omePixelParser = new OMEPixelParser.Builder()
+        return new OMEPixelParser.Builder()
                 .isInterleaved(false)
                 .pixelType(pixelType)
                 .byteOrder(ByteOrder.BIG_ENDIAN)
                 .normalizeFloats(false)
                 .effectiveNChannels(effectiveNChannels)
-                .build();
-
-        return omePixelParser.parse(bytes, tileRequest.getTileWidth(), tileRequest.getTileHeight(), nChannels, colorModel);
+                .build()
+                .parse(bytes, tileRequest.getTileWidth(), tileRequest.getTileHeight(), nChannels, colorModel);
     }
 
     @Override
@@ -173,45 +166,11 @@ class IceReader implements PixelAPIReader {
     @Override
     public void close() throws Exception {
         readerPool.close();
-        gateway.close();
     }
 
     @Override
     public String toString() {
         return String.format("Ice reader for %s", context.getServerInformation());
-    }
-
-    private static Optional<ExperimenterData> connect(Gateway gateway, List<LoginCredentials> loginCredentials) {
-        for (int i=0; i<loginCredentials.size(); i++) {
-            try {
-                ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
-                if (experimenterData != null) {
-                    logger.info(String.format(
-                            "Connected to the OMERO.server instance at %s with user %s",
-                            loginCredentials.get(i).getServer(),
-                            experimenterData.getUserName())
-                    );
-                    return Optional.of(experimenterData);
-                }
-            } catch (Exception e) {
-                if (i < loginCredentials.size()-1) {
-                    logger.warn(String.format(
-                            "Ice can't connect to %s:%d. Trying %s:%d...",
-                            loginCredentials.get(i).getServer().getHost(),
-                            loginCredentials.get(i).getServer().getPort(),
-                            loginCredentials.get(i+1).getServer().getHost(),
-                            loginCredentials.get(i+1).getServer().getPort()
-                    ), e);
-                } else {
-                    logger.warn(String.format(
-                            "Ice can't connect to %s:%d. No more credentials available",
-                            loginCredentials.get(i).getServer().getHost(),
-                            loginCredentials.get(i).getServer().getPort()
-                    ), e);
-                }
-            }
-        }
-        return Optional.empty();
     }
 
     private static Optional<ImageContextWrapper> getImageAndContext(Gateway gateway, long imageID, long userGroupId) throws ExecutionException, DSOutOfServiceException, ServerError {
