@@ -40,8 +40,8 @@ public class ObjectPool<E> implements AutoCloseable {
     /**
      * Create the pool of objects. This will not create any object yet.
      *
-     * @param size  the capacity of the pool
-     * @param objectCreator  a function to create an object
+     * @param size  the capacity of the pool (greater than 0)
+     * @param objectCreator  a function to create an object. It is allowed to return null
      * @throws IllegalArgumentException when size is less than 1
      */
     public ObjectPool(int size, Supplier<E> objectCreator) {
