@@ -15,7 +15,7 @@ import java.util.function.Supplier;
 
 /**
  * <p>
- *     A pool of object of fixed size. Objects are created on demand.
+ *     A pool of objects of fixed size. Objects are created on demand.
  * </p>
  * <p>
  *     Once no longer used, this pool must be {@link #close() closed}.
