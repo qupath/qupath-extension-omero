@@ -10,6 +10,7 @@ import qupath.ext.omero.gui.UiUtilities;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An orphaned folder is a container for orphaned images (which are described in
@@ -22,7 +23,7 @@ public class OrphanedFolder implements RepositoryEntity {
     private final ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final ApisHandler apisHandler;
     private final int numberOfImages;
-    private boolean childrenPopulated = false;
+    private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
 
     private OrphanedFolder(ApisHandler apisHandler, int numberOfImages) {
         this.apisHandler = apisHandler;
@@ -68,11 +69,10 @@ public class OrphanedFolder implements RepositoryEntity {
 
     @Override
     public ObservableList<? extends RepositoryEntity> getChildren() {
-        if (!childrenPopulated) {
-            childrenPopulated = true;
-
+        if (childrenPopulated.compareAndSet(false, true)) {
             apisHandler.populateOrphanedImagesIntoList(children);
         }
+
         return childrenImmutable;
     }
 

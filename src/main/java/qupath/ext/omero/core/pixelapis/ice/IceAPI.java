@@ -9,9 +9,7 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
-import omero.gateway.Gateway;
 import omero.gateway.LoginCredentials;
-import omero.gateway.model.ExperimenterData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ClientsPreferencesManager;
@@ -38,12 +36,12 @@ public class IceAPI implements PixelAPI {
     private static final String ADDRESS_PARAMETER = "--serverAddress";
     private static final String PORT_PARAMETER = "--serverPort";
     private static final boolean gatewayAvailable;
-    private final Gateway gateway = new Gateway(new IceLogger());
     private final ApisHandler apisHandler;
     private final boolean isAuthenticated;
     private final String sessionUuid;
     private final StringProperty serverAddress;
     private final IntegerProperty serverPort;
+    private GatewayWrapper gatewayWrapper;
 
     static {
         boolean available = false;
@@ -135,8 +133,14 @@ public class IceAPI implements PixelAPI {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        if (gateway.isConnected()) {
-            return new IceReader(gateway, id, metadata.getChannels());
+        synchronized (this) {
+            if (gatewayWrapper == null) {
+                gatewayWrapper = new GatewayWrapper();
+            }
+        }
+
+        if (gatewayWrapper.isConnected()) {
+            return new IceReader(gatewayWrapper, id, metadata.getChannels());
         } else {
             List<LoginCredentials> credentials = new ArrayList<>();
             if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
@@ -145,8 +149,8 @@ public class IceAPI implements PixelAPI {
             credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
             credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
 
-            if (connect(credentials)) {
-                return new IceReader(gateway, id, metadata.getChannels());
+            if (gatewayWrapper.connect(credentials)) {
+                return new IceReader(gatewayWrapper, id, metadata.getChannels());
             } else {
                 throw new IOException("Could not connect to Ice server");
             }
@@ -174,7 +178,9 @@ public class IceAPI implements PixelAPI {
 
     @Override
     public void close() throws Exception {
-        gateway.close();
+        if (gatewayWrapper != null) {
+            gatewayWrapper.close();
+        }
     }
 
     /**
@@ -219,38 +225,5 @@ public class IceAPI implements PixelAPI {
                 apisHandler.getWebServerURI(),
                 serverPort
         );
-    }
-
-    private boolean connect(List<LoginCredentials> loginCredentials) {
-        for (int i=0; i<loginCredentials.size(); i++) {
-            try {
-                ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
-                if (experimenterData != null) {
-                    logger.info(String.format(
-                            "Connected to the OMERO.server instance at %s with user %s",
-                            loginCredentials.get(i).getServer(),
-                            experimenterData.getUserName())
-                    );
-                    return true;
-                }
-            } catch (Exception e) {
-                if (i < loginCredentials.size()-1) {
-                    logger.warn(String.format(
-                            "Ice can't connect to %s:%d. Trying %s:%d...",
-                            loginCredentials.get(i).getServer().getHost(),
-                            loginCredentials.get(i).getServer().getPort(),
-                            loginCredentials.get(i+1).getServer().getHost(),
-                            loginCredentials.get(i+1).getServer().getPort()
-                    ), e);
-                } else {
-                    logger.warn(String.format(
-                            "Ice can't connect to %s:%d. No more credentials available",
-                            loginCredentials.get(i).getServer().getHost(),
-                            loginCredentials.get(i).getServer().getPort()
-                    ), e);
-                }
-            }
-        }
-        return false;
     }
 }

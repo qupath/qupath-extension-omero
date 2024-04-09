@@ -84,7 +84,7 @@ public class Group {
     /**
      * @return the owners belonging to this group
      */
-    public List<Owner> getOwners() {
+    public synchronized List<Owner> getOwners() {
         return owners == null ? List.of() : owners;
     }
 
@@ -92,8 +92,9 @@ public class Group {
      * Set the owners belonging to this group
      *
      * @param owners  the owners of this group
+     * @throws NullPointerException when the provided list is null
      */
-    public void setOwners(List<Owner> owners) {
+    public synchronized void setOwners(List<Owner> owners) {
         this.owners = List.copyOf(owners);
     }
 }

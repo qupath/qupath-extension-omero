@@ -11,8 +11,12 @@ import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 /**
  * A server is the top element in the OMERO entity hierarchy.
@@ -25,15 +29,20 @@ public class Server implements RepositoryEntity {
     private static final ResourceBundle resources = UiUtilities.getResources();
     private final ObservableList<RepositoryEntity> children = FXCollections.observableArrayList();
     private final ObservableList<RepositoryEntity> childrenImmutable = FXCollections.unmodifiableObservableList(children);
-    private final List<Owner> owners = new ArrayList<>();
-    private final List<Group> groups = new ArrayList<>();
-    private Owner defaultOwner = null;
-    private Group defaultGroup = null;
-    private boolean isPopulating = false;
+    private final List<Owner> owners;
+    private final List<Group> groups;
+    private final Owner defaultOwner;
+    private final Group defaultGroup;
+    private volatile boolean isPopulating = false;
 
-    private Server() {
-        owners.add(Owner.getAllMembersOwner());
-        groups.add(Group.getAllGroupsGroup());
+    private Server(ApisHandler apisHandler, List<Owner> owners, List<Group> groups, Owner defaultOwner, Group defaultGroup) {
+        this.owners = Stream.concat(owners.stream(), Stream.of(Owner.getAllMembersOwner())).toList();
+        this.groups = Stream.concat(groups.stream(), Stream.of(Group.getAllGroupsGroup())).toList();
+
+        this.defaultOwner = defaultOwner;
+        this.defaultGroup = defaultGroup;
+
+        populate(apisHandler);
     }
 
     @Override
@@ -89,48 +98,55 @@ public class Server implements RepositoryEntity {
      * @return the new server, or an empty Optional if the creation failed
      */
     public static CompletableFuture<Optional<Server>> create(ApisHandler apisHandler, Group defaultGroup, int defaultUserId) {
-        Server server = new Server();
-
-        return apisHandler.getGroups().thenCompose(groups -> {
-            server.groups.addAll(groups);
-
-            if (groups.isEmpty() || (defaultGroup != null && !groups.contains(defaultGroup))) {
-                if (groups.isEmpty()) {
-                    logger.error("The server didn't return any group");
-                } else {
-                    logger.error("The default group was not found in the list returned by the server");
-                }
-                return CompletableFuture.completedFuture(List.of());
-            } else {
-                server.defaultGroup = defaultGroup;
-                return apisHandler.getOwners();
+        return CompletableFuture.supplyAsync(() -> {
+            List<Group> groups;
+            try {
+                groups = apisHandler.getGroups().get();
+            } catch (InterruptedException | ExecutionException e) {
+                logger.error("Error while retrieving groups", e);
+                return Optional.empty();
             }
-        }).thenApply(owners -> {
-            server.owners.addAll(owners);
 
-            boolean serverCreated = !owners.isEmpty();
+            if (groups.isEmpty()) {
+                logger.error("The server didn't return any group");
+                return Optional.empty();
+            }
+            if (defaultGroup != null && !groups.contains(defaultGroup)) {
+                logger.error("The default group was not found in the list returned by the server");
+                return Optional.empty();
+            }
+
+            List<Owner> owners;
+            try {
+                owners = apisHandler.getOwners().get();
+            } catch (InterruptedException | ExecutionException e) {
+                logger.error("Error while retrieving owners", e);
+                return Optional.empty();
+            }
             Owner defaultOwner = null;
             if (defaultUserId > -1) {
-                defaultOwner = server.owners.stream()
+                defaultOwner = owners.stream()
                         .filter(owner -> owner.id() == defaultUserId)
                         .findAny()
                         .orElse(null);
-
-                serverCreated = serverCreated && defaultOwner != null;
             }
 
-            if (serverCreated) {
-                server.populate(apisHandler);
-                server.defaultOwner = defaultOwner;
-                return Optional.of(server);
-            } else {
-                if (owners.isEmpty()) {
-                    logger.error("The server didn't return any owner");
-                } else {
-                    logger.error("The provided owner was not found in the list returned by the server");
-                }
+            if (owners.isEmpty()) {
+                logger.error("The server didn't return any owner");
                 return Optional.empty();
             }
+            if (defaultOwner == null) {
+                logger.error("The provided owner was not found in the list returned by the server");
+                return Optional.empty();
+            }
+
+            return Optional.of(new Server(
+                    apisHandler,
+                    owners,
+                    groups,
+                    defaultOwner,
+                    defaultGroup
+            ));
         });
     }
 
@@ -159,7 +175,7 @@ public class Server implements RepositoryEntity {
      * the default group
      */
     public List<Group> getGroups() {
-        return Collections.unmodifiableList(groups);
+        return groups;
     }
 
     /**
@@ -167,7 +183,7 @@ public class Server implements RepositoryEntity {
      * the default owner
      */
     public List<Owner> getOwners() {
-        return Collections.unmodifiableList(owners);
+        return owners;
     }
 
     private void populate(ApisHandler apisHandler) {

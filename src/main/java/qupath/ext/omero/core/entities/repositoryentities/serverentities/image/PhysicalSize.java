@@ -10,8 +10,8 @@ import java.util.Optional;
  */
 class PhysicalSize {
 
-    @SerializedName(value = "Symbol") private String symbol;
-    @SerializedName(value = "Value") private double value;
+    @SerializedName(value = "Symbol") private final String symbol;
+    @SerializedName(value = "Value") private final double value;
 
     public PhysicalSize(String symbol, double value) {
         this.symbol = symbol;

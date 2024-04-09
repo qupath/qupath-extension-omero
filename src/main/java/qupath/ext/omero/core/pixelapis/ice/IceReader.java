@@ -47,15 +47,15 @@ class IceReader implements PixelAPIReader {
     /**
      * Creates a new Ice reader.
      *
-     * @param gateway  a valid connection with an ICE server
+     * @param gatewayWrapper  a wrapper around a valid connection with an ICE server
      * @param imageID  the ID of the image to open
      * @param channels  the channels of the image to open
      * @throws IOException  when the reader creation fails
      */
-    public IceReader(Gateway gateway, long imageID, List<ImageChannel> channels) throws IOException {
+    public IceReader(GatewayWrapper gatewayWrapper, long imageID, List<ImageChannel> channels) throws IOException {
         try {
-            if (gateway.isConnected()) {
-                var imageAndContext = getImageAndContext(gateway, imageID, gateway.getLoggedInUser().getGroupId());
+            if (gatewayWrapper.isConnected()) {
+                var imageAndContext = getImageAndContext(gatewayWrapper.getGateway(), imageID, gatewayWrapper.getGateway().getLoggedInUser().getGroupId());
                 if (imageAndContext.isPresent()) {
                     context = imageAndContext.get().context;
                     PixelsData pixelsData = imageAndContext.get().image.getDefaultPixels();
@@ -64,7 +64,7 @@ class IceReader implements PixelAPIReader {
                             NUMBER_OF_READERS,
                             () -> {
                                 try {
-                                    RawPixelsStorePrx reader = gateway.getPixelsStore(context);
+                                    RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
                                     reader.setPixelsId(pixelsData.getId(), false);
                                     return reader;
                                 } catch (DSOutOfServiceException | ServerError e) {
