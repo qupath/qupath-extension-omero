@@ -87,8 +87,6 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
             }
 
             if (originalMetadata.isPresent()) {
-                System.err.println(originalMetadata.get().getName());
-
                 PixelAPI pixelAPI;
                 var pixelAPIFromArgs = getPixelAPIFromArgs(client, args);
 

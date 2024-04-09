@@ -135,7 +135,7 @@ public class Server implements RepositoryEntity {
                 logger.error("The server didn't return any owner");
                 return Optional.empty();
             }
-            if (defaultOwner == null) {
+            if (defaultOwner == null && defaultUserId > -1) {
                 logger.error("The provided owner was not found in the list returned by the server");
                 return Optional.empty();
             }
