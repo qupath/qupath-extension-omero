@@ -41,7 +41,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServer.class);
     private static final String PIXEL_API_ARGUMENT = "--pixelAPI";
     private static final int METADATA_CACHE_SIZE = 50;
-    private static final Cache<URI, CompletableFuture<Optional<ImageServerMetadata>>> metadataCache = CacheBuilder.newBuilder()
+    private static final Cache<Long, CompletableFuture<Optional<ImageServerMetadata>>> metadataCache = CacheBuilder.newBuilder()
             .maximumSize(METADATA_CACHE_SIZE)
             .build();
     private final URI uri;
@@ -87,6 +87,8 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
             }
 
             if (originalMetadata.isPresent()) {
+                System.err.println(originalMetadata.get().getName());
+
                 PixelAPI pixelAPI;
                 var pixelAPIFromArgs = getPixelAPIFromArgs(client, args);
 
@@ -278,65 +280,63 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      * @return a CompletableFuture with the metadata, or an empty Optional if the request failed
      */
     public static CompletableFuture<Optional<ImageServerMetadata>> getOriginalMetadata(URI uri, WebClient client) {
-        try {
-            CompletableFuture<Optional<ImageServerMetadata>> request = metadataCache.get(
-                    uri,
-                    () -> {
-                        OptionalLong id = WebUtilities.parseEntityId(uri);
+        OptionalLong id = WebUtilities.parseEntityId(uri);
 
-                        if (id.isPresent()) {
-                            return client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(imageMetadataResponse -> {
-                                if (imageMetadataResponse.isPresent()) {
-                                    ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
-                                            OmeroImageServer.class,
-                                            uri.toString(),
-                                            imageMetadataResponse.get().getSizeX(),
-                                            imageMetadataResponse.get().getSizeY()
-                                    )
-                                            .name(imageMetadataResponse.get().getImageName())
-                                            .sizeT(imageMetadataResponse.get().getSizeT())
-                                            .sizeZ(imageMetadataResponse.get().getSizeZ())
-                                            .preferredTileSize(imageMetadataResponse.get().getTileSizeX(), imageMetadataResponse.get().getTileSizeY())
-                                            .levels(imageMetadataResponse.get().getLevels())
-                                            .pixelType(imageMetadataResponse.get().getPixelType())
-                                            .channels(imageMetadataResponse.get().getChannels())
-                                            .rgb(imageMetadataResponse.get().isRGB());
+        if (id.isPresent()) {
+            try {
+                CompletableFuture<Optional<ImageServerMetadata>> request = metadataCache.get(
+                        id.getAsLong(),
+                        () -> client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(imageMetadataResponse -> {
+                            if (imageMetadataResponse.isPresent()) {
+                                ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
+                                        OmeroImageServer.class,
+                                        uri.toString(),
+                                        imageMetadataResponse.get().getSizeX(),
+                                        imageMetadataResponse.get().getSizeY()
+                                )
+                                        .name(imageMetadataResponse.get().getImageName())
+                                        .sizeT(imageMetadataResponse.get().getSizeT())
+                                        .sizeZ(imageMetadataResponse.get().getSizeZ())
+                                        .preferredTileSize(imageMetadataResponse.get().getTileSizeX(), imageMetadataResponse.get().getTileSizeY())
+                                        .levels(imageMetadataResponse.get().getLevels())
+                                        .pixelType(imageMetadataResponse.get().getPixelType())
+                                        .channels(imageMetadataResponse.get().getChannels())
+                                        .rgb(imageMetadataResponse.get().isRGB());
 
-                                    if (imageMetadataResponse.get().getMagnification().isPresent()) {
-                                        builder.magnification(imageMetadataResponse.get().getMagnification().get());
-                                    }
-
-                                    if (imageMetadataResponse.get().getPixelWidthMicrons().isPresent() && imageMetadataResponse.get().getPixelHeightMicrons().isPresent()) {
-                                        builder.pixelSizeMicrons(
-                                                imageMetadataResponse.get().getPixelWidthMicrons().get(),
-                                                imageMetadataResponse.get().getPixelHeightMicrons().get()
-                                        );
-                                    }
-
-                                    if (imageMetadataResponse.get().getZSpacingMicrons().isPresent() && imageMetadataResponse.get().getZSpacingMicrons().get() > 0) {
-                                        builder.zSpacingMicrons(imageMetadataResponse.get().getZSpacingMicrons().get());
-                                    }
-
-                                    return Optional.of(builder.build());
-                                } else {
-                                    return Optional.empty();
+                                if (imageMetadataResponse.get().getMagnification().isPresent()) {
+                                    builder.magnification(imageMetadataResponse.get().getMagnification().get());
                                 }
-                            });
-                        } else {
-                            logger.warn("Could not get image ID from " + uri);
-                            return CompletableFuture.completedFuture(Optional.empty());
-                        }
-                    }
-            );
 
-            request.thenAccept(response -> {
-                if (response.isEmpty()) {
-                    metadataCache.invalidate(uri);
-                }
-            });
-            return request;
-        } catch (ExecutionException e) {
-            logger.error("Error when retrieving metadata", e);
+                                if (imageMetadataResponse.get().getPixelWidthMicrons().isPresent() && imageMetadataResponse.get().getPixelHeightMicrons().isPresent()) {
+                                    builder.pixelSizeMicrons(
+                                            imageMetadataResponse.get().getPixelWidthMicrons().get(),
+                                            imageMetadataResponse.get().getPixelHeightMicrons().get()
+                                    );
+                                }
+
+                                if (imageMetadataResponse.get().getZSpacingMicrons().isPresent() && imageMetadataResponse.get().getZSpacingMicrons().get() > 0) {
+                                    builder.zSpacingMicrons(imageMetadataResponse.get().getZSpacingMicrons().get());
+                                }
+
+                                return Optional.of(builder.build());
+                            } else {
+                                return Optional.empty();
+                            }
+                        })
+                );
+
+                request.thenAccept(response -> {
+                    if (response.isEmpty()) {
+                        metadataCache.invalidate(id.getAsLong());
+                    }
+                });
+                return request;
+            } catch (ExecutionException e) {
+                logger.error("Error when retrieving metadata", e);
+                return CompletableFuture.completedFuture(Optional.empty());
+            }
+        } else {
+            logger.warn("Could not get image ID from " + uri);
             return CompletableFuture.completedFuture(Optional.empty());
         }
     }
