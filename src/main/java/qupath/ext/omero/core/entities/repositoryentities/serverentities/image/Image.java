@@ -19,7 +19,6 @@ import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 
-import java.net.URI;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.Optional;
@@ -183,51 +182,21 @@ public class Image extends ServerEntity {
     }
 
     /**
-     * Indicate the web server URI corresponding to this image. This is needed to determine if this image
-     * can be opened.
-     *
-     * @param webServerURI the web server URI of this image
-     */
-    public void setWebServerURI(URI webServerURI) {
-        isSupported = new SimpleBooleanProperty(false);
-        unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
-
-        WebClients.getClientFromURI(webServerURI).map(WebClient::getSelectedPixelAPI).ifPresentOrElse(selectedPixelAPI -> {
-            setSupported(selectedPixelAPI);
-            selectedPixelAPI.addListener(change -> setSupported(selectedPixelAPI));
-        }, () ->
-                logger.warn(String.format(
-                        "Could not find the web client corresponding to %s. Impossible to determine if this image (%s) is supported.",
-                        webServerURI,
-                        this
-                ))
-        );
-    }
-
-    /**
      * @return whether this image can be opened within QuPath. This property may be updated
      * from any thread
-     * @throws IllegalStateException when the web server URI has not been set (see {@link #setWebServerURI(URI)})
+     * @throws IllegalStateException when the web server URI has not been set
      */
     public ReadOnlyBooleanProperty isSupported() {
-        if (isSupported == null) {
-            throw new IllegalStateException(
-                    "The web server URI has not been set on this image. See the setWebServerURI(URI) function."
-            );
-        }
+        setUpSupported();
         return isSupported;
     }
 
     /**
      * @return the reasons why this image is unsupported (empty if this image is supported)
-     * @throws IllegalStateException when the web server URI has not been set (see {@link #setWebServerURI(URI)})
+     * @throws IllegalStateException when the web server URI has not been set
      */
-    public Set<UnsupportedReason> getUnsupportedReasons() {
-        if (unsupportedReasons == null) {
-            throw new IllegalStateException(
-                    "The web server URI has not been set on this image. See the setWebServerURI(URI) function."
-            );
-        }
+    public synchronized Set<UnsupportedReason> getUnsupportedReasons() {
+        setUpSupported();
         return unsupportedReasons;
     }
 
@@ -253,6 +222,33 @@ public class Image extends ServerEntity {
 
     private Optional<PhysicalSize> getPhysicalSizeZ() {
         return pixels == null ? Optional.empty() : pixels.getPhysicalSizeZ();
+    }
+
+    private synchronized void setUpSupported() {
+        if (isSupported == null) {
+            if (webServerURI == null) {
+                throw new IllegalStateException(
+                        "The web server URI has not been set on this image. See the setWebServerURI(URI) function."
+                );
+            }
+
+            isSupported = new SimpleBooleanProperty(false);
+            unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
+
+            Optional<ReadOnlyObjectProperty<PixelAPI>> selectedPixelAPI = WebClients.getClientFromURI(webServerURI)
+                    .map(WebClient::getSelectedPixelAPI);
+
+            if (selectedPixelAPI.isPresent()) {
+                setSupported(selectedPixelAPI.get());
+                selectedPixelAPI.get().addListener(change -> setSupported(selectedPixelAPI.get()));
+            } else {
+                logger.warn(String.format(
+                        "Could not find the web client corresponding to %s. Impossible to determine if this image (%s) is supported.",
+                        webServerURI,
+                        this
+                ));
+            }
+        }
     }
 
     private synchronized void setSupported(ReadOnlyObjectProperty<PixelAPI> selectedPixelAPI) {

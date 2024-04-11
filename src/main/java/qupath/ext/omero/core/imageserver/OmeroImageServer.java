@@ -1,20 +1,35 @@
 package qupath.ext.omero.core.imageserver;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.lib.images.servers.*;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.lib.images.servers.AbstractTileableImageServer;
+import qupath.lib.images.servers.ImageServerBuilder;
+import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjectReader;
 
-import java.awt.image.*;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -25,16 +40,30 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServer.class);
     private static final String PIXEL_API_ARGUMENT = "--pixelAPI";
+    private static final int METADATA_CACHE_SIZE = 50;
+    private static final Cache<Long, CompletableFuture<Optional<ImageServerMetadata>>> metadataCache = CacheBuilder.newBuilder()
+            .maximumSize(METADATA_CACHE_SIZE)
+            .build();
     private final URI uri;
     private final WebClient client;
-    private String[] args;
-    private PixelAPIReader pixelAPIReader;
-    private long id;
-    private ImageServerMetadata originalMetadata;
+    private final PixelAPIReader pixelAPIReader;
+    private final long id;
+    private final ImageServerMetadata originalMetadata;
+    private final String[] args;
 
-    private OmeroImageServer(URI uri, WebClient client, String... args) {
+    private OmeroImageServer(
+            URI uri,
+            WebClient client,
+            PixelAPIReader pixelAPIReader,
+            long id,
+            ImageServerMetadata originalMetadata,
+            String... args
+    ) {
         this.uri = uri;
         this.client = client;
+        this.pixelAPIReader = pixelAPIReader;
+        this.id = id;
+        this.originalMetadata = originalMetadata;
         this.args = args;
     }
 
@@ -48,43 +77,60 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      * @return an OmeroImageServer, or an empty Optional if an error occurred
      */
     static Optional<OmeroImageServer> create(URI uri, WebClient client, String... args) {
-        OmeroImageServer omeroImageServer = new OmeroImageServer(uri, client, args);
-        if (omeroImageServer.setId() && omeroImageServer.setOriginalMetadata()) {
-            PixelAPI pixelAPI;
-            var pixelAPIFromArgs = getPixelAPIFromArgs(client, args);
-
-            if (pixelAPIFromArgs.isPresent()) {
-                pixelAPI = pixelAPIFromArgs.get();
-            } else {
-                pixelAPI = client.getSelectedPixelAPI().get();
-                if (pixelAPI == null) {
-                    logger.error("No selected pixel API");
-                    return Optional.empty();
-                }
-
-                omeroImageServer.savePixelAPIToArgs(pixelAPI);
+        OptionalLong id = WebUtilities.parseEntityId(uri);
+        if (id.isPresent()) {
+            Optional<ImageServerMetadata> originalMetadata = Optional.empty();
+            try {
+                originalMetadata = getOriginalMetadata(uri, client).get();
+            } catch (Exception e) {
+                logger.error("Error while retrieving metadata", e);
             }
 
-            pixelAPI.setParametersFromArgs(args);
+            if (originalMetadata.isPresent()) {
+                PixelAPI pixelAPI;
+                var pixelAPIFromArgs = getPixelAPIFromArgs(client, args);
 
-            if (pixelAPI.canReadImage(omeroImageServer.getMetadata().getPixelType(), omeroImageServer.getMetadata().getSizeC())) {
-                try {
-                    omeroImageServer.pixelAPIReader = pixelAPI.createReader(
-                            omeroImageServer.id,
-                            omeroImageServer.getMetadata()
-                    );
-                } catch (IOException e) {
-                    logger.error("Couldn't create pixel API reader", e);
+                if (pixelAPIFromArgs.isPresent()) {
+                    pixelAPI = pixelAPIFromArgs.get();
+                } else {
+                    pixelAPI = client.getSelectedPixelAPI().get();
+                    if (pixelAPI == null) {
+                        logger.error("No selected pixel API");
+                        return Optional.empty();
+                    }
+
+                    args = addPixelAPIToArgs(pixelAPI, args);
+                }
+
+                pixelAPI.setParametersFromArgs(args);
+
+                if (pixelAPI.canReadImage(originalMetadata.get().getPixelType(), originalMetadata.get().getSizeC())) {
+                    try {
+                        client.addOpenedImage(uri);
+
+                        PixelAPIReader apiReader = pixelAPI.createReader(id.getAsLong(), originalMetadata.get());
+
+                        return Optional.of(new OmeroImageServer(
+                                uri,
+                                client,
+                                apiReader,
+                                id.getAsLong(),
+                                originalMetadata.get(),
+                                args
+                        ));
+                    } catch (IOException e) {
+                        logger.error("Couldn't create pixel API reader", e);
+                        return Optional.empty();
+                    }
+                } else {
+                    logger.error("The selected pixel API (" + pixelAPI + ") can't read the provided image");
                     return Optional.empty();
                 }
             } else {
-                logger.error("The selected pixel API (" + pixelAPI + ") can't read the provided image");
                 return Optional.empty();
             }
-            client.addOpenedImage(uri);
-
-            return Optional.of(omeroImageServer);
         } else {
+            logger.warn("Could not get image ID from " + uri);
             return Optional.empty();
         }
     }
@@ -96,12 +142,21 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     @Override
     public BufferedImage getDefaultThumbnail(int z, int t) throws IOException {
+        Optional<BufferedImage> thumbnail = Optional.empty();
+
         if (isRGB()) {
             try {
-                return client.getApisHandler().getThumbnail(id).get().orElse(null);
+                thumbnail = client.getApisHandler().getThumbnail(
+                        id,
+                        Math.max(originalMetadata.getLevel(0).getWidth(), originalMetadata.getLevel(0).getHeight())
+                ).get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new IOException(e);
             }
+        }
+
+        if (thumbnail.isPresent()) {
+            return thumbnail.get();
         } else {
             return super.getDefaultThumbnail(z, t);
         }
@@ -168,13 +223,6 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     }
 
     @Override
-    public void close() throws Exception {
-        if (pixelAPIReader != null) {
-            pixelAPIReader.close();
-        }
-    }
-
-    @Override
     public String toString() {
         return String.format("OMERO image server of %s", uri);
     }
@@ -216,59 +264,78 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         return id;
     }
 
-    private boolean setId() {
-        var id = WebUtilities.parseEntityId(uri);
+    /**
+     * <p>
+     *     Attempt to retrieve metadata associated with the image specified by the
+     *     provided parameters.
+     * </p>
+     * <p>
+     *     The results are cached in a cache of size {@link #METADATA_CACHE_SIZE}.
+     * </p>
+     *
+     * @param uri  the URI of the image
+     * @param client  the client of the corresponding server
+     * @return a CompletableFuture with the metadata, or an empty Optional if the request failed
+     */
+    public static CompletableFuture<Optional<ImageServerMetadata>> getOriginalMetadata(URI uri, WebClient client) {
+        OptionalLong id = WebUtilities.parseEntityId(uri);
 
         if (id.isPresent()) {
-            this.id = id.getAsInt();
-        } else {
-            logger.error("Could not get image ID from " + uri);
-        }
-        return id.isPresent();
-    }
+            try {
+                CompletableFuture<Optional<ImageServerMetadata>> request = metadataCache.get(
+                        id.getAsLong(),
+                        () -> client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(imageMetadataResponse -> {
+                            if (imageMetadataResponse.isPresent()) {
+                                ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
+                                        OmeroImageServer.class,
+                                        uri.toString(),
+                                        imageMetadataResponse.get().getSizeX(),
+                                        imageMetadataResponse.get().getSizeY()
+                                )
+                                        .name(imageMetadataResponse.get().getImageName())
+                                        .sizeT(imageMetadataResponse.get().getSizeT())
+                                        .sizeZ(imageMetadataResponse.get().getSizeZ())
+                                        .preferredTileSize(imageMetadataResponse.get().getTileSizeX(), imageMetadataResponse.get().getTileSizeY())
+                                        .levels(imageMetadataResponse.get().getLevels())
+                                        .pixelType(imageMetadataResponse.get().getPixelType())
+                                        .channels(imageMetadataResponse.get().getChannels())
+                                        .rgb(imageMetadataResponse.get().isRGB());
 
-    private boolean setOriginalMetadata() {
-        try {
-            var imageMetadataResponse = client.getApisHandler().getImageMetadata(id).get();
+                                if (imageMetadataResponse.get().getMagnification().isPresent()) {
+                                    builder.magnification(imageMetadataResponse.get().getMagnification().get());
+                                }
 
-            if (imageMetadataResponse.isPresent()) {
-                ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
-                        OmeroImageServer.class,
-                        uri.toString(),
-                        imageMetadataResponse.get().getSizeX(),
-                        imageMetadataResponse.get().getSizeY()
-                )
-                        .name(imageMetadataResponse.get().getImageName())
-                        .sizeT(imageMetadataResponse.get().getSizeT())
-                        .sizeZ(imageMetadataResponse.get().getSizeZ())
-                        .preferredTileSize(imageMetadataResponse.get().getTileSizeX(), imageMetadataResponse.get().getTileSizeY())
-                        .levels(imageMetadataResponse.get().getLevels())
-                        .pixelType(imageMetadataResponse.get().getPixelType())
-                        .channels(imageMetadataResponse.get().getChannels())
-                        .rgb(imageMetadataResponse.get().isRGB());
+                                if (imageMetadataResponse.get().getPixelWidthMicrons().isPresent() && imageMetadataResponse.get().getPixelHeightMicrons().isPresent()) {
+                                    builder.pixelSizeMicrons(
+                                            imageMetadataResponse.get().getPixelWidthMicrons().get(),
+                                            imageMetadataResponse.get().getPixelHeightMicrons().get()
+                                    );
+                                }
 
-                if (imageMetadataResponse.get().getMagnification().isPresent()) {
-                    builder.magnification(imageMetadataResponse.get().getMagnification().get());
-                }
+                                if (imageMetadataResponse.get().getZSpacingMicrons().isPresent() && imageMetadataResponse.get().getZSpacingMicrons().get() > 0) {
+                                    builder.zSpacingMicrons(imageMetadataResponse.get().getZSpacingMicrons().get());
+                                }
 
-                if (imageMetadataResponse.get().getPixelWidthMicrons().isPresent() && imageMetadataResponse.get().getPixelHeightMicrons().isPresent()) {
-                    builder.pixelSizeMicrons(
-                            imageMetadataResponse.get().getPixelWidthMicrons().get(),
-                            imageMetadataResponse.get().getPixelHeightMicrons().get()
-                    );
-                }
+                                return Optional.of(builder.build());
+                            } else {
+                                return Optional.empty();
+                            }
+                        })
+                );
 
-                if (imageMetadataResponse.get().getZSpacingMicrons().isPresent() && imageMetadataResponse.get().getZSpacingMicrons().get() > 0) {
-                    builder.zSpacingMicrons(imageMetadataResponse.get().getZSpacingMicrons().get());
-                }
-
-                originalMetadata = builder.build();
+                request.thenAccept(response -> {
+                    if (response.isEmpty()) {
+                        metadataCache.invalidate(id.getAsLong());
+                    }
+                });
+                return request;
+            } catch (ExecutionException e) {
+                logger.error("Error when retrieving metadata", e);
+                return CompletableFuture.completedFuture(Optional.empty());
             }
-
-            return imageMetadataResponse.isPresent();
-        } catch (Exception e) {
-            logger.error("Error when creating metadata", e);
-            return false;
+        } else {
+            logger.warn("Could not get image ID from " + uri);
+            return CompletableFuture.completedFuture(Optional.empty());
         }
     }
 
@@ -297,7 +364,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         return Optional.empty();
     }
 
-    private void savePixelAPIToArgs(PixelAPI pixelAPI) {
+    private static String[] addPixelAPIToArgs(PixelAPI pixelAPI, String[] args) {
         String[] pixelApiArgs = pixelAPI.getArgs();
         int currentArgsSize = args.length;
 
@@ -309,5 +376,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         for (int i=0; i<pixelApiArgs.length; ++i) {
             args[currentArgsSize + 2 + i] = pixelApiArgs[i];
         }
+
+        return args;
     }
 }

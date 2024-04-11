@@ -10,7 +10,7 @@ plugins {
 }
 
 ext.moduleName = 'qupath.extension.omero'
-version = "0.1.0-rc4"
+version = "0.1.0-rc5"
 description = "QuPath extension to support image reading using OMERO APIs."
 ext.qupathVersion = gradle.ext.qupathVersion
 ext.qupathJavaVersion = 17
@@ -19,6 +19,7 @@ dependencies {
     shadow "io.github.qupath:qupath-gui-fx:${qupathVersion}"
     shadow "io.github.qupath:qupath-extension-bioformats:${qupathVersion}"
     shadow libs.qupath.fxtras
+    shadow libs.guava
 
     shadow libs.slf4j
 

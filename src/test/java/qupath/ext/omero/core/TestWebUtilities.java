@@ -35,7 +35,7 @@ public class TestWebUtilities {
                 expectedID
         ));
 
-        int id = WebUtilities.parseEntityId(uri).orElse(-1);
+        long id = WebUtilities.parseEntityId(uri).orElse(-1);
 
         Assertions.assertEquals(expectedID, id);
     }
@@ -45,7 +45,7 @@ public class TestWebUtilities {
         long expectedID = 1157;
         URI uri = URI.create(String.format("https://omero-czi-cpw.mvm.ed.ac.uk/webclient/?show=dataset-%d", expectedID));
 
-        int id = WebUtilities.parseEntityId(uri).orElse(-1);
+        long id = WebUtilities.parseEntityId(uri).orElse(-1);
 
         Assertions.assertEquals(expectedID, id);
     }
@@ -55,7 +55,7 @@ public class TestWebUtilities {
         long expectedID = 12546;
         URI uri = URI.create(String.format("https://omero-czi-cpw.mvm.ed.ac.uk/webclient/?show=image-%d", expectedID));
 
-        int id = WebUtilities.parseEntityId(uri).orElse(-1);
+        long id = WebUtilities.parseEntityId(uri).orElse(-1);
 
         Assertions.assertEquals(expectedID, id);
     }
@@ -65,7 +65,7 @@ public class TestWebUtilities {
         long expectedID = 12546;
         URI uri = URI.create(String.format("https://omero-czi-cpw.mvm.ed.ac.uk/webclient/img_detail/%d/?dataset=1157", expectedID));
 
-        int id = WebUtilities.parseEntityId(uri).orElse(-1);
+        long id = WebUtilities.parseEntityId(uri).orElse(-1);
 
         Assertions.assertEquals(expectedID, id);
     }
@@ -75,7 +75,7 @@ public class TestWebUtilities {
         long expectedID = 12546;
         URI uri = URI.create(String.format("https://omero-czi-cpw.mvm.ed.ac.uk/webgateway/img_detail/%d/?dataset=1157", expectedID));
 
-        int id = WebUtilities.parseEntityId(uri).orElse(-1);
+        long id = WebUtilities.parseEntityId(uri).orElse(-1);
 
         Assertions.assertEquals(expectedID, id);
     }
@@ -85,7 +85,7 @@ public class TestWebUtilities {
         long expectedID = 12546;
         URI uri = URI.create(String.format("https://omero-czi-cpw.mvm.ed.ac.uk/iviewer/?images=%d&dataset=1157", expectedID));
 
-        int id = WebUtilities.parseEntityId(uri).orElse(-1);
+        long id = WebUtilities.parseEntityId(uri).orElse(-1);
 
         Assertions.assertEquals(expectedID, id);
     }

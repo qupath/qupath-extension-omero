@@ -13,7 +13,6 @@ import qupath.ext.omero.core.WebUtilities;
 import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
@@ -33,25 +32,36 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
     @Override
     public ImageServerBuilder.UriImageSupport<BufferedImage> checkImageSupport(URI entityURI, String... args) {
-        List<URI> imagesURIs = getImagesURIFromEntityURI(entityURI, args);
+        Optional<WebClient> client = getClientAndCheckURIReachable(entityURI, args);
 
-        float supportLevel = imagesURIs.isEmpty() ? 0 : SUPPORT_LEVEL;
+        if (client.isPresent()) {
+            try {
+                List<URI> imagesURIs = WebUtilities.getImagesURIFromEntityURI(entityURI, client.get().getApisHandler()).get();
+                float supportLevel = imagesURIs.isEmpty() ? 0 : SUPPORT_LEVEL;
 
-        return UriImageSupport.createInstance(
-                this.getClass(),
-                supportLevel,
-                imagesURIs.stream()
-                        .map(uri -> {
-                            try (var server = buildServer(uri, args)) {
-                                return server == null ? null : server.getBuilder();
-                            } catch (Exception e) {
-                                logger.warn("Unable to create OMERO server", e);
-                                return null;
-                            }
-                        })
-                        .filter(Objects::nonNull)
-                        .toList()
-        );
+                return UriImageSupport.createInstance(
+                        this.getClass(),
+                        supportLevel,
+                        imagesURIs.stream()
+                                .map(uri -> createServerBuilder(client.get(), uri))
+                                .flatMap(Optional::stream)
+                                .toList()
+                );
+            } catch (Exception e) {
+                logger.error("Error when checking image support", e);
+                return UriImageSupport.createInstance(
+                        this.getClass(),
+                        0,
+                        List.of()
+                );
+            }
+        } else {
+            return UriImageSupport.createInstance(
+                    this.getClass(),
+                    0,
+                    List.of()
+            );
+        }
     }
 
     @Override
@@ -107,17 +117,22 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         }
     }
 
-    private static List<URI> getImagesURIFromEntityURI(URI entityURI, String... args) {
-        var client = getClientAndCheckURIReachable(entityURI, args);
-
-        if (client.isPresent()) {
-            try {
-                return WebUtilities.getImagesURIFromEntityURI(entityURI, client.get().getApisHandler()).get();
-            } catch (Exception e) {
-                logger.error("Error when checking image support", e);
-            }
+    private static Optional<ImageServerBuilder.ServerBuilder<BufferedImage>> createServerBuilder(
+            WebClient client,
+            URI uri,
+            String... args
+    ) {
+        try {
+            return OmeroImageServer.getOriginalMetadata(uri, client).get()
+                    .map(imageServerMetadata -> DefaultImageServerBuilder.createInstance(
+                            OmeroImageServerBuilder.class,
+                            imageServerMetadata,
+                            uri,
+                            args)
+                    );
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error("Error while retrieving image metadata", e);
+            return Optional.empty();
         }
-
-        return List.of();
     }
 }

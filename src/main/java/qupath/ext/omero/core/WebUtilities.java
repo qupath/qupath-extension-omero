@@ -10,7 +10,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
-import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
@@ -75,17 +75,17 @@ public class WebUtilities {
      * @param uri  the URI that is supposed to contain the ID. It can be URL encoded
      * @return the entity ID, or an empty Optional if it was not found
      */
-    public static OptionalInt parseEntityId(URI uri) {
+    public static OptionalLong parseEntityId(URI uri) {
         for (Pattern pattern : allPatterns) {
             var matcher = pattern.matcher(decodeURI(uri));
 
             if (matcher.find()) {
                 try {
-                    return OptionalInt.of(Integer.parseInt(matcher.group(1)));
+                    return OptionalLong.of(Long.parseLong(matcher.group(1)));
                 } catch (Exception ignored) {}
             }
         }
-        return OptionalInt.empty();
+        return OptionalLong.empty();
     }
 
     /**
@@ -119,13 +119,13 @@ public class WebUtilities {
             var datasetID = parseEntityId(entityURI);
 
             if (datasetID.isPresent()) {
-                return apisHandler.getImagesURIOfDataset(datasetID.getAsInt());
+                return apisHandler.getImagesURIOfDataset(datasetID.getAsLong());
             }
         } else if (projectPattern.matcher(entityURL).find()) {
             var projectID = parseEntityId(entityURI);
 
             if (projectID.isPresent()) {
-                return apisHandler.getImagesURIOfProject(projectID.getAsInt());
+                return apisHandler.getImagesURIOfProject(projectID.getAsLong());
             }
         } else if (imagePatterns.stream().anyMatch(pattern -> pattern.matcher(entityURL).find())) {
             return CompletableFuture.completedFuture(List.of(entityURI));

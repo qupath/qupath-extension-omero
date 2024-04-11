@@ -75,3 +75,20 @@ gradlew clean build
 
 The output will be under `build/libs`.
 You can drag the jar file on top of QuPath to install the extension.
+
+## Running tests
+
+You can run the tests with
+
+```bash
+gradlew test
+```
+
+Some of the tests require having Docker installed and running.
+
+By default, a new local OMERO server will be created each time this command is run. As it takes
+a few minutes, you can instead create a local OMERO server by running the
+`qupath-extension-omero/src/test/resources/server.sh` script and setting the
+`OmeroServer.IS_LOCAL_OMERO_SERVER_RUNNING` variable to `true`
+(`qupath-extension-omero/src/test/java/qupath/ext/omero/OmeroServer` file).
+That way, unit tests will use the existing OMERO server instead of creating a new one.

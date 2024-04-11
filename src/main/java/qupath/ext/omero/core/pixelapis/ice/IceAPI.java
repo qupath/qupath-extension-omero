@@ -31,27 +31,28 @@ import java.util.List;
  */
 public class IceAPI implements PixelAPI {
 
-    private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
     static final String NAME = "Ice";
+    private static final Logger logger = LoggerFactory.getLogger(IceAPI.class);
     private static final String ADDRESS_PARAMETER = "--serverAddress";
     private static final String PORT_PARAMETER = "--serverPort";
-    private static boolean gatewayAvailable;
+    private static final boolean gatewayAvailable;
     private final ApisHandler apisHandler;
     private final boolean isAuthenticated;
     private final String sessionUuid;
     private final StringProperty serverAddress;
     private final IntegerProperty serverPort;
+    private GatewayWrapper gatewayWrapper;
 
     static {
+        boolean available = false;
+
         try {
             Class.forName("omero.gateway.Gateway");
-            gatewayAvailable = true;
+            available = true;
         } catch (ClassNotFoundException e) {
-            logger.debug(
-                    "OMERO Ice gateway is unavailable ('omero.gateway.Gateway' not found)." +
-                            "Falling back to the JSON API."
-            );
-            gatewayAvailable = false;
+            logger.debug("OMERO Ice gateway is unavailable ('omero.gateway.Gateway' not found).");
+        } finally {
+            gatewayAvailable = available;
         }
     }
 
@@ -132,14 +133,28 @@ public class IceAPI implements PixelAPI {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        List<LoginCredentials> credentials = new ArrayList<>();
-        if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
-            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
+        synchronized (this) {
+            if (gatewayWrapper == null) {
+                gatewayWrapper = new GatewayWrapper();
+            }
         }
-        credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
-        credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
 
-        return new IceReader(credentials, id, metadata.getChannels());
+        if (gatewayWrapper.isConnected()) {
+            return new IceReader(gatewayWrapper, id, metadata.getChannels());
+        } else {
+            List<LoginCredentials> credentials = new ArrayList<>();
+            if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
+                credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
+            }
+            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
+            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
+
+            if (gatewayWrapper.connect(credentials)) {
+                return new IceReader(gatewayWrapper, id, metadata.getChannels());
+            } else {
+                throw new IOException("Could not connect to Ice server");
+            }
+        }
     }
 
     @Override
@@ -159,6 +174,13 @@ public class IceAPI implements PixelAPI {
     @Override
     public String toString() {
         return String.format("Ice API of %s", apisHandler.getWebServerURI());
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (gatewayWrapper != null) {
+            gatewayWrapper.close();
+        }
     }
 
     /**

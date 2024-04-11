@@ -11,8 +11,8 @@ import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.gui.UiUtilities;
 
-import java.net.URI;
 import java.util.ResourceBundle;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Represents an OMERO screen.
@@ -32,9 +32,8 @@ public class Screen extends ServerEntity {
     };
     private final transient ObservableList<Plate> children = FXCollections.observableArrayList();
     private final transient ObservableList<Plate> childrenImmutable = FXCollections.unmodifiableObservableList(children);
-    private transient boolean childrenPopulated = false;
-    private transient URI webServerURI;
-    private transient boolean isPopulating = false;
+    private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
+    private transient volatile boolean isPopulating = false;
     @SerializedName(value = "Description") private String description;
     @SerializedName(value = "omero:childCount") private int childCount;
 
@@ -59,14 +58,14 @@ public class Screen extends ServerEntity {
     }
 
     /**
-     * @throws IllegalStateException when the web server URI has not been set (see {@link #setWebServerURI(URI)})
+     * @throws IllegalStateException when the web server URI has not been set
      */
     @Override
     public ObservableList<? extends RepositoryEntity> getChildren() {
-        if (!childrenPopulated) {
+        if (childrenPopulated.compareAndSet(false, true)) {
             populateChildren();
-            childrenPopulated = true;
         }
+
         return childrenImmutable;
     }
 
@@ -121,15 +120,6 @@ public class Screen extends ServerEntity {
      */
     public static boolean isScreen(String type) {
         return "http://www.openmicroscopy.org/Schemas/OME/2016-06#Screen".equalsIgnoreCase(type) || "Screen".equalsIgnoreCase(type);
-    }
-
-    /**
-     * Set the web server URI of the server owning this screen. This is needed to populate its children.
-     *
-     * @param webServerURI the web server URI of this server
-     */
-    public void setWebServerURI(URI webServerURI) {
-        this.webServerURI = webServerURI;
     }
 
     private void populateChildren() {

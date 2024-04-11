@@ -28,6 +28,7 @@ import java.util.stream.Stream;
 public abstract class ServerEntity implements RepositoryEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerEntity.class);
+    protected transient URI webServerURI;
     @SerializedName(value = "@id") protected long id;
     @SerializedName(value = "Name") protected String name;
     private Owner owner = Owner.getAllMembersOwner();
@@ -66,7 +67,7 @@ public abstract class ServerEntity implements RepositoryEntity {
      * @param informationIndex the index of the attribute
      * @return the attribute name corresponding to the index, or an empty String if the index is out of bound
      */
-    abstract public String getAttributeName(int informationIndex);
+    public abstract String getAttributeName(int informationIndex);
 
     /**
      * Returns the <b>value</b> of an attribute associated with this entity.
@@ -74,12 +75,12 @@ public abstract class ServerEntity implements RepositoryEntity {
      * @param informationIndex the index of the attribute
      * @return the attribute value corresponding to the index, or an empty String if the index is out of bound
      */
-    abstract public String getAttributeValue(int informationIndex);
+    public abstract String getAttributeValue(int informationIndex);
 
     /**
      * @return the total number of attributes this entity has
      */
-    abstract public int getNumberOfAttributes();
+    public abstract int getNumberOfAttributes();
 
     /**
      * Creates a stream of entities from a list of JSON elements.
@@ -143,22 +144,16 @@ public abstract class ServerEntity implements RepositoryEntity {
                 ServerEntity serverEntity = null;
                 if (Image.isImage(type)) {
                     serverEntity = context.deserialize(json, Image.class);
-                    ((Image) serverEntity).setWebServerURI(uri);
                 } else if (Dataset.isDataset(type)) {
                     serverEntity = context.deserialize(json, Dataset.class);
-                    ((Dataset) serverEntity).setWebServerURI(uri);
                 } else if (Project.isProject(type)) {
                     serverEntity = context.deserialize(json, Project.class);
-                    ((Project) serverEntity).setWebServerURI(uri);
                 } else if (Screen.isScreen(type)) {
                     serverEntity = context.deserialize(json, Screen.class);
-                    ((Screen) serverEntity).setWebServerURI(uri);
                 } else if (Plate.isPlate(type)) {
                     serverEntity = context.deserialize(json, Plate.class);
-                    ((Plate) serverEntity).setWebServerURI(uri);
                 } else if (PlateAcquisition.isPlateAcquisition(type)) {
                     serverEntity = context.deserialize(json, PlateAcquisition.class);
-                    ((PlateAcquisition) serverEntity).setWebServerURI(uri);
                 } else if (Well.isWell(type)) {
                     serverEntity = context.deserialize(json, Well.class);
                 } else {
@@ -166,6 +161,8 @@ public abstract class ServerEntity implements RepositoryEntity {
                 }
 
                 if (serverEntity != null) {
+                    serverEntity.webServerURI = uri;
+
                     Owner owner = context.deserialize(((JsonObject) json).get("omero:details").getAsJsonObject().get("owner"), Owner.class);
                     if (owner != null) {
                         serverEntity.owner = owner;

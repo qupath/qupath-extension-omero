@@ -3,16 +3,15 @@ package qupath.ext.omero.core.pixelapis.ice;
 import omero.ServerError;
 import omero.api.RawPixelsStorePrx;
 import omero.gateway.Gateway;
-import omero.gateway.LoginCredentials;
 import omero.gateway.SecurityContext;
 import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.facility.BrowseFacility;
-import omero.gateway.model.ExperimenterData;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.PixelsData;
 import omero.model.ExperimenterGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ObjectPool;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
@@ -34,37 +33,66 @@ import java.util.concurrent.ExecutionException;
 class IceReader implements PixelAPIReader {
 
     private static final Logger logger = LoggerFactory.getLogger(IceReader.class);
-    private final Gateway gateway = new Gateway(new IceLogger());
-    private final RawPixelsStorePrx reader;
+    private static final int NUMBER_OF_READERS = Runtime.getRuntime().availableProcessors() + 5;    // Tasks that include I/O or other blocking operations
+                                                                                                    // should use a bit more than the number of cores
+    private final ObjectPool<RawPixelsStorePrx> readerPool;
     private final int numberOfResolutionLevels;
     private final int nChannels;
     private final int effectiveNChannels;
     private final PixelType pixelType;
     private final ColorModel colorModel;
-    private SecurityContext context;
+    private final SecurityContext context;
+    private record ImageContextWrapper(ImageData image, SecurityContext context) {}
 
     /**
      * Creates a new Ice reader.
      *
-     * @param loginCredentials  a list of credentials to use to connect to the server. Once a connection
-     *                          is established, the remaining credentials are not used
+     * @param gatewayWrapper  a wrapper around a valid connection with an ICE server
      * @param imageID  the ID of the image to open
      * @param channels  the channels of the image to open
      * @throws IOException  when the reader creation fails
      */
-    public IceReader(List<LoginCredentials> loginCredentials, long imageID, List<ImageChannel> channels) throws IOException {
+    public IceReader(GatewayWrapper gatewayWrapper, long imageID, List<ImageChannel> channels) throws IOException {
         try {
-            Optional<ExperimenterData> user = connect(loginCredentials);
-            if (user.isPresent()) {
-                context = new SecurityContext(user.get().getGroupId());
+            if (gatewayWrapper.isConnected()) {
+                var imageAndContext = getImageAndContext(gatewayWrapper.getGateway(), imageID, gatewayWrapper.getGateway().getLoggedInUser().getGroupId());
+                if (imageAndContext.isPresent()) {
+                    context = imageAndContext.get().context;
+                    PixelsData pixelsData = imageAndContext.get().image.getDefaultPixels();
 
-                var imageData = getImage(imageID);
-                if (imageData.isPresent()) {
-                    PixelsData pixelsData = imageData.get().getDefaultPixels();
+                    readerPool = new ObjectPool<>(
+                            NUMBER_OF_READERS,
+                            () -> {
+                                try {
+                                    RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
+                                    reader.setPixelsId(pixelsData.getId(), false);
+                                    return reader;
+                                } catch (DSOutOfServiceException | ServerError e) {
+                                    logger.error("Error when creating RawPixelsStorePrx", e);
+                                    return null;
+                                }
+                            },
+                            reader -> {
+                                try {
+                                    reader.close();
+                                } catch (ServerError e) {
+                                    logger.error("Error when closing reader", e);
+                                }
+                            }
+                    );
 
-                    reader = gateway.getPixelsStore(context);
-                    reader.setPixelsId(pixelsData.getId(), false);
-                    numberOfResolutionLevels = reader.getResolutionLevels();
+                    try {
+                        var reader = readerPool.get();
+                        if (reader.isPresent()) {
+                            numberOfResolutionLevels = reader.get().getResolutionLevels();
+                            readerPool.giveBack(reader.get());
+                        } else {
+                            throw new IOException("Cannot create RawPixelsStorePrx");
+                        }
+                    } catch (InterruptedException e) {
+                        throw new IOException(e);
+                    }
+
                     nChannels = channels.size();
                     effectiveNChannels = pixelsData.getSizeC();
                     pixelType = switch (pixelsData.getPixelType()) {
@@ -94,16 +122,14 @@ class IceReader implements PixelAPIReader {
     public BufferedImage readTile(TileRequest tileRequest) throws IOException {
         byte[][] bytes = new byte[effectiveNChannels][];
 
-        synchronized (reader) {
-            try {
-                reader.setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
-            } catch (ServerError e) {
-                throw new IOException(e);
-            }
+        Optional<RawPixelsStorePrx> reader = Optional.empty();
+        try {
+            reader = readerPool.get();
+            if (reader.isPresent()) {
+                reader.get().setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
 
-            for (int channel = 0; channel < effectiveNChannels; channel++) {
-                try {
-                    bytes[channel] = reader.getTile(
+                for (int channel = 0; channel < effectiveNChannels; channel++) {
+                    bytes[channel] = reader.get().getTile(
                             tileRequest.getZ(),
                             channel,
                             tileRequest.getT(),
@@ -112,21 +138,24 @@ class IceReader implements PixelAPIReader {
                             tileRequest.getTileWidth(),
                             tileRequest.getTileHeight()
                     );
-                } catch (ServerError e) {
-                    throw new IOException(e);
                 }
+            } else {
+                throw new IOException("Cannot create RawPixelsStorePrx");
             }
+        } catch (Exception e) {
+            throw new IOException(e);
+        } finally {
+            reader.ifPresent(readerPool::giveBack);
         }
 
-        OMEPixelParser omePixelParser = new OMEPixelParser.Builder()
+        return new OMEPixelParser.Builder()
                 .isInterleaved(false)
                 .pixelType(pixelType)
                 .byteOrder(ByteOrder.BIG_ENDIAN)
                 .normalizeFloats(false)
                 .effectiveNChannels(effectiveNChannels)
-                .build();
-
-        return omePixelParser.parse(bytes, tileRequest.getTileWidth(), tileRequest.getTileHeight(), nChannels, colorModel);
+                .build()
+                .parse(bytes, tileRequest.getTileWidth(), tileRequest.getTileHeight(), nChannels, colorModel);
     }
 
     @Override
@@ -135,8 +164,8 @@ class IceReader implements PixelAPIReader {
     }
 
     @Override
-    public void close() {
-        gateway.disconnect();
+    public void close() throws Exception {
+        readerPool.close();
     }
 
     @Override
@@ -144,43 +173,14 @@ class IceReader implements PixelAPIReader {
         return String.format("Ice reader for %s", context.getServerInformation());
     }
 
-    private Optional<ExperimenterData> connect(List<LoginCredentials> loginCredentials) {
-        for (int i=0; i<loginCredentials.size(); i++) {
-            try {
-                ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
-                if (experimenterData != null) {
-                    logger.info(String.format(
-                            "Connected to the OMERO.server instance at %s with user %s",
-                            loginCredentials.get(i).getServer(),
-                            experimenterData.getUserName())
-                    );
-                    return Optional.of(experimenterData);
-                }
-            } catch (Exception e) {
-                if (i < loginCredentials.size()-1) {
-                    logger.warn(String.format(
-                            "Ice can't connect to %s:%d. Trying %s:%d...",
-                            loginCredentials.get(i).getServer().getHost(),
-                            loginCredentials.get(i).getServer().getPort(),
-                            loginCredentials.get(i+1).getServer().getHost(),
-                            loginCredentials.get(i+1).getServer().getPort()
-                    ), e);
-                } else {
-                    logger.warn(String.format(
-                            "Ice can't connect to %s:%d. No more credentials available",
-                            loginCredentials.get(i).getServer().getHost(),
-                            loginCredentials.get(i).getServer().getPort()
-                    ), e);
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    private Optional<ImageData> getImage(long imageID) throws ExecutionException, DSOutOfServiceException, ServerError {
+    private static Optional<ImageContextWrapper> getImageAndContext(Gateway gateway, long imageID, long userGroupId) throws ExecutionException, DSOutOfServiceException, ServerError {
+        SecurityContext context = new SecurityContext(userGroupId);
         BrowseFacility browser = gateway.getFacility(BrowseFacility.class);
         try {
-            return Optional.of(browser.getImage(context, imageID));
+            return Optional.of(new ImageContextWrapper(
+                    browser.getImage(context, imageID),
+                    context
+            ));
         } catch (Exception ignored) {}
 
         List<ExperimenterGroup> groups = gateway.getAdminService(context).containedGroups(gateway.getLoggedInUser().asExperimenter().getId().getValue());
@@ -188,7 +188,10 @@ class IceReader implements PixelAPIReader {
             context = new SecurityContext(group.getId().getValue());
 
             try {
-                return Optional.of(browser.getImage(context, imageID));
+                return Optional.of(new ImageContextWrapper(
+                        browser.getImage(context, imageID),
+                        context
+                ));
             } catch (Exception ignored) {}
         }
         return Optional.empty();

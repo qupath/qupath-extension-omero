@@ -14,12 +14,12 @@ import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 
-import java.net.URI;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Represents an OMERO plate acquisition.
@@ -39,9 +39,8 @@ public class PlateAcquisition extends ServerEntity {
     private final transient ObservableList<Image> children = FXCollections.observableArrayList();
     private final transient ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final transient StringProperty label = new SimpleStringProperty((this.name == null ? "" : this.name) + " (0)");
-    private transient boolean childrenPopulated = false;
-    private transient URI webServerURI;
-    private transient boolean isPopulating = false;
+    private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
+    private transient volatile boolean isPopulating = false;
     private transient int numberOfWells = 0;
     @SerializedName(value = "omero:wellsampleIndex") private List<Integer> wellSampleIndices;
     @SerializedName(value = "StartTime") private long startTime;
@@ -62,19 +61,19 @@ public class PlateAcquisition extends ServerEntity {
     }
 
     @Override
-    public boolean hasChildren() {
+    public synchronized boolean hasChildren() {
         return numberOfWells > 0;
     }
 
     /**
-     * @throws IllegalStateException when the web server URI has not been set (see {@link #setWebServerURI(URI)})
+     * @throws IllegalStateException when the web server URI has not been set
      */
     @Override
     public ObservableList<? extends RepositoryEntity> getChildren() {
-        if (!childrenPopulated) {
+        if (childrenPopulated.compareAndSet(false, true)) {
             populateChildren();
-            childrenPopulated = true;
         }
+
         return childrenImmutable;
     }
 
@@ -130,20 +129,11 @@ public class PlateAcquisition extends ServerEntity {
     }
 
     /**
-     * Set the web server URI of the server owning this plate acquisition. This is needed to populate its children.
-     *
-     * @param webServerURI the web server URI of this server
-     */
-    public void setWebServerURI(URI webServerURI) {
-        this.webServerURI = webServerURI;
-    }
-
-    /**
      * Set the number of wells of this plate acquisition.
      *
      * @param numberOfWells  the number of wells of this plate acquisition
      */
-    public void setNumberOfWells(int numberOfWells) {
+    public synchronized void setNumberOfWells(int numberOfWells) {
         this.numberOfWells = numberOfWells;
         label.set((this.name == null ? "" : this.name) + " (" + numberOfWells + ")");
     }
