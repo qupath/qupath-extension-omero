@@ -1,10 +1,3 @@
-> # :warning: Important! 
-> * :new: **This is a completely new OMERO extension for QuPath v0.5+**!
-> * :construction: **It's still being developed - it's currently intended only for testing**
-> * :computer: **You can find the older, stable extension at https://github.com/qupath/qupath-extension-omero-web**
-> * :fireworks: **The biggest change is that _this extension will provide raw pixel access_**
-> * :bug: **Please report any bugs through the [issues page](https://github.com/qupath/qupath-extension-omero/issues)**
-
 # QuPath OMERO extension
 
 Welcome to the OMERO extension for [QuPath](http://qupath.github.io)!
@@ -18,7 +11,7 @@ server through OMERO's web (and other) API.
 > has several limitations.
 > See the [Reading images](#reading-images) section.
 
-The extension is intended for QuPath v0.5 and later.
+The extension is intended for QuPath v0.6 and later.
 It is not compatible with earlier QuPath versions.
 
 ## Installing
@@ -67,7 +60,7 @@ extension can be used from scripts (with or without the graphical user interface
 
 ## Building
 
-You can build the extension using OpenJDK 17 or later with
+You can build the extension using OpenJDK 21 or later with
 
 ```bash
 gradlew clean build
