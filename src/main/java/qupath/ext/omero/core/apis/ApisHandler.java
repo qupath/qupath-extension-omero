@@ -502,7 +502,7 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebGatewayApi#getThumbnail(long, int)}.
+     * See {@link WebGatewayApi#getThumbnail(long)}.
      * Thumbnails are cached in a cache of size {@link #THUMBNAIL_CACHE_SIZE}.
      */
     public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id, int size) {
@@ -510,7 +510,7 @@ public class ApisHandler implements AutoCloseable {
             IdSizeWrapper key = new IdSizeWrapper(id, size);
             CompletableFuture<Optional<BufferedImage>> request = thumbnailsCache.get(
                     key,
-                    () -> webGatewayApi.getThumbnail(id, size)
+                    () -> webGatewayApi.getThumbnail(id)
             );
 
             request.thenAccept(response -> {
