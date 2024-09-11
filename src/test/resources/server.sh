@@ -40,6 +40,7 @@ docker run -d \
   -e ROOTPASS=password \
   -p 4064:4064 \
   --privileged \
+  --platform linux/x86_64 \
   --mount type=bind,src=$SCRIPT_DIR"/omero-server",target=/resources \
   openmicroscopy/omero-server
 

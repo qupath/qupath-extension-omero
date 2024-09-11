@@ -541,17 +541,6 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Image_Thumbnail_With_Specific_Size() throws ExecutionException, InterruptedException {
-            long imageId = OmeroServer.getComplexImage().getId();
-            int size = 30;
-
-            BufferedImage image = apisHandler.getThumbnail(imageId, size).get().orElse(null);
-
-            Assertions.assertNotNull(image);
-            Assertions.assertEquals(size, Math.max(image.getWidth(), image.getHeight()));
-        }
-
-        @Test
         void Check_Image_Thumbnail_With_Invalid_Image_ID() throws ExecutionException, InterruptedException {
             long invalidImageID = -1;
 

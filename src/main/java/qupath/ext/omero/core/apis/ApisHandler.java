@@ -49,7 +49,6 @@ import java.util.concurrent.ExecutionException;
 public class ApisHandler implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(ApisHandler.class);
-    private static final int THUMBNAIL_SIZE = 256;
     private static final int THUMBNAIL_CACHE_SIZE = 1000;
     private static final Map<String, PixelType> PIXEL_TYPE_MAP = Map.of(
             "uint8", PixelType.UINT8,
@@ -67,12 +66,11 @@ public class ApisHandler implements AutoCloseable {
     private final WebGatewayApi webGatewayApi;
     private final IViewerApi iViewerApi;
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
-    private final Cache<IdSizeWrapper, CompletableFuture<Optional<BufferedImage>>> thumbnailsCache = CacheBuilder.newBuilder()
+    private final Cache<Long, CompletableFuture<Optional<BufferedImage>>> thumbnailsCache = CacheBuilder.newBuilder()
             .maximumSize(THUMBNAIL_CACHE_SIZE)
             .build();
     private final Map<Class<? extends RepositoryEntity>, BufferedImage> omeroIconsCache = new ConcurrentHashMap<>();
     private final boolean canSkipAuthentication;
-    private record IdSizeWrapper(long id, int size) {}
 
     private ApisHandler(URI host, JsonApi jsonApi, boolean canSkipAuthentication) {
         this.host = host;
@@ -494,28 +492,19 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * {@link #getThumbnail(long, int)} with a size of
-     * {@link #THUMBNAIL_SIZE}.
-     */
-    public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id) {
-        return getThumbnail(id, THUMBNAIL_SIZE);
-    }
-
-    /**
      * See {@link WebGatewayApi#getThumbnail(long)}.
      * Thumbnails are cached in a cache of size {@link #THUMBNAIL_CACHE_SIZE}.
      */
-    public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id, int size) {
+    public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id) {
         try {
-            IdSizeWrapper key = new IdSizeWrapper(id, size);
             CompletableFuture<Optional<BufferedImage>> request = thumbnailsCache.get(
-                    key,
+                    id,
                     () -> webGatewayApi.getThumbnail(id)
             );
 
             request.thenAccept(response -> {
                 if (response.isEmpty()) {
-                    thumbnailsCache.invalidate(key);
+                    thumbnailsCache.invalidate(id);
                 }
             });
             return request;

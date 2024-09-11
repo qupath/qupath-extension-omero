@@ -42,7 +42,7 @@ class Image extends HBox {
                     image.ifPresent(value -> name.setText(value.getLabel().get()))
             ));
 
-            client.getApisHandler().getThumbnail(imageID.getAsLong(), (int) thumbnail.getWidth()).thenAccept(thumbnail -> Platform.runLater(() ->
+            client.getApisHandler().getThumbnail(imageID.getAsLong()).thenAccept(thumbnail -> Platform.runLater(() ->
                     thumbnail.ifPresent(bufferedImage -> UiUtilities.paintBufferedImageOnCanvas(bufferedImage, this.thumbnail))
             ));
         }
