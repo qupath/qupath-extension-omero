@@ -110,7 +110,7 @@ class WebGatewayApi {
      * <p>This function is asynchronous.</p>
      *
      * @param id  the OMERO image ID
-     * @param size  the max width and max height the thumbnail should have
+     * @param size the max width and max height the thumbnail should have
      * @return a CompletableFuture with the thumbnail, or an empty Optional if an error occurred
      */
     public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id, int size) {

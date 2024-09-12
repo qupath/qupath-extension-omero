@@ -369,7 +369,8 @@ public class Browser extends Stage {
         } else {
             owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
         }
-        owner.getSelectionModel().select(client.getServer().getDefaultOwner().orElse(Owner.getAllMembersOwner()));owner.setConverter(new StringConverter<>() {
+        owner.getSelectionModel().select(client.getServer().getDefaultOwner().orElse(Owner.getAllMembersOwner()));
+        owner.setConverter(new StringConverter<>() {
             @Override
             public String toString(Owner object) {
                 return object == null ? "" : object.getFullName();
@@ -475,15 +476,17 @@ public class Browser extends Stage {
         browserModel.getSelectedGroup().addListener((p, o, n) -> {
             owner.getItems().clear();
 
-            if (n != null) {
+            if (n == null) {
+                owner.getSelectionModel().select(null);
+            } else {
                 if (n.equals(Group.getAllGroupsGroup())) {
                     owner.getItems().addAll(client.getServer().getOwners());
+                    owner.getSelectionModel().select(Owner.getAllMembersOwner());
                 } else {
                     owner.getItems().addAll(n.getOwners());
+                    owner.getSelectionModel().selectFirst();
                 }
             }
-
-            owner.getSelectionModel().selectFirst();
         });
         browserModel.getSelectedGroup().bind(group.getSelectionModel().selectedItemProperty());
         browserModel.getSelectedOwner().bind(owner.getSelectionModel().selectedItemProperty());
