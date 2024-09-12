@@ -37,7 +37,7 @@ class WebGatewayApi {
     private static final String PROJECT_ICON_NAME = "folder16.png";
     private static final String DATASET_ICON_NAME = "folder_image16.png";
     private static final String ORPHANED_FOLDER_ICON_NAME = "folder_yellow16.png";
-    private static final String THUMBNAIL_URL = "%s/webgateway/render_thumbnail/%d";
+    private static final String THUMBNAIL_URL = "%s/webgateway/render_thumbnail/%d/%d";
     private static final String IMAGE_DATA_URL = "%s/webgateway/imgData/%d";
     private static final String TILE_URL = "%s/webgateway/render_image_region/%d/%d/%d/?" +
             "tile=%d,%d,%d,%d,%d" +
@@ -110,12 +110,13 @@ class WebGatewayApi {
      * <p>This function is asynchronous.</p>
      *
      * @param id  the OMERO image ID
+     * @param size the max width and max height the thumbnail should have
      * @return a CompletableFuture with the thumbnail, or an empty Optional if an error occurred
      */
-    public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id) {
+    public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id, int size) {
         changeNumberOfThumbnailsLoading(true);
 
-        return ApiUtilities.getImage(String.format(THUMBNAIL_URL, host, id)).thenApply(thumbnail -> {
+        return ApiUtilities.getImage(String.format(THUMBNAIL_URL, host, id, size)).thenApply(thumbnail -> {
             changeNumberOfThumbnailsLoading(false);
             return thumbnail;
         });
