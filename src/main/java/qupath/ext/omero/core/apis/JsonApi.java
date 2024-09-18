@@ -7,6 +7,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.Strictness;
 import com.google.gson.reflect.TypeToken;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
@@ -67,6 +68,7 @@ class JsonApi {
     private static final String PLATE_WELLS_URL = "%s/api/v0/m/plates/%d/wells/";
     private static final String WELLS_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
     private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%s";
+    private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
     private final URI webURI;
@@ -241,7 +243,7 @@ class JsonApi {
     /**
      * <p>
      *     Attempt to retrieve all groups of the server.
-     *     This doesn't include the default group.
+     *     This doesn't include the default, system, and user groups.
      * </p>
      * <p>This function is asynchronous.</p>
      *
@@ -255,6 +257,7 @@ class JsonApi {
             return RequestSender.getPaginated(uri.get()).thenApplyAsync(jsonElements -> {
                 List<Group> groups = jsonElements.stream()
                         .map(jsonElement -> new Gson().fromJson(jsonElement, Group.class))
+                        .filter(group -> !GROUPS_TO_EXCLUDE.contains(group.getName()))
                         .toList();
 
                 for (Group group: groups) {
@@ -537,7 +540,9 @@ class JsonApi {
         var uri = WebUtilities.createURI(String.format(ROIS_URL, webURI, id));
 
         if (uri.isPresent()) {
-            var gson = new GsonBuilder().registerTypeAdapter(Shape.class, new Shape.GsonShapeDeserializer()).setLenient().create();
+            var gson = new GsonBuilder().registerTypeAdapter(Shape.class, new Shape.GsonShapeDeserializer())
+                    .setStrictness(Strictness.LENIENT)
+                    .create();
 
             return RequestSender.getPaginated(uri.get()).thenApply(jsonElements -> jsonElements.stream()
                     .map(datum -> {
