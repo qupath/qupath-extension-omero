@@ -368,6 +368,7 @@ public class Browser extends Stage {
             owner.getItems().addAll(client.getServer().getOwners());
         } else {
             owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
+            owner.getItems().add(Owner.getAllMembersOwner());
         }
         owner.getSelectionModel().select(client.getServer().getDefaultOwner().orElse(Owner.getAllMembersOwner()));
         owner.setConverter(new StringConverter<>() {
@@ -484,6 +485,7 @@ public class Browser extends Stage {
                     owner.getSelectionModel().select(Owner.getAllMembersOwner());
                 } else {
                     owner.getItems().addAll(n.getOwners());
+                    owner.getItems().add(Owner.getAllMembersOwner());
                     owner.getSelectionModel().selectFirst();
                 }
             }
