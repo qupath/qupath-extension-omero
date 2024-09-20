@@ -1,9 +1,9 @@
 #!/bin/sh
 
-# Create user
+# Connect as root
 /opt/omero/server/venv3/bin/omero login root@localhost:4064 -w password
 
-# Create group and add previous user to group
+# Create public user and group
 /opt/omero/server/venv3/bin/omero group add public-data --type=read-only
 /opt/omero/server/venv3/bin/omero user add public public access --group-name public-data -P password
 
