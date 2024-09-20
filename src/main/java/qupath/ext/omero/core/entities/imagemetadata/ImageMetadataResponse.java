@@ -170,6 +170,9 @@ public class ImageMetadataResponse {
                 tileSizeY = Math.min(sizeY, 3192);
             }
 
+            boolean isRGB = channels.stream().map(ImageChannel::getColor).toList().equals(List.of(ColorTools.RED, ColorTools.GREEN, ColorTools.BLUE)) &&
+                    pixelType == PixelType.UINT8;
+
             double magnification = Double.NaN;
             if (jsonObject.has("nominalMagnification"))
                 magnification = jsonObject.getAsJsonPrimitive("nominalMagnification").getAsDouble();
@@ -185,7 +188,7 @@ public class ImageMetadataResponse {
                     levelBuilder.build(),
                     pixelType,
                     channels,
-                    channels.size() == 3 && pixelType == PixelType.UINT8,
+                    isRGB,
                     magnification,
                     pixelWidthMicrons,
                     pixelHeightMicrons,
