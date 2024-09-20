@@ -244,7 +244,7 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getGroups()} ()}.
+     * See {@link JsonApi#getGroups()}.
      */
     public CompletableFuture<List<Group>> getGroups() {
         return jsonApi.getGroups();

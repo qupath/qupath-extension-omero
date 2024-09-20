@@ -99,6 +99,11 @@ public class Server implements RepositoryEntity {
      */
     public static CompletableFuture<Optional<Server>> create(ApisHandler apisHandler, Group defaultGroup, int defaultUserId) {
         return CompletableFuture.supplyAsync(() -> {
+            if (defaultUserId == 0) {
+                logger.error("It is forbidden to use the root account to log in, as no images should be uploaded with this user");
+                return Optional.empty();
+            }
+
             List<Group> groups;
             try {
                 groups = apisHandler.getGroups().get();
