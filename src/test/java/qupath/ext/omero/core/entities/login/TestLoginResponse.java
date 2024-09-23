@@ -45,18 +45,9 @@ public class TestLoginResponse {
     void Check_User_ID() {
         LoginResponse loginResponse = getSuccessfulLoginResponse();
 
-        int userId = loginResponse.getUserId();
+        long userId = loginResponse.getUserId();
 
         Assertions.assertEquals(15, userId);
-    }
-
-    @Test
-    void Check_Username() {
-        LoginResponse loginResponse = getSuccessfulLoginResponse();
-
-        String username = loginResponse.getUsername();
-
-        Assertions.assertEquals("username", username);
     }
 
     @Test

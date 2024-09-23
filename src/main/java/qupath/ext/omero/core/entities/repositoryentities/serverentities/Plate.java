@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -35,7 +36,7 @@ public class Plate extends ServerEntity {
             resources.getString("Web.Entities.Plate.columns"),
             resources.getString("Web.Entities.Plate.rows")
     };
-    private final transient ObservableList<ServerEntity> children = FXCollections.observableArrayList();
+    private final transient ObservableList<ServerEntity> children = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final transient ObservableList<ServerEntity> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
     private transient volatile boolean isPopulating = false;

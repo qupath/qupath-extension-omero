@@ -273,7 +273,7 @@ public class WebClient implements AutoCloseable {
                     username: %s
                     authenticated: %s
                     selectedPixelAPI: %s
-                """, status, username == null ? "unauthenticated" : username, authenticated, selectedPixelAPI.get());
+                """, status, username, authenticated, selectedPixelAPI.get());
     }
 
     /**
@@ -313,11 +313,11 @@ public class WebClient implements AutoCloseable {
     }
 
     /**
-     * @return the username of the authenticated user, or an empty Optional if
-     * there is no authentication
+     * @return the username of the authenticated user, or the username of
+     * the public user if unauthenticated
      */
-    public Optional<String> getUsername() {
-        return Optional.ofNullable(username);
+    public String getUsername() {
+        return username;
     }
 
     /**
@@ -463,10 +463,10 @@ public class WebClient implements AutoCloseable {
                             Server.create(apisHandler, loginResponse.getGroup(), loginResponse.getUserId()).get() :
                             Server.create(apisHandler).get();
 
-                    yield server.map(value -> new WebClient(
-                            value,
+                    yield server.map(s -> new WebClient(
+                            s,
                             apisHandler,
-                            loginResponse.getUsername(),
+                            s.getConnectedOwner().username(),
                             loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS),
                             List.of(
                                     new WebAPI(apisHandler),

@@ -20,8 +20,7 @@ public class LoginResponse {
     private static final Logger logger = LoggerFactory.getLogger(LoginResponse.class);
     private final Status status;
     private final Group group;
-    private final int userId;
-    private final String username;
+    private final long userId;
     private final String sessionUuid;
 
     /**
@@ -46,21 +45,20 @@ public class LoginResponse {
         SUCCESS
     }
 
-    private LoginResponse(Status status, Group group, int userId, String username, String sessionUuid) {
+    private LoginResponse(Status status, Group group, long userId, String sessionUuid) {
         this.status = status;
         this.group = group;
         this.userId = userId;
-        this.username = username;
         this.sessionUuid = sessionUuid;
     }
 
     private LoginResponse(Status status) {
-        this(status, null, -1, null, null);
+        this(status, null, -1, null);
     }
 
     @Override
     public String toString() {
-        return String.format("LoginResponse of status %s for %s of ID %d", status, username, userId);
+        return String.format("LoginResponse of status %s for user of ID %d", status, userId);
     }
 
     /**
@@ -92,8 +90,7 @@ public class LoginResponse {
             return new LoginResponse(
                     Status.SUCCESS,
                     new Gson().fromJson(element, Group.class),
-                    element.getAsJsonObject().get("userId").getAsInt(),
-                    element.getAsJsonObject().get("userName").getAsString(),
+                    element.getAsJsonObject().get("userId").getAsLong(),
                     element.getAsJsonObject().get("sessionUuid").getAsString()
             );
         } catch (Exception e) {
@@ -113,16 +110,8 @@ public class LoginResponse {
      * @return the user ID of the authenticated user, or -1 if the login
      * attempt failed
      */
-    public int getUserId() {
+    public long getUserId() {
         return userId;
-    }
-
-    /**
-     * @return the username of the authenticated user, or null if the login
-     * attempt failed
-     */
-    public String getUsername() {
-        return username;
     }
 
     /**

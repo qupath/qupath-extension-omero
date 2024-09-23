@@ -10,7 +10,6 @@ import qupath.ext.omero.core.entities.permissions.Owner;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -57,12 +56,11 @@ public class TestServer extends OmeroServer {
         abstract void Check_Default_Group();
 
         @Test
-        abstract void Check_Default_Owner();
+        abstract void Check_Connected_Owner();
 
         @Test
         void Check_Groups() {
             List<Group> expectedGroups = new ArrayList<>(OmeroServer.getGroups());
-            expectedGroups.add(Group.getAllGroupsGroup());
 
             List<Group> groups = server.getGroups();
 
@@ -72,7 +70,6 @@ public class TestServer extends OmeroServer {
         @Test
         void Check_Owners() {
             List<Owner> expectedOwners = new ArrayList<>(OmeroServer.getOwners());
-            expectedOwners.add(Owner.getAllMembersOwner());
 
             List<Owner> owners = server.getOwners();
 
@@ -92,17 +89,21 @@ public class TestServer extends OmeroServer {
         @Test
         @Override
         void Check_Default_Group() {
-            Optional<Group> defaultGroup = server.getDefaultGroup();
+            Group expectedDefaultGroup = OmeroServer.getCurrentGroup();
 
-            Assertions.assertTrue(defaultGroup.isEmpty());
+            Group defaultGroup = server.getDefaultGroup();
+
+            Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
         }
 
         @Test
         @Override
-        void Check_Default_Owner() {
-            Optional<Owner> defaultOwner = server.getDefaultOwner();
+        void Check_Connected_Owner() {
+            Owner expectedConnectedOwner = OmeroServer.getCurrentOwner();
 
-            Assertions.assertTrue(defaultOwner.isEmpty());
+            Owner connectedOwner = server.getConnectedOwner();
+
+            Assertions.assertEquals(expectedConnectedOwner, connectedOwner);
         }
     }
 
@@ -120,19 +121,19 @@ public class TestServer extends OmeroServer {
         void Check_Default_Group() {
             Group expectedDefaultGroup = OmeroServer.getCurrentGroup();
 
-            Group defaultGroup = server.getDefaultGroup().orElse(null);
+            Group defaultGroup = server.getDefaultGroup();
 
             Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
         }
 
         @Test
         @Override
-        void Check_Default_Owner() {
-            Owner expectedDefaultOwner = OmeroServer.getCurrentOwner();
+        void Check_Connected_Owner() {
+            Owner expectedConnectedOwner = OmeroServer.getCurrentOwner();
 
-            Owner defaultOwner = server.getDefaultOwner().orElse(null);
+            Owner connectedOwner = server.getConnectedOwner();
 
-            Assertions.assertEquals(expectedDefaultOwner, defaultOwner);
+            Assertions.assertEquals(expectedConnectedOwner, connectedOwner);
         }
     }
 }

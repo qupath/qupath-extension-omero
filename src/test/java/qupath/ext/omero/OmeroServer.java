@@ -1,6 +1,7 @@
 package qupath.ext.omero;
 
 import com.google.gson.JsonParser;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.slf4j.Logger;
@@ -64,7 +65,7 @@ import java.util.concurrent.TimeUnit;
 public abstract class OmeroServer {
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroServer.class);
-    private static final boolean IS_LOCAL_OMERO_SERVER_RUNNING = false;
+    private static final boolean IS_LOCAL_OMERO_SERVER_RUNNING = true;
     private static final int CLIENT_CREATION_ATTEMPTS = 3;
     private static final String OMERO_PASSWORD = "password";
     private static final int OMERO_SERVER_PORT = 4064;
@@ -91,7 +92,7 @@ public abstract class OmeroServer {
                     .withNetworkAliases("postgres")
                     .withEnv("POSTGRES_PASSWORD", "postgres")
                     .withLogConsumer(frame ->
-                            logger.info(String.format("Postgres container: %s", frame.getUtf8String()))
+                            logger.debug(String.format("Postgres container: %s", frame.getUtf8String()))
                     );
 
             omeroServer = new GenericContainer<>(DockerImageName.parse("openmicroscopy/omero-server"))
@@ -116,7 +117,8 @@ public abstract class OmeroServer {
                                     logger.info("Connection to the OMERO server succeeded");
                                     return;
                                 } catch (IllegalStateException | ExecutionException | InterruptedException ignored) {
-                                    logger.info("Connection to the OMERO server failed. Retrying in one second.");}
+                                    logger.info("Connection to the OMERO server failed. Retrying in one second.");
+                                }
 
                                 try {
                                     TimeUnit.SECONDS.sleep(1);
@@ -133,7 +135,7 @@ public abstract class OmeroServer {
                     )
                     .dependsOn(postgres)
                     .withLogConsumer(frame ->
-                            logger.info(String.format("OMERO server container: %s", frame.getUtf8String()))
+                            logger.debug(String.format("OMERO server container: %s", frame.getUtf8String()))
                     );
 
             // See https://github.com/glencoesoftware/omero-ms-pixel-buffer:
@@ -142,7 +144,7 @@ public abstract class OmeroServer {
                     .withNetwork(Network.SHARED)
                     .withNetworkAliases("redis")
                     .withLogConsumer(frame ->
-                            logger.info(String.format("Redis container: %s", frame.getUtf8String()))
+                            logger.debug(String.format("Redis container: %s", frame.getUtf8String()))
                     );
 
             // See https://hub.docker.com/r/openmicroscopy/omero-web-standalone
@@ -167,7 +169,7 @@ public abstract class OmeroServer {
                     )
                     .dependsOn(redis)
                     .withLogConsumer(frame ->
-                            logger.info(String.format("OMERO web container: %s", frame.getUtf8String()))
+                            logger.debug(String.format("OMERO web container: %s", frame.getUtf8String()))
                     );
 
             omeroWeb.start();
@@ -209,6 +211,14 @@ public abstract class OmeroServer {
     @BeforeAll
     static void shouldRunTest() {
         Assumptions.assumeTrue(dockerAvailable, "Aborting test: no docker environment detected");
+    }
+
+    @AfterAll
+    static void closeContainer() {
+        omeroWeb.close();
+        omeroServer.close();
+        postgres.close();
+        redis.close();
     }
 
     protected static String getWebServerURI() {
@@ -257,8 +267,16 @@ public abstract class OmeroServer {
         return OMERO_PASSWORD;
     }
 
-    protected static String getUserUsername() {
+    protected static String getPublicUsername() {
         return "public";
+    }
+
+    protected static String getUserUsername() {
+        return "user";
+    }
+
+    protected static long getUserId() {
+        return 5;
     }
 
     protected static String getUserPassword() {
@@ -678,9 +696,13 @@ public abstract class OmeroServer {
 
     protected static List<Group> getGroups() {
         return List.of(
-                new Group(0, "system"),
-                new Group(1, "user"),
                 new Group(2, "guest"),
+                new Group(3, "public-data")
+        );
+    }
+
+    protected static List<Group> getGroupsOfUser() {
+        return List.of(
                 new Group(3, "public-data")
         );
     }

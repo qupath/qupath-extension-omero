@@ -7,6 +7,13 @@
 /opt/omero/server/venv3/bin/omero group add public-data --type=read-only
 /opt/omero/server/venv3/bin/omero user add public public access --group-name public-data -P password
 
+# Create other users and groups
+/opt/omero/server/venv3/bin/omero group add group1 --type=read-only
+/opt/omero/server/venv3/bin/omero group add group2 --type=read-only
+/opt/omero/server/venv3/bin/omero user add user1 user1 user1 --group-name group1 -P password
+/opt/omero/server/venv3/bin/omero user add user2 user2 user2 --group-name group2 -P password
+/opt/omero/server/venv3/bin/omero user add user user user --group-name group1 group2 -P password
+
 # Connect as previously created user
 /opt/omero/server/venv3/bin/omero login public@localhost:4064 -w password
 

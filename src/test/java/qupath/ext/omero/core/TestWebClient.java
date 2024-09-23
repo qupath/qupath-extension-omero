@@ -76,9 +76,9 @@ public class TestWebClient extends OmeroServer {
         @Test
         @Override
         void Check_Client_Username() {
-            String expectedUsername = "";
+            String expectedUsername = OmeroServer.getPublicUsername();
 
-            String username = client.getUsername().orElse("");
+            String username = client.getUsername();
 
             Assertions.assertEquals(expectedUsername, username);
         }
@@ -113,7 +113,7 @@ public class TestWebClient extends OmeroServer {
         void Check_Client_Username() {
             String expectedUsername = OmeroServer.getUserUsername();
 
-            String username = client.getUsername().orElse("");
+            String username = client.getUsername();
 
             Assertions.assertEquals(expectedUsername, username);
         }

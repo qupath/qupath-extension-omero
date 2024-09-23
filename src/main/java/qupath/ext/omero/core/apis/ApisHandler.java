@@ -22,7 +22,6 @@ import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.entities.imagemetadata.ImageMetadataResponse;
 import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
@@ -142,7 +141,11 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * @return the web server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * Get the URI of the OMERO <b>web server</b> (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>).
+     * This may be different from the OMERO <b>server</b> URI.
+     * See {@link #getServerURI()} for more information.
+     *
+     * @return the URI of the web server
      */
     public URI getWebServerURI() {
         return host;
@@ -163,7 +166,6 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     *
      * @return whether the server can be browsed without being authenticated
      */
     public boolean canSkipAuthentication() {
@@ -244,17 +246,17 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getGroups()}.
+     * See {@link WebclientApi#getPublicUserId()}.
      */
-    public CompletableFuture<List<Group>> getGroups() {
-        return jsonApi.getGroups();
+    public CompletableFuture<Optional<Long>> getPublicUserId() {
+        return webclientApi.getPublicUserId();
     }
 
     /**
-     * See {@link JsonApi#getOwners()} ()} ()}.
+     * See {@link JsonApi#getGroups(long)}.
      */
-    public CompletableFuture<List<Owner>> getOwners() {
-        return jsonApi.getOwners();
+    public CompletableFuture<List<Group>> getGroups(long userId) {
+        return jsonApi.getGroups(userId);
     }
 
     /**

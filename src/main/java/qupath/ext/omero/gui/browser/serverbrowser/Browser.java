@@ -154,7 +154,7 @@ public class Browser extends Stage {
                         MessageFormat.format(
                                 resources.getString("Browser.ServerBrowser.loginSuccessful"),
                                 client.getApisHandler().getWebServerURI(),
-                                client.getUsername().orElse("")
+                                client.getUsername()
                         )
                 );
 
@@ -332,10 +332,7 @@ public class Browser extends Stage {
     private void initUI() {
         serverHost.setText(client.getApisHandler().getWebServerURI().getHost());
 
-        username.setText(client.isAuthenticated() && client.getUsername().isPresent() ?
-                client.getUsername().get() :
-                resources.getString("Browser.ServerBrowser.unauthenticated")
-        );
+        username.setText(client.getUsername());
 
         usernameContainer.getChildren().remove(client.isAuthenticated() ? login : logout);
 
@@ -360,17 +357,13 @@ public class Browser extends Stage {
         });
         pixelAPI.getSelectionModel().select(browserModel.getSelectedPixelAPI().get());
 
+        group.getItems().setAll(Group.getAllGroupsGroup());
         group.getItems().addAll(client.getServer().getGroups());
-        group.getSelectionModel().select(client.getServer().getDefaultGroup().orElse(Group.getAllGroupsGroup()));
+        group.getSelectionModel().select(client.getServer().getDefaultGroup());
 
-        owner.getItems().clear();
-        if (group.getSelectionModel().getSelectedItem().equals(Group.getAllGroupsGroup())) {
-            owner.getItems().addAll(client.getServer().getOwners());
-        } else {
-            owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
-            owner.getItems().add(Owner.getAllMembersOwner());
-        }
-        owner.getSelectionModel().select(client.getServer().getDefaultOwner().orElse(Owner.getAllMembersOwner()));
+        owner.getItems().setAll(Owner.getAllMembersOwner());
+        owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
+        owner.getSelectionModel().select(client.getServer().getConnectedOwner());
         owner.setConverter(new StringConverter<>() {
             @Override
             public String toString(Owner object) {
@@ -475,7 +468,7 @@ public class Browser extends Stage {
         loadingThumbnail.managedProperty().bind(loadingThumbnail.visibleProperty());
 
         browserModel.getSelectedGroup().addListener((p, o, n) -> {
-            owner.getItems().clear();
+            owner.getItems().setAll(Owner.getAllMembersOwner());
 
             if (n == null) {
                 owner.getSelectionModel().select(null);
@@ -485,7 +478,6 @@ public class Browser extends Stage {
                     owner.getSelectionModel().select(Owner.getAllMembersOwner());
                 } else {
                     owner.getItems().addAll(n.getOwners());
-                    owner.getItems().add(Owner.getAllMembersOwner());
                     owner.getSelectionModel().selectFirst();
                 }
             }

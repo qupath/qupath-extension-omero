@@ -15,8 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A server is the top element in the OMERO entity hierarchy.
@@ -27,19 +26,19 @@ public class Server implements RepositoryEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Server.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
-    private final ObservableList<RepositoryEntity> children = FXCollections.observableArrayList();
+    private final ObservableList<RepositoryEntity> children = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final ObservableList<RepositoryEntity> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final List<Owner> owners;
     private final List<Group> groups;
-    private final Owner defaultOwner;
+    private final Owner connectedOwner;
     private final Group defaultGroup;
     private volatile boolean isPopulating = false;
+    private record UserIdGroups(long userId, List<Group> groups) {}
 
-    private Server(ApisHandler apisHandler, List<Owner> owners, List<Group> groups, Owner defaultOwner, Group defaultGroup) {
-        this.owners = Stream.concat(owners.stream(), Stream.of(Owner.getAllMembersOwner())).toList();
-        this.groups = Stream.concat(groups.stream(), Stream.of(Group.getAllGroupsGroup())).toList();
-
-        this.defaultOwner = defaultOwner;
+    private Server(ApisHandler apisHandler, List<Owner> owners, List<Group> groups, Owner connectedOwner, Group defaultGroup) {
+        this.owners = owners;
+        this.groups = groups;
+        this.connectedOwner = connectedOwner;
         this.defaultGroup = defaultGroup;
 
         populate(apisHandler);
@@ -47,7 +46,7 @@ public class Server implements RepositoryEntity {
 
     @Override
     public String toString() {
-        return String.format("Server containing the following children: %s", children);
+        return String.format("Server of user %s containing the following children: %s", connectedOwner, children);
     }
 
     @Override
@@ -72,12 +71,12 @@ public class Server implements RepositoryEntity {
 
     /**
      * <p>
-     *     Create the server. This creates the orphaned folder and populates the
-     *     children (projects and orphaned datasets) of the server.
+     *     Create the server for an <b>unauthenticated</b> user. This also start populating the
+     *     children (orphaned folder, projects, orphaned datasets...) of the server.
      * </p>
      * <p>
-     *     Call {@link #create(ApisHandler, Group, int)} if you want to specify a default group
-     *     and a default user.
+     *     Call {@link #create(ApisHandler, Group, long)} if you want to create the server for an
+     *     authenticated user.
      * </p>
      *
      * @param apisHandler  the APIs handler of the browser
@@ -88,104 +87,115 @@ public class Server implements RepositoryEntity {
     }
 
     /**
-     * Same as {@link #create(ApisHandler)}, but by specifying a default group
-     * and a default user.
+     * Same as {@link #create(ApisHandler)}, but for creating the server for an
+     * <b>authenticated</b> user.
      *
      * @param apisHandler  the APIs handler of the browser
-     * @param defaultGroup  the default group of this server. This is usually the group
-     *                      of the connected user
-     * @param defaultUserId  the ID of the default owner of this server. This is usually the connected user
+     * @param defaultGroup  the default group of the provided user
+     * @param userId  the ID of the connected user. It should not correspond to the root account
+     *                as no images should be uploaded with this user. In that case, this function will
+     *                return an empty Optional
      * @return the new server, or an empty Optional if the creation failed
      */
-    public static CompletableFuture<Optional<Server>> create(ApisHandler apisHandler, Group defaultGroup, int defaultUserId) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (defaultUserId == 0) {
-                logger.error("It is forbidden to use the root account to log in, as no images should be uploaded with this user");
+    public static CompletableFuture<Optional<Server>> create(ApisHandler apisHandler, Group defaultGroup, long userId) {
+        if (userId == 0) {
+            logger.error("It is forbidden to use the root account to log in, as no images should be uploaded with this user");
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+
+        CompletableFuture<Optional<Long>> userIdRequest = userId == -1 ?
+                apisHandler.getPublicUserId() :
+                CompletableFuture.completedFuture(Optional.of(userId));
+
+        return userIdRequest.thenCompose(userIdResponse -> {
+            if (userIdResponse.isPresent()) {
+                return apisHandler.getGroups(userIdResponse.get()).thenApply(groups ->
+                        new UserIdGroups(userIdResponse.get(), groups)
+                );
+            } else {
+                return CompletableFuture.completedFuture(new UserIdGroups(-1, List.of()));
+            }
+        }).thenApply(userIdGroups -> {
+            if (userIdGroups.userId() == -1) {
+                logger.error("Could not retrieve user ID of public user");
+                return Optional.empty();
+            }
+            if (userIdGroups.groups().isEmpty()) {
+                logger.error(String.format("The server didn't return any group for user with ID %d", userIdGroups.userId()));
                 return Optional.empty();
             }
 
-            List<Group> groups;
-            try {
-                groups = apisHandler.getGroups().get();
-            } catch (InterruptedException | ExecutionException e) {
-                logger.error("Error while retrieving groups", e);
+            List<Owner> owners = userIdGroups.groups().stream()
+                    .map(Group::getOwners)
+                    .flatMap(List::stream)
+                    .toList();
+
+            Owner connectedOwner = owners.stream()
+                    .filter(owner -> owner.id() == userId)
+                    .findAny()
+                    .orElse(null);
+            if (connectedOwner == null) {
+                logger.error(String.format(
+                        "The provided owner of ID %d was not found in the list returned by the server (%s)",
+                        userIdGroups.userId(),
+                        owners
+                ));
                 return Optional.empty();
             }
 
-            if (groups.isEmpty()) {
-                logger.error("The server didn't return any group");
-                return Optional.empty();
-            }
-            if (defaultGroup != null && !groups.contains(defaultGroup)) {
-                logger.error("The default group was not found in the list returned by the server");
-                return Optional.empty();
-            }
-
-            List<Owner> owners;
-            try {
-                owners = apisHandler.getOwners().get();
-            } catch (InterruptedException | ExecutionException e) {
-                logger.error("Error while retrieving owners", e);
-                return Optional.empty();
-            }
-            Owner defaultOwner = null;
-            if (defaultUserId > -1) {
-                defaultOwner = owners.stream()
-                        .filter(owner -> owner.id() == defaultUserId)
-                        .findAny()
-                        .orElse(null);
-            }
-
-            if (owners.isEmpty()) {
-                logger.error("The server didn't return any owner");
-                return Optional.empty();
-            }
-            if (defaultOwner == null && defaultUserId > -1) {
-                logger.error("The provided owner was not found in the list returned by the server");
-                return Optional.empty();
+            Group group;
+            if (defaultGroup == null) {
+                group = userIdGroups.groups().get(0);
+            } else {
+                if (userIdGroups.groups().contains(defaultGroup)) {
+                    group = defaultGroup;
+                } else {
+                    group = userIdGroups.groups().get(0);
+                    logger.warn(String.format(
+                            "The provided default group (%s) was not found in the list returned by the server (%s). Using %s",
+                            defaultGroup,
+                            userIdGroups.groups(),
+                            group
+                    ));
+                }
             }
 
             return Optional.of(new Server(
                     apisHandler,
                     owners,
-                    groups,
-                    defaultOwner,
-                    defaultGroup
+                    userIdGroups.groups(),
+                    connectedOwner,
+                    group
             ));
         });
     }
 
     /**
-     * <p>Get the default group of this server. This is usually the group of the connected user.</p>
-     *
-     * @return the default group of this server, or an empty Optional if no default group was set
-     * (usually when the user is not authenticated)
+     * @return the default group of the connected user
      */
-    public Optional<Group> getDefaultGroup() {
-        return Optional.ofNullable(defaultGroup);
+    public Group getDefaultGroup() {
+        return defaultGroup;
     }
 
     /**
-     * <p>Get the default owner of this server. This is usually the connected user.</p>
+     * Get the owner connected to this server. This can be the authenticated user
+     * or the public user.
      *
-     * @return the default owner of this server, or an empty Optional if no default owner was set
-     * (usually when the user is not authenticated)
+     * @return the owner connected to this server
      */
-    public Optional<Owner> getDefaultOwner() {
-        return Optional.ofNullable(defaultOwner);
+    public Owner getConnectedOwner() {
+        return connectedOwner;
     }
 
     /**
-     * @return an unmodifiable list of groups of this server. This includes
-     * the default group
+     * @return an unmodifiable list of groups the connected owner belong to
      */
     public List<Group> getGroups() {
         return groups;
     }
 
     /**
-     * @return an unmodifiable list of owners of this server. This includes
-     * the default owner
+     * @return an unmodifiable list of owners belonging to groups the connected owner belong to
      */
     public List<Owner> getOwners() {
         return owners;

@@ -152,7 +152,9 @@ public class AdvancedSearch extends Stage {
     private void initUI(Stage ownerWindow) throws IOException {
         UiUtilities.loadFXML(this, AdvancedSearch.class.getResource("advanced_search.fxml"));
 
-        owner.setItems(FXCollections.observableList(client.getServer().getOwners()));
+        owner.getItems().setAll(client.getServer().getOwners());
+        owner.getItems().add(Owner.getAllMembersOwner());
+        owner.getSelectionModel().select(client.getServer().getConnectedOwner());
         owner.setConverter(new StringConverter<>() {
             @Override
             public String toString(Owner owner) {
@@ -163,18 +165,10 @@ public class AdvancedSearch extends Stage {
                 return null;
             }
         });
-        if (client.getServer().getDefaultOwner().isPresent()) {
-            owner.getSelectionModel().select(client.getServer().getDefaultOwner().get());
-        } else {
-            owner.getSelectionModel().selectFirst();
-        }
 
-        group.setItems(FXCollections.observableList(client.getServer().getGroups()));
-        if (client.getServer().getDefaultGroup().isPresent()) {
-            group.getSelectionModel().select(client.getServer().getDefaultGroup().get());
-        } else {
-            group.getSelectionModel().selectFirst();
-        }
+        group.getItems().setAll(client.getServer().getGroups());
+        group.getItems().add(Group.getAllGroupsGroup());
+        group.getSelectionModel().select(client.getServer().getDefaultGroup());
 
         results.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 

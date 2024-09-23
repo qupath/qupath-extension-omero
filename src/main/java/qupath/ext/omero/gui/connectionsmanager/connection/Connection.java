@@ -148,7 +148,7 @@ public class Connection extends VBox {
                             MessageFormat.format(
                                     resources.getString("ConnectionsManager.Connection.loginSuccessful"),
                                     client.getApisHandler().getWebServerURI(),
-                                    client.getUsername().orElse("")
+                                    client.getUsername()
                             )
                     );
                 } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
@@ -237,8 +237,8 @@ public class Connection extends VBox {
         if (client == null) {
             buttons.getChildren().removeAll(browse, login, logout, disconnect);
         } else {
-            if (client.isAuthenticated() && client.getUsername().isPresent()) {
-                uri.setText(String.format("%s (%s)", serverURI, client.getUsername().get()));
+            if (client.isAuthenticated()) {
+                uri.setText(String.format("%s (%s)", serverURI, client.getUsername()));
             }
 
             buttons.getChildren().remove(connect);

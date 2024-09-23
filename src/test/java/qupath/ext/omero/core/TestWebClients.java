@@ -35,14 +35,14 @@ public class TestWebClients extends OmeroServer {
         }
 
         @Test
-        void Check_Client_Creation_With_Root_User() throws ExecutionException, InterruptedException {
+        void Check_Client_Creation_With_User() throws ExecutionException, InterruptedException {
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getRootUsername(),
+                    OmeroServer.getUserUsername(),
                     "-p",
-                    OmeroServer.getRootPassword()
+                    OmeroServer.getUserPassword()
             );
             WebClient.Status expectedStatus = WebClient.Status.SUCCESS;
 
@@ -61,7 +61,7 @@ public class TestWebClients extends OmeroServer {
                     "-u",
                     "incorrect_username",
                     "-p",
-                    OmeroServer.getRootPassword()
+                    OmeroServer.getUserPassword()
             );
             WebClient.Status expectedStatus = WebClient.Status.FAILED;
 
@@ -78,7 +78,7 @@ public class TestWebClients extends OmeroServer {
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getRootUsername(),
+                    OmeroServer.getUserUsername(),
                     "-p",
                     "incorrect_password"
             );
@@ -97,9 +97,9 @@ public class TestWebClients extends OmeroServer {
                     "",
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getRootUsername(),
+                    OmeroServer.getUserUsername(),
                     "-p",
-                    OmeroServer.getRootPassword()
+                    OmeroServer.getUserPassword()
             );
             WebClient.FailReason expectedFailReason = WebClient.FailReason.INVALID_URI_FORMAT;
 
@@ -117,9 +117,9 @@ public class TestWebClients extends OmeroServer {
                     uri.toString(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getRootUsername(),
+                    OmeroServer.getUserUsername(),
                     "-p",
-                    OmeroServer.getRootPassword()
+                    OmeroServer.getUserPassword()
             );
 
             WebClient client = WebClients.getClientFromURI(uri).orElse(null);
@@ -136,9 +136,9 @@ public class TestWebClients extends OmeroServer {
                     uri.toString(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getRootUsername(),
+                    OmeroServer.getUserUsername(),
                     "-p",
-                    OmeroServer.getRootPassword()
+                    OmeroServer.getUserPassword()
             );
 
             WebClients.removeClient(removedClient);
@@ -153,9 +153,9 @@ public class TestWebClients extends OmeroServer {
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getRootUsername(),
+                    OmeroServer.getUserUsername(),
                     "-p",
-                    OmeroServer.getRootPassword()
+                    OmeroServer.getUserPassword()
             );
             List<WebClient> expectedClients = List.of(client);
 
@@ -172,9 +172,9 @@ public class TestWebClients extends OmeroServer {
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getRootUsername(),
+                    OmeroServer.getUserUsername(),
                     "-p",
-                    OmeroServer.getRootPassword()
+                    OmeroServer.getUserPassword()
             );
             List<WebClient> expectedClients = List.of();
 

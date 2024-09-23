@@ -152,6 +152,13 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
+        void Check_Can_Skip_Authentication() {
+            boolean canSkipAuthentication = apisHandler.canSkipAuthentication();
+
+            Assertions.assertTrue(canSkipAuthentication);
+        }
+
+        @Test
         void Check_Images_URI_Of_Dataset() throws ExecutionException, InterruptedException {
             long datasetID = OmeroServer.getDataset().getId();
             List<URI> expectedURIs = OmeroServer.getImagesUriInDataset();
@@ -247,22 +254,7 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Groups() throws ExecutionException, InterruptedException {
-            List<Group> expectedGroups = OmeroServer.getGroups();
-
-            List<Group> groups = apisHandler.getGroups().get();
-
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
-        }
-
-        @Test
-        void Check_Owners() throws ExecutionException, InterruptedException {
-            List<Owner> expectedOwners = OmeroServer.getOwners();
-
-            List<Owner> owners = apisHandler.getOwners().get();
-
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedOwners, owners);
-        }
+        abstract void Check_Groups() throws ExecutionException, InterruptedException;
 
         @Test
         void Check_Projects() throws ExecutionException, InterruptedException {
@@ -745,6 +737,17 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         @Override
+        void Check_Groups() throws ExecutionException, InterruptedException {
+            long userId = OmeroServer.getUserId();
+            List<Group> expectedGroups = OmeroServer.getGroupsOfUser();
+
+            List<Group> groups = apisHandler.getGroups(userId).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
+        }
+
+        @Test
+        @Override
         void Check_Key_Value_Pairs_Sent() throws ExecutionException, InterruptedException {
             Image image = OmeroServer.getComplexImage();
             Map<String, String> keyValues = Map.of(
@@ -902,6 +905,17 @@ public class TestApisHandler extends OmeroServer {
         static void createClient() throws ExecutionException, InterruptedException {
             client = OmeroServer.createAuthenticatedClient();
             apisHandler = client.getApisHandler();
+        }
+
+        @Test
+        @Override
+        void Check_Groups() throws ExecutionException, InterruptedException {
+            long userId = OmeroServer.getUserId();
+            List<Group> expectedGroups = OmeroServer.getGroupsOfUser();
+
+            List<Group> groups = apisHandler.getGroups(userId).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
         }
 
         @Test

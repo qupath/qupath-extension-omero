@@ -32,6 +32,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -50,6 +52,8 @@ class WebclientApi implements AutoCloseable {
     private static final String ITEM_URL = "%s/webclient/?show=%s-%d";
     private static final String LOGOUT_URL = "%s/webclient/logout/";
     private static final String ORPHANED_IMAGES_URL = "%s/webclient/api/images/?orphaned=true";
+    private static final String WEBCLIENT_URL = "%s/webclient/";
+    private static final Pattern USER_ID_PATTERN = Pattern.compile("WEBCLIENT.USER = \\{'id': (.+?), 'fullName':");
     private static final String READ_ANNOTATION_URL = "%s/webclient/api/annotations/?%s=%d";
     private static final String SEARCH_URL = "%s/webclient/load_searching/form/" +
             "?query=%s&%s&%s&searchGroup=%s&ownedBy=%s" +
@@ -174,6 +178,39 @@ class WebclientApi implements AutoCloseable {
             );
         } else {
             return CompletableFuture.completedFuture(List.of());
+        }
+    }
+
+    /**
+     * <p>
+     *     Attempt to get the ID of the public user of the server.
+     *     This only works if there is no active authenticated connection with the server.
+     * </p>
+     * <p>This function is asynchronous.</p>
+     *
+     * @return a CompletableFuture with the public user ID, or an empty Optional if an error occurred
+     */
+    public CompletableFuture<Optional<Long>> getPublicUserId() {
+        var uri = WebUtilities.createURI(String.format(WEBCLIENT_URL, host));
+
+        if (uri.isPresent()) {
+            return RequestSender.get(uri.get()).thenApply(content -> {
+                if (content.isPresent()) {
+                    Matcher matcher = USER_ID_PATTERN.matcher(content.get());
+
+                    if (matcher.find()) {
+                        String id = matcher.group(1);
+                        try {
+                            return Optional.of(Long.parseLong(id));
+                        } catch (NumberFormatException e) {
+                            logger.error(String.format("Could not convert %s to long", id));
+                        }
+                    }
+                }
+                return Optional.empty();
+            });
+        } else {
+            return CompletableFuture.completedFuture(Optional.empty());
         }
     }
 

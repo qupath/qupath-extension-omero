@@ -47,7 +47,6 @@ class JsonApi {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonApi.class);
     private static final String OWNERS_URL_KEY = "url:experimenters";
-    private static final String GROUPS_URL_KEY = "url:experimentergroups";
     private static final String PROJECTS_URL_KEY = "url:projects";
     private static final String DATASETS_URL_KEY = "url:datasets";
     private static final String IMAGES_URL_KEY = "url:images";
@@ -57,6 +56,7 @@ class JsonApi {
     private static final String SERVERS_URL_KEY = "url:servers";
     private static final String LOGIN_URL_KEY = "url:login";
     private static final String API_URL = "%s/api/";
+    private static final String GROUPS_OF_USER_URL = "%s%d/experimentergroups/";
     private static final String PROJECTS_URL = "%s?childCount=true";
     private static final String DATASETS_URL = "%s%d/datasets/?childCount=true";
     private static final String IMAGES_URL = "%s%d/images/?childCount=true";
@@ -242,16 +242,17 @@ class JsonApi {
 
     /**
      * <p>
-     *     Attempt to retrieve all groups of the server.
-     *     This doesn't include the default, system, and user groups.
+     *     Attempt to retrieve all groups of a user.
+     *     This doesn't include the system and user groups.
      * </p>
      * <p>This function is asynchronous.</p>
      *
-     * @return a CompletableFuture with the list containing all groups of this server,
+     * @param userId the ID of the user that belong to the returned groups
+     * @return a CompletableFuture with the list containing all groups of the provided user,
      * or an empty list if the request failed
      */
-    public CompletableFuture<List<Group>> getGroups() {
-        var uri = WebUtilities.createURI(urls.get(GROUPS_URL_KEY));
+    public CompletableFuture<List<Group>> getGroups(long userId) {
+        var uri = WebUtilities.createURI(String.format(GROUPS_OF_USER_URL, urls.get(OWNERS_URL_KEY), userId));
 
         if (uri.isPresent()) {
             return RequestSender.getPaginated(uri.get()).thenApplyAsync(jsonElements -> {
@@ -275,28 +276,6 @@ class JsonApi {
 
                 return groups;
             });
-        } else {
-            return CompletableFuture.completedFuture(List.of());
-        }
-    }
-
-    /**
-     * <p>
-     *     Attempt to retrieve all owners of the server.
-     *     This doesn't include the default owner.
-     * </p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @return a CompletableFuture with the list containing all owners of this server,
-     * or an empty list if the request failed
-     */
-    public CompletableFuture<List<Owner>> getOwners() {
-        var uri = WebUtilities.createURI(urls.get(OWNERS_URL_KEY));
-
-        if (uri.isPresent()) {
-            return RequestSender.getPaginated(uri.get()).thenApply(jsonElements ->
-                    jsonElements.stream().map(jsonElement -> new Gson().fromJson(jsonElement, Owner.class)).toList()
-            );
         } else {
             return CompletableFuture.completedFuture(List.of());
         }

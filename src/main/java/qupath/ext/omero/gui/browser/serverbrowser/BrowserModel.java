@@ -63,21 +63,8 @@ public class BrowserModel {
 
         UiUtilities.bindSetInUIThread(openedImagesURIs, client.getOpenedImagesURIs());
 
-        if (client.getServer().getDefaultOwner().isPresent()) {
-            selectedOwner = new SimpleObjectProperty<>(client.getServer().getDefaultOwner().get());
-        } else if (!client.getServer().getOwners().isEmpty()) {
-            selectedOwner = new SimpleObjectProperty<>(client.getServer().getOwners().get(0));
-        } else {
-            selectedOwner = new SimpleObjectProperty<>(null);
-        }
-
-        if (client.getServer().getDefaultGroup().isPresent()) {
-            selectedGroup = new SimpleObjectProperty<>(client.getServer().getDefaultGroup().get());
-        } else if (!client.getServer().getGroups().isEmpty()) {
-            selectedGroup = new SimpleObjectProperty<>(client.getServer().getGroups().get(0));
-        } else {
-            selectedGroup = new SimpleObjectProperty<>(null);
-        }
+        selectedOwner = new SimpleObjectProperty<>(client.getServer().getConnectedOwner());
+        selectedGroup = new SimpleObjectProperty<>(client.getServer().getDefaultGroup());
 
         client.getApisHandler().getNumberOfOrphanedImages().thenAccept(numberOfOrphanedImages -> Platform.runLater(() ->
                 this.numberOfOrphanedImages.set(numberOfOrphanedImages))
