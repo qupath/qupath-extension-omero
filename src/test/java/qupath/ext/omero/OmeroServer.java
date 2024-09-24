@@ -77,6 +77,10 @@ public abstract class OmeroServer {
     private static final GenericContainer<?> omeroServer;
     private static final GenericContainer<?> omeroWeb;
     private static final String analysisFileId;
+    protected enum UserType {
+        USER,
+        PUBLIC
+    }
 
     static {
         if (!dockerAvailable || IS_LOCAL_OMERO_SERVER_RUNNING) {
@@ -215,10 +219,18 @@ public abstract class OmeroServer {
 
     @AfterAll
     static void closeContainer() {
-        omeroWeb.close();
-        omeroServer.close();
-        postgres.close();
-        redis.close();
+        if (omeroWeb != null) {
+            omeroWeb.close();
+        }
+        if (omeroServer != null) {
+            omeroServer.close();
+        }
+        if (postgres != null) {
+            postgres.close();
+        }
+        if (redis != null) {
+            redis.close();
+        }
     }
 
     protected static String getWebServerURI() {
@@ -226,6 +238,141 @@ public abstract class OmeroServer {
                 "http://localhost:" + OMERO_WEB_PORT :
                 "http://" + omeroWeb.getHost() + ":" + omeroWeb.getMappedPort(OMERO_WEB_PORT);
     }
+
+    protected static WebClient createClient(UserType userType) throws ExecutionException, InterruptedException {
+        return switch (userType) {
+            case USER -> createValidClient(
+                    WebClient.Authentication.ENFORCE,
+                    "-u",
+                    getUsername(userType),
+                    "-p",
+                    getPassword(userType)
+            );
+            case PUBLIC -> createValidClient(WebClient.Authentication.SKIP);
+        };
+    }
+
+    protected static String getUsername(UserType userType) {
+        return switch (userType) {
+            case USER -> "user";
+            case PUBLIC -> "public";
+        };
+    }
+
+    protected static String getPassword(UserType userType) {
+        return switch (userType) {
+            case USER -> "password_user";
+            case PUBLIC -> "password_public";
+        };
+    }
+
+    protected static long getUserId(UserType userType) {
+        return switch (userType) {
+            case USER -> 5;
+            case PUBLIC -> 3;
+        };
+    }
+
+    protected static List<Group> getGroups(UserType userType) {
+        return switch (userType) {
+            case USER -> List.of(new Group(4, "group1"), new Group(5, "group2"));
+            case PUBLIC -> List.of(new Group(3, "public-data"));
+        };
+    }
+
+    protected static List<Dataset> getDatasets(UserType userType) {
+        return switch (userType) {
+            case USER -> List.of(new Dataset(2), new Dataset(3));
+            case PUBLIC -> List.of(new Dataset(1));
+        };
+    }
+
+    protected static List<Project> getProjects(UserType userType) {
+        return switch (userType) {
+            case USER -> List.of(new Project(1));
+            case PUBLIC -> List.of(new Project(2));
+        };
+    }
+
+    protected static List<Dataset> getDatasetsInProject(Project project) {
+        return switch ((int) project.getId()) {
+            case 1 -> List.of(new Dataset(2), new Dataset(3));
+            case 2 -> List.of(new Dataset(1));
+            default -> List.of();
+        };
+    }
+
+    protected static URI getProjectURI(Project project) {
+        return URI.create(getWebServerURI() + "/webclient/?show=project-" + project.getId());
+    }
+
+    protected static URI getDatasetURI(Dataset dataset) {
+        return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + dataset.getId());
+    }
+
+    protected static List<URI> getImagesUriInDataset(Dataset dataset) {
+        return getImagesInDataset(dataset).stream()
+                .map(image -> URI.create(getWebServerURI() + "/webclient/?show=image-" + image.getId()))
+                .toList();
+    }
+
+    protected static List<Image> getImagesInDataset(Dataset dataset) {
+        if (dataset.getId() == 1) {
+            return List.of(
+                    new Image(1),
+                    new Image(2),
+                    new Image(3),
+                    new Image(4),
+                    new Image(5),
+                    new Image(6),
+                    new Image(7),
+                    new Image(8),
+                    new Image(9)
+            );
+        } else if (dataset.getId() == 2) {
+            return List.of();
+        } else if (dataset.getId() == 3) {
+            return List.of(new Image(10));
+        } else {
+            return List.of();
+        }
+    }
+
+    protected static Image getRGBImage(UserType userType) {
+        return switch (userType) {
+            case USER -> new Image(1);
+            case PUBLIC -> new Image(10);
+        };
+    }
+
+    protected static List<Image> getOrphanedImage(UserType userType) {
+        return switch (userType) {
+            case USER -> List.of(new Image(12));
+            case PUBLIC -> List.of(new Image(10));
+        };
+    }
+
+    protected static URI getRGBImageURI(UserType userType) {
+        return URI.create(getWebServerURI() + "/webclient/?show=image-" + getRGBImage(userType).getId());
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     protected static WebClient createUnauthenticatedClient() throws ExecutionException, InterruptedException {
         return createValidClient(WebClient.Authentication.SKIP);

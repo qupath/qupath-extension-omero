@@ -39,6 +39,7 @@ public class TestApisHandler extends OmeroServer {
 
         protected static WebClient client;
         protected static ApisHandler apisHandler;
+        protected static UserType userType;
 
         @AfterAll
         static void removeClient() {
@@ -160,8 +161,9 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Images_URI_Of_Dataset() throws ExecutionException, InterruptedException {
-            long datasetID = OmeroServer.getDataset().getId();
-            List<URI> expectedURIs = OmeroServer.getImagesUriInDataset();
+            Dataset dataset = OmeroServer.getDatasets(userType).getLast();
+            long datasetID = dataset.getId();
+            List<URI> expectedURIs = OmeroServer.getImagesUriInDataset(dataset);
 
             List<URI> uris = apisHandler.getImagesURIOfDataset(datasetID).get();
 
@@ -180,8 +182,12 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Image_URI_Of_Project() throws ExecutionException, InterruptedException {
-            long projectID = OmeroServer.getProject().getId();
-            List<URI> expectedURIs = OmeroServer.getImagesUriInDataset();
+            Project project = OmeroServer.getProjects(userType).getLast();
+            long projectID = project.getId();
+            List<URI> expectedURIs = OmeroServer.getDatasetsInProject(project).stream()
+                    .map(OmeroServer::getImagesUriInDataset)
+                    .flatMap(List::stream)
+                    .toList();
 
             List<URI> uris = apisHandler.getImagesURIOfProject(projectID).get();
 
@@ -200,8 +206,8 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Image_URI() {
-            Image image = OmeroServer.getComplexImage();
-            String expectedURI = OmeroServer.getComplexImageURI().toString();
+            Image image = OmeroServer.getRGBImage(userType);
+            String expectedURI = OmeroServer.getRGBImageURI(userType).toString();
 
             String uri = apisHandler.getItemURI(image);
 
@@ -210,8 +216,8 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Dataset_URI() {
-            Dataset dataset = OmeroServer.getDataset();
-            String expectedURI = OmeroServer.getDatasetURI().toString();
+            Dataset dataset = OmeroServer.getDatasets(userType).getLast();
+            String expectedURI = OmeroServer.getDatasetURI(dataset).toString();
 
             String uri = apisHandler.getItemURI(dataset);
 
@@ -220,8 +226,8 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Project_URI() {
-            Project project = OmeroServer.getProject();
-            String expectedURI = OmeroServer.getProjectURI().toString();
+            Project project = OmeroServer.getProjects(userType).getLast();
+            String expectedURI = OmeroServer.getProjectURI(project).toString();
 
             String uri = apisHandler.getItemURI(project);
 
@@ -246,7 +252,7 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Orphaned_Images_Id() throws ExecutionException, InterruptedException {
-            List<Long> expectedIds = List.of(OmeroServer.getOrphanedImage().getId());
+            List<Long> expectedIds = OmeroServer.getOrphanedImage(userType).stream().map(Image::getId).toList();
 
             List<Long> ids = apisHandler.getOrphanedImagesIds().get();
 
@@ -254,25 +260,27 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        abstract void Check_Groups() throws ExecutionException, InterruptedException;
+        void Check_Groups() throws ExecutionException, InterruptedException {
+            long userId = OmeroServer.getUserId(userType);
+            List<Group> expectedGroups = OmeroServer.getGroups(userType);
+
+            List<Group> groups = apisHandler.getGroups(userId).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
+        }
 
         @Test
         void Check_Projects() throws ExecutionException, InterruptedException {
             List<Project> expectedProjects = List.of(OmeroServer.getProject());
 
             List<Project> projects = apisHandler.getProjects().get();
+            //TODO: change
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedProjects, projects);
         }
 
         @Test
-        void Check_Orphaned_Datasets() throws ExecutionException, InterruptedException {
-            List<Dataset> expectedOrphanedDatasets = List.of(OmeroServer.getOrphanedDataset());
-
-            List<Dataset> orphanedDatasets = apisHandler.getOrphanedDatasets().get();
-
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedOrphanedDatasets, orphanedDatasets);
-        }
+        abstract void Check_Orphaned_Datasets() throws ExecutionException, InterruptedException;
 
         @Test
         void Check_Datasets() throws ExecutionException, InterruptedException {
@@ -733,17 +741,17 @@ public class TestApisHandler extends OmeroServer {
         static void createClient() throws ExecutionException, InterruptedException {
             client = OmeroServer.createUnauthenticatedClient();
             apisHandler = client.getApisHandler();
+            userType = UserType.PUBLIC;
         }
 
-        @Test
         @Override
-        void Check_Groups() throws ExecutionException, InterruptedException {
-            long userId = OmeroServer.getUserId();
-            List<Group> expectedGroups = OmeroServer.getGroupsOfUser();
+        @Test
+        void Check_Orphaned_Datasets() throws ExecutionException, InterruptedException {
+            List<Dataset> expectedOrphanedDatasets = List.of(OmeroServer.getOrphanedDataset());
 
-            List<Group> groups = apisHandler.getGroups(userId).get();
+            List<Dataset> orphanedDatasets = apisHandler.getOrphanedDatasets().get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedOrphanedDatasets, orphanedDatasets);
         }
 
         @Test
@@ -905,17 +913,17 @@ public class TestApisHandler extends OmeroServer {
         static void createClient() throws ExecutionException, InterruptedException {
             client = OmeroServer.createAuthenticatedClient();
             apisHandler = client.getApisHandler();
+            userType = UserType.USER;
         }
 
-        @Test
         @Override
-        void Check_Groups() throws ExecutionException, InterruptedException {
-            long userId = OmeroServer.getUserId();
-            List<Group> expectedGroups = OmeroServer.getGroupsOfUser();
+        @Test
+        void Check_Orphaned_Datasets() throws ExecutionException, InterruptedException {
+            List<Dataset> expectedOrphanedDatasets = List.of(OmeroServer.getOrphanedDataset());
 
-            List<Group> groups = apisHandler.getGroups(userId).get();
+            List<Dataset> orphanedDatasets = apisHandler.getOrphanedDatasets().get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedOrphanedDatasets, orphanedDatasets);
         }
 
         @Test

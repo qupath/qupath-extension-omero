@@ -15,6 +15,7 @@ public class TestWebClient extends OmeroServer {
     abstract static class GenericClient {
 
         protected static WebClient client;
+        protected static UserType userType;
 
         @AfterAll
         static void removeClient() {
@@ -25,7 +26,13 @@ public class TestWebClient extends OmeroServer {
         abstract void Check_Client_Authentication();
 
         @Test
-        abstract void Check_Client_Username();
+        void Check_Client_Username() {
+            String expectedUsername = OmeroServer.getUsername(userType);
+
+            String username = client.getUsername();
+
+            Assertions.assertEquals(expectedUsername, username);
+        }
 
         @Test
         abstract void Check_Client_Session_UUID();
@@ -63,7 +70,8 @@ public class TestWebClient extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            client = OmeroServer.createUnauthenticatedClient();
+            userType = UserType.PUBLIC;
+            client = OmeroServer.createClient(userType);
         }
 
         @Test
@@ -72,15 +80,6 @@ public class TestWebClient extends OmeroServer {
             boolean isAuthenticated = client.isAuthenticated();
 
             Assertions.assertFalse(isAuthenticated);
-        }
-        @Test
-        @Override
-        void Check_Client_Username() {
-            String expectedUsername = OmeroServer.getPublicUsername();
-
-            String username = client.getUsername();
-
-            Assertions.assertEquals(expectedUsername, username);
         }
 
         @Test
@@ -97,7 +96,8 @@ public class TestWebClient extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            client = OmeroServer.createAuthenticatedClient();
+            userType = UserType.USER;
+            client = OmeroServer.createClient(userType);
         }
 
         @Test
@@ -106,16 +106,6 @@ public class TestWebClient extends OmeroServer {
             boolean isAuthenticated = client.isAuthenticated();
 
             Assertions.assertTrue(isAuthenticated);
-        }
-
-        @Test
-        @Override
-        void Check_Client_Username() {
-            String expectedUsername = OmeroServer.getUserUsername();
-
-            String username = client.getUsername();
-
-            Assertions.assertEquals(expectedUsername, username);
         }
 
         @Test

@@ -18,7 +18,7 @@ public class TestWebClients extends OmeroServer {
         protected abstract WebClient createClient(String url, WebClient.Authentication authentication, String... args) throws ExecutionException, InterruptedException;
 
         @Test
-        void Check_Client_Creation_With_Public_User() throws ExecutionException, InterruptedException {
+        void Check_Client_Creation_Without_Authentication() throws ExecutionException, InterruptedException {
             int numberOfAttempts = 3;       // This test might sometimes fail because of the responsiveness of the OMERO server
             WebClient.Status expectedStatus = WebClient.Status.SUCCESS;
             WebClient client;
@@ -35,14 +35,35 @@ public class TestWebClients extends OmeroServer {
         }
 
         @Test
-        void Check_Client_Creation_With_User() throws ExecutionException, InterruptedException {
+        void Check_Client_Creation_With_Public_User() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.PUBLIC;
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getUserUsername(),
+                    OmeroServer.getUsername(userType),
                     "-p",
-                    OmeroServer.getUserPassword()
+                    OmeroServer.getPassword(userType)
+            );
+            WebClient.Status expectedStatus = WebClient.Status.SUCCESS;
+
+            WebClient.Status status = client.getStatus();
+
+            Assertions.assertEquals(expectedStatus, status);
+
+            WebClients.removeClient(client);
+        }
+
+        @Test
+        void Check_Client_Creation_With_User() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.USER;
+            WebClient client = createClient(
+                    OmeroServer.getWebServerURI(),
+                    WebClient.Authentication.ENFORCE,
+                    "-u",
+                    OmeroServer.getUsername(userType),
+                    "-p",
+                    OmeroServer.getPassword(userType)
             );
             WebClient.Status expectedStatus = WebClient.Status.SUCCESS;
 
@@ -55,13 +76,14 @@ public class TestWebClients extends OmeroServer {
 
         @Test
         void Check_Client_Creation_With_Incorrect_Username() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.USER;
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
                     "incorrect_username",
                     "-p",
-                    OmeroServer.getUserPassword()
+                    OmeroServer.getPassword(userType)
             );
             WebClient.Status expectedStatus = WebClient.Status.FAILED;
 
@@ -74,11 +96,12 @@ public class TestWebClients extends OmeroServer {
 
         @Test
         void Check_Client_Creation_With_Incorrect_Password() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.USER;
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getUserUsername(),
+                    OmeroServer.getUsername(userType),
                     "-p",
                     "incorrect_password"
             );
@@ -93,13 +116,14 @@ public class TestWebClients extends OmeroServer {
 
         @Test
         void Check_Client_Creation_With_Invalid_URI() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.USER;
             WebClient client = createClient(
                     "",
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getUserUsername(),
+                    OmeroServer.getUsername(userType),
                     "-p",
-                    OmeroServer.getUserPassword()
+                    OmeroServer.getPassword(userType)
             );
             WebClient.FailReason expectedFailReason = WebClient.FailReason.INVALID_URI_FORMAT;
 
@@ -112,14 +136,15 @@ public class TestWebClients extends OmeroServer {
 
         @Test
         void Check_Client_Can_Be_Retrieved_After_Added() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.USER;
             URI uri = URI.create(OmeroServer.getWebServerURI());
             WebClient expectedClient = createClient(
                     uri.toString(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getUserUsername(),
+                    OmeroServer.getUsername(userType),
                     "-p",
-                    OmeroServer.getUserPassword()
+                    OmeroServer.getPassword(userType)
             );
 
             WebClient client = WebClients.getClientFromURI(uri).orElse(null);
@@ -131,14 +156,15 @@ public class TestWebClients extends OmeroServer {
 
         @Test
         void Check_Client_Cannot_Be_Retrieved_After_Removed() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.USER;
             URI uri = URI.create(OmeroServer.getWebServerURI());
             WebClient removedClient = createClient(
                     uri.toString(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getUserUsername(),
+                    OmeroServer.getUsername(userType),
                     "-p",
-                    OmeroServer.getUserPassword()
+                    OmeroServer.getPassword(userType)
             );
 
             WebClients.removeClient(removedClient);
@@ -149,13 +175,14 @@ public class TestWebClients extends OmeroServer {
 
         @Test
         void Check_Client_List_After_Added() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.USER;
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getUserUsername(),
+                    OmeroServer.getUsername(userType),
                     "-p",
-                    OmeroServer.getUserPassword()
+                    OmeroServer.getPassword(userType)
             );
             List<WebClient> expectedClients = List.of(client);
 
@@ -168,13 +195,14 @@ public class TestWebClients extends OmeroServer {
 
         @Test
         void Check_Client_List_After_Removed() throws ExecutionException, InterruptedException {
+            UserType userType = UserType.USER;
             WebClient client = createClient(
                     OmeroServer.getWebServerURI(),
                     WebClient.Authentication.ENFORCE,
                     "-u",
-                    OmeroServer.getUserUsername(),
+                    OmeroServer.getUsername(userType),
                     "-p",
-                    OmeroServer.getUserPassword()
+                    OmeroServer.getPassword(userType)
             );
             List<WebClient> expectedClients = List.of();
 

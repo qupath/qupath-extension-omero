@@ -131,7 +131,7 @@ public class Server implements RepositoryEntity {
                     .toList();
 
             Owner connectedOwner = owners.stream()
-                    .filter(owner -> owner.id() == userId)
+                    .filter(owner -> owner.id() == userIdGroups.userId())
                     .findAny()
                     .orElse(null);
             if (connectedOwner == null) {

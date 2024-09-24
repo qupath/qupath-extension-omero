@@ -25,10 +25,6 @@ public class WebClients {
     private static final ObservableList<WebClient> clients = FXCollections.observableArrayList();
     private static final ObservableList<WebClient> clientsImmutable = FXCollections.unmodifiableObservableList(clients);
     private static final Set<URI> clientsBeingCreated = ConcurrentHashMap.newKeySet();
-    private enum Operation {
-        ADD,
-        REMOVE
-    }
 
     private WebClients() {
         throw new AssertionError("This class is not instantiable.");
@@ -72,7 +68,10 @@ public class WebClients {
                                 case ENFORCE -> false;
                                 case TRY_TO_SKIP, SKIP -> true;
                             });
-                            updateClients(client, Operation.ADD);
+
+                            synchronized(WebClients.class) {
+                                clients.add(client);
+                            }
                         }
                         clientsBeingCreated.remove(serverURI.get());
 
@@ -113,7 +112,10 @@ public class WebClients {
                     var client = WebClient.createSync(serverURI.get(), authentication, args);
                     if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
                         ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
-                        updateClients(client, Operation.ADD);
+
+                        synchronized(WebClients.class) {
+                            clients.add(client);
+                        }
                     }
                     clientsBeingCreated.remove(serverURI.get());
 
@@ -149,7 +151,10 @@ public class WebClients {
         } catch (Exception e) {
             logger.error("Error when closing web client", e);
         }
-        updateClients(client, Operation.REMOVE);
+
+        synchronized(WebClients.class) {
+            clients.remove(client);
+        }
     }
 
     /**
@@ -173,13 +178,5 @@ public class WebClients {
 
     private static Optional<WebClient> getExistingClient(URI uri) {
         return clients.stream().filter(e -> e.getApisHandler().getWebServerURI().equals(uri)).findAny();
-    }
-
-    private static synchronized void updateClients(WebClient client, Operation operation) {
-        if (operation.equals(Operation.ADD)) {
-            clients.add(client);
-        } else {
-            clients.remove(client);
-        }
     }
 }

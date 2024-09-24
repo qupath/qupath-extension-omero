@@ -24,7 +24,7 @@ public record Owner(@SerializedName(value = "@id", alternate = "id") int id,
 
     @Override
     public String toString() {
-        return Stream.of("Owner: " + getFullName(), emailAddress, institution, username)
+        return Stream.of(String.format("Owner of ID %d: ", id) + getFullName(), emailAddress, institution, username)
                 .filter(Objects::nonNull)
                 .filter(str -> !str.isEmpty())
                 .collect(Collectors.joining(", "));

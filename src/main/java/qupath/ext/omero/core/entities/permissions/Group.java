@@ -36,7 +36,7 @@ public class Group {
 
     @Override
     public String toString() {
-        return name;
+        return String.format("Group %s of ID %d", name, id);
     }
 
     @Override
