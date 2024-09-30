@@ -128,6 +128,7 @@ public class Server implements RepositoryEntity {
             List<Owner> owners = userIdGroups.groups().stream()
                     .map(Group::getOwners)
                     .flatMap(List::stream)
+                    .distinct()
                     .toList();
 
             Owner connectedOwner = owners.stream()

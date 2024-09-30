@@ -360,6 +360,17 @@ public class Browser extends Stage {
         group.getItems().setAll(Group.getAllGroupsGroup());
         group.getItems().addAll(client.getServer().getGroups());
         group.getSelectionModel().select(client.getServer().getDefaultGroup());
+        group.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Group object) {
+                return object == null ? "" : object.getName();
+            }
+
+            @Override
+            public Group fromString(String string) {
+                return null;
+            }
+        });
 
         owner.getItems().setAll(Owner.getAllMembersOwner());
         owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());

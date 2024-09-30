@@ -10,11 +10,13 @@ import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 public class TestImage extends OmeroServer {
 
     abstract static class GenericImage {
 
+        protected static final UserType userType = UserType.PUBLIC;
         protected static WebClient client;
         protected static Image image;
 
@@ -45,7 +47,19 @@ public class TestImage extends OmeroServer {
         }
 
         @Test
-        abstract void Check_Attributes();
+        void Check_Attributes() {
+            int numberOfValues = image.getNumberOfAttributes();
+            List<String> expectedAttributeValues = OmeroServer.getImageAttributeValue(image);
+
+            List<String> attributesValues = IntStream.range(0, numberOfValues)
+                    .mapToObj(i -> image.getAttributeValue(i))
+                    .toList();
+
+            System.err.println(expectedAttributeValues);
+            System.err.println(attributesValues);
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedAttributeValues, attributesValues);
+        }
     }
 
     @Nested
@@ -53,26 +67,8 @@ public class TestImage extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            client = OmeroServer.createUnauthenticatedClient();
-
-            image = client.getApisHandler().getImage(OmeroServer.getRGBImage().getId()).get().orElse(null);
-        }
-
-        @Test
-        @Override
-        void Check_Attributes() {
-            int numberOfValues = image.getNumberOfAttributes();
-            String[] expectedAttributeValues = new String[numberOfValues];
-            for (int i=0; i<numberOfValues; ++i) {
-                expectedAttributeValues[i] = OmeroServer.getRGBImageAttributeValue(i);
-            }
-
-            String[] attributesValues = new String[numberOfValues];
-            for (int i=0; i<numberOfValues; ++i) {
-                attributesValues[i] = image.getAttributeValue(i);
-            }
-
-            Assertions.assertArrayEquals(expectedAttributeValues, attributesValues);
+            client = OmeroServer.createClient(userType);
+            image = client.getApisHandler().getImage(OmeroServer.getRGBImage(userType).getId()).get().orElse(null);
         }
     }
 
@@ -81,26 +77,8 @@ public class TestImage extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            client = OmeroServer.createUnauthenticatedClient();
-
-            image = client.getApisHandler().getImage(OmeroServer.getComplexImage().getId()).get().orElse(null);
-        }
-
-        @Test
-        @Override
-        void Check_Attributes() {
-            int numberOfValues = image.getNumberOfAttributes();
-            String[] expectedAttributeValues = new String[numberOfValues];
-            for (int i=0; i<numberOfValues; ++i) {
-                expectedAttributeValues[i] = OmeroServer.getComplexImageAttributeValue(i);
-            }
-
-            String[] attributesValues = new String[numberOfValues];
-            for (int i=0; i<numberOfValues; ++i) {
-                attributesValues[i] = image.getAttributeValue(i);
-            }
-
-            Assertions.assertArrayEquals(expectedAttributeValues, attributesValues);
+            client = OmeroServer.createClient(userType);
+            image = client.getApisHandler().getImage(OmeroServer.getComplexImage(userType).getId()).get().orElse(null);
         }
     }
 }

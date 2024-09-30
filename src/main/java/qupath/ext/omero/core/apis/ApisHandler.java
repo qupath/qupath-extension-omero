@@ -20,9 +20,9 @@ import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.core.WebUtilities;
-import qupath.ext.omero.core.entities.imagemetadata.ImageMetadataResponse;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 
@@ -530,7 +530,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebGatewayApi#getImageMetadata(long)}.
      */
-    public CompletableFuture<Optional<ImageMetadataResponse>> getImageMetadata(long id) {
+    public CompletableFuture<Optional<ImageServerMetadata>> getImageMetadata(long id) {
         return webGatewayApi.getImageMetadata(id);
     }
 

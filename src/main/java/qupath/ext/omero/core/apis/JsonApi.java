@@ -263,11 +263,15 @@ class JsonApi {
 
                 for (Group group: groups) {
                     var experimenterLink = WebUtilities.createURI(group.getExperimentersLink());
+
                     if (experimenterLink.isPresent()) {
                         try {
-                            group.setOwners(RequestSender.getPaginated(experimenterLink.get()).get().stream()
-                                    .map(jsonElement -> new Gson().fromJson(jsonElement, Owner.class))
-                                    .toList());
+                            group.setOwners(
+                                    RequestSender.getPaginated(experimenterLink.get()).get().stream()
+                                            .map(jsonElement -> new Gson().fromJson(jsonElement, Owner.class))
+                                            .filter(owner -> !group.isPrivate() || owner.id() == userId)
+                                            .toList()
+                            );
                         } catch (InterruptedException | ExecutionException e) {
                             logger.warn("Couldn't retrieve owners of " + group, e);
                         }

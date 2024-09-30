@@ -5,11 +5,6 @@
 cd /
 tar -xvkf /tmp/OMERO.tar.gz
 
-# See https://stackoverflow.com/a/78693402
-# This should be needed as long as the base image is the deprecated CentOS7
-sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
-sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
-
 # Build the pixel buffer microservice
 yum install git java-11-openjdk-devel -y
 git clone https://github.com/glencoesoftware/omero-ms-pixel-buffer

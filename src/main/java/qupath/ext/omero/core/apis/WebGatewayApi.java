@@ -7,9 +7,10 @@ import javafx.beans.property.SimpleIntegerProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
+import qupath.ext.omero.core.entities.imagemetadata.ImageMetadataResponseParser;
 import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
-import qupath.ext.omero.core.entities.imagemetadata.ImageMetadataResponse;
 import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.RequestSender;
 
@@ -129,13 +130,13 @@ class WebGatewayApi {
      * @param id  the OMERO image ID
      * @return a CompletableFuture with the metadata, or an empty Optional if an error occurred
      */
-    public CompletableFuture<Optional<ImageMetadataResponse>> getImageMetadata(long id) {
+    public CompletableFuture<Optional<ImageServerMetadata>> getImageMetadata(long id) {
         var uri = WebUtilities.createURI(String.format(IMAGE_DATA_URL, host, id));
 
         if (uri.isPresent()) {
             return RequestSender.getAndConvert(uri.get(), JsonObject.class).thenApply(jsonObject -> {
                 if (jsonObject.isPresent()) {
-                    return ImageMetadataResponse.createFromJson(jsonObject.get());
+                    return ImageMetadataResponseParser.createMetadataFromJson(jsonObject.get());
                 } else {
                     return Optional.empty();
                 }

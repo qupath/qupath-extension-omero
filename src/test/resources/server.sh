@@ -51,7 +51,7 @@ docker run -d \
   -e OMEROHOST=omero-server \
   -e CONFIG_omero_web_public_enabled=True \
   -e CONFIG_omero_web_public_user=public \
-  -e CONFIG_omero_web_public_password=password \
+  -e CONFIG_omero_web_public_password=password_public \
   -e CONFIG_omero_web_public_url__filter="(.*?)" \
   -e CONFIG_omero_web_caches='{"default": {"BACKEND": "django_redis.cache.RedisCache","LOCATION": "redis://redis:6379/0"}}' \
   -e CONFIG_omero_web_session__engine=django.contrib.sessions.backends.cache \
@@ -60,9 +60,20 @@ docker run -d \
   --mount type=bind,src=$SCRIPT_DIR"/omero-web",target=/resources \
   openmicroscopy/omero-web-standalone
 
-echo ""
-echo "Letting all containers start... (this will take two minutes)"
-sleep 120
+# Wait for server to come online
+echo "Letting OMERO server start..."
+while true; do
+    ERROR_OUTPUT=$(docker exec -it omero-server bash -c "/opt/omero/server/venv3/bin/omero login root@localhost:4064 -w password" 2>&1)
+
+    if echo "$ERROR_OUTPUT" | grep -q "Exception"; then
+        echo "Error detected: $ERROR_OUTPUT"
+        echo "Retrying in 5 seconds..."
+        sleep 5
+    else
+        echo "OMERO server started"
+        break
+    fi
+done
 
 # Setup OMERO server
 docker exec -i omero-server bash < $SCRIPT_DIR"/omero-server/setup.sh"

@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.TestUtilities;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -12,112 +13,103 @@ import qupath.lib.images.servers.PixelType;
 import java.util.List;
 import java.util.Optional;
 
-public class TestImageMetadataResponse {
+public class TestImageMetadataResponseParser {
 
     @Test
     void Check_Response_When_Empty() {
         JsonObject jsonObject = new JsonObject();
 
-        Optional<ImageMetadataResponse> imageMetadataResponse = ImageMetadataResponse.createFromJson(jsonObject);
+        Optional<ImageServerMetadata> metadata = ImageMetadataResponseParser.createMetadataFromJson(jsonObject);
 
-        Assertions.assertTrue(imageMetadataResponse.isEmpty());
+        Assertions.assertTrue(metadata.isEmpty());
     }
 
     @Test
     void Check_Image_Name() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        String expectedName = "LuCa-7color_[17572,60173]_3x3component_data.tif [resolution #1]";
 
-        String imageName = imageMetadataResponse.getImageName();
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertEquals("LuCa-7color_[17572,60173]_3x3component_data.tif [resolution #1]", imageName);
+        Assertions.assertEquals(expectedName, metadata.getName());
     }
 
     @Test
-    void Check_Size_X() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+    void Check_Width() {
+        int expectedWidth = 5604;
 
-        int sizeX = imageMetadataResponse.getSizeX();
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertEquals(5604, sizeX);
+        Assertions.assertEquals(expectedWidth, metadata.getWidth());
+    }
+
+    @Test
+    void Check_Height() {
+        int expectedHeight = 4200;
+
+        ImageServerMetadata metadata = createImageMetadataResponse();
+
+        Assertions.assertEquals(expectedHeight, metadata.getHeight());
     }
 
     @Test
     void Check_Size_Z() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        int expectedSizeZ = 2;
 
-        int sizeZ = imageMetadataResponse.getSizeZ();
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertEquals(1, sizeZ);
+        Assertions.assertEquals(expectedSizeZ, metadata.getSizeZ());
     }
 
     @Test
     void Check_Size_T() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        int expectedSizeT = 4;
 
-        int sizeT = imageMetadataResponse.getSizeT();
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertEquals(1, sizeT);
-    }
-
-    @Test
-    void Check_Tile_Size_X() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
-
-        int tileSizeX = imageMetadataResponse.getTileSizeX();
-
-        Assertions.assertEquals(512, tileSizeX);
+        Assertions.assertEquals(expectedSizeT, metadata.getSizeT());
     }
 
     @Test
     void Check_Levels() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        List<ImageServerMetadata.ImageResolutionLevel> expectedLevels = new ImageServerMetadata.ImageResolutionLevel.Builder(5604, 4200)
+                .addLevelByDownsample(1)
+                .addLevelByDownsample(1 / 0.5)
+                .addLevelByDownsample(1 / 0.25)
+                .build();
 
-        List<ImageServerMetadata.ImageResolutionLevel> levels = imageMetadataResponse.getLevels();
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertArrayEquals(
-                new ImageServerMetadata.ImageResolutionLevel.Builder(5604, 4200)
-                        .addLevelByDownsample(1)
-                        .addLevelByDownsample(1 / 0.5)
-                        .addLevelByDownsample(1 / 0.25)
-                        .build()
-                        .toArray(),
-                levels.toArray()
-        );
+        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedLevels, metadata.getLevels());
     }
 
     @Test
     void Check_PixelType() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        PixelType expectedPixelType = PixelType.FLOAT32;
 
-        PixelType pixelType = imageMetadataResponse.getPixelType();
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertEquals(PixelType.FLOAT32, pixelType);
+        Assertions.assertEquals(expectedPixelType, metadata.getPixelType());
     }
 
     @Test
     void Check_Channels() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
-
-        List<ImageChannel> channels = imageMetadataResponse.getChannels();
-
-        Assertions.assertArrayEquals(
-                new ImageChannel[]{
-                        ImageChannel.getInstance(
-                                "PDL1 (Opal 520)",
-                                ColorTools.packRGB(
-                                        Integer.valueOf("FF", 16),
-                                        Integer.valueOf("00", 16),
-                                        Integer.valueOf("00", 16)
-                                )
-                        ),
-                        ImageChannel.getInstance(
-                                "CD8 (Opal 540)",
-                                ColorTools.packRGB(
-                                        Integer.valueOf("FF", 16),
-                                        Integer.valueOf("FF", 16),
-                                        Integer.valueOf("00", 16)
-                                )
-                        ), ImageChannel.getInstance(
+        List<ImageChannel> expectedChannels = List.of(
+                ImageChannel.getInstance(
+                        "PDL1 (Opal 520)",
+                        ColorTools.packRGB(
+                                Integer.valueOf("FF", 16),
+                                Integer.valueOf("00", 16),
+                                Integer.valueOf("00", 16)
+                        )
+                ),
+                ImageChannel.getInstance(
+                        "CD8 (Opal 540)",
+                        ColorTools.packRGB(
+                                Integer.valueOf("FF", 16),
+                                Integer.valueOf("FF", 16),
+                                Integer.valueOf("00", 16)
+                        )
+                ), ImageChannel.getInstance(
                         "FoxP3 (Opal 570)",
                         ColorTools.packRGB(
                                 Integer.valueOf("FF", 16),
@@ -125,89 +117,118 @@ public class TestImageMetadataResponse {
                                 Integer.valueOf("00", 16)
                         )
                 ),
-                        ImageChannel.getInstance(
-                                "CD68 (Opal 620)",
-                                ColorTools.packRGB(
-                                        Integer.valueOf("FF", 16),
-                                        Integer.valueOf("00", 16),
-                                        Integer.valueOf("FF", 16)
-                                )
-                        ),
-                        ImageChannel.getInstance(
-                                "PD1 (Opal 650)",
-                                ColorTools.packRGB(
-                                        Integer.valueOf("00", 16),
-                                        Integer.valueOf("FF", 16),
-                                        Integer.valueOf("00", 16)
-                                )
-                        ),
-                        ImageChannel.getInstance(
-                                "CK (Opal 690)",
-                                ColorTools.packRGB(
-                                        Integer.valueOf("00", 16),
-                                        Integer.valueOf("FF", 16),
-                                        Integer.valueOf("FF", 16)
-                                )
-                        ),
-                        ImageChannel.getInstance(
-                                "DAPI",
-                                ColorTools.packRGB(
-                                        Integer.valueOf("00", 16),
-                                        Integer.valueOf("00", 16),
-                                        Integer.valueOf("FF", 16)
-                                )
-                        ),
-                        ImageChannel.getInstance(
-                                "Autofluorescence",
-                                ColorTools.packRGB(
-                                        Integer.valueOf("00", 16),
-                                        Integer.valueOf("00", 16),
-                                        Integer.valueOf("00", 16)
-                                )
+                ImageChannel.getInstance(
+                        "CD68 (Opal 620)",
+                        ColorTools.packRGB(
+                                Integer.valueOf("FF", 16),
+                                Integer.valueOf("00", 16),
+                                Integer.valueOf("FF", 16)
                         )
-                },
-                channels.toArray()
+                ),
+                ImageChannel.getInstance(
+                        "PD1 (Opal 650)",
+                        ColorTools.packRGB(
+                                Integer.valueOf("00", 16),
+                                Integer.valueOf("FF", 16),
+                                Integer.valueOf("00", 16)
+                        )
+                ),
+                ImageChannel.getInstance(
+                        "CK (Opal 690)",
+                        ColorTools.packRGB(
+                                Integer.valueOf("00", 16),
+                                Integer.valueOf("FF", 16),
+                                Integer.valueOf("FF", 16)
+                        )
+                ),
+                ImageChannel.getInstance(
+                        "DAPI",
+                        ColorTools.packRGB(
+                                Integer.valueOf("00", 16),
+                                Integer.valueOf("00", 16),
+                                Integer.valueOf("FF", 16)
+                        )
+                ),
+                ImageChannel.getInstance(
+                        "Autofluorescence",
+                        ColorTools.packRGB(
+                                Integer.valueOf("00", 16),
+                                Integer.valueOf("00", 16),
+                                Integer.valueOf("00", 16)
+                        )
+                )
         );
+
+        ImageServerMetadata metadata = createImageMetadataResponse();
+
+        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChannels, metadata.getChannels());
     }
 
     @Test
     void Check_Is_RGB() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        boolean expectedRGB = false;
 
-        boolean isRGB = imageMetadataResponse.isRGB();
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertFalse(isRGB);
+        Assertions.assertEquals(expectedRGB, metadata.isRGB());
     }
 
     @Test
     void Check_Magnification() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        double expectedMagnification = 10.4;
 
-        double magnification = imageMetadataResponse.getMagnification().orElse(-1.);
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertEquals(10, magnification);
+        Assertions.assertEquals(expectedMagnification, metadata.getMagnification());
     }
 
     @Test
     void Check_Pixel_Width() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        double expectedPixelWidth = 0.49799447890790055;
 
-        double pixelWidth = imageMetadataResponse.getPixelWidthMicrons().orElse(-1.);
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertEquals(0.49799447890790055, pixelWidth);
+        Assertions.assertEquals(expectedPixelWidth, metadata.getPixelWidthMicrons());
+    }
+
+    @Test
+    void Check_Pixel_Height() {
+        double expectedPixelHeight = 1.49799447890790055;
+
+        ImageServerMetadata metadata = createImageMetadataResponse();
+
+        Assertions.assertEquals(expectedPixelHeight, metadata.getPixelHeightMicrons());
     }
 
     @Test
     void Check_Z_Spacing() {
-        ImageMetadataResponse imageMetadataResponse = createImageMetadataResponse();
+        double expectedZSpacing = 1.5674;
 
-        Optional<Double> zSpacing = imageMetadataResponse.getZSpacingMicrons();
+        ImageServerMetadata metadata = createImageMetadataResponse();
 
-        Assertions.assertTrue(zSpacing.isEmpty());
+        Assertions.assertEquals(expectedZSpacing, metadata.getZSpacingMicrons());
     }
 
-    private ImageMetadataResponse createImageMetadataResponse() {
-        return ImageMetadataResponse.createFromJson(JsonParser.parseString("""
+    @Test
+    void Check_Tile_Width() {
+        int expectedTileWidth = 512;
+
+        ImageServerMetadata metadata = createImageMetadataResponse();
+
+        Assertions.assertEquals(expectedTileWidth, metadata.getPreferredTileWidth());
+    }
+
+    @Test
+    void Check_Tile_Height() {
+        int expectedTileWidth = 1024;
+
+        ImageServerMetadata metadata = createImageMetadataResponse();
+
+        Assertions.assertEquals(expectedTileWidth, metadata.getPreferredTileHeight());
+    }
+
+    private ImageServerMetadata createImageMetadataResponse() {
+        return ImageMetadataResponseParser.createMetadataFromJson(JsonParser.parseString("""
                 {
                   "id": 12554,
                   "meta": {
@@ -235,7 +256,7 @@ public class TestImageMetadataResponse {
                   "tiles": true,
                   "tile_size": {
                     "width": 512,
-                    "height": 512
+                    "height": 1024
                   },
                   "levels": 3,
                   "zoomLevelScaling": {
@@ -247,17 +268,17 @@ public class TestImageMetadataResponse {
                   "size": {
                     "width": 5604,
                     "height": 4200,
-                    "z": 1,
-                    "t": 1,
+                    "z": 2,
+                    "t": 4,
                     "c": 8
                   },
                   "pixel_size": {
                     "x": 0.49799447890790055,
-                    "y": 0.49799447890790055,
-                    "z": null
+                    "y": 1.49799447890790055,
+                    "z": 1.5674
                   },
                   "init_zoom": 0,
-                  "nominalMagnification": 10,
+                  "nominalMagnification": 10.4,
                   "pixel_range": [
                     -2147483648,
                     2147483647

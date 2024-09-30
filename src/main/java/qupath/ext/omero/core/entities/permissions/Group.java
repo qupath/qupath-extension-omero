@@ -12,10 +12,11 @@ import java.util.ResourceBundle;
 public class Group {
 
     private static final ResourceBundle resources = UiUtilities.getResources();
-    private static final Group ALL_GROUPS = new Group(-1, resources.getString("Web.Entities.Permissions.Group.allGroups"), "");
+    private static final Group ALL_GROUPS = new Group(-1, resources.getString("Web.Entities.Permissions.Group.allGroups"));
     @SerializedName(value = "@id", alternate={"groupId"}) private final int id;
     @SerializedName(value = "Name", alternate={"groupName"}) private final String name;
-    @SerializedName(value = "url:experimenters") private final String experimentersLink;
+    @SerializedName(value = "url:experimenters") private String experimentersLink;
+    @SerializedName(value = "omero:details") private OmeroDetail omeroDetail;
     private List<Owner> owners;
 
     /**
@@ -25,13 +26,8 @@ public class Group {
      * @param name  the name of the group
      */
     public Group(int id, String name) {
-        this(id, name, "");
-    }
-
-    private Group(int id, String name, String experimentersLink) {
         this.id = id;
         this.name = name;
-        this.experimentersLink = experimentersLink;
     }
 
     @Override
@@ -79,6 +75,13 @@ public class Group {
      */
     public String getExperimentersLink() {
         return experimentersLink == null ? "" : experimentersLink;
+    }
+
+    /**
+     * @return whether this group is private (each member can only see its own data)
+     */
+    public boolean isPrivate() {
+        return omeroDetail == null || !omeroDetail.canReadGroup();
     }
 
     /**

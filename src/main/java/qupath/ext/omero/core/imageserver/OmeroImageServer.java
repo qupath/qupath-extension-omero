@@ -284,43 +284,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
             try {
                 CompletableFuture<Optional<ImageServerMetadata>> request = metadataCache.get(
                         id.getAsLong(),
-                        () -> client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(imageMetadataResponse -> {
-                            if (imageMetadataResponse.isPresent()) {
-                                ImageServerMetadata.Builder builder = new ImageServerMetadata.Builder(
-                                        OmeroImageServer.class,
-                                        uri.toString(),
-                                        imageMetadataResponse.get().getSizeX(),
-                                        imageMetadataResponse.get().getSizeY()
-                                )
-                                        .name(imageMetadataResponse.get().getImageName())
-                                        .sizeT(imageMetadataResponse.get().getSizeT())
-                                        .sizeZ(imageMetadataResponse.get().getSizeZ())
-                                        .preferredTileSize(imageMetadataResponse.get().getTileSizeX(), imageMetadataResponse.get().getTileSizeY())
-                                        .levels(imageMetadataResponse.get().getLevels())
-                                        .pixelType(imageMetadataResponse.get().getPixelType())
-                                        .channels(imageMetadataResponse.get().getChannels())
-                                        .rgb(imageMetadataResponse.get().isRGB());
-
-                                if (imageMetadataResponse.get().getMagnification().isPresent()) {
-                                    builder.magnification(imageMetadataResponse.get().getMagnification().get());
-                                }
-
-                                if (imageMetadataResponse.get().getPixelWidthMicrons().isPresent() && imageMetadataResponse.get().getPixelHeightMicrons().isPresent()) {
-                                    builder.pixelSizeMicrons(
-                                            imageMetadataResponse.get().getPixelWidthMicrons().get(),
-                                            imageMetadataResponse.get().getPixelHeightMicrons().get()
-                                    );
-                                }
-
-                                if (imageMetadataResponse.get().getZSpacingMicrons().isPresent() && imageMetadataResponse.get().getZSpacingMicrons().get() > 0) {
-                                    builder.zSpacingMicrons(imageMetadataResponse.get().getZSpacingMicrons().get());
-                                }
-
-                                return Optional.of(builder.build());
-                            } else {
-                                return Optional.empty();
-                            }
-                        })
+                        () -> client.getApisHandler().getImageMetadata(id.getAsLong())
                 );
 
                 request.thenAccept(response -> {

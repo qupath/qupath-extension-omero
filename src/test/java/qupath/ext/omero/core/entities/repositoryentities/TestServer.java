@@ -9,14 +9,17 @@ import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 public class TestServer extends OmeroServer {
 
     abstract static class GenericClient {
 
+        protected static UserType userType;
         protected static WebClient client;
         protected static Server server;
 
@@ -36,13 +39,15 @@ public class TestServer extends OmeroServer {
 
         @Test
         void Check_Children() throws InterruptedException, ExecutionException {
-            List<? extends RepositoryEntity> expectedChildren = List.of(
-                    OmeroServer.getOrphanedDataset(),
-                    OmeroServer.getProject(),
-                    OrphanedFolder.create(client.getApisHandler()).get(),
-                    OmeroServer.getScreen(),
-                    OmeroServer.getOrphanedPlate()
-            );
+            List<? extends RepositoryEntity> expectedChildren = Stream.concat(
+                    Stream.of(
+                            OmeroServer.getOrphanedDatasets(userType),
+                            OmeroServer.getProjects(userType),
+                            OmeroServer.getScreens(userType),
+                            OmeroServer.getOrphanedPlates(userType)
+                    ).flatMap(Collection::stream),
+                    Stream.of(OrphanedFolder.create(client.getApisHandler()).get())
+            ).toList();
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
@@ -53,14 +58,26 @@ public class TestServer extends OmeroServer {
         }
 
         @Test
-        abstract void Check_Default_Group();
+        void Check_Default_Group() {
+            Group expectedDefaultGroup = OmeroServer.getDefaultGroup(userType);
+
+            Group defaultGroup = server.getDefaultGroup();
+
+            Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
+        }
 
         @Test
-        abstract void Check_Connected_Owner();
+        void Check_Connected_Owner() {
+            Owner expectedConnectedOwner = OmeroServer.getConnectedOwner(userType);
+
+            Owner connectedOwner = server.getConnectedOwner();
+
+            Assertions.assertEquals(expectedConnectedOwner, connectedOwner);
+        }
 
         @Test
         void Check_Groups() {
-            List<Group> expectedGroups = new ArrayList<>(OmeroServer.getGroups());
+            List<Group> expectedGroups = new ArrayList<>(OmeroServer.getGroups(userType));
 
             List<Group> groups = server.getGroups();
 
@@ -69,7 +86,7 @@ public class TestServer extends OmeroServer {
 
         @Test
         void Check_Owners() {
-            List<Owner> expectedOwners = new ArrayList<>(OmeroServer.getOwners());
+            List<Owner> expectedOwners = new ArrayList<>(OmeroServer.getOwners(userType));
 
             List<Owner> owners = server.getOwners();
 
@@ -82,28 +99,9 @@ public class TestServer extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            client = OmeroServer.createUnauthenticatedClient();
+            userType = UserType.PUBLIC;
+            client = OmeroServer.createClient(userType);
             server = client.getServer();
-        }
-
-        @Test
-        @Override
-        void Check_Default_Group() {
-            Group expectedDefaultGroup = OmeroServer.getCurrentGroup();
-
-            Group defaultGroup = server.getDefaultGroup();
-
-            Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
-        }
-
-        @Test
-        @Override
-        void Check_Connected_Owner() {
-            Owner expectedConnectedOwner = OmeroServer.getCurrentOwner();
-
-            Owner connectedOwner = server.getConnectedOwner();
-
-            Assertions.assertEquals(expectedConnectedOwner, connectedOwner);
         }
     }
 
@@ -112,28 +110,9 @@ public class TestServer extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            client = OmeroServer.createAuthenticatedClient();
+            userType = UserType.USER;
+            client = OmeroServer.createClient(userType);
             server = client.getServer();
-        }
-
-        @Test
-        @Override
-        void Check_Default_Group() {
-            Group expectedDefaultGroup = OmeroServer.getCurrentGroup();
-
-            Group defaultGroup = server.getDefaultGroup();
-
-            Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
-        }
-
-        @Test
-        @Override
-        void Check_Connected_Owner() {
-            Owner expectedConnectedOwner = OmeroServer.getCurrentOwner();
-
-            Owner connectedOwner = server.getConnectedOwner();
-
-            Assertions.assertEquals(expectedConnectedOwner, connectedOwner);
         }
     }
 }

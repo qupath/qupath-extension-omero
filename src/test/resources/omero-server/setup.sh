@@ -8,11 +8,13 @@
 /opt/omero/server/venv3/bin/omero user add public public access --group-name public-data -P password_public
 
 # Create other users and groups
-/opt/omero/server/venv3/bin/omero group add group1 --type=read-only
+/opt/omero/server/venv3/bin/omero group add group1 --type=read-annotate
 /opt/omero/server/venv3/bin/omero group add group2 --type=read-only
+/opt/omero/server/venv3/bin/omero group add group3
 /opt/omero/server/venv3/bin/omero user add user1 user1 user1 --group-name group1 -P password_user1
 /opt/omero/server/venv3/bin/omero user add user2 user2 user2 --group-name group2 -P password_user2
-/opt/omero/server/venv3/bin/omero user add user user user --group-name group1 group2 -P password_user
+/opt/omero/server/venv3/bin/omero user add user3 user3 user3 --group-name group3 -P password_user3
+/opt/omero/server/venv3/bin/omero user add user user user --group-name group1 group2 group3 -P password_user
 
 # Connect as public user
 /opt/omero/server/venv3/bin/omero login public@localhost:4064 -w password_public
@@ -37,10 +39,8 @@ file=$(/opt/omero/server/venv3/bin/omero obj new FileAnnotation file=$analysis)
 # Import images as children of the first dataset
 /opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/rgb.tiff
 /opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/uint8.tiff
-/opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/int8.tiff
 /opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/uint16.tiff
 /opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/int16.tiff
-/opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/uint32.tiff
 /opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/int32.tiff
 /opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/float32.tiff
 /opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/float64.tiff
@@ -67,8 +67,36 @@ dataset=$(/opt/omero/server/venv3/bin/omero obj new Dataset name=dataset2)
 
 # Import images as children of the first dataset
 /opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/rgb.tiff
+/opt/omero/server/venv3/bin/omero import -d $dataset /resources/images/float32.tiff
 
-# Import image as an orphaned image
+# Create orphaned datasets
+/opt/omero/server/venv3/bin/omero obj new Dataset name=orphaned_dataset1
+/opt/omero/server/venv3/bin/omero obj new Dataset name=orphaned_dataset2
+
+# Create screens and plates inside it
+screen=$(/opt/omero/server/venv3/bin/omero obj new Screen name=screen1)
+/opt/omero/server/venv3/bin/omero import -r $screen /resources/plate/hcs.companion.ome
+screen=$(/opt/omero/server/venv3/bin/omero obj new Screen name=screen2)
+/opt/omero/server/venv3/bin/omero import -r $screen /resources/plate/hcs.companion.ome
+
+# Create orphaned plates
+/opt/omero/server/venv3/bin/omero import /resources/plate/hcs.companion.ome
+/opt/omero/server/venv3/bin/omero import /resources/plate/hcs.companion.ome
+
+# Connect as user2
+/opt/omero/server/venv3/bin/omero login user2@localhost:4064 -w password_user2
+
+# Import orphaned images
+/opt/omero/server/venv3/bin/omero import /resources/images/uint8.tiff
+/opt/omero/server/venv3/bin/omero import /resources/images/uint16.tiff
+/opt/omero/server/venv3/bin/omero import /resources/images/int16.tiff
+/opt/omero/server/venv3/bin/omero import /resources/images/int32.tiff
+/opt/omero/server/venv3/bin/omero import /resources/images/float64.tiff
+
+# Connect as user
+/opt/omero/server/venv3/bin/omero login user@localhost:4064 -w password_user
+
+# Import images as a orphaned images
 /opt/omero/server/venv3/bin/omero import /resources/images/complex.tiff
 
 # Create an archive from the /OMERO directory (needed for the OMERO web container)

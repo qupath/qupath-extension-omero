@@ -5,9 +5,8 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
-import qupath.ext.omero.core.imageserver.OmeroImageServer;
-import qupath.ext.omero.core.imageserver.OmeroImageServerBuilder;
-import qupath.lib.images.servers.PixelType;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -21,13 +20,19 @@ import java.util.concurrent.ExecutionException;
 
 public class TestOmeroImageServer extends OmeroServer {
 
+    private static final UserType userType = UserType.USER;
+    private static final Image image = OmeroServer.getRGBImage(userType);
     private static WebClient client;
     private static OmeroImageServer imageServer;
 
     @BeforeAll
     static void createImageServer() throws ExecutionException, InterruptedException {
-        client = OmeroServer.createAuthenticatedClient();
-        imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(getRGBImageURI(), "--pixelAPI", "Web");
+        client = OmeroServer.createClient(userType);
+        imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
+                OmeroServer.getImageURI(image),
+                "--pixelAPI",
+                "Web"
+        );
     }
 
     @AfterAll
@@ -55,84 +60,12 @@ public class TestOmeroImageServer extends OmeroServer {
     }
 
     @Test
-    void Check_Image_Metadata_Width() {
-        int expectedWidth = OmeroServer.getRGBImageWidth();
+    void Check_Image_Metadata() {
+        ImageServerMetadata expectedMetadata = OmeroServer.getImageMetadata(image);
 
-        int width = imageServer.getOriginalMetadata().getWidth();
+        ImageServerMetadata metadata = imageServer.getMetadata();
 
-        Assertions.assertEquals(expectedWidth, width);
-    }
-
-    @Test
-    void Check_Image_Metadata_Height() {
-        int expectedWidth = OmeroServer.getRGBImageHeight();
-
-        int height = imageServer.getOriginalMetadata().getHeight();
-
-        Assertions.assertEquals(expectedWidth, height);
-    }
-
-    @Test
-    void Check_Image_Metadata_Pixel_Type() {
-        PixelType expectedPixelType = OmeroServer.getRGBImagePixelType();
-
-        PixelType pixelType = imageServer.getOriginalMetadata().getPixelType();
-
-        Assertions.assertEquals(expectedPixelType, pixelType);
-    }
-
-    @Test
-    void Check_Image_Metadata_Name() {
-        String expectedName = OmeroServer.getRGBImageName();
-
-        String name = imageServer.getOriginalMetadata().getName();
-
-        Assertions.assertEquals(expectedName, name);
-    }
-
-    @Test
-    void Check_Image_Metadata_Number_Slices() {
-        int expectedNumberOfSlices = OmeroServer.getRGBImageNumberOfSlices();
-
-        int numberOfSlices = imageServer.getOriginalMetadata().getSizeZ();
-
-        Assertions.assertEquals(expectedNumberOfSlices, numberOfSlices);
-    }
-
-    @Test
-    void Check_Image_Metadata_Number_Channels() {
-        int expectedNumberOfChannels = OmeroServer.getRGBImageNumberOfChannels();
-
-        int numberOfChannels = imageServer.getOriginalMetadata().getSizeC();
-
-        Assertions.assertEquals(expectedNumberOfChannels, numberOfChannels);
-    }
-
-    @Test
-    void Check_Image_Metadata_Number_Time_Points() {
-        int expectedNumberOfTimePoints = OmeroServer.getRGBImageNumberOfTimePoints();
-
-        int numberOfTimePoints = imageServer.getOriginalMetadata().getSizeT();
-
-        Assertions.assertEquals(expectedNumberOfTimePoints, numberOfTimePoints);
-    }
-
-    @Test
-    void Check_Image_Metadata_Pixel_Width() {
-        double expectedPixelWidth = OmeroServer.getRGBImagePixelWidthMicrons();
-
-        double pixelWidth = imageServer.getOriginalMetadata().getPixelWidthMicrons();
-
-        Assertions.assertEquals(expectedPixelWidth, pixelWidth);
-    }
-
-    @Test
-    void Check_Image_Metadata_Pixel_Height() {
-        double expectedPixelHeight = OmeroServer.getRGBImagePixelHeightMicrons();
-
-        double pixelHeight = imageServer.getOriginalMetadata().getPixelHeightMicrons();
-
-        Assertions.assertEquals(expectedPixelHeight, pixelHeight);
+        Assertions.assertEquals(expectedMetadata, metadata);
     }
 
     @Test
@@ -165,7 +98,7 @@ public class TestOmeroImageServer extends OmeroServer {
 
     @Test
     void Check_Id() {
-        long expectedId = OmeroServer.getRGBImage().getId();
+        long expectedId = image.getId();
 
         long id = imageServer.getId();
 
