@@ -4,9 +4,7 @@ import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
@@ -94,8 +92,8 @@ public class Image extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(name == null || name.isEmpty() ? "-" : name);
+    public String getLabel() {
+        return name == null ? "-" : name;
     }
 
     @Override

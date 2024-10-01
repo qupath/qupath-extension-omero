@@ -1,8 +1,6 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
@@ -73,9 +71,8 @@ public class Dataset extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        String name = this.name == null ? "" : this.name;
-        return new SimpleStringProperty(name + " (" + childCount + ")");
+    public String getLabel() {
+        return String.format("%s (%d)", name == null ? "-" : name, childCount);
     }
 
     @Override

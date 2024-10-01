@@ -39,7 +39,7 @@ class Image extends HBox {
         var imageID = WebUtilities.parseEntityId(imageUri);
         if (imageID.isPresent()) {
             client.getApisHandler().getImage(imageID.getAsLong()).thenAccept(image -> Platform.runLater(() ->
-                    image.ifPresent(value -> name.setText(value.getLabel().get()))
+                    image.ifPresent(value -> name.setText(value.getLabel()))
             ));
 
             client.getApisHandler().getThumbnail(imageID.getAsLong(), (int) thumbnail.getWidth()).thenAccept(thumbnail -> Platform.runLater(() ->

@@ -28,9 +28,9 @@ public interface RepositoryEntity {
     ObservableList<? extends RepositoryEntity> getChildren();
 
     /**
-     * @return a read only property describing the entity. This property may be updated from any thread
+     * @return a text describing the entity
      */
-    ReadOnlyStringProperty getLabel();
+    String getLabel();
 
     /**
      * @return whether this entity is currently populating its children

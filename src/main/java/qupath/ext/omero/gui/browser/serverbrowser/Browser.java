@@ -242,7 +242,7 @@ public class Browser extends Stage {
                 } else {
                     Dialogs.showErrorMessage(
                             resources.getString("Browser.ServerBrowser.cantDisplayInformation"),
-                            MessageFormat.format(resources.getString("Browser.ServerBrowser.errorWhenFetchingInformation"), serverEntity.getLabel().get())
+                            MessageFormat.format(resources.getString("Browser.ServerBrowser.errorWhenFetchingInformation"), serverEntity.getLabel())
                     );
                 }
             }));
@@ -387,9 +387,7 @@ public class Browser extends Stage {
             }
         });
 
-        PredicateTextField<RepositoryEntity> predicateTextField = new PredicateTextField<>(entity ->
-                entity.getLabel().get()
-        );
+        PredicateTextField<RepositoryEntity> predicateTextField = new PredicateTextField<>(RepositoryEntity::getLabel);
         predicateTextField.setPromptText(resources.getString("Browser.ServerBrowser.filterNames"));
         predicateTextField.setIgnoreCase(true);
         HBox.setHgrow(predicateTextField, Priority.ALWAYS);
@@ -578,7 +576,7 @@ public class Browser extends Stage {
         } else if (importableEntities.size() == 1) {
             importImage.setText(MessageFormat.format(
                     resources.getString("Browser.ServerBrowser.importToQuPath"),
-                    importableEntities.get(0).getLabel().get()
+                    importableEntities.get(0).getLabel()
             ));
         } else {
             importImage.setText(resources.getString("Browser.ServerBrowser.importSelectedToQuPath"));

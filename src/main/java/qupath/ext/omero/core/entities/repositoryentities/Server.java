@@ -1,7 +1,5 @@
 package qupath.ext.omero.core.entities.repositoryentities;
 
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
@@ -60,8 +58,8 @@ public class Server implements RepositoryEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(resources.getString("Web.Entities.RepositoryEntities.Server.server"));
+    public String getLabel() {
+        return resources.getString("Web.Entities.RepositoryEntities.Server.server");
     }
 
     @Override

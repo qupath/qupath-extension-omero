@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.repositoryentities;
 
-import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import qupath.ext.omero.core.apis.ApisHandler;
@@ -77,8 +76,8 @@ public class OrphanedFolder implements RepositoryEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(resources.getString("Web.Entities.RepositoryEntities.OrphanedFolder.orphanedImages"));
+    public String getLabel() {
+        return resources.getString("Web.Entities.RepositoryEntities.OrphanedFolder.orphanedImages");
     }
 
     @Override

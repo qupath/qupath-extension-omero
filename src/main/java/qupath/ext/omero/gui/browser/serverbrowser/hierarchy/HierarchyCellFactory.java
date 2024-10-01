@@ -1,6 +1,9 @@
 package qupath.ext.omero.gui.browser.serverbrowser.hierarchy;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeCell;
@@ -29,6 +32,7 @@ import java.io.IOException;
 public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
 
     private static final Logger logger = LoggerFactory.getLogger(HierarchyCellFactory.class);
+    private final DoubleProperty opacityProperty = new SimpleDoubleProperty(1);
     private final WebClient client;
 
     /**
@@ -38,6 +42,10 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
      */
     public HierarchyCellFactory(WebClient client) {
         this.client = client;
+
+        // opacityProperty is used because image.isSupported() may be updated from any thread
+        opacityProperty.addListener((p, o, n) -> Platform.runLater(() -> setOpacity(n.doubleValue())));
+        setOpacity(opacityProperty.get());
     }
 
     @Override
@@ -47,24 +55,19 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
         setGraphic(null);
         setText(null);
         setTooltip(null);
-        opacityProperty().unbind();
-        setOpacity(1);
+        opacityProperty.unbind();
+        opacityProperty.set(1);
 
         if (!empty && repositoryEntity != null) {
             setIcon(repositoryEntity.getClass());
 
             Tooltip tooltip = new Tooltip();
 
-            setText(repositoryEntity.getLabel().get());
-            tooltip.setText(repositoryEntity.getLabel().get());
-            repositoryEntity.getLabel().addListener((p, o, n) -> Platform.runLater(() -> {
-                setText(n);
-                tooltip.setText(n);
-            }));
+            setText(repositoryEntity.getLabel());
+            tooltip.setText(repositoryEntity.getLabel());
 
             if (repositoryEntity instanceof Image image) {
-                setOpacity(image.isSupported().get() ? 1 : 0.5);
-                image.isSupported().addListener((p, o, n) -> Platform.runLater(() -> setOpacity(n ? 1 : 0.5)));
+                opacityProperty.bind(Bindings.when(image.isSupported()).then(1).otherwise(0.5));
 
                 try {
                     tooltip.setGraphic(new ImageTooltip(image, client));

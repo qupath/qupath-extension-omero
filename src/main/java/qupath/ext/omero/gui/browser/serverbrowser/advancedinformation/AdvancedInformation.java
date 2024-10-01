@@ -53,7 +53,7 @@ public class AdvancedInformation extends Stage {
 
         UiUtilities.loadFXML(this, AdvancedInformation.class.getResource("advanced_information.fxml"));
 
-        setTitle(serverEntity.getLabel().get());
+        setTitle(serverEntity.getLabel());
 
         content.getChildren().add(createObjectDetailPane());
         setAnnotationPanes(annotationGroup);

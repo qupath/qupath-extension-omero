@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.apis;
 
-import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.collections.ObservableList;
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.TestUtilities;
@@ -1168,7 +1167,7 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Override
-        public ReadOnlyStringProperty getLabel() {
+        public String getLabel() {
             return null;
         }
 

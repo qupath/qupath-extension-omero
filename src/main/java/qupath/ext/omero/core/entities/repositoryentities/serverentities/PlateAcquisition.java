@@ -2,9 +2,6 @@ package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.common.collect.Lists;
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
@@ -38,7 +35,6 @@ public class PlateAcquisition extends ServerEntity {
     };
     private final transient ObservableList<Image> children = FXCollections.observableArrayList();
     private final transient ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);
-    private final transient StringProperty label = new SimpleStringProperty((this.name == null ? "" : this.name) + " (0)");
     private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
     private transient volatile boolean isPopulating = false;
     private transient int numberOfWells = 0;
@@ -78,8 +74,8 @@ public class PlateAcquisition extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return label;
+    public String getLabel() {
+        return this.name == null ? "-" : this.name;
     }
 
     @Override
@@ -135,7 +131,6 @@ public class PlateAcquisition extends ServerEntity {
      */
     public synchronized void setNumberOfWells(int numberOfWells) {
         this.numberOfWells = numberOfWells;
-        label.set((this.name == null ? "" : this.name) + " (" + numberOfWells + ")");
     }
 
     private void populateChildren() {

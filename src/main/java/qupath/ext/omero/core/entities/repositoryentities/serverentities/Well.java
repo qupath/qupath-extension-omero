@@ -1,8 +1,6 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
@@ -53,8 +51,8 @@ public class Well extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(String.format("Column: %d, Row: %d", column, row));
+    public String getLabel() {
+        return String.format("Column: %d, Row: %d", column, row);
     }
 
     @Override

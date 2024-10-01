@@ -2,8 +2,6 @@ package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.common.collect.Lists;
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
@@ -81,8 +79,8 @@ public class Plate extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(name == null ? "" : name);
+    public String getLabel() {
+        return name == null ? "-" : name;
     }
 
     @Override
