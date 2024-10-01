@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.repositoryentities;
 
-import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.collections.ObservableList;
 
 /**
