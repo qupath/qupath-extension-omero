@@ -62,6 +62,7 @@ class WebclientApi implements AutoCloseable {
     private static final String WRITE_NAME_URL = "%s/webclient/action/savename/image/%d/";
     private static final String WRITE_CHANNEL_NAMES_URL = "%s/webclient/edit_channel_names/%d/";
     private static final String SEND_ATTACHMENT_URL = "%s/webclient/annotate_file/";
+    private static final String ATTACHMENT_NAMESPACE = "https://qupath.github.io/omero";
     private static final String DELETE_ATTACHMENT_URL = "%s/webclient/action/delete/file/%d/";
     private static final String IMAGE_ICON_URL = "%s/static/webclient/image/image16.png";
     private static final String SCREEN_ICON_URL = "%s/static/webclient/image/folder_screen16.png";
@@ -508,6 +509,7 @@ class WebclientApi implements AutoCloseable {
         if (uri.isPresent()) {
             return RequestSender.post(
                     uri.get(),
+                    ATTACHMENT_NAMESPACE,
                     attachmentName,
                     attachmentContent,
                     String.format("%s/webclient/", host),

@@ -76,7 +76,7 @@ public class OmeroExtension implements QuPathExtension, GitHubProject {
 							new DataTransporterMenu(
 									resources.getString("Extension.sendToOMERO"),
 									qupath,
-									List.of(new AnnotationSender(), new KeyValuesSender(), new ImageSettingsSender())
+									List.of(new AnnotationSender(qupath), new KeyValuesSender(), new ImageSettingsSender())
 							),
 							new DataTransporterMenu(
 									resources.getString("Extension.importFromOMERO"),

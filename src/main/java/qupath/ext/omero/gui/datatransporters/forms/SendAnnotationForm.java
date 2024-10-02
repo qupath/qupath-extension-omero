@@ -18,9 +18,9 @@ public class SendAnnotationForm extends VBox {
     private static final String ONLY_SELECTED_ANNOTATIONS = resources.getString("DataTransporters.Forms.SendAnnotations.onlySelectedAnnotations");
     private static final String ALL_ANNOTATIONS = resources.getString("DataTransporters.Forms.SendAnnotations.allAnnotations");
     @FXML
-    private CheckBox deleteExistingAnnotations;
-    @FXML
     private ChoiceBox<String> selectedAnnotationChoice;
+    @FXML
+    private CheckBox deleteExistingAnnotations;
     @FXML
     private CheckBox deleteExistingMeasurements;
     @FXML
@@ -33,11 +33,20 @@ public class SendAnnotationForm extends VBox {
      *
      * @throws IOException if an error occurs while creating the form
      */
-    public SendAnnotationForm() throws IOException {
+    public SendAnnotationForm(boolean projectOpened) throws IOException {
         UiUtilities.loadFXML(this, SendAnnotationForm.class.getResource("send_annotation_form.fxml"));
 
         selectedAnnotationChoice.getItems().setAll(ONLY_SELECTED_ANNOTATIONS, ALL_ANNOTATIONS);
         selectedAnnotationChoice.getSelectionModel().select(ALL_ANNOTATIONS);
+
+        if (!projectOpened) {
+            deleteExistingMeasurements.setSelected(false);
+            sendAnnotationMeasurements.setSelected(false);
+            sendDetectionMeasurements.setSelected(false);
+
+            sendAnnotationMeasurements.setDisable(true);
+            sendDetectionMeasurements.setDisable(true);
+        }
     }
 
     /**
