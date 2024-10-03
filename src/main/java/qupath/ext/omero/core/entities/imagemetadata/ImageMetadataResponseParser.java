@@ -53,9 +53,7 @@ public class ImageMetadataResponseParser {
             return Optional.empty();
         }
 
-        metadataBuilder.rgb(channels.stream().map(ImageChannel::getColor).toList().equals(List.of(ColorTools.RED, ColorTools.GREEN, ColorTools.BLUE)) &&
-                pixelType.get() == PixelType.UINT8
-        );
+        metadataBuilder.rgb(channels.size() == 3 && pixelType.get() == PixelType.UINT8);
 
         setTileSize(metadataResponse, metadataBuilder);
         setLevels(metadataResponse, metadataBuilder);
