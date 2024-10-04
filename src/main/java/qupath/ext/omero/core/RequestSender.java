@@ -289,7 +289,6 @@ public class RequestSender {
      * <p>The body of the request uses the multipart/form-data content type.</p>
      *
      * @param uri  the link of the request
-     * @param annotationNamespace  the namespace of the annotation that will contain the file to send
      * @param fileName  the name of the file to send
      * @param fileContent  the content of the file to send
      * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
@@ -302,7 +301,6 @@ public class RequestSender {
      */
     public static CompletableFuture<Optional<String>> post(
             URI uri,
-            String annotationNamespace,
             String fileName,
             String fileContent,
             String referer,
@@ -313,7 +311,7 @@ public class RequestSender {
 
         String body =
                 String.format("--%s\r\n", boundary) +
-                String.format("Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"\r\n", annotationNamespace, fileName) +
+                String.format("Content-Disposition: form-data; name=\"annotation_file\"; filename=\"%s\"\r\n", fileName) +
                 String.format("Content-Type: text/csv\r\n\r\n%s\r\n", fileContent) +
                 String.format("--%s", boundary) +
                 parameters.entrySet().stream()

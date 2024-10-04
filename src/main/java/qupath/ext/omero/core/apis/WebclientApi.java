@@ -62,7 +62,7 @@ class WebclientApi implements AutoCloseable {
     private static final String WRITE_NAME_URL = "%s/webclient/action/savename/image/%d/";
     private static final String WRITE_CHANNEL_NAMES_URL = "%s/webclient/edit_channel_names/%d/";
     private static final String SEND_ATTACHMENT_URL = "%s/webclient/annotate_file/";
-    private static final String ATTACHMENT_NAMESPACE = "https://qupath.github.io/omero";
+    private static final String QUPATH_FILE_IDENTIFIER = "qupath_";
     private static final String DELETE_ATTACHMENT_URL = "%s/webclient/action/delete/file/%d/";
     private static final String IMAGE_ICON_URL = "%s/static/webclient/image/image16.png";
     private static final String SCREEN_ICON_URL = "%s/static/webclient/image/folder_screen16.png";
@@ -482,7 +482,8 @@ class WebclientApi implements AutoCloseable {
      * @param entityClass  the class of the entity.
      *                     Must be an {@link Image}, {@link Dataset}, {@link Project},
      *                     {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
-     * @param attachmentName  the name of the file to send
+     * @param attachmentName  the name of the file to send. A prefix will be added to it to mark
+     *                        this file as coming from QuPath
      * @param attachmentContent  the content of the file to send
      * @return a CompletableFuture indicating the success of the operation
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
@@ -509,8 +510,7 @@ class WebclientApi implements AutoCloseable {
         if (uri.isPresent()) {
             return RequestSender.post(
                     uri.get(),
-                    ATTACHMENT_NAMESPACE,
-                    attachmentName,
+                    QUPATH_FILE_IDENTIFIER + attachmentName,
                     attachmentContent,
                     String.format("%s/webclient/", host),
                     token,
@@ -537,7 +537,7 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * <p>Delete all attachments of an OMERO entity.</p>
+     * <p>Delete all attachments added from QuPath of an OMERO entity.</p>
      *
      * @param entityId  the ID of the entity whose attachments should be deleted
      * @param entityClass  the class of the entity whose attachments should be deleted.
@@ -551,6 +551,7 @@ class WebclientApi implements AutoCloseable {
         return getAnnotations(entityId, entityClass).thenApply(annotationGroup ->
                 annotationGroup
                         .map(group -> group.getAnnotationsOfClass(FileAnnotation.class).stream()
+                                .filter(annotation -> annotation.getFilename().isPresent() && annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER))
                                 .map(Annotation::getId)
                                 .toList()
                         )
