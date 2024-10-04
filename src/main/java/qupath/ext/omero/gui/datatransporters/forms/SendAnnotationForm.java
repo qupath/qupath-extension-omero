@@ -31,22 +31,24 @@ public class SendAnnotationForm extends VBox {
     /**
      * Creates the annotation form.
      *
-     * @throws IOException if an error occurs while creating the form
+     * @param projectOpened whether a project is currently open
+     * @param annotationsExist whether annotations exist on the current image
+     * @param detectionExist whether detections exist on the current image
+     * @throws IOException when an error occurs while creating the form
      */
-    public SendAnnotationForm(boolean projectOpened) throws IOException {
+    public SendAnnotationForm(boolean projectOpened, boolean annotationsExist, boolean detectionExist) throws IOException {
         UiUtilities.loadFXML(this, SendAnnotationForm.class.getResource("send_annotation_form.fxml"));
 
         selectedAnnotationChoice.getItems().setAll(ONLY_SELECTED_ANNOTATIONS, ALL_ANNOTATIONS);
         selectedAnnotationChoice.getSelectionModel().select(ALL_ANNOTATIONS);
 
-        if (!projectOpened) {
-            deleteExistingMeasurements.setSelected(false);
-            sendAnnotationMeasurements.setSelected(false);
-            sendDetectionMeasurements.setSelected(false);
+        deleteExistingMeasurements.setSelected(projectOpened);
 
-            sendAnnotationMeasurements.setDisable(true);
-            sendDetectionMeasurements.setDisable(true);
-        }
+        sendAnnotationMeasurements.setSelected(projectOpened && annotationsExist);
+        sendAnnotationMeasurements.setDisable(!projectOpened || !annotationsExist);
+
+        sendDetectionMeasurements.setSelected(projectOpened && detectionExist);
+        sendDetectionMeasurements.setDisable(!projectOpened || !detectionExist);
     }
 
     /**

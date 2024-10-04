@@ -80,7 +80,11 @@ public class AnnotationSender implements DataTransporter {
 
         SendAnnotationForm annotationForm;
         try {
-            annotationForm = new SendAnnotationForm(quPath.getProject() != null);
+            annotationForm = new SendAnnotationForm(
+                    quPath.getProject() != null,
+                    !viewer.getImageData().getHierarchy().getAnnotationObjects().isEmpty(),
+                    !viewer.getImageData().getHierarchy().getDetectionObjects().isEmpty()
+            );
         } catch (IOException e) {
             logger.error("Error when creating the annotation form", e);
             Dialogs.showErrorMessage(
@@ -206,6 +210,11 @@ public class AnnotationSender implements DataTransporter {
         try (OutputStream outputStream = new ByteArrayOutputStream()) {
             QuPathViewer viewer = quPath.getViewer();
             ProjectImageEntry<BufferedImage> entry = project.getEntry(viewer.getImageData());
+
+            if (entry.readHierarchy().getObjects(List.of(entry.readHierarchy().getRootObject()), exportType).isEmpty()) {
+                logger.warn(String.format("No objects of type %s to export", exportType));
+                return CompletableFuture.completedFuture(false);
+            }
 
             // The image must be saved because non saved measures won't be exported
             entry.saveImageData(viewer.getImageData());
