@@ -31,15 +31,16 @@ public class OrphanedFolder implements RepositoryEntity {
 
     /**
      * <p>Creates a new orphaned folder and request its number of children.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param apisHandler  the apis handler of the server
-     * @return the new orphaned folder
+     * @param apisHandler the apis handler of the server
+     * @return a CompletableFuture (that may complete exceptionally) with the new orphaned folder
      */
     public static CompletableFuture<OrphanedFolder> create(ApisHandler apisHandler) {
-        return apisHandler.getNumberOfOrphanedImages().thenApply(numberOfOrphanedImages ->
-                new OrphanedFolder(apisHandler, numberOfOrphanedImages)
-        );
+        return apisHandler.getOrphanedImagesIds().thenApply(ids -> new OrphanedFolder(apisHandler, ids.size()));
     }
 
     @Override

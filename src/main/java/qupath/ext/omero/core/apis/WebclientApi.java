@@ -2,7 +2,6 @@ package qupath.ext.omero.core.apis;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,16 +24,17 @@ import qupath.ext.omero.core.RequestSender;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -97,12 +97,26 @@ class WebclientApi implements AutoCloseable {
     @Override
     public void close() {
         if (token != null) {
-            WebUtilities.createURI(String.format(LOGOUT_URL, host)).ifPresent(value -> RequestSender.post(
-                    value,
-                    Map.of("csrfmiddlewaretoken", token),
-                    value.toString(),
+            String body = "csrfmiddlewaretoken=" + token;
+
+            URI uri;
+            try {
+                uri = new URI(String.format(LOGOUT_URL, host));
+            } catch (URISyntaxException e) {
+                logger.error(String.format("Cannot convert logout URL %s to URI", String.format(LOGOUT_URL, host)));
+                return;
+            }
+
+            RequestSender.post(
+                    uri,
+                    body.getBytes(StandardCharsets.UTF_8),
+                    uri.toString(),
                     token
-            ));
+            ).whenComplete((response, error) -> {
+                if (error != null) {
+                    logger.error("Error while logging out", error);
+                }
+            });
         }
     }
 
@@ -155,31 +169,34 @@ class WebclientApi implements AutoCloseable {
 
     /**
      * <p>Attempt to get the image IDs of all orphaned images of the server.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with a list containing the ID of all orphaned images,
-     * or an empty list if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with a list containing the ID of all orphaned images
      */
     public CompletableFuture<List<Long>> getOrphanedImagesIds() {
-        var uri = WebUtilities.createURI(String.format(ORPHANED_IMAGES_URL, host));
-
-        if (uri.isPresent()) {
-            return RequestSender.getAndConvertToJsonList(uri.get(), "images").thenApply(elements ->
-                    elements.stream()
-                            .map(jsonElement -> {
-                                try {
-                                    return Long.parseLong(jsonElement.getAsJsonObject().get("id").toString());
-                                } catch (Exception e) {
-                                    logger.error("Could not parse " + jsonElement, e);
-                                    return null;
-                                }
-                            })
-                            .filter(Objects::nonNull)
-                            .toList()
-            );
-        } else {
-            return CompletableFuture.completedFuture(List.of());
+        URI uri;
+        try {
+            uri = new URI(String.format(ORPHANED_IMAGES_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return RequestSender.getAndConvertToJsonList(uri, "images").thenApply(elements ->
+                elements.stream()
+                        .map(jsonElement -> {
+                            if (jsonElement.isJsonObject() && jsonElement.getAsJsonObject().has("id")) {
+                                return Long.parseLong(jsonElement.getAsJsonObject().get("id").toString());
+                            } else {
+                                throw new IllegalArgumentException(String.format(
+                                        "'id' not found in %s", jsonElement
+                                ));
+                            }
+                        })
+                        .toList()
+        );
     }
 
     /**
@@ -195,20 +212,25 @@ class WebclientApi implements AutoCloseable {
         var uri = WebUtilities.createURI(String.format(WEBCLIENT_URL, host));
 
         if (uri.isPresent()) {
-            return RequestSender.get(uri.get()).thenApply(content -> {
-                if (content.isPresent()) {
-                    Matcher matcher = USER_ID_PATTERN.matcher(content.get());
-
-                    if (matcher.find()) {
-                        String id = matcher.group(1);
-                        try {
-                            return Optional.of(Long.parseLong(id));
-                        } catch (NumberFormatException e) {
-                            logger.error(String.format("Could not convert %s to long", id));
-                        }
-                    }
+            return RequestSender.get(uri.get()).handle((response, error) -> {
+                if (error != null) {
+                    logger.error("Error while retrieving public user ID", error);
+                    return Optional.empty();
                 }
-                return Optional.empty();
+
+                Matcher matcher = USER_ID_PATTERN.matcher(response);
+                if (matcher.find()) {
+                    String id = matcher.group(1);
+                    try {
+                        return Optional.of(Long.parseLong(id));
+                    } catch (NumberFormatException e) {
+                        logger.error(String.format("Could not convert %s to long", id));
+                        return Optional.empty();
+                    }
+                } else {
+                    logger.error(String.format("Pattern %s not found in %s", USER_ID_PATTERN, response));
+                    return Optional.empty();
+                }
             });
         } else {
             return CompletableFuture.completedFuture(Optional.empty());
@@ -221,17 +243,20 @@ class WebclientApi implements AutoCloseable {
      *     An OMERO annotation is <b>not</b> similar to a QuPath annotation, it refers to some metadata
      *     attached to an entity.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param entityId  the ID of the entity
-     * @param entityClass  the class of the entity whose annotation should be retrieved.
-     *                Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
-     * @return a CompletableFuture with the annotation, or an empty Optional if an error occurred
+     * @param entityId the ID of the entity
+     * @param entityClass the class of the entity whose annotation should be retrieved.
+     *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     * @return a CompletableFuture (that may complete exceptionally) with the annotation
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
      */
-    public CompletableFuture<Optional<AnnotationGroup>> getAnnotations(
+    public CompletableFuture<AnnotationGroup> getAnnotations(
             long entityId,
             Class<? extends RepositoryEntity> entityClass
     ) {
@@ -242,19 +267,15 @@ class WebclientApi implements AutoCloseable {
             ));
         }
 
-        var uri = WebUtilities.createURI(String.format(
-                READ_ANNOTATION_URL,
-                host,
-                TYPE_TO_URI_LABEL.get(entityClass),
-                entityId
-        ));
-
-        if (uri.isPresent()) {
-            return RequestSender.getAndConvert(uri.get(), JsonObject.class)
-                    .thenApply(json -> json.map(AnnotationGroup::new));
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
+        URI uri;
+        try {
+            uri = new URI(String.format(READ_ANNOTATION_URL, host, TYPE_TO_URI_LABEL.get(entityClass), entityId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return RequestSender.getAndConvert(uri, JsonObject.class)
+                .thenApply(AnnotationGroup::new);
     }
 
     /**
@@ -303,9 +324,14 @@ class WebclientApi implements AutoCloseable {
                 System.currentTimeMillis()
         ));
         if (uri.isPresent()) {
-            return RequestSender.get(uri.get()).thenApply(response ->
-                    response.map(s -> SearchResult.createFromHTMLResponse(s, host)).orElseGet(List::of)
-            );
+            return RequestSender.get(uri.get()).handle((response, error) -> {
+                if (error != null) {
+                    logger.error("Error when performing a search on the server", error);
+                    return List.of();
+                }
+
+                return SearchResult.createFromHTMLResponse(response, host);
+            });
         } else {
             return CompletableFuture.completedFuture(List.of());
         }
@@ -315,168 +341,152 @@ class WebclientApi implements AutoCloseable {
      * <p>
      *     Send key value pairs associated with an image to the OMERO server.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param imageId  the id of the image to associate the key value pairs
-     * @param keyValues  the key value pairs to send
-     * @param replaceExisting  whether to replace values when keys already exist on the OMERO server
-     * @param deleteExisting  whether to delete all existing key value pairs on the OMERO server
-     * @return a CompletableFuture indicating the success of the operation
+     * @param imageId the id of the image to associate the key value pairs
+     * @param keyValues the key value pairs to send
+     * @param replaceExisting whether to replace values when keys already exist on the OMERO server
+     * @param deleteExisting whether to delete all existing key value pairs on the OMERO server
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Boolean> sendKeyValuePairs(
+    public CompletableFuture<Void> sendKeyValuePairs(
             long imageId,
             Map<String, String> keyValues,
             boolean replaceExisting,
             boolean deleteExisting
     ) {
-        var uri = WebUtilities.createURI(String.format(
-                WRITE_KEY_VALUES_URL,
-                host
-        ));
-
-        if (uri.isPresent()) {
-            return removeAndReturnExistingMapAnnotations(uri.get(), imageId).thenCompose(existingAnnotations -> {
-                Map<String, String> keyValuesToSend;
-                if (deleteExisting) {
-                    keyValuesToSend = keyValues;
-                } else {
-                    keyValuesToSend = Stream.of(keyValues, MapAnnotation.getCombinedValues(existingAnnotations))
-                            .flatMap(map -> map.entrySet().stream())
-                            .collect(Collectors.toMap(
-                                    Map.Entry::getKey,
-                                    Map.Entry::getValue,
-                                    (value1, value2) -> replaceExisting ? value1 : value2
-                            ));
-                }
-
-                return RequestSender.post(
-                        uri.get(),
-                        String.format(
-                                "image=%d&mapAnnotation=%s",
-                                imageId,
-                                URLEncoder.encode(
-                                        keyValuesToSend.keySet().stream()
-                                                .map(key -> String.format("[\"%s\",\"%s\"]", key, keyValuesToSend.get(key)))
-                                                .collect(Collectors.joining(",", "[", "]")),
-                                        StandardCharsets.UTF_8
-                                )
-                        ).getBytes(StandardCharsets.UTF_8),
-                        String.format("%s/webclient/", host),
-                        token
-                ).thenApply(rawResponse -> {
-                    if (rawResponse.isPresent()) {
-                        Gson gson = new Gson();
-                        try {
-                            Map<String, List<String>> response = gson.fromJson(rawResponse.get(), new TypeToken<>() {});
-                            return response != null && response.containsKey("annId");
-                        } catch (JsonSyntaxException e) {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                });
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
+        URI uri;
+        try {
+            uri = new URI(String.format(WRITE_KEY_VALUES_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return removeAndReturnExistingMapAnnotations(uri, imageId).thenCompose(existingAnnotations -> {
+            Map<String, String> keyValuesToSend;
+            if (deleteExisting) {
+                keyValuesToSend = keyValues;
+            } else {
+                keyValuesToSend = Stream.of(keyValues, MapAnnotation.getCombinedValues(existingAnnotations))
+                        .flatMap(map -> map.entrySet().stream())
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey,
+                                Map.Entry::getValue,
+                                (value1, value2) -> replaceExisting ? value1 : value2
+                        ));
+            }
+
+            return RequestSender.post(
+                    uri,
+                    String.format(
+                            "image=%d&mapAnnotation=%s",
+                            imageId,
+                            URLEncoder.encode(
+                                    keyValuesToSend.keySet().stream()
+                                            .map(key -> String.format("[\"%s\",\"%s\"]", key, keyValuesToSend.get(key)))
+                                            .collect(Collectors.joining(",", "[", "]")),
+                                    StandardCharsets.UTF_8
+                            )
+                    ).getBytes(StandardCharsets.UTF_8),
+                    String.format("%s/webclient/", host),
+                    token
+            ).thenAccept(rawResponse -> {
+                Gson gson = new Gson();
+                Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+                if (response == null || !response.containsKey("annId")) {
+                    throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
+                }
+            });
+        });
     }
 
     /**
      * <p>
      *     Change the name of an image on OMERO.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param imageId  the id of the image whose name should be changed
-     * @param imageName  the new name of the image
-     * @return a CompletableFuture indicating the success of the operation
+     * @param imageId the id of the image whose name should be changed
+     * @param imageName the new name of the image
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Boolean> changeImageName(long imageId, String imageName) {
-        var uri = WebUtilities.createURI(String.format(
-                WRITE_NAME_URL,
-                host,
-                imageId
-        ));
-
-        if (uri.isPresent()) {
-            return RequestSender.post(
-                    uri.get(),
-                    String.format(
-                            "name=%s&",
-                            imageName
-                    ).getBytes(StandardCharsets.UTF_8),
-                    String.format("%s/webclient/", host),
-                    token
-            ).thenApply(rawResponse -> {
-                if (rawResponse.isPresent()) {
-                    Gson gson = new Gson();
-                    try {
-                        Map<String, String> response = gson.fromJson(rawResponse.get(), new TypeToken<>() {});
-                        return response != null && response.containsKey("o_type");
-                    } catch (JsonSyntaxException e) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
+    public CompletableFuture<Void> changeImageName(long imageId, String imageName) {
+        URI uri;
+        try {
+            uri = new URI(String.format(WRITE_NAME_URL, host, imageId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return RequestSender.post(
+                uri,
+                String.format(
+                        "name=%s&",
+                        imageName
+                ).getBytes(StandardCharsets.UTF_8),
+                String.format("%s/webclient/", host),
+                token
+        ).thenAccept(rawResponse -> {
+            Gson gson = new Gson();
+            Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+            if (response == null || !response.containsKey("o_type")) {
+                throw new RuntimeException(String.format("The response %s doesn't contain the `o_type` key", rawResponse));
+            }
+        });
     }
 
     /**
      * <p>
      *     Change the names of the channels of an image on OMERO.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param imageId  the id of the image whose channels name should be changed
-     * @param channelsName  the new names of the channels
-     * @return a CompletableFuture indicating the success of the operation
+     * @param imageId the id of the image whose channels name should be changed
+     * @param channelsName the new names of the channels
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Boolean> changeChannelNames(long imageId, List<String> channelsName) {
-        var uri = WebUtilities.createURI(String.format(
-                WRITE_CHANNEL_NAMES_URL,
-                host,
-                imageId
-        ));
-
-        StringBuilder body = new StringBuilder();
-        for (int i=0; i<channelsName.size(); i++) {
-            body.append(String.format("channel%d=%s&", i, channelsName.get(i)));
+    public CompletableFuture<Void> changeChannelNames(long imageId, List<String> channelsName) {
+        URI uri;
+        try {
+            uri = new URI(String.format(WRITE_CHANNEL_NAMES_URL, host, imageId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
 
-        if (uri.isPresent()) {
-            return RequestSender.post(
-                    uri.get(),
-                    String.format(
-                            "%ssave=save",
-                            body
-                    ).getBytes(StandardCharsets.UTF_8),
-                    String.format("%s/webclient/", host),
-                    token
-            ).thenApply(rawResponse -> {
-                if (rawResponse.isPresent()) {
-                    Gson gson = new Gson();
-                    try {
-                        Map<String, Object> response = gson.fromJson(rawResponse.get(), new TypeToken<>() {});
-                        return response != null && response.containsKey("channelNames");
-                    } catch (JsonSyntaxException e) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
-        }
+        return RequestSender.post(
+                uri,
+                String.format(
+                        "%ssave=save",
+                        IntStream.range(0, channelsName.size())
+                                .mapToObj(i -> String.format("channel%d=%s&", i, channelsName.get(i)))
+                                .collect(Collectors.joining())
+                ).getBytes(StandardCharsets.UTF_8),
+                String.format("%s/webclient/", host),
+                token
+        ).thenAccept(rawResponse -> {
+            Gson gson = new Gson();
+            Map<String, Object> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+            if (response == null || !response.containsKey("channelNames")) {
+                throw new RuntimeException(String.format("The response %s doesn't contain the `channelNames` key", rawResponse));
+            }
+        });
     }
 
     /**
      * <p>Send a file to be attached to a server entity.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
      * @param entityId  the ID of the entity
      * @param entityClass  the class of the entity.
@@ -485,11 +495,11 @@ class WebclientApi implements AutoCloseable {
      * @param attachmentName  the name of the file to send. A prefix will be added to it to mark
      *                        this file as coming from QuPath
      * @param attachmentContent  the content of the file to send
-     * @return a CompletableFuture indicating the success of the operation
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
      */
-    public CompletableFuture<Boolean> sendAttachment(
+    public CompletableFuture<Void> sendAttachment(
             long entityId,
             Class<? extends RepositoryEntity> entityClass,
             String attachmentName,
@@ -502,136 +512,127 @@ class WebclientApi implements AutoCloseable {
             ));
         }
 
-        var uri = WebUtilities.createURI(String.format(
-                SEND_ATTACHMENT_URL,
-                host
-        ));
-
-        if (uri.isPresent()) {
-            return RequestSender.post(
-                    uri.get(),
-                    QUPATH_FILE_IDENTIFIER + attachmentName,
-                    attachmentContent,
-                    String.format("%s/webclient/", host),
-                    token,
-                    Map.of(
-                            TYPE_TO_URI_LABEL.get(entityClass), String.valueOf(entityId),
-                            "index", ""
-                    )
-            ).thenApply(rawResponse -> {
-                if (rawResponse.isPresent()) {
-                    Gson gson = new Gson();
-                    try {
-                        Map<String, List<Long>> response = gson.fromJson(rawResponse.get(), new TypeToken<>() {});
-                        return response != null && response.containsKey("fileIds") && !response.get("fileIds").isEmpty();
-                    } catch (JsonSyntaxException e) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
+        URI uri;
+        try {
+            uri = new URI(String.format(SEND_ATTACHMENT_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return RequestSender.post(
+                uri,
+                QUPATH_FILE_IDENTIFIER + attachmentName,
+                attachmentContent,
+                String.format("%s/webclient/", host),
+                token,
+                Map.of(
+                        TYPE_TO_URI_LABEL.get(entityClass), String.valueOf(entityId),
+                        "index", ""
+                )
+        ).thenAccept(rawResponse -> {
+            Gson gson = new Gson();
+            Map<String, List<Long>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+            if (response == null || !response.containsKey("fileIds") || response.get("fileIds").isEmpty()) {
+                throw new RuntimeException(String.format("The response %s doesn't contain a non-empty `fileIds` value", rawResponse));
+            }
+        });
     }
 
     /**
      * <p>Delete all attachments added from QuPath of an OMERO entity.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param entityId  the ID of the entity whose attachments should be deleted
-     * @param entityClass  the class of the entity whose attachments should be deleted.
-     *                     Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                     {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
-     * @return a CompletableFuture indicating the success of the operation
+     * @param entityId the ID of the entity whose attachments should be deleted
+     * @param entityClass the class of the entity whose attachments should be deleted.
+     *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
      */
-    public CompletableFuture<Boolean> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
+    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
         return getAnnotations(entityId, entityClass).thenApply(annotationGroup ->
-                annotationGroup
-                        .map(group -> group.getAnnotationsOfClass(FileAnnotation.class).stream()
-                                .filter(annotation -> annotation.getFilename().isPresent() && annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER))
-                                .map(Annotation::getId)
-                                .toList()
-                        )
-                        .orElseGet(List::of)
-        ).thenApplyAsync(attachmentIds -> {
-            List<URI> uris = attachmentIds.stream()
-                    .map(annotationId -> WebUtilities.createURI(String.format(DELETE_ATTACHMENT_URL, host, annotationId)))
-                    .flatMap(Optional::stream)
+                annotationGroup.getAnnotationsOfClass(FileAnnotation.class).stream()
+                        .filter(annotation -> annotation.getFilename().isPresent() && annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER))
+                        .map(Annotation::getId)
+                        .toList()
+        ).thenAcceptAsync(attachmentIds -> {
+            List<String> responses = attachmentIds.stream()
+                    .map(annotationId -> URI.create(String.format(DELETE_ATTACHMENT_URL, host, annotationId)))
+                    .map(uri -> RequestSender.post(uri, "", String.format("%s/webclient/", host), token))
+                    .map(CompletableFuture::join)
                     .toList();
 
-            if (uris.size() == attachmentIds.size()) {
-                List<String> responses = uris.stream()
-                        .map(uri -> RequestSender.post(uri, "", String.format("%s/webclient/", host), token))
-                        .map(CompletableFuture::join)
-                        .flatMap(Optional::stream)
-                        .filter(rawResponse -> {
-                            Gson gson = new Gson();
-                            try {
-                                Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
-                                return response != null && response.containsKey("bad");
-                            } catch (JsonSyntaxException e) {
-                                return false;
-                            }
-                        })
-                        .toList();
-
-                return responses.size() == attachmentIds.size();
-            } else {
-                return false;
+            for (String rawResponse: responses) {
+                Gson gson = new Gson();
+                Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+                if (response == null || !response.containsKey("bad")) {
+                    throw new RuntimeException(String.format("The response %s doesn't contain the `bad` key", rawResponse));
+                }
             }
         });
     }
 
     /**
      * <p>Attempt to retrieve the OMERO image icon.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with the icon, of an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getImageIcon() {
+    public CompletableFuture<BufferedImage> getImageIcon() {
         return ApiUtilities.getImage(String.format(IMAGE_ICON_URL, host));
     }
 
     /**
      * <p>Attempt to retrieve the OMERO screen icon.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with the icon, of an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getScreenIcon() {
+    public CompletableFuture<BufferedImage> getScreenIcon() {
         return ApiUtilities.getImage(String.format(SCREEN_ICON_URL, host));
     }
 
     /**
      * <p>Attempt to retrieve the OMERO plate icon.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with the icon, of an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getPlateIcon() {
+    public CompletableFuture<BufferedImage> getPlateIcon() {
         return ApiUtilities.getImage(String.format(PLATE_ICON_URL, host));
     }
 
     /**
      * <p>Attempt to retrieve the OMERO plate acquisition icon.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with the icon, of an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getPlateAcquisitionIcon() {
+    public CompletableFuture<BufferedImage> getPlateAcquisitionIcon() {
         return ApiUtilities.getImage(String.format(PLATE_ACQUISITION_ICON_URL, host));
     }
 
     private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotations(URI uri, long imageId) {
-        return getAnnotations(imageId, Image.class).thenApplyAsync(annotationGroupResponse -> {
-            List<MapAnnotation> existingAnnotations = annotationGroupResponse
-                    .map(annotationGroup -> annotationGroup.getAnnotationsOfClass(MapAnnotation.class))
-                    .orElse(List.of());
+        return getAnnotations(imageId, Image.class).thenApplyAsync(annotationGroup -> {
+            List<MapAnnotation> existingAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class);
 
-            existingAnnotations.stream()
+            List<CompletableFuture<String>> requests = existingAnnotations.stream()
                     .map(Annotation::getId)
                     .map(id -> String.format("image=%d&annId=%d&mapAnnotation=\"\"", imageId, id))
                     .map(body -> RequestSender.post(
@@ -640,7 +641,11 @@ class WebclientApi implements AutoCloseable {
                             String.format("%s/webclient/", host),
                             token
                     ))
-                    .forEach(CompletableFuture::join);
+                    .toList();
+
+            for (CompletableFuture<String> request: requests) {
+                request.join();
+            }
 
             return existingAnnotations;
         });

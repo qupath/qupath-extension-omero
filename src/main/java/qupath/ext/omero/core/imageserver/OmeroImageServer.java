@@ -142,21 +142,15 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     @Override
     public BufferedImage getDefaultThumbnail(int z, int t) throws IOException {
-        Optional<BufferedImage> thumbnail = Optional.empty();
-
         if (isRGB()) {
             try {
-                thumbnail = client.getApisHandler().getThumbnail(
+                return client.getApisHandler().getThumbnail(
                         id,
                         Math.max(originalMetadata.getLevel(0).getWidth(), originalMetadata.getLevel(0).getHeight())
                 ).get();
             } catch (InterruptedException | ExecutionException e) {
                 throw new IOException(e);
             }
-        }
-
-        if (thumbnail.isPresent()) {
-            return thumbnail.get();
         } else {
             return super.getDefaultThumbnail(z, t);
         }
@@ -199,7 +193,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
             shapes = client.getApisHandler().getROIs(id).get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error reading path objects", e);
-            return Collections.emptyList();
+            return List.of();
         }
 
         Map<UUID, UUID> idToParentId = new HashMap<>();
@@ -225,29 +219,6 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     @Override
     public String toString() {
         return String.format("OMERO image server of %s", uri);
-    }
-
-    /**
-     * Attempt to send some path objects to the OMERO server.
-     *
-     * @param pathObjects  the path objects to send
-     * @param removeExistingAnnotations  whether to remove existing annotations of the image in the OMERO server
-     * @return whether the operation succeeded
-     */
-    public boolean sendPathObjects(Collection<PathObject> pathObjects, boolean removeExistingAnnotations) {
-        try {
-            return client.getApisHandler().writeROIs(
-                    id,
-                    pathObjects.stream()
-                            .map(Shape::createFromPathObject)
-                            .flatMap(List::stream)
-                            .toList(),
-                    removeExistingAnnotations
-            ).get();
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Could not send path objects");
-            return false;
-        }
     }
 
     /**

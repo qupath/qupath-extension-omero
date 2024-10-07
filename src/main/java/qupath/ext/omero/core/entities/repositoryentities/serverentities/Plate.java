@@ -8,8 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -25,6 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Plate extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Plate.class);
+    private static final int NUMBER_OF_CHILDREN_TYPES = 5;
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final String[] ATTRIBUTES = new String[] {
             resources.getString("Web.Entities.Plate.name"),
@@ -37,7 +40,7 @@ public class Plate extends ServerEntity {
     private final transient ObservableList<ServerEntity> children = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final transient ObservableList<ServerEntity> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
-    private transient volatile boolean isPopulating = false;
+    private int childrenTypesPopulated = 0;
     @SerializedName(value = "Columns") private int columns;
     @SerializedName(value = "Rows") private int rows;
 
@@ -84,8 +87,8 @@ public class Plate extends ServerEntity {
     }
 
     @Override
-    public boolean isPopulatingChildren() {
-        return isPopulating;
+    public synchronized boolean isPopulatingChildren() {
+        return childrenTypesPopulated == NUMBER_OF_CHILDREN_TYPES;
     }
 
     @Override
@@ -137,31 +140,42 @@ public class Plate extends ServerEntity {
             );
         } else {
             WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
-                isPopulating = true;
-                client.getApisHandler().getPlateAcquisitions(getId()).thenCompose(plateAcquisitions -> {
-                    for (PlateAcquisition plateAcquisition: plateAcquisitions) {
-                        plateAcquisition.setNumberOfWells(columns * rows);
-                    }
+                client.getApisHandler().getPlateAcquisitions(id)
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving plate acquisitions", error);
+                            return List.of();
+                        })
+                        .thenAccept(plateAcquisitions -> {
+                            synchronized (this) {
+                                childrenTypesPopulated++;
+                            }
 
-                    children.addAll(plateAcquisitions);
-                    return client.getApisHandler().getWellsFromPlate(getId());
-                }).thenAcceptAsync(wells -> {
-                    List<Long> ids = wells.stream()
-                            .map(well -> well.getImagesIds(false))
-                            .flatMap(List::stream)
-                            .toList();
-                    List<List<Long>> batches = Lists.partition(ids, 16);
+                            for (PlateAcquisition plateAcquisition: plateAcquisitions) {
+                                plateAcquisition.setNumberOfWells(columns * rows);
+                            }
+                            children.addAll(plateAcquisitions);
+                        });
 
-                    for (List<Long> batch: batches) {
-                        children.addAll(batch.stream()
+                client.getApisHandler().getWellsFromPlate(id)
+                        .thenApplyAsync(wells -> wells.stream()
+                                .map(well -> well.getImagesIds(false))
+                                .flatMap(List::stream)
                                 .map(id -> client.getApisHandler().getImage(id))
                                 .map(CompletableFuture::join)
                                 .flatMap(Optional::stream)
-                                .toList());
-                    }
+                                .toList()
+                        )
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving wells", error);
+                            return List.of();
+                        })
+                        .thenAccept(images -> {
+                            synchronized (this) {
+                                childrenTypesPopulated++;
+                            }
 
-                    isPopulating = false;
-                });
+                            children.addAll(images);
+                        });
             }, () -> logger.warn(String.format(
                     "Could not find the web client corresponding to %s. Impossible to get the children of this plate (%s).",
                     webServerURI,

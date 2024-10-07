@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
-import com.google.common.collect.Lists;
 import com.google.gson.annotations.SerializedName;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -147,23 +146,23 @@ public class PlateAcquisition extends ServerEntity {
                     wellSampleIndex = wellSampleIndices.get(0);
                 }
 
-                client.getApisHandler().getWellsFromPlateAcquisition(getId(), wellSampleIndex).thenAcceptAsync(wells -> {
-                    List<Long> ids = wells.stream()
-                            .map(well -> well.getImagesIds(true))
-                            .flatMap(List::stream)
-                            .toList();
-                    List<List<Long>> batches = Lists.partition(ids, 16);
-
-                    for (List<Long> batch: batches) {
-                        children.addAll(batch.stream()
+                client.getApisHandler().getWellsFromPlateAcquisition(getId(), wellSampleIndex)
+                        .thenApplyAsync(wells -> wells.stream()
+                                .map(well -> well.getImagesIds(true))
+                                .flatMap(List::stream)
                                 .map(id -> client.getApisHandler().getImage(id))
                                 .map(CompletableFuture::join)
                                 .flatMap(Optional::stream)
-                                .toList());
-                    }
-
-                    isPopulating = false;
-                });
+                                .toList()
+                        )
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving wells", error);
+                            return List.of();
+                        })
+                        .thenAccept(wells -> {
+                            children.addAll(wells);
+                            isPopulating = false;
+                        });
             }, () -> logger.warn(String.format(
                     "Could not find the web client corresponding to %s. Impossible to get the children of this plate acquisition (%s).",
                     webServerURI,

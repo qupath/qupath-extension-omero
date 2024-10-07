@@ -5,13 +5,22 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
+import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.awt.image.BufferedImage;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -19,6 +28,16 @@ import java.util.Optional;
  */
 public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
 
+    private static final Logger logger = LoggerFactory.getLogger(TypeCellFactory.class);
+    private static final List<Class<? extends RepositoryEntity>> ACCEPTED_ICONS_TYPES = List.of(
+            OrphanedFolder.class,
+            Project.class,
+            Dataset.class,
+            Image.class,
+            Screen.class,
+            Plate.class,
+            PlateAcquisition.class
+    );
     private final WebClient client;
 
     public TypeCellFactory(WebClient client) {
@@ -32,13 +51,18 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
         if (item == null || empty) {
             hide();
         } else {
-            client.getApisHandler().getThumbnail(item.getId()).thenAccept(thumbnail -> Platform.runLater(() -> {
-                if (thumbnail.isPresent()) {
-                    show(item, thumbnail.get());
-                } else {
-                    setIcon(item);
-                }
-            }));
+            client.getApisHandler().getThumbnail(item.getId())
+                    .exceptionally(error -> {
+                        logger.error("Error when retrieving thumbnail", error);
+                        return null;
+                    })
+                    .thenAccept(thumbnail -> Platform.runLater(() -> {
+                        if (thumbnail == null) {
+                            setIcon(item);
+                        } else {
+                            show(item, thumbnail);
+                        }
+                    }));
         }
     }
 
@@ -63,14 +87,19 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
     private void setIcon(SearchResult item) {
         Optional<Class<? extends RepositoryEntity>> type = item.getType();
 
-        if (type.isPresent()) {
-            client.getApisHandler().getOmeroIcon(type.get()).thenAccept(icon -> Platform.runLater(() -> {
-                if (icon.isPresent()) {
-                    show(item, icon.get());
-                } else {
-                    hide();
-                }
-            }));
+        if (type.isPresent() && ACCEPTED_ICONS_TYPES.contains(type.get())) {
+            client.getApisHandler().getOmeroIcon(type.get())
+                    .exceptionally(error -> {
+                        logger.error("Error while retrieving icon", error);
+                        return null;
+                    })
+                    .thenAccept(icon -> Platform.runLater(() -> {
+                        if (icon == null) {
+                            hide();
+                        } else {
+                            show(item, icon);
+                        }
+                    }));
         } else {
             hide();
         }

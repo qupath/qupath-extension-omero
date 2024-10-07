@@ -53,7 +53,7 @@ class WebReader implements PixelAPIReader {
                     preferredTileWidth,
                     preferredTileHeight,
                     jpegQuality
-            ).get().orElse(null);
+            ).get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Unable to read tile {}", tileRequest, e);
             return null;

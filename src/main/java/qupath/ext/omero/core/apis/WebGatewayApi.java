@@ -16,6 +16,7 @@ import qupath.ext.omero.core.RequestSender;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -78,49 +79,65 @@ class WebGatewayApi {
 
     /**
      * <p>Attempt to retrieve the OMERO project icon.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with the project icon, or an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the project icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getProjectIcon() {
+    public CompletableFuture<BufferedImage> getProjectIcon() {
         return ApiUtilities.getImage(String.format(ICON_URL, host, PROJECT_ICON_NAME));
     }
 
     /**
      * <p>Attempt to retrieve the OMERO dataset icon.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with the dataset icon, or an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the dataset icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getDatasetIcon() {
+    public CompletableFuture<BufferedImage> getDatasetIcon() {
         return ApiUtilities.getImage(String.format(ICON_URL, host, DATASET_ICON_NAME));
     }
 
     /**
      * <p>Attempt to retrieve the OMERO orphaned folder icon.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with the orphaned folder icon, or an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the orphaned folder icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getOrphanedFolderIcon() {
+    public CompletableFuture<BufferedImage> getOrphanedFolderIcon() {
         return ApiUtilities.getImage(String.format(ICON_URL, host, ORPHANED_FOLDER_ICON_NAME));
     }
 
     /**
      * <p>Attempt to retrieve the thumbnail of an image.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param id  the OMERO image ID
+     * @param id the OMERO image ID
      * @param size the max width and max height the thumbnail should have
-     * @return a CompletableFuture with the thumbnail, or an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the thumbnail
      */
-    public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id, int size) {
-        changeNumberOfThumbnailsLoading(true);
+    public CompletableFuture<BufferedImage> getThumbnail(long id, int size) {
+        synchronized (this) {
+            numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() + 1);
+        }
 
-        return ApiUtilities.getImage(String.format(THUMBNAIL_URL, host, id, size)).thenApply(thumbnail -> {
-            changeNumberOfThumbnailsLoading(false);
-            return thumbnail;
-        });
+        return ApiUtilities.getImage(String.format(THUMBNAIL_URL, host, id, size))
+                .whenComplete((thumbnail, error) -> {
+                    synchronized (this) {
+                        numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() - 1);
+                    }
+                });
     }
 
     /**
@@ -134,12 +151,13 @@ class WebGatewayApi {
         var uri = WebUtilities.createURI(String.format(IMAGE_DATA_URL, host, id));
 
         if (uri.isPresent()) {
-            return RequestSender.getAndConvert(uri.get(), JsonObject.class).thenApply(jsonObject -> {
-                if (jsonObject.isPresent()) {
-                    return ImageMetadataResponseParser.createMetadataFromJson(jsonObject.get());
-                } else {
+            return RequestSender.getAndConvert(uri.get(), JsonObject.class).handle((jsonObject, error) -> {
+                if (error != null) {
+                    logger.error("Error while retrieving image metadata", error);
                     return Optional.empty();
                 }
+
+                return ImageMetadataResponseParser.createMetadataFromJson(jsonObject);
             });
         } else {
             return CompletableFuture.completedFuture(Optional.empty());
@@ -148,16 +166,19 @@ class WebGatewayApi {
 
     /**
      * <p>Attempt to read a tile (portion of image).</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @param id  the OMERO image ID
-     * @param tileRequest  the tile request (usually coming from the {@link qupath.lib.images.servers.AbstractTileableImageServer AbstractTileableImageServer})
-     * @param preferredTileWidth  the preferred tile width in pixels
-     * @param preferredTileHeight  the preferred tile height in pixels
-     * @param quality  the JPEG quality, from 0 to 1
-     * @return a CompletableFuture with the tile, or an empty Optional if an error occurred
+     * @param id the OMERO image ID
+     * @param tileRequest the tile request (usually coming from the {@link qupath.lib.images.servers.AbstractTileableImageServer AbstractTileableImageServer})
+     * @param preferredTileWidth the preferred tile width in pixels
+     * @param preferredTileHeight the preferred tile height in pixels
+     * @param quality the JPEG quality, from 0 to 1
+     * @return a CompletableFuture (that may complete exceptionally) with the tile
      */
-    public CompletableFuture<Optional<BufferedImage>> readTile(long id, TileRequest tileRequest, int preferredTileWidth, int preferredTileHeight, double quality) {
+    public CompletableFuture<BufferedImage> readTile(long id, TileRequest tileRequest, int preferredTileWidth, int preferredTileHeight, double quality) {
         return ApiUtilities.getImage(String.format(TILE_URL,
                 host, id, tileRequest.getZ(), tileRequest.getT(),
                 tileRequest.getLevel(), tileRequest.getTileX() / preferredTileWidth, tileRequest.getTileY() / preferredTileHeight,
@@ -171,100 +192,116 @@ class WebGatewayApi {
      * <p>
      *     Attempt to change the channel colors of an image.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @param imageID  the ID of the image to change the channel settings
-     * @param newChannelColors  the new channel colors, with the packed RGB format
-     * @param existingChannelSettings  the existing channel settings of the image
-     * @return a CompletableFuture indicating the success of the operation
+     * @param imageID the ID of the image to change the channel settings
+     * @param newChannelColors the new channel colors, with the packed RGB format
+     * @param existingChannelSettings the existing channel settings of the image
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
+     * @throws IllegalArgumentException when {@code newChannelColors} and {@code existingChannelSettings}
+     * don't have the same number of elements
      */
-    public CompletableFuture<Boolean> changeChannelColors(long imageID, List<Integer> newChannelColors, List<ChannelSettings> existingChannelSettings) {
-        if (newChannelColors.size() == existingChannelSettings.size()) {
-            return changeChannelDisplayRangesAndColors(
-                    imageID,
-                    IntStream.range(0, existingChannelSettings.size())
-                            .mapToObj(i -> new ChannelSettings(
-                                    existingChannelSettings.get(i).getMinDisplayRange(),
-                                    existingChannelSettings.get(i).getMaxDisplayRange(),
-                                    newChannelColors.get(i)
-                            ))
-                            .toList()
-            );
-        } else {
-            logger.warn("The provided number of new channel colors doesn't match with the existing number of channels");
-            return CompletableFuture.completedFuture(false);
+    public CompletableFuture<Void> changeChannelColors(long imageID, List<Integer> newChannelColors, List<ChannelSettings> existingChannelSettings) {
+        if (newChannelColors.size() != existingChannelSettings.size()) {
+            throw new IllegalArgumentException(String.format(
+                    "The provided number of new channel colors (%d) doesn't match with the provided existing number of channels (%d)",
+                    newChannelColors.size(),
+                    existingChannelSettings.size()
+            ));
         }
+
+        return changeChannelDisplayRangesAndColors(
+                imageID,
+                IntStream.range(0, existingChannelSettings.size())
+                        .mapToObj(i -> new ChannelSettings(
+                                existingChannelSettings.get(i).getMinDisplayRange(),
+                                existingChannelSettings.get(i).getMaxDisplayRange(),
+                                newChannelColors.get(i)
+                        ))
+                        .toList()
+        );
     }
 
     /**
      * <p>
      *     Attempt to change the channel display ranges of an image.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @param imageID  the ID of the image to change the channel settings
-     * @param newChannelSettings  the new channel display ranges (other fields of {@link ChannelSettings}
+     * @param imageID the ID of the image to change the channel settings
+     * @param newChannelSettings the new channel display ranges (other fields of {@link ChannelSettings}
      *                         will be ignored)
-     * @param existingChannelSettings  the existing channel settings of the image
-     * @return a CompletableFuture indicating the success of the operation
+     * @param existingChannelSettings the existing channel settings of the image
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
+     * @throws IllegalArgumentException when {@code newChannelSettings} and {@code existingChannelSettings}
+     * don't have the same number of elements
      */
-    public CompletableFuture<Boolean> changeChannelDisplayRanges(long imageID, List<ChannelSettings> newChannelSettings, List<ChannelSettings> existingChannelSettings) {
-        if (newChannelSettings.size() == existingChannelSettings.size()) {
-            return changeChannelDisplayRangesAndColors(
-                    imageID,
-                    IntStream.range(0, existingChannelSettings.size())
-                            .mapToObj(i -> new ChannelSettings(
-                                    newChannelSettings.get(i).getMinDisplayRange(),
-                                    newChannelSettings.get(i).getMaxDisplayRange(),
-                                    existingChannelSettings.get(i).getRgbColor()
-                            ))
-                            .toList()
-            );
-        } else {
-            logger.warn("The provided number of new channel settings doesn't match with the existing number of channels");
-            return CompletableFuture.completedFuture(false);
+    public CompletableFuture<Void> changeChannelDisplayRanges(long imageID, List<ChannelSettings> newChannelSettings, List<ChannelSettings> existingChannelSettings) {
+        if (newChannelSettings.size() != existingChannelSettings.size()) {
+            throw new IllegalArgumentException(String.format(
+                    "The provided number of new channel settings (%d) doesn't match with the provided existing number of channels (%d)",
+                    newChannelSettings.size(),
+                    existingChannelSettings.size()
+            ));
         }
-    }
 
-    private synchronized void changeNumberOfThumbnailsLoading(boolean increment) {
-        int quantityToAdd = increment ? 1 : -1;
-        numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() + quantityToAdd);
-    }
-
-    private CompletableFuture<Boolean> changeChannelDisplayRangesAndColors(long imageID, List<ChannelSettings> channelSettings) {
-        var uri = WebUtilities.createURI(String.format(
-                CHANGE_CHANNEL_DISPLAY_RANGES_AND_COLORS_URL,
-                host,
+        return changeChannelDisplayRangesAndColors(
                 imageID,
-                URLEncoder.encode(
-                        IntStream
-                                .range(0, channelSettings.size())
-                                .mapToObj(i -> String.format(
-                                        "%d|%f:%f$%s",
-                                        i + 1,
-                                        channelSettings.get(i).getMinDisplayRange(),
-                                        channelSettings.get(i).getMaxDisplayRange(),
-                                        String.format(
-                                                "%02X%02X%02X",
-                                                ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[0],
-                                                ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[1],
-                                                ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[2]
-                                        )
-                                ))
-                                .collect(Collectors.joining(",")),
-                        StandardCharsets.UTF_8
-                )
-        ));
+                IntStream.range(0, existingChannelSettings.size())
+                        .mapToObj(i -> new ChannelSettings(
+                                newChannelSettings.get(i).getMinDisplayRange(),
+                                newChannelSettings.get(i).getMaxDisplayRange(),
+                                existingChannelSettings.get(i).getRgbColor()
+                        ))
+                        .toList()
+        );
+    }
 
-        if (uri.isPresent()) {
-            return RequestSender.post(
-                    uri.get(),
-                    "",
-                    String.format("%s/iviewer/?images=%d", host, imageID),
-                    token
-            ).thenApply(response -> response.isPresent() && response.get().equals("true"));
-        } else {
-            return CompletableFuture.completedFuture(false);
+    private CompletableFuture<Void> changeChannelDisplayRangesAndColors(long imageID, List<ChannelSettings> channelSettings) {
+        URI uri;
+        try {
+            uri = new URI(String.format(
+                    CHANGE_CHANNEL_DISPLAY_RANGES_AND_COLORS_URL,
+                    host,
+                    imageID,
+                    URLEncoder.encode(
+                            IntStream
+                                    .range(0, channelSettings.size())
+                                    .mapToObj(i -> String.format(
+                                            "%d|%f:%f$%s",
+                                            i + 1,
+                                            channelSettings.get(i).getMinDisplayRange(),
+                                            channelSettings.get(i).getMaxDisplayRange(),
+                                            String.format(
+                                                    "%02X%02X%02X",
+                                                    ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[0],
+                                                    ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[1],
+                                                    ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[2]
+                                            )
+                                    ))
+                                    .collect(Collectors.joining(",")),
+                            StandardCharsets.UTF_8
+                    )
+            ));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return RequestSender.post(
+                uri,
+                "",
+                String.format("%s/iviewer/?images=%d", host, imageID),
+                token
+        ).thenAccept(response -> {
+            if (!response.equals("true")) {
+                throw new RuntimeException(String.format("Change channel display ranges and colors response %s not true", response));
+            }
+        });
     }
 }

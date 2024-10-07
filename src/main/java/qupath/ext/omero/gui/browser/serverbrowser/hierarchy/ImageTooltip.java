@@ -5,6 +5,8 @@ import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
@@ -18,6 +20,7 @@ import java.util.ResourceBundle;
  */
 class ImageTooltip extends VBox {
 
+    private static final Logger logger = LoggerFactory.getLogger(ImageTooltip.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final String INVALID_CLASS_NAME = "invalid-image";
     @FXML
@@ -40,9 +43,16 @@ class ImageTooltip extends VBox {
         setErrorLine(image);
         image.isSupported().addListener(change -> Platform.runLater(() -> setErrorLine(image)));
 
-        client.getApisHandler().getThumbnail(image.getId()).thenAccept(thumbnail -> Platform.runLater(() ->
-                thumbnail.ifPresent(bufferedImage -> UiUtilities.paintBufferedImageOnCanvas(bufferedImage, canvas)))
-        );
+        client.getApisHandler().getThumbnail(image.getId())
+                .exceptionally(error -> {
+                    logger.error("Error when retrieving thumbnail", error);
+                    return null;
+                })
+                .thenAccept(thumbnail -> Platform.runLater(() -> {
+                    if (thumbnail != null) {
+                        UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+                    }
+                }));
     }
 
     private void setErrorLine(Image image) {

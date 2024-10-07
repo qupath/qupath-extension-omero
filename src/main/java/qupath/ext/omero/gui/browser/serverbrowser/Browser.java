@@ -231,21 +231,31 @@ public class Browser extends Stage {
     @FXML
     private void onMoreInformationMenuClicked(ActionEvent ignoredEvent) {
         var selectedItem = hierarchy.getSelectionModel().getSelectedItem();
+
         if (selectedItem != null && selectedItem.getValue() instanceof ServerEntity serverEntity) {
-            client.getApisHandler().getAnnotations(serverEntity.getId(), serverEntity.getClass()).thenAccept(annotations -> Platform.runLater(() -> {
-                if (annotations.isPresent()) {
-                    try {
-                        new AdvancedInformation(this, serverEntity, annotations.get());
-                    } catch (IOException e) {
-                        logger.error("Error while creating the advanced information window", e);
-                    }
-                } else {
-                    Dialogs.showErrorMessage(
-                            resources.getString("Browser.ServerBrowser.cantDisplayInformation"),
-                            MessageFormat.format(resources.getString("Browser.ServerBrowser.errorWhenFetchingInformation"), serverEntity.getLabel())
-                    );
-                }
-            }));
+            client.getApisHandler().getAnnotations(serverEntity.getId(), serverEntity.getClass())
+                    .exceptionally(error -> {
+                        logger.error("Error while retrieving annotations", error);
+
+                        Dialogs.showErrorMessage(
+                                resources.getString("Browser.ServerBrowser.cantDisplayInformation"),
+                                MessageFormat.format(
+                                        resources.getString("Browser.ServerBrowser.errorWhenFetchingInformation"),
+                                        serverEntity.getLabel(),
+                                        error.getLocalizedMessage()
+                                )
+                        );
+
+                        return null;
+                    }).thenAccept(annotations -> Platform.runLater(() -> {
+                        if (annotations != null) {
+                            try {
+                                new AdvancedInformation(this, serverEntity, annotations);
+                            } catch (IOException e) {
+                                logger.error("Error while creating the advanced information window", e);
+                            }
+                        }
+                    }));
         }
     }
 
@@ -537,9 +547,16 @@ public class Browser extends Stage {
 
         var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
         if (selectedItems.size() == 1 && selectedItems.get(0) != null && selectedItems.get(0).getValue() instanceof Image image) {
-            client.getApisHandler().getThumbnail(image.getId()).thenAccept(thumbnail -> Platform.runLater(() ->
-                    thumbnail.ifPresent(bufferedImage -> UiUtilities.paintBufferedImageOnCanvas(bufferedImage, canvas))
-            ));
+            client.getApisHandler().getThumbnail(image.getId())
+                    .exceptionally(error -> {
+                        logger.error("Error when retrieving thumbnail", error);
+                        return null;
+                    })
+                    .thenAccept(thumbnail -> Platform.runLater(() -> {
+                        if (thumbnail != null) {
+                            UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+                        }
+                    }));
         }
     }
 

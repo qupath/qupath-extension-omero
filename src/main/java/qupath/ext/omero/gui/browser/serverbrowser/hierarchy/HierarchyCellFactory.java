@@ -10,11 +10,18 @@ import javafx.scene.control.TreeCell;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
+import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * <p>
@@ -32,6 +39,15 @@ import java.io.IOException;
 public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
 
     private static final Logger logger = LoggerFactory.getLogger(HierarchyCellFactory.class);
+    private static final List<Class<? extends RepositoryEntity>> ACCEPTED_ICONS_TYPES = List.of(
+            OrphanedFolder.class,
+            Project.class,
+            Dataset.class,
+            Image.class,
+            Screen.class,
+            Plate.class,
+            PlateAcquisition.class
+    );
     private final DoubleProperty opacityProperty = new SimpleDoubleProperty(1);
     private final WebClient client;
 
@@ -81,12 +97,19 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
     }
 
     private void setIcon(Class<? extends RepositoryEntity> type) {
-        client.getApisHandler().getOmeroIcon(type).thenAccept(icon -> Platform.runLater(() -> {
-            if (icon.isPresent()) {
-                Canvas iconCanvas = new Canvas(15, 15);
-                UiUtilities.paintBufferedImageOnCanvas(icon.get(), iconCanvas);
-                setGraphic(iconCanvas);
-            }
-        }));
+        if (ACCEPTED_ICONS_TYPES.contains(type)) {
+            client.getApisHandler().getOmeroIcon(type)
+                    .exceptionally(error -> {
+                        logger.error("Error while retrieving icon", error);
+                        return null;
+                    })
+                    .thenAccept(icon -> Platform.runLater(() -> {
+                        if (icon != null) {
+                            Canvas iconCanvas = new Canvas(15, 15);
+                            UiUtilities.paintBufferedImageOnCanvas(icon, iconCanvas);
+                            setGraphic(iconCanvas);
+                        }
+                    }));
+        }
     }
 }

@@ -9,6 +9,7 @@ import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.gui.UiUtilities;
 
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -127,10 +128,16 @@ public class Screen extends ServerEntity {
         } else {
             WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
-                client.getApisHandler().getPlates(getId()).thenAccept(plates -> {
-                    children.addAll(plates);
-                    isPopulating = false;
-                });
+
+                client.getApisHandler().getPlates(getId())
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving plates", error);
+                            return List.of();
+                        })
+                        .thenAccept(plates -> {
+                            children.addAll(plates);
+                            isPopulating = false;
+                        });
             }, () -> logger.warn(String.format(
                     "Could not find the web client corresponding to %s. Impossible to get the children of this screen (%s).",
                     webServerURI,

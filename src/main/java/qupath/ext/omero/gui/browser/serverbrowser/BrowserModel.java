@@ -3,6 +3,8 @@ package qupath.ext.omero.gui.browser.serverbrowser;
 import javafx.application.Platform;
 import javafx.beans.property.*;
 import javafx.collections.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.apis.ApisHandler;
@@ -28,6 +30,7 @@ import java.net.URI;
  */
 public class BrowserModel {
 
+    private static final Logger logger = LoggerFactory.getLogger(BrowserModel.class);
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty();
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
     private final IntegerProperty numberOfOrphanedImages = new SimpleIntegerProperty();
@@ -66,9 +69,17 @@ public class BrowserModel {
         selectedOwner = new SimpleObjectProperty<>(client.getServer().getConnectedOwner());
         selectedGroup = new SimpleObjectProperty<>(client.getServer().getDefaultGroup());
 
-        client.getApisHandler().getNumberOfOrphanedImages().thenAccept(numberOfOrphanedImages -> Platform.runLater(() ->
-                this.numberOfOrphanedImages.set(numberOfOrphanedImages))
-        );
+        client.getApisHandler().getOrphanedImagesIds()
+                .handle((orphanedImageIds, error) -> {
+                    if (error == null) {
+                        return orphanedImageIds.size();
+                    } else {
+                        logger.error("Error when retrieving orphanedImages ids", error);
+                        return 0;
+                    }
+                }).thenAccept(numberOfOrphanedImages -> Platform.runLater(() ->
+                    this.numberOfOrphanedImages.set(numberOfOrphanedImages))
+                );
     }
 
     /**
@@ -86,7 +97,7 @@ public class BrowserModel {
     }
 
     /**
-     * See {@link ApisHandler#getNumberOfOrphanedImages()}.
+     * See {@link ApisHandler#getOrphanedImagesIds()} ()}.
      */
     public ReadOnlyIntegerProperty getNumberOfOrphanedImages() {
         return numberOfOrphanedImages;

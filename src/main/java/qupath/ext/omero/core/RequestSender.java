@@ -1,6 +1,5 @@
 package qupath.ext.omero.core;
 
-import com.drew.lang.annotations.Nullable;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
@@ -13,13 +12,17 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.*;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -32,12 +35,7 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  *     Utility class that sends web request and can convert HTTP responses
  *     to an understandable format (like JSON for example).
  * </p>
- * <p>Each request is performed asynchronously.</p>
- * <p>
- *     The requests never throw exceptions. When an error (e.g. connection failed) occurs,
- *     a message is logged and an empty Optional (or an empty list depending on the request)
- *     is returned.
- * </p>
+ * <p>Each request is performed asynchronously with CompletableFutures.</p>
  */
 public class RequestSender {
 
@@ -67,144 +65,153 @@ public class RequestSender {
     /**
      * Performs a GET request to the specified URI to determine if it is reachable.
      *
-     * @param uri  the link of the request
-     * @return whether the provided link is reachable
+     * @param uri the link of the request
+     * @param acceptedHTTPCodes a list of HTTP status codes that make the request successful
+     *                          (the 200 code can be omitted)
+     * @return a CompletableFuture (that will complete successfully) indicating whether the provided link is reachable
      */
-    public static CompletableFuture<Boolean> isLinkReachableWithGet(URI uri) {
-        return getGETRequest(uri, false)
-                .map(RequestSender::isLinkReachable)
-                .orElse(CompletableFuture.completedFuture(false));
+    public static CompletableFuture<Boolean> isLinkReachableWithGet(URI uri, int... acceptedHTTPCodes) {
+        return isLinkReachable(getGETRequest(uri), acceptedHTTPCodes);
     }
 
     /**
      * Performs an OPTIONS request to the specified URI to determine if it is reachable.
      *
-     * @param uri  the link of the request
-     * @return whether the provided link is reachable
+     * @param uri the link of the request
+     * @param acceptedHTTPCodes a list of HTTP status codes that make the request successful
+     *                          (the 200 code can be omitted)
+     * @return a CompletableFuture (that will complete successfully) indicating whether the provided link is reachable
      */
-    public static CompletableFuture<Boolean> isLinkReachableWithOptions(URI uri) {
-        return getOPTIONSRequest(uri)
-                .map(RequestSender::isLinkReachable)
-                .orElse(CompletableFuture.completedFuture(false));
+    public static CompletableFuture<Boolean> isLinkReachableWithOptions(URI uri, int... acceptedHTTPCodes) {
+        return isLinkReachable(getOPTIONSRequest(uri), acceptedHTTPCodes);
     }
 
     /**
-     * Performs a GET request to the specified URI.
+     * Performs a GET request to the specified URI. Note that exception handling is left to the caller
+     * (the returned CompletableFuture may complete exceptionally if the request failed).
      *
-     * @param uri  the link of the request
-     * @return the raw HTTP response with in text format, or an empty Optional if the request failed
+     * @param uri the link of the request
+     * @return a CompletableFuture (that may complete exceptionally) with the raw HTTP response in text format
      */
-    public static CompletableFuture<Optional<String>> get(URI uri) {
-        return getGETRequest(uri, true)
-                .map(RequestSender::request)
-                .orElse(CompletableFuture.completedFuture(Optional.empty()));
+    public static CompletableFuture<String> get(URI uri) {
+        return httpClient
+                .sendAsync(
+                        getGETRequest(uri),
+                        HttpResponse.BodyHandlers.ofString()
+                )
+                .thenApply(HttpResponse::body);
     }
 
     /**
      * Performs a GET request to the specified URI and convert the response to the provided type.
+     * Note that exception handling is left to the caller (the returned CompletableFuture may
+     * complete exceptionally if the request or the conversion failed for example).
      *
-     * @param uri  the link of the request
-     * @param conversionClass  the class the response should be converted to
-     * @return the HTTP response converted to the desired format, or an empty Optional if the request or the conversion failed
+     * @param uri the link of the request
+     * @param conversionClass the class the response should be converted to
+     * @return a CompletableFuture (that may complete exceptionally) with the HTTP response converted to the desired format
      */
-    public static <T> CompletableFuture<Optional<T>> getAndConvert(URI uri, Class<T> conversionClass) {
+    public static <T> CompletableFuture<T> getAndConvert(URI uri, Class<T> conversionClass) {
         return getAndConvert(uri, TypeToken.get(conversionClass));
     }
 
     /**
      * See {@link #getAndConvert(URI, Class)}. This method is suited for generic types.
      */
-    public static <T> CompletableFuture<Optional<T>> getAndConvert(URI uri, TypeToken<T> conversionClass) {
-        return get(uri).thenApply(body -> {
-            if (body.isPresent()) {
-                try {
-                    return Optional.ofNullable(GsonTools.getInstance().fromJson(body.get(), conversionClass));
-                } catch (Exception e) {
-                    logger.error("Cannot deserialize " + body + " got from " + uri, e);
-                    return Optional.empty();
-                }
-            } else {
-                return Optional.empty();
-            }
-        });
+    public static <T> CompletableFuture<T> getAndConvert(URI uri, TypeToken<T> conversionClass) {
+        return get(uri).thenApply(response -> GsonTools.getInstance().fromJson(response, conversionClass));
     }
 
     /**
-     * <p>Performs a GET request to the specified URI when the response is expected to be paginated.</p>
-     * <p>If there are more results than the size of each page, subsequent requests are carried to obtain all results.</p>
+     * <p>
+     *     Performs a GET request to the specified URI when the response is expected to be paginated
+     *     and convert the response to JSON objects.
+     * </p>
+     * <p>
+     *     If there are more results than the size of each page, subsequent requests are carried to obtain all results.
+     * </p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @param uri  the link of the request
-     * @return a list of JSON elements containing all elements, or an empty list if an error occurred
+     * @param uri the link of the request
+     * @return a CompletableFuture (that may complete exceptionally) with a list of JSON elements
      */
     public static CompletableFuture<List<JsonElement>> getPaginated(URI uri) {
         String delimiter = uri.getQuery() == null || uri.getQuery().isEmpty() ? "?" : "&";
 
-        return getAndConvert(uri, JsonObject.class).thenApplyAsync(response -> {
-            if (response.isEmpty()) {
-                return List.of();
-            } else {
-                try {
-                    JsonObject meta = response.get().getAsJsonObject("meta");
-
-                    List<JsonElement> elements = response.get().getAsJsonArray("data").asList();
-                    elements.addAll(readFollowingPages(uri + delimiter, meta.get("limit").getAsInt(), meta.get("totalCount").getAsInt()));
-
-                    return elements;
-                } catch (Exception e) {
-                    logger.error("Cannot read paginated URI " + uri, e);
-                    return List.of();
-                }
+        return getAndConvert(uri, JsonObject.class).thenApply(response -> {
+            if (!response.has("meta") || !response.get("meta").isJsonObject()) {
+                throw new IllegalArgumentException(String.format("'meta' JSON object not found in %s", response));
             }
+            JsonObject meta = response.getAsJsonObject("meta");
+
+            if (!response.has("data") || !response.get("data").isJsonArray()) {
+                throw new IllegalArgumentException(String.format("'data' JSON array not found in %s", response));
+            }
+            List<JsonElement> elements = response.getAsJsonArray("data").asList();
+
+            if (!meta.has("limit") || !meta.get("limit").isJsonPrimitive() || !meta.get("limit").getAsJsonPrimitive().isNumber()) {
+                throw new IllegalArgumentException(String.format("'limit' number not found in %s", meta));
+            }
+            if (!meta.has("totalCount") || !meta.get("totalCount").isJsonPrimitive() || !meta.get("totalCount").getAsJsonPrimitive().isNumber()) {
+                throw new IllegalArgumentException(String.format("'totalCount' number not found in %s", meta));
+            }
+
+            elements.addAll(readFollowingPages(
+                    uri + delimiter,
+                    meta.get("limit").getAsNumber().intValue(),
+                    meta.get("totalCount").getAsNumber().intValue()
+            ));
+            return elements;
         });
     }
 
     /**
-     * Performs a GET request to the specified URI and convert the response to an image.
+     * <p>
+     *     Performs a GET request to the specified URI and convert the response to an image.
+     * </p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @param uri  the link of the request
-     * @return the HTTP response converted to an image, or an empty Optional if the request or the conversion failed
+     * @param uri the link of the request
+     * @return a CompletableFuture (that may complete exceptionally) with the HTTP response converted to an image
      */
-    public static CompletableFuture<Optional<BufferedImage>> getImage(URI uri) {
-        var getRequest = getGETRequest(uri, true);
-        if (getRequest.isPresent()) {
-            return httpClient
-                    .sendAsync(getRequest.get(), HttpResponse.BodyHandlers.ofByteArray())
-                    .handle((response, error) -> {
-                        if (hasRequestFailed(response, error, uri)) {
-                            return Optional.empty();
-                        } else {
-                            try (InputStream targetStream = new ByteArrayInputStream(response.body())) {
-                                return Optional.ofNullable(ImageIO.read(targetStream));
-                            } catch (IOException e) {
-                                logger.error("Error when reading image from " + uri, e);
-                                return Optional.empty();
-                            }
-                        }
-                    });
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
+    public static CompletableFuture<BufferedImage> getImage(URI uri) {
+        return httpClient
+                .sendAsync(getGETRequest(uri), HttpResponse.BodyHandlers.ofByteArray())
+                .thenApplyAsync(response -> {
+                    try (InputStream targetStream = new ByteArrayInputStream(response.body())) {
+                        return ImageIO.read(targetStream);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
     }
 
     /**
-     * Performs a GET request to the specified URI and convert the response to a list of JSON elements
-     * using the provided member of the response.
+     * <p>
+     *     Performs a GET request to the specified URI and convert the response to a list of JSON elements
+     *     using the provided member of the response.
+     * </p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @param uri  the link of the request
-     * @param memberName  the member of the response that should contain the list to convert
-     * @return a list of JSON elements, or an empty list if the request or the conversion failed
+     * @param uri the link of the request
+     * @param memberName the member of the response that should contain the list to convert
+     * @return a CompletableFuture (that may complete exceptionally) with a list of JSON elements
      */
     public static CompletableFuture<List<JsonElement>> getAndConvertToJsonList(URI uri, String memberName) {
         return getAndConvert(uri, JsonObject.class).thenApply(response -> {
-            if (response.isPresent()) {
-                try {
-                    return response.get().getAsJsonArray(memberName).asList();
-                } catch (Exception e) {
-                    logger.error("Cannot parse " + response.get() + " from " + uri, e);
-                    return List.of();
-                }
+            if (response.has(memberName) && response.get(memberName).isJsonArray()) {
+                return response.getAsJsonArray(memberName).asList();
             } else {
-                return List.of();
+                throw new IllegalArgumentException(String.format("'%s' not found in %s", memberName, response));
             }
         });
     }
@@ -212,94 +219,81 @@ public class RequestSender {
     /**
      * <p>Performs a POST request to the specified URI.</p>
      * <p>The body of the request uses the application/x-www-form-urlencoded content type.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param uri  the link of the request
-     * @param body  the keys and values of the request body
-     * @param referer  <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referer">
-     *                 the absolute or partial address from which a resource has been requested.</a>
-     *                 It is needed for some requests
-     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     *               of the session
+     * @param uri the link of the request
+     * @param body the keys and values of the request body, encoded to a byte array with the UTF 8 format.
+     * @param referer <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referer">
+     *                the absolute or partial address from which a resource has been requested.</a>
+     *                It is needed for some requests
+     * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     *              of the session
+     * @return a CompletableFuture (that may complete exceptionally) with the raw HTTP response with the text format
      */
-    public static void post(URI uri, Map<String, String> body, String referer, String token) {
-        getPOSTRequest(
-                uri,
-                HttpRequest.BodyPublishers.ofString(body.entrySet().stream()
-                        .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
-                        .collect(Collectors.joining("&"))
-                ),
-                "application/x-www-form-urlencoded",
-                referer,
-                token
-        ).ifPresent(RequestSender::request);
-    }
-
-    /**
-     * <p>Performs a POST request to the specified URI.</p>
-     * <p>The body of the request uses the application/x-www-form-urlencoded content type.</p>
-     *
-     * @param uri  the link of the request
-     * @param body  the keys and values of the request body, encoded to a byte array with the UTF 8 format.
-     * @param referer  <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referer">
-     *                 the absolute or partial address from which a resource has been requested.</a>
-     *                 It is needed for some requests
-     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     *               of the session
-     * @return the raw HTTP response with in text format, or an empty Optional if the request failed
-     */
-    public static CompletableFuture<Optional<String>> post(URI uri, byte[] body, String referer, String token) {
-        return getPOSTRequest(
-                uri,
-                HttpRequest.BodyPublishers.ofByteArray(body),
-                "application/x-www-form-urlencoded",
-                referer,
-                token
-        )
-                .map(RequestSender::request)
-                .orElse(CompletableFuture.completedFuture(Optional.empty()));
+    public static CompletableFuture<String> post(URI uri, byte[] body, String referer, String token) {
+        return post(
+                getPOSTRequest(
+                        uri,
+                        HttpRequest.BodyPublishers.ofByteArray(body),
+                        "application/x-www-form-urlencoded",
+                        referer,
+                        token
+                )
+        );
     }
 
     /**
      * <p>Performs a POST request to the specified URI.</p>
      * <p>The body of the request uses the application/json content type.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param uri  the link of the request
-     * @param body  the keys and values of the request body with the JSON format.
-     * @param referer  <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referer">
-     *                 the absolute or partial address from which a resource has been requested.</a>
-     *                 It is needed for some requests
-     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     * @param uri the link of the request
+     * @param body the keys and values of the request body with the JSON format.
+     * @param referer <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referer">
+     *                the absolute or partial address from which a resource has been requested.</a>
+     *                It is needed for some requests
+     * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
      *               of the session
-     * @return the raw HTTP response with in text format, or an empty Optional if the request failed
+     * @return the raw HTTP response (that may complete exceptionally) with the text format
      */
-    public static CompletableFuture<Optional<String>> post(URI uri, String body, String referer, String token) {
-        return getPOSTRequest(
-                uri,
-                HttpRequest.BodyPublishers.ofString(body),
-                "application/json",
-                referer,
-                token
-        )
-                .map(RequestSender::request)
-                .orElse(CompletableFuture.completedFuture(Optional.empty()));
+    public static CompletableFuture<String> post(URI uri, String body, String referer, String token) {
+        return post(
+                getPOSTRequest(
+                        uri,
+                        HttpRequest.BodyPublishers.ofString(body),
+                        "application/json",
+                        referer,
+                        token
+                )
+        );
     }
 
     /**
      * <p>Send a file through a POST request to the specified URI.</p>
      * <p>The body of the request uses the multipart/form-data content type.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param uri  the link of the request
-     * @param fileName  the name of the file to send
-     * @param fileContent  the content of the file to send
-     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     *               of the session
-     * @param referer  <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referer">
-     *                 the absolute or partial address from which a resource has been requested.</a>
-     *                 It is needed for some requests
-     * @param parameters  additional parameters to be included in the body of the request
-     * @return the raw HTTP response with in text format, or an empty Optional if the request failed
+     * @param uri the link of the request
+     * @param fileName the name of the file to send
+     * @param fileContent the content of the file to send
+     * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     *              of the session
+     * @param referer <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referer">
+     *                the absolute or partial address from which a resource has been requested.</a>
+     *                It is needed for some requests
+     * @param parameters additional parameters to be included in the body of the request
+     * @return the raw HTTP response (that may complete exceptionally) with the text format
      */
-    public static CompletableFuture<Optional<String>> post(
+    public static CompletableFuture<String> post(
             URI uri,
             String fileName,
             String fileContent,
@@ -324,112 +318,84 @@ public class RequestSender {
                         .collect(Collectors.joining()) +
                 "--\r\n";
 
-        return getPOSTRequest(
+        return post(getPOSTRequest(
                 uri,
                 HttpRequest.BodyPublishers.ofString(body),
                 "multipart/form-data; boundary=" + boundary,
                 referer,
                 token
-        )
-                .map(RequestSender::request)
-                .orElse(CompletableFuture.completedFuture(Optional.empty()));
+        ));
     }
 
-    private static CompletableFuture<Boolean> isLinkReachable(HttpRequest httpRequest, int... acceptedHttpCodes) {
+    private static CompletableFuture<Boolean> isLinkReachable(HttpRequest httpRequest, int... acceptedHTTPCodes) {
         return httpClient
                 .sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
-                .handle((response, error) -> !hasRequestFailed(response, error, null));
+                .handle((response, error) -> {
+                    if (error != null) {
+                        logger.debug(String.format("GET request to %s failed", httpRequest.uri()), error);
+                        return false;
+                    }
+
+                    if (response.statusCode() != 200 || Arrays.stream(acceptedHTTPCodes).anyMatch(code -> code == response.statusCode())) {
+                        logger.debug(String.format("GET request to %s failed with status code %d", httpRequest.uri(), response.statusCode()));
+                        return false;
+                    }
+
+                    return true;
+                });
     }
 
-    private static CompletableFuture<Optional<String>> request(HttpRequest request) {
-        return httpClient
-                .sendAsync(
-                        request,
-                        HttpResponse.BodyHandlers.ofString()
-                )
-                .handle((response, error) ->
-                        hasRequestFailed(response, error, request.uri()) ? Optional.empty() : Optional.ofNullable(response.body())
-                );
+    private static HttpRequest getGETRequest(URI uri) {
+        return HttpRequest.newBuilder()
+                .uri(uri)
+                .GET()
+                .version(HttpClient.Version.HTTP_1_1)
+                .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
+                .build();
     }
 
-    private static Optional<HttpRequest> getGETRequest(URI uri, boolean logIfError) {
-        try {
-            return Optional.ofNullable(HttpRequest.newBuilder()
-                    .uri(uri)
-                    .GET()
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
-                    .build());
-        } catch (Exception e) {
-            if (logIfError) {
-                logger.error("Error when creating GET request", e);
-            }
-            return Optional.empty();
-        }
-    }
-
-    private static Optional<HttpRequest> getOPTIONSRequest(URI uri) {
-        try {
-            return Optional.ofNullable(HttpRequest.newBuilder()
-                    .uri(uri)
-                    .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
-                    .version(HttpClient.Version.HTTP_1_1)
-                    .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
-                    .build());
-        } catch (Exception e) {
-            return Optional.empty();
-        }
+    private static HttpRequest getOPTIONSRequest(URI uri) {
+        return HttpRequest.newBuilder()
+                .uri(uri)
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+                .version(HttpClient.Version.HTTP_1_1)
+                .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
+                .build();
     }
 
     private static List<JsonElement> readFollowingPages(String uri, int limit, int totalCount) {
         return IntStream.iterate(limit, i -> i + limit)
                 .limit(max(0, (totalCount - limit) / limit))
-                .mapToObj(offset -> WebUtilities.createURI(uri + "offset=" + offset).orElse(null))
-                .filter(Objects::nonNull)
+                .mapToObj(offset -> URI.create(uri + "offset=" + offset))
                 .map(currentURI -> getAndConvertToJsonList(currentURI, "data"))
                 .map(CompletableFuture::join)
-                .filter(Objects::nonNull)
                 .flatMap(List::stream)
                 .toList();
     }
 
-    private static boolean hasRequestFailed(HttpResponse<?> response, Throwable error, @Nullable URI uri) {
-        if (error != null) {
-            if (uri != null) {
-                logger.error("Connection to " + uri + " failed", error);
-            }
-            return true;
-        } else if (response.statusCode() != 200) {
-            if (uri != null) {
-                logger.error("Connection to " + uri + " failed. HTTP status code: " + response.statusCode());
-            }
-            return true;
-        }
-        return false;
-    }
-
-    private static Optional<HttpRequest> getPOSTRequest(
+    private static HttpRequest getPOSTRequest(
             URI uri,
             HttpRequest.BodyPublisher bodyPublisher,
             String contentType,
             String referer,
             String token
     ) {
-        try {
-            return Optional.ofNullable(HttpRequest.newBuilder()
-                    .uri(uri)
-                    .headers(
-                            "Content-Type", contentType,
-                            "X-CSRFToken", token,
-                            "Referer", referer
-                    )
-                    .POST(bodyPublisher)
-                    .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
-                    .build());
-        } catch (Exception e) {
-            logger.error("Error when creating POST request", e);
-            return Optional.empty();
-        }
+        return HttpRequest.newBuilder()
+                .uri(uri)
+                .headers(
+                        "Content-Type", contentType,
+                        "X-CSRFToken", token,
+                        "Referer", referer
+                )
+                .POST(bodyPublisher)
+                .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
+                .build();
+    }
+
+    private static CompletableFuture<String> post(HttpRequest request) {
+        return httpClient
+                .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::body);
     }
 
     private static String generateRandomAlphabeticText() {

@@ -76,32 +76,36 @@ public class KeyValuesImporter implements DataTransporter {
                     keyValuesForm
             );
             if (confirmed) {
-                omeroImageServer.getClient().getApisHandler()
-                        .getAnnotations(omeroImageServer.getId(), Image.class).thenAccept(annotationGroup -> Platform.runLater(() -> {
-                            if (annotationGroup.isPresent()) {
+                omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class)
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving annotations", error);
+
+                            Dialogs.showErrorMessage(
+                                    resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
+                                    resources.getString("DataTransporters.KeyValuesImporter.couldNotRetrieveAnnotations")
+                            );
+                            return null;
+                        })
+                        .thenAccept(annotationGroup -> Platform.runLater(() -> {
+                            if (annotationGroup != null) {
                                 Map<String,String> keyValues = MapAnnotation.getCombinedValues(
-                                        annotationGroup.get().getAnnotationsOfClass(MapAnnotation.class)
+                                        annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
                                 );
 
                                 ProjectImageEntry<BufferedImage> projectEntry = qupath.getProject().getEntry(qupath.getImageData());
 
                                 if (keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)) {
-                                    projectEntry.clearMetadata();
+                                    projectEntry.getMetadata().clear();
                                 }
                                 for (Map.Entry<String, String> entry : keyValues.entrySet()) {
-                                    if (!keyValuesForm.getChoice().equals(KeyValuesForm.Choice.KEEP_EXISTING) || !projectEntry.containsMetadata(entry.getKey())) {
-                                        projectEntry.putMetadataValue(entry.getKey(), entry.getValue());
+                                    if (!keyValuesForm.getChoice().equals(KeyValuesForm.Choice.KEEP_EXISTING) || !projectEntry.getMetadata().containsKey(entry.getKey())) {
+                                        projectEntry.getMetadata().put(entry.getKey(), entry.getValue());
                                     }
                                 }
 
                                 Dialogs.showInfoNotification(
                                         resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
                                         resources.getString("DataTransporters.KeyValuesImporter.keyValuesImported")
-                                );
-                            } else {
-                                Dialogs.showErrorMessage(
-                                        resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
-                                        resources.getString("DataTransporters.KeyValuesImporter.couldNotRetrieveAnnotations")
                                 );
                             }
                         }));

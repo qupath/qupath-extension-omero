@@ -2,14 +2,14 @@ package qupath.ext.omero.core.apis;
 
 import qupath.ext.omero.core.apis.utilities.CharArrayURLEncoder;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebUtilities;
 
 import java.awt.image.BufferedImage;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -23,23 +23,31 @@ class ApiUtilities {
 
     /**
      * <p>Attempt to retrieve an image from a URL link.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param url  the URL of the request
-     * @return a CompletableFuture containing the resulting image, or an empty optional if it couldn't be retrieved
+     * @param url the URL of the request
+     * @return a CompletableFuture (that may complete exceptionally) containing the resulting image
      */
-    public static CompletableFuture<Optional<BufferedImage>> getImage(String url) {
-        return WebUtilities.createURI(url)
-                .map(RequestSender::getImage)
-                .orElse(CompletableFuture.completedFuture(Optional.empty()));
+    public static CompletableFuture<BufferedImage> getImage(String url) {
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        return RequestSender.getImage(uri);
     }
 
     /**
      * <p>Concatenate and convert two char arrays to a byte array using the UTF 8 encoding.</p>
      * <p>The input parameters are cleared (filled with zeros) once processed.</p>
      *
-     * @param arr1  the array that will be concatenated on the left
-     * @param arr2  the array that will be concatenated on the right
+     * @param arr1 the array that will be concatenated on the left
+     * @param arr2 the array that will be concatenated on the right
      * @return the concatenation of the two arrays in the byte format
      */
     public static byte[] concatAndConvertToBytes(char[] arr1, char[] arr2) {
@@ -53,7 +61,7 @@ class ApiUtilities {
      * </p>
      * <p>The input array is cleared (filled with zeros) once processed.</p>
      *
-     * @param text  the array to convert
+     * @param text the array to convert
      * @return the encoded char array
      */
     public static char[] urlEncode(char[] text) {

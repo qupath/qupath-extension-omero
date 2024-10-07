@@ -35,26 +35,26 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         Optional<WebClient> client = getClientAndCheckURIReachable(entityURI, args);
 
         if (client.isPresent()) {
+            List<URI> imagesURIs;
             try {
-                List<URI> imagesURIs = WebUtilities.getImagesURIFromEntityURI(entityURI, client.get().getApisHandler()).get();
-                float supportLevel = imagesURIs.isEmpty() ? 0 : SUPPORT_LEVEL;
-
-                return UriImageSupport.createInstance(
-                        this.getClass(),
-                        supportLevel,
-                        imagesURIs.stream()
-                                .map(uri -> createServerBuilder(client.get(), uri))
-                                .flatMap(Optional::stream)
-                                .toList()
-                );
-            } catch (Exception e) {
-                logger.error("Error when checking image support", e);
+                imagesURIs = WebUtilities.getImagesURIFromEntityURI(entityURI, client.get().getApisHandler()).get();
+            } catch (InterruptedException | ExecutionException e) {
+                logger.debug("Error when retrieving image URIs", e);
                 return UriImageSupport.createInstance(
                         this.getClass(),
                         0,
                         List.of()
                 );
             }
+
+            return UriImageSupport.createInstance(
+                    this.getClass(),
+                    imagesURIs.isEmpty() ? 0 : SUPPORT_LEVEL,
+                    imagesURIs.stream()
+                            .map(uri -> createServerBuilder(client.get(), uri))
+                            .flatMap(Optional::stream)
+                            .toList()
+            );
         } else {
             return UriImageSupport.createInstance(
                     this.getClass(),
@@ -94,7 +94,8 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
     private static Optional<WebClient> getClientAndCheckURIReachable(URI uri, String... args) {
         try {
-            if (RequestSender.isLinkReachableWithGet(uri).get()) {
+            //TODO: this link can return 403 if not authenticated> Check that now it works
+            if (RequestSender.isLinkReachableWithGet(uri, 403).get()) {
                 WebClient client = WebClients.createClientSync(
                         uri.toString(),
                         ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(true) ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE,

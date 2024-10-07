@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.SendAnnotationForm;
@@ -111,12 +112,12 @@ public class AnnotationSender implements DataTransporter {
         }
 
         // The potential deletion of existing measurements must happen before other requests
-        CompletableFuture<Boolean> deleteExistingMeasurementsRequest = annotationForm.deleteExistingMeasurements() ?
+        CompletableFuture<Void> deleteExistingMeasurementsRequest = annotationForm.deleteExistingMeasurements() ?
                 omeroImageServer.getClient().getApisHandler().deleteAttachments(omeroImageServer.getId(), Image.class) :
-                CompletableFuture.completedFuture(false);
+                CompletableFuture.completedFuture(null);
 
-        deleteExistingMeasurementsRequest.thenApplyAsync(measurementsDeleted -> {
-            Map<Request, CompletableFuture<Boolean>> requests = createRequests(
+        deleteExistingMeasurementsRequest.handle((v, error) -> {
+            Map<Request, CompletableFuture<Void>> requests = createRequests(
                     quPath,
                     omeroImageServer,
                     annotations,
@@ -128,17 +129,19 @@ public class AnnotationSender implements DataTransporter {
             if (annotationForm.deleteExistingMeasurements()) {
                 requests.put(
                         Request.DELETE_EXISTING_MEASUREMENTS,
-                        CompletableFuture.completedFuture(measurementsDeleted)
+                        error == null ? CompletableFuture.completedFuture(null) : CompletableFuture.failedFuture(error)
                 );
             }
 
             return requests.entrySet().stream().collect(Collectors.toMap(
                     Map.Entry::getKey,
-                    entry -> entry.getValue().join()
+                    entry -> entry.getValue().handle((vRequests, errorRequests) -> errorRequests).join()
             ));
-        }).thenAccept(statuses -> Platform.runLater(() -> {
-            String successMessage = createMessageFromResponses(statuses, true);
-            String errorMessage = createMessageFromResponses(statuses, false);
+        }).thenAccept(errors -> Platform.runLater(() -> {
+            logErrors(errors);
+
+            String successMessage = createMessageFromResponses(errors, true);
+            String errorMessage = createMessageFromResponses(errors, false);
 
             if (!errorMessage.isEmpty()) {
                 errorMessage += String.format("\n\n%s", resources.getString("DataTransporters.AnnotationsSender.notAllOperationsSucceeded"));
@@ -165,7 +168,7 @@ public class AnnotationSender implements DataTransporter {
         }
     }
 
-    private static Map<Request, CompletableFuture<Boolean>> createRequests(
+    private static Map<Request, CompletableFuture<Void>> createRequests(
             QuPathGUI quPath,
             OmeroImageServer omeroImageServer,
             Collection<PathObject> annotations,
@@ -173,12 +176,19 @@ public class AnnotationSender implements DataTransporter {
             boolean sendAnnotationMeasurements,
             boolean sendDetectionMeasurements
     ) {
-        Map<Request, CompletableFuture<Boolean>> requests = new HashMap<>();
+        Map<Request, CompletableFuture<Void>> requests = new HashMap<>();
 
-        requests.put(Request.SEND_ANNOTATIONS, CompletableFuture.supplyAsync(() -> omeroImageServer.sendPathObjects(
-                annotations,
-                deleteExistingAnnotations
-        )));
+        requests.put(
+                Request.SEND_ANNOTATIONS,
+                omeroImageServer.getClient().getApisHandler().writeROIs(
+                        omeroImageServer.getId(),
+                        annotations.stream()
+                                .map(Shape::createFromPathObject)
+                                .flatMap(List::stream)
+                                .toList(),
+                        deleteExistingAnnotations
+                )
+        );
 
         if (sendAnnotationMeasurements) {
             requests.put(
@@ -197,13 +207,13 @@ public class AnnotationSender implements DataTransporter {
         return requests;
     }
 
-    private static CompletableFuture<Boolean> getSendMeasurementsRequest(
+    private static CompletableFuture<Void> getSendMeasurementsRequest(
             QuPathGUI quPath,
             Class<? extends qupath.lib.objects.PathObject> exportType,
             OmeroImageServer omeroImageServer
     ) {
         if (quPath.getProject() == null) {
-            return CompletableFuture.completedFuture(false);
+            return CompletableFuture.failedFuture(new IllegalStateException("There is no project currently open"));
         }
         Project<BufferedImage> project = quPath.getProject();
 
@@ -212,8 +222,9 @@ public class AnnotationSender implements DataTransporter {
             ProjectImageEntry<BufferedImage> entry = project.getEntry(viewer.getImageData());
 
             if (entry.readHierarchy().getObjects(List.of(entry.readHierarchy().getRootObject()), exportType).isEmpty()) {
-                logger.warn(String.format("No objects of type %s to export", exportType));
-                return CompletableFuture.completedFuture(false);
+                return CompletableFuture.failedFuture(new IllegalStateException(
+                        String.format("There is no objects of type %s to export", exportType)
+                ));
             }
 
             // The image must be saved because non saved measures won't be exported
@@ -239,16 +250,37 @@ public class AnnotationSender implements DataTransporter {
                     outputStream.toString()
             );
         } catch (IOException e) {
-            logger.warn("Error when reading annotation measurements", e);
-            return CompletableFuture.completedFuture(false);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
-    private static String createMessageFromResponses(Map<Request, Boolean> statuses, boolean isSuccess) {
+    private static void logErrors(Map<Request, Throwable> errors) {
+        for (Map.Entry<Request, Throwable> error: errors.entrySet()) {
+            if (error.getValue() != null) {
+                logger.error(String.format(
+                        "Error while %s",
+                        switch (error.getKey()) {
+                            case SEND_ANNOTATIONS -> "sending annotations";
+                            case DELETE_EXISTING_MEASUREMENTS -> "deleting existing measurements";
+                            case SEND_ANNOTATION_MEASUREMENTS -> "sending annotations measurements";
+                            case SEND_DETECTION_MEASUREMENTS -> "sending detection measurements";
+                        }
+                ), error.getValue());
+            }
+        }
+    }
+
+    private static String createMessageFromResponses(Map<Request, Throwable> statuses, boolean isSuccess) {
         return statuses.entrySet().stream()
-                .filter(entry -> isSuccess == entry.getValue())
+                .filter(entry -> {
+                    if (isSuccess) {
+                        return entry.getValue() == null;
+                    } else {
+                        return entry.getValue() != null;
+                    }
+                })
                 .map(entry -> MessageFormat.format(
-                        resources.getString(entry.getValue() ?
+                        resources.getString(isSuccess ?
                                 "DataTransporters.AnnotationsSender.operationSucceeded" :
                                 "DataTransporters.AnnotationsSender.operationFailed"
                         ),

@@ -1,12 +1,12 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.Strictness;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,9 +17,6 @@ import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
 import java.lang.reflect.Type;
 import java.net.URI;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * A server entity represents an OMERO entity belonging to the project/dataset/image
@@ -83,35 +80,18 @@ public abstract class ServerEntity implements RepositoryEntity {
     public abstract int getNumberOfAttributes();
 
     /**
-     * Creates a stream of entities from a list of JSON elements.
-     * If an entity cannot be created from a JSON element, it is discarded.
-     *
-     * @param jsonElements  the JSON elements supposed to represent server entities
-     * @param uri  the URI of the corresponding web server
-     * @return a stream of server entities
-     */
-    public static Stream<ServerEntity> createFromJsonElements(List<JsonElement> jsonElements, URI uri) {
-        return jsonElements.stream()
-                .map(jsonElement -> createFromJsonElement(jsonElement, uri))
-                .flatMap(Optional::stream);
-    }
-
-    /**
      * Creates a server entity from a JSON element.
      *
-     * @param jsonElement  the JSON element supposed to represent a server entity
-     * @param uri  the URI of the corresponding web server
-     * @return a server entity, or an empty Optional if it was impossible to create
+     * @param jsonElement the JSON element supposed to represent a server entity
+     * @param uri the URI of the corresponding web server
+     * @return a server entity
+     * @throws JsonSyntaxException when the provided json element is not a valid JSON representation of a server entity
      */
-    public static Optional<ServerEntity> createFromJsonElement(JsonElement jsonElement, URI uri) {
-        Gson deserializer = new GsonBuilder().registerTypeAdapter(ServerEntity.class, new ServerEntityDeserializer(uri)).setLenient().create();
-
-        try {
-            return Optional.ofNullable(deserializer.fromJson(jsonElement, ServerEntity.class));
-        } catch (JsonSyntaxException e) {
-            logger.error("Error when deserializing " + jsonElement, e);
-            return Optional.empty();
-        }
+    public static ServerEntity createFromJsonElement(JsonElement jsonElement, URI uri) {
+        return new GsonBuilder().registerTypeAdapter(ServerEntity.class, new ServerEntityDeserializer(uri))
+                .setStrictness(Strictness.LENIENT)
+                .create()
+                .fromJson(jsonElement, ServerEntity.class);
     }
 
     /**

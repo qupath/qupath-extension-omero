@@ -164,6 +164,8 @@ public class WebClient implements AutoCloseable {
             String message = String.format("Connected to the OMERO.web instance at %s", apisHandler.getWebServerURI());
             if (authenticated) {
                 message += String.format(" with user %s", username);
+            } else {
+                message += "with unauthenticated user";
             }
             logger.info(message);
         }

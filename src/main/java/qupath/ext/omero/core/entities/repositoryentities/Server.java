@@ -23,6 +23,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class Server implements RepositoryEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Server.class);
+    private static final int NUMBER_OF_CHILDREN_TYPES = 5;
     private static final ResourceBundle resources = UiUtilities.getResources();
     private final ObservableList<RepositoryEntity> children = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final ObservableList<RepositoryEntity> childrenImmutable = FXCollections.unmodifiableObservableList(children);
@@ -30,7 +31,7 @@ public class Server implements RepositoryEntity {
     private final List<Group> groups;
     private final Owner connectedOwner;
     private final Group defaultGroup;
-    private volatile boolean isPopulating = false;
+    private int childrenTypesPopulated = 0;
     private record UserIdGroups(long userId, List<Group> groups) {}
 
     private Server(ApisHandler apisHandler, List<Owner> owners, List<Group> groups, Owner connectedOwner, Group defaultGroup) {
@@ -63,8 +64,8 @@ public class Server implements RepositoryEntity {
     }
 
     @Override
-    public boolean isPopulatingChildren() {
-        return isPopulating;
+    public synchronized boolean isPopulatingChildren() {
+        return childrenTypesPopulated == NUMBER_OF_CHILDREN_TYPES;
     }
 
     /**
@@ -107,15 +108,19 @@ public class Server implements RepositoryEntity {
 
         return userIdRequest.thenCompose(userIdResponse -> {
             if (userIdResponse.isPresent()) {
-                return apisHandler.getGroups(userIdResponse.get()).thenApply(groups ->
-                        new UserIdGroups(userIdResponse.get(), groups)
-                );
+                return apisHandler.getGroups(userIdResponse.get()).handle((groups, error) -> {
+                    if (error == null) {
+                        return new UserIdGroups(userIdResponse.get(), groups);
+                    } else {
+                        logger.error("Error when retrieving groups", error);
+                        return null;
+                    }
+                });
             } else {
-                return CompletableFuture.completedFuture(new UserIdGroups(-1, List.of()));
+                return CompletableFuture.completedFuture(null);
             }
         }).thenApply(userIdGroups -> {
-            if (userIdGroups.userId() == -1) {
-                logger.error("Could not retrieve user ID of public user");
+            if (userIdGroups == null) {
                 return Optional.empty();
             }
             if (userIdGroups.groups().isEmpty()) {
@@ -201,30 +206,38 @@ public class Server implements RepositoryEntity {
     }
 
     private void populate(ApisHandler apisHandler) {
-        isPopulating = true;
+        populateChildren(apisHandler.getProjects(), "projects");
+        populateChildren(apisHandler.getScreens(), "screens");
+        populateChildren(apisHandler.getOrphanedDatasets(), "orphaned datasets");
+        populateChildren(apisHandler.getOrphanedPlates(), "orphaned plates");
 
-        apisHandler.getProjects().thenCompose(projects -> {
-            children.addAll(projects);
+        OrphanedFolder.create(apisHandler)
+                .exceptionally(error -> {
+                    logger.error("Error while creating orphaned folder", error);
+                    return null;
+                })
+                .thenAccept(orphanedFolder -> {
+                    synchronized (this) {
+                        childrenTypesPopulated++;
+                    }
 
-            return apisHandler.getScreens();
-        }).thenCompose(screens -> {
-            children.addAll(screens);
+                    if (orphanedFolder != null && orphanedFolder.hasChildren()) {
+                        children.add(orphanedFolder);
+                    }
+                });
+    }
 
-            return apisHandler.getOrphanedDatasets();
-        }).thenCompose(orphanedDatasets -> {
-            children.addAll(orphanedDatasets);
-
-            return apisHandler.getOrphanedPlates();
-        }).thenCompose(orphanedPlates -> {
-            children.addAll(orphanedPlates);
-
-            return OrphanedFolder.create(apisHandler);
-        }).thenAccept(orphanedFolder -> {
-            if (orphanedFolder.hasChildren()) {
-                children.add(orphanedFolder);
-            }
-
-            isPopulating = false;
-        });
+    private <T extends RepositoryEntity> void populateChildren(CompletableFuture<List<T>> request, String name) {
+        request
+                .exceptionally(error -> {
+                    logger.error(String.format("Error while retrieving %s", name), error);
+                    return List.of();
+                })
+                .thenAccept(newChildren -> {
+                    synchronized (this) {
+                        childrenTypesPopulated++;
+                    }
+                    children.addAll(newChildren);
+                });
     }
 }

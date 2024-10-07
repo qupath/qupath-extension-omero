@@ -89,19 +89,21 @@ public class KeyValuesSender implements DataTransporter {
                             keyValues,
                             keyValuesForm.getChoice().equals(KeyValuesForm.Choice.REPLACE_EXITING),
                             keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)
-                    ).thenAccept(success -> Platform.runLater(() -> {
-                        if (success) {
+                    ).handle((v, error) -> {
+                        if (error == null) {
                             Dialogs.showInfoNotification(
                                     resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
                                     resources.getString("DataTransporters.KeyValuesSender.keyValuesSent")
                             );
                         } else {
+                            logger.error("Error while sending key value pairs", error);
                             Dialogs.showErrorNotification(
                                     resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
                                     resources.getString("DataTransporters.KeyValuesSender.keyValuesNotSent")
                             );
                         }
-                    }));
+                        return null;
+                    });
                 }
             }
         }

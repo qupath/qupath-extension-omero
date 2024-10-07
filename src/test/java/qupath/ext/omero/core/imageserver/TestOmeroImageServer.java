@@ -6,6 +6,7 @@ import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
@@ -69,24 +70,19 @@ public class TestOmeroImageServer extends OmeroServer {
     }
 
     @Test
-    void Check_Path_Objects_Written() {
-        List<PathObject> pathObject = List.of(
-                PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100, null)),
-                PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50, null))
-        );
-
-        boolean success = imageServer.sendPathObjects(pathObject, true);
-
-        Assertions.assertTrue(success);
-    }
-
-    @Test
-    void Check_Path_Objects_Read() {
+    void Check_Path_Objects_Read() throws ExecutionException, InterruptedException {
         List<PathObject> expectedPathObject = List.of(
                 PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100, null)),
                 PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50, null))
         );
-        imageServer.sendPathObjects(expectedPathObject, true);
+        imageServer.getClient().getApisHandler().writeROIs(
+                imageServer.getId(),
+                expectedPathObject.stream()
+                        .map(Shape::createFromPathObject)
+                        .flatMap(List::stream)
+                        .toList(),
+                true
+        ).get();
 
         Collection<PathObject> pathObjects = imageServer.readPathObjects();
 

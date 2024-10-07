@@ -137,14 +137,14 @@ public abstract class OmeroServer {
                                         logger.info("Connection to the OMERO server succeeded");
                                         return;
                                     } else {
-                                        logger.info("Connection to the OMERO server failed. Retrying in one second.");
+                                        logger.info("Connection to the OMERO server failed. Retrying in five seconds.");
                                     }
                                 } catch (Exception ignored) {
-                                    logger.info("Connection to the OMERO server failed. Retrying in one second.");
+                                    logger.info("Connection to the OMERO server failed. Retrying in five seconds.");
                                 }
 
                                 try {
-                                    TimeUnit.SECONDS.sleep(1);
+                                    TimeUnit.SECONDS.sleep(5);
                                 } catch (InterruptedException e) {
                                     throw new RuntimeException(e);
                                 }

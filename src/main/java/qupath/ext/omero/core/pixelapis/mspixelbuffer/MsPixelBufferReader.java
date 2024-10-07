@@ -2,7 +2,6 @@ package qupath.ext.omero.core.pixelapis.mspixelbuffer;
 
 import loci.formats.gui.AWTImageTools;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
@@ -21,9 +20,11 @@ import java.awt.image.DataBufferShort;
 import java.awt.image.DataBufferUShort;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.IntStream;
 
 /**
@@ -68,45 +69,44 @@ class MsPixelBufferReader implements PixelAPIReader {
         // OMERO expects resolutions to be specified in reverse order
         int level = numberOfLevels - tileRequest.getLevel() - 1;
 
-        List<BufferedImage> images = IntStream.range(0, numberOfChannels)
-                .mapToObj(i -> readTile(
-                        imageID,
-                        i,
-                        level,
-                        tileRequest
-                ))
-                .map(CompletableFuture::join)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .toList();
+        List<BufferedImage> images;
+        try {
+            images = IntStream.range(0, numberOfChannels)
+                    .mapToObj(i -> readTile(
+                            imageID,
+                            i,
+                            level,
+                            tileRequest
+                    ))
+                    .map(CompletableFuture::join)
+                    .toList();
+        } catch (CompletionException e) {
+            throw new IOException(e);
+        }
 
-        if (images.size() != numberOfChannels) {
-            throw new IOException("Could not retrieve all pixels for all channels");
+        if (numberOfChannels == 1 && pixelType.equals(PixelType.UINT8)) {
+            return images.get(0);
         } else {
-            if (numberOfChannels == 1 && pixelType.equals(PixelType.UINT8)) {
-                return images.get(0);
-            } else {
-                DataBuffer dataBuffer = getDataBuffer(images.stream()
-                        .map(AWTImageTools::getPixels)
-                        .toList()
-                );
+            DataBuffer dataBuffer = getDataBuffer(images.stream()
+                    .map(AWTImageTools::getPixels)
+                    .toList()
+            );
 
-                return new BufferedImage(
-                        colorModel,
-                        WritableRaster.createWritableRaster(
-                                new BandedSampleModel(
-                                        dataBuffer.getDataType(),
-                                        tileRequest.getTileWidth(),
-                                        tileRequest.getTileHeight(),
-                                        numberOfChannels
-                                ),
-                                dataBuffer,
-                                null
-                        ),
-                        false,
-                        null
-                );
-            }
+            return new BufferedImage(
+                    colorModel,
+                    WritableRaster.createWritableRaster(
+                            new BandedSampleModel(
+                                    dataBuffer.getDataType(),
+                                    tileRequest.getTileWidth(),
+                                    tileRequest.getTileHeight(),
+                                    numberOfChannels
+                            ),
+                            dataBuffer,
+                            null
+                    ),
+                    false,
+                    null
+            );
         }
     }
 
@@ -127,21 +127,23 @@ class MsPixelBufferReader implements PixelAPIReader {
         );
     }
 
-    private CompletableFuture<Optional<BufferedImage>> readTile(long imageID, int channel, int level, TileRequest tileRequest) {
-        return WebUtilities.createURI(String.format(TILE_URI,
-                host,
-                imageID,
-                tileRequest.getZ(),
-                channel,
-                tileRequest.getT(),
-                tileRequest.getTileX(),
-                tileRequest.getTileY(),
-                tileRequest.getTileWidth(),
-                tileRequest.getTileHeight(),
-                level
-        ))
-                .map(RequestSender::getImage)
-                .orElse(CompletableFuture.completedFuture(Optional.empty()));
+    private CompletableFuture<BufferedImage> readTile(long imageID, int channel, int level, TileRequest tileRequest) {
+        try {
+            return RequestSender.getImage(new URI(String.format(TILE_URI,
+                    host,
+                    imageID,
+                    tileRequest.getZ(),
+                    channel,
+                    tileRequest.getT(),
+                    tileRequest.getTileX(),
+                    tileRequest.getTileY(),
+                    tileRequest.getTileWidth(),
+                    tileRequest.getTileHeight(),
+                    level
+            )));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private DataBuffer getDataBuffer(List<Object> pixels) {

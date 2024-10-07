@@ -6,6 +6,8 @@ import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebUtilities;
@@ -20,6 +22,7 @@ import java.util.ResourceBundle;
  */
 class Image extends HBox {
 
+    private static final Logger logger = LoggerFactory.getLogger(Image.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
     @FXML
     private Label name;
@@ -42,12 +45,18 @@ class Image extends HBox {
                     image.ifPresent(value -> name.setText(value.getLabel()))
             ));
 
-            client.getApisHandler().getThumbnail(imageID.getAsLong(), (int) thumbnail.getWidth()).thenAccept(thumbnail -> Platform.runLater(() ->
-                    thumbnail.ifPresent(bufferedImage -> UiUtilities.paintBufferedImageOnCanvas(bufferedImage, this.thumbnail))
-            ));
+            client.getApisHandler().getThumbnail(imageID.getAsLong(), (int) thumbnail.getWidth())
+                    .exceptionally(error -> {
+                        logger.error("Error when retrieving thumbnail", error);
+                        return null;
+                    }).thenAccept(thumbnail -> Platform.runLater(() -> {
+                        if (thumbnail != null) {
+                            UiUtilities.paintBufferedImageOnCanvas(thumbnail, this.thumbnail);
+                        }
+                    }));
         }
 
-        RequestSender.isLinkReachableWithGet(imageUri).thenAccept(success -> Platform.runLater(() ->
+        RequestSender.isLinkReachableWithGet(imageUri, 403).thenAccept(success -> Platform.runLater(() ->
                 setStatus(success ? imageUri.toString() : resources.getString("ConnectionsManager.Image.unreachableImage"), success))
         );
     }

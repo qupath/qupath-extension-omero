@@ -32,10 +32,6 @@ public class ImageSettingsSender implements DataTransporter {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageSettingsSender.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
-    private enum MessageType {
-        SUCCESS,
-        ERROR
-    }
 
     @Override
     public String getMenuTitle() {
@@ -74,7 +70,7 @@ public class ImageSettingsSender implements DataTransporter {
             );
 
             if (confirmed && !imageSettingsForm.getSelectedChoices().isEmpty()) {
-                Map<ImageSettingsForm.Choice, CompletableFuture<Boolean>> requests = createRequests(
+                Map<ImageSettingsForm.Choice, CompletableFuture<Void>> requests = createRequests(
                         imageSettingsForm.getSelectedChoices(),
                         omeroImageServer,
                         viewer
@@ -82,10 +78,12 @@ public class ImageSettingsSender implements DataTransporter {
 
                 CompletableFuture.supplyAsync(() -> requests.entrySet().stream().collect(Collectors.toMap(
                         Map.Entry::getKey,
-                        entry -> entry.getValue().join()
-                ))).thenAccept(statuses -> Platform.runLater(() -> {
-                    String successMessage = createMessageFromResponses(statuses, MessageType.SUCCESS);
-                    String errorMessage = createMessageFromResponses(statuses, MessageType.ERROR);
+                        entry -> entry.getValue().handle((v, error) -> error).join()
+                ))).thenAccept(errors -> Platform.runLater(() -> {
+                    logErrors(errors);
+
+                    String successMessage = createMessageFromResponses(errors, true);
+                    String errorMessage = createMessageFromResponses(errors, false);
 
                     if (!errorMessage.isEmpty()) {
                         errorMessage += String.format("\n\n%s", resources.getString("DataTransporters.ImageSettingsSender.notAllParametersSent"));
@@ -111,7 +109,7 @@ public class ImageSettingsSender implements DataTransporter {
         }
     }
 
-    private static Map<ImageSettingsForm.Choice, CompletableFuture<Boolean>> createRequests(
+    private static Map<ImageSettingsForm.Choice, CompletableFuture<Void>> createRequests(
             List<ImageSettingsForm.Choice> selectedChoices,
             OmeroImageServer omeroImageServer,
             QuPathViewer viewer
@@ -141,14 +139,36 @@ public class ImageSettingsSender implements DataTransporter {
                 }));
     }
 
-    private static String createMessageFromResponses(Map<ImageSettingsForm.Choice, Boolean> statuses, MessageType messageType) {
-        return statuses.entrySet().stream()
-                .filter(entry -> switch (messageType) {
-                    case SUCCESS -> entry.getValue();
-                    case ERROR -> !entry.getValue();
+    private static void logErrors(Map<ImageSettingsForm.Choice, Throwable> errors) {
+        for (Map.Entry<ImageSettingsForm.Choice, Throwable> error: errors.entrySet()) {
+            if (error.getValue() != null) {
+                logger.error(String.format(
+                        "Error while sending %s",
+                        switch (error.getKey()) {
+                            case IMAGE_NAME -> "image name";
+                            case CHANNEL_NAMES -> "channel names";
+                            case CHANNEL_COLORS -> "channel colors";
+                            case CHANNEL_DISPLAY_RANGES -> "channel display ranges";
+                        }
+                ), error.getValue());
+            }
+        }
+    }
+
+    private static String createMessageFromResponses(Map<ImageSettingsForm.Choice, Throwable> errors, boolean isSuccess) {
+        return errors.entrySet().stream()
+                .filter(entry -> {
+                    if (isSuccess) {
+                        return entry.getValue() == null;
+                    } else {
+                        return entry.getValue() != null;
+                    }
                 })
                 .map(entry -> MessageFormat.format(
-                        resources.getString(entry.getValue() ? "DataTransporters.ImageSettingsSender.parameterSent" : "DataTransporters.ImageSettingsSender.parameterNotSent"),
+                        resources.getString(isSuccess ?
+                                "DataTransporters.ImageSettingsSender.parameterSent" :
+                                "DataTransporters.ImageSettingsSender.parameterNotSent"
+                        ),
                         resources.getString(switch (entry.getKey()) {
                             case IMAGE_NAME -> "DataTransporters.ImageSettingsSender.imageName";
                             case CHANNEL_NAMES -> "DataTransporters.ImageSettingsSender.channelNames";

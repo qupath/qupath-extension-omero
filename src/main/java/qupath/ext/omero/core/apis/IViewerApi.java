@@ -1,17 +1,14 @@
 package qupath.ext.omero.core.apis;
 
 import com.google.gson.Gson;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.image.ImageSettings;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.RequestSender;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -21,7 +18,6 @@ import java.util.stream.Collectors;
  */
 class IViewerApi {
 
-    private static final Logger logger = LoggerFactory.getLogger(IViewerApi.class);
     private static final String ROIS_URL = "%s/iviewer/persist_rois/";
     private static final String ROIS_BODY = """
         {
@@ -55,73 +51,72 @@ class IViewerApi {
     }
 
     /**
-     * <p>Attempt to write and delete ROIs to the server.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Attempt to write and delete ROIs to the server.
+     * </p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param id  the OMERO image id
-     * @param shapesToAdd  the list of shapes to add
+     * @param id the OMERO image id
+     * @param shapesToAdd the list of shapes to add
      * @param shapesToRemove the list of shapes to remove
-     * @param token  the OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     * @return a CompletableFuture indicating the success of the operation
+     * @param token the OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Boolean> writeROIs(long id, Collection<Shape> shapesToAdd, Collection<Shape> shapesToRemove, String token) {
-        var uri = WebUtilities.createURI(String.format(ROIS_URL, host));
-
-        if (uri.isPresent()) {
-            Gson gson = new Gson();
-            List<String> roisToAdd = shapesToAdd.stream().map(gson::toJson).toList();
-            String roisToRemove = shapesToRemove.stream()
-                    .map(shape -> String.format("\"%s\":[\"%s\"]", shape.getOldId().split(":")[0], shape.getOldId()))
-                    .collect(Collectors.joining(","));
-
-            return RequestSender.post(
-                    uri.get(),
-                    String.format(
-                            ROIS_BODY,
-                            id,
-                            roisToAdd.size() + shapesToRemove.size(),
-                            roisToRemove,
-                            String.join(", ", roisToAdd)
-                    ),
-                    String.format(ROIS_REFERER_URL, host, id),
-                    token
-            ).thenApply(response -> {
-                if (response.isPresent()) {
-                    if (response.get().toLowerCase().contains("error")) {
-                        logger.error("Error when sending ROIs: " + response.get());
-                        return false;
-                    } else {
-                        return true;
-                    }
-                } else {
-                    return false;
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
+    public CompletableFuture<Void> writeROIs(long id, Collection<Shape> shapesToAdd, Collection<Shape> shapesToRemove, String token) {
+        URI uri;
+        try {
+            uri = new URI(String.format(ROIS_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        Gson gson = new Gson();
+        List<String> roisToAdd = shapesToAdd.stream().map(gson::toJson).toList();
+        String roisToRemove = shapesToRemove.stream()
+                .map(shape -> String.format("\"%s\":[\"%s\"]", shape.getOldId().split(":")[0], shape.getOldId()))
+                .collect(Collectors.joining(","));
+
+        return RequestSender.post(
+                uri,
+                String.format(
+                        ROIS_BODY,
+                        id,
+                        roisToAdd.size() + shapesToRemove.size(),
+                        roisToRemove,
+                        String.join(", ", roisToAdd)
+                ),
+                String.format(ROIS_REFERER_URL, host, id),
+                token
+        ).thenAccept(response -> {
+            if (response.toLowerCase().contains("error")) {
+                throw new RuntimeException(String.format("Error when sending ROIs: %s", response));
+            }
+        });
     }
 
     /**
      * <p>
      *     Attempt to retrieve the settings of an image.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param imageId  the id of the image whose settings should be retrieved
-     * @return a CompletableFuture with the retrieved image settings, or an empty Optional if the request failed
+     * @param imageId the id of the image whose settings should be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the retrieved image settings
      */
-    public CompletableFuture<Optional<ImageSettings>> getImageSettings(long imageId) {
-        var uri = WebUtilities.createURI(String.format(
-                IMAGE_SETTINGS_URL,
-                host,
-                imageId
-        ));
-
-        if (uri.isPresent()) {
-            return RequestSender.getAndConvert(uri.get(), ImageSettings.class);
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
+    public CompletableFuture<ImageSettings> getImageSettings(long imageId) {
+        URI uri;
+        try {
+            uri = new URI(String.format(IMAGE_SETTINGS_URL, host, imageId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return RequestSender.getAndConvert(uri, ImageSettings.class);
     }
 }

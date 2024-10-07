@@ -66,7 +66,7 @@ public class ApisHandler implements AutoCloseable {
     private final WebGatewayApi webGatewayApi;
     private final IViewerApi iViewerApi;
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
-    private final Cache<IdSizeWrapper, CompletableFuture<Optional<BufferedImage>>> thumbnailsCache = CacheBuilder.newBuilder()
+    private final Cache<IdSizeWrapper, CompletableFuture<BufferedImage>> thumbnailsCache = CacheBuilder.newBuilder()
             .maximumSize(THUMBNAIL_CACHE_SIZE)
             .build();
     private final Map<Class<? extends RepositoryEntity>, BufferedImage> omeroIconsCache = new ConcurrentHashMap<>();
@@ -86,22 +86,20 @@ public class ApisHandler implements AutoCloseable {
 
     /**
      * <p>Attempt to create a request handler.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
      * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
-     * @return a CompletableFuture with the request handler, an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the request handler
      */
-    public static CompletableFuture<Optional<ApisHandler>> create(URI host) {
+    public static CompletableFuture<ApisHandler> create(URI host) {
         return JsonApi.create(host).thenApplyAsync(jsonApi -> {
-            if (jsonApi.isPresent()) {
-                try {
-                    return Optional.of(new ApisHandler(host, jsonApi.get(), jsonApi.get().canSkipAuthentication().get()));
-                } catch (InterruptedException | ExecutionException e) {
-                    logger.error("Error when creating APIs handler", e);
-                    return Optional.empty();
-                }
-            } else {
-                return Optional.empty();
+            try {
+                return new ApisHandler(host, jsonApi, jsonApi.canSkipAuthentication().get());
+            } catch (InterruptedException | ExecutionException e) {
+                throw new RuntimeException(e);
             }
         });
     }
@@ -174,10 +172,13 @@ public class ApisHandler implements AutoCloseable {
 
     /**
      * <p>Returns a list of image URIs contained in the dataset identified by the provided ID.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param datasetID  the ID of the dataset the returned images must belong to
-     * @return a list of URIs of images contained in the dataset
+     * @param datasetID the ID of the dataset the returned images must belong to
+     * @return a CompletableFuture (that may complete exceptionally) with a list of URIs of images contained in the dataset
      */
     public CompletableFuture<List<URI>> getImagesURIOfDataset(long datasetID) {
         return getImages(datasetID).thenApply(images -> images.stream()
@@ -190,10 +191,13 @@ public class ApisHandler implements AutoCloseable {
 
     /**
      * <p>Returns a list of image URIs contained in the project identified by the provided ID.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param projectID  the ID of the project the returned images must belong to
-     * @return a list of URIs of images contained in the project
+     * @param projectID the ID of the project the returned images must belong to
+     * @return a CompletableFuture (that may complete exceptionally) with a list of URIs of images contained in the project
      */
     public CompletableFuture<List<URI>> getImagesURIOfProject(long projectID) {
         return getDatasets(projectID).thenApplyAsync(datasets -> datasets.stream()
@@ -290,17 +294,8 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link JsonApi#getImage(long)}.
      */
-    public CompletableFuture<Optional<Image>> getImage(long imageID) {
+    public CompletableFuture<Image> getImage(long imageID) {
         return jsonApi.getImage(imageID);
-    }
-
-    /**
-     * <p>Attempt to get the number of orphaned images of this server.</p>
-     *
-     * @return a CompletableFuture with the number of orphaned images, or 0 if it couldn't be retrieved
-     */
-    public CompletableFuture<Integer> getNumberOfOrphanedImages() {
-        return getOrphanedImagesIds().thenApply(jsonApi::getNumberOfOrphanedImages);
     }
 
     /**
@@ -311,15 +306,25 @@ public class ApisHandler implements AutoCloseable {
      * </p>
      * <p>The list can be updated from any thread.</p>
      *
-     * @param children  the list which should be populated by the orphaned images. It should
-     *                  be possible to add elements to this list
+     * @param children the list which should be populated by the orphaned images. It should
+     *                 be possible to add elements to this list
      */
     public void populateOrphanedImagesIntoList(List<Image> children) {
-        setOrphanedImagesLoading(true);
+        synchronized (this) {
+            areOrphanedImagesLoading.set(true);
+        }
 
         getOrphanedImagesIds()
                 .thenAcceptAsync(orphanedImageIds -> jsonApi.populateOrphanedImagesIntoList(children, orphanedImageIds))
-                .thenRun(() -> setOrphanedImagesLoading(false));
+                .whenComplete((v, error) -> {
+                    synchronized (this) {
+                        areOrphanedImagesLoading.set(false);
+                    }
+
+                    if (error != null) {
+                        logger.error("Error when populating orphaned images", error);
+                    }
+                });
     }
 
     /**
@@ -382,7 +387,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebclientApi#getAnnotations(long, Class)}.
      */
-    public CompletableFuture<Optional<AnnotationGroup>> getAnnotations(
+    public CompletableFuture<AnnotationGroup> getAnnotations(
             long entityId,
             Class<? extends RepositoryEntity> entityClass
     ) {
@@ -399,7 +404,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebclientApi#sendKeyValuePairs(long, Map, boolean, boolean)}.
      */
-    public CompletableFuture<Boolean> sendKeyValuePairs(
+    public CompletableFuture<Void> sendKeyValuePairs(
             long imageId,
             Map<String, String> keyValues,
             boolean replaceExisting,
@@ -411,21 +416,21 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebclientApi#changeImageName(long, String)}.
      */
-    public CompletableFuture<Boolean> changeImageName(long imageId, String imageName) {
+    public CompletableFuture<Void> changeImageName(long imageId, String imageName) {
         return webclientApi.changeImageName(imageId, imageName);
     }
 
     /**
      * See {@link WebclientApi#changeChannelNames(long, List)}.
      */
-    public CompletableFuture<Boolean> changeChannelNames(long imageId, List<String> channelsName) {
+    public CompletableFuture<Void> changeChannelNames(long imageId, List<String> channelsName) {
         return webclientApi.changeChannelNames(imageId, channelsName);
     }
 
     /**
      * See {@link WebclientApi#sendAttachment(long, Class, String, String)}.
      */
-    public CompletableFuture<Boolean> sendAttachment(
+    public CompletableFuture<Void> sendAttachment(
             long entityId,
             Class<? extends RepositoryEntity> entityClass,
             String attachmentName,
@@ -437,7 +442,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebclientApi#deleteAttachments(long, Class)}.
      */
-    public CompletableFuture<Boolean> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
+    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
         return webclientApi.deleteAttachments(entityId, entityClass);
     }
 
@@ -445,52 +450,58 @@ public class ApisHandler implements AutoCloseable {
      * <p>Attempt to retrieve the icon of an OMERO entity.</p>
      * <p>Icons for orphaned folders, projects, datasets, images, screens, plates, and plate acquisitions can be retrieved.</p>
      * <p>Icons are cached.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param type  the class of the entity whose icon is to be retrieved
-     * @return a CompletableFuture with the icon if the operation succeeded, or an empty Optional otherwise
+     * @param type the class of the entity whose icon is to be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
+     * @throws IllegalArgumentException if the provided type is not part of the list described above
      */
-    public CompletableFuture<Optional<BufferedImage>> getOmeroIcon(Class<? extends RepositoryEntity> type) {
+    public CompletableFuture<BufferedImage> getOmeroIcon(Class<? extends RepositoryEntity> type) {
         if (omeroIconsCache.containsKey(type)) {
-            return CompletableFuture.completedFuture(Optional.of(omeroIconsCache.get(type)));
+            return CompletableFuture.completedFuture(omeroIconsCache.get(type));
         } else {
             if (type.equals(Project.class)) {
                 return webGatewayApi.getProjectIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
+                    omeroIconsCache.put(type, icon);
                     return icon;
                 });
             } else if (type.equals(Dataset.class)) {
                 return webGatewayApi.getDatasetIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
+                    omeroIconsCache.put(type, icon);
                     return icon;
                 });
             } else if (type.equals(OrphanedFolder.class)) {
                 return webGatewayApi.getOrphanedFolderIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
+                    omeroIconsCache.put(type, icon);
                     return icon;
                 });
             } else if (type.equals(Image.class)) {
                 return webclientApi.getImageIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
+                    omeroIconsCache.put(type, icon);
                     return icon;
                 });
             } else if (type.equals(Screen.class)) {
                 return webclientApi.getScreenIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
+                    omeroIconsCache.put(type, icon);
                     return icon;
                 });
             } else if (type.equals(Plate.class)) {
                 return webclientApi.getPlateIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
+                    omeroIconsCache.put(type, icon);
                     return icon;
                 });
             } else if (type.equals(PlateAcquisition.class)) {
                 return webclientApi.getPlateAcquisitionIcon().thenApply(icon -> {
-                    icon.ifPresent(bufferedImage -> omeroIconsCache.put(type, bufferedImage));
+                    omeroIconsCache.put(type, icon);
                     return icon;
                 });
             } else {
-                return CompletableFuture.completedFuture(Optional.empty());
+                throw new IllegalArgumentException(String.format(
+                        "The provided type %s is not an orphaned folder, project, dataset, image, screen, plate or plate acquisition", type
+                ));
             }
         }
     }
@@ -499,7 +510,7 @@ public class ApisHandler implements AutoCloseable {
      * {@link #getThumbnail(long, int)} with a size of
      * {@link #THUMBNAIL_SIZE}.
      */
-    public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id) {
+    public CompletableFuture<BufferedImage> getThumbnail(long id) {
         return getThumbnail(id, THUMBNAIL_SIZE);
     }
 
@@ -507,24 +518,26 @@ public class ApisHandler implements AutoCloseable {
      * See {@link WebGatewayApi#getThumbnail(long, int)}.
      * Thumbnails are cached in a cache of size {@link #THUMBNAIL_CACHE_SIZE}.
      */
-    public CompletableFuture<Optional<BufferedImage>> getThumbnail(long id, int size) {
+    public CompletableFuture<BufferedImage> getThumbnail(long id, int size) {
+        IdSizeWrapper key = new IdSizeWrapper(id, size);
+
+        CompletableFuture<BufferedImage> request;
         try {
-            IdSizeWrapper key = new IdSizeWrapper(id, size);
-            CompletableFuture<Optional<BufferedImage>> request = thumbnailsCache.get(
+            request = thumbnailsCache.get(
                     key,
                     () -> webGatewayApi.getThumbnail(id, size)
             );
-
-            request.thenAccept(response -> {
-                if (response.isEmpty()) {
-                    thumbnailsCache.invalidate(key);
-                }
-            });
-            return request;
         } catch (ExecutionException e) {
-            logger.error("Error when retrieving thumbnail", e);
-            return CompletableFuture.completedFuture(Optional.empty());
+            return CompletableFuture.failedFuture(e);
         }
+
+        request.whenComplete((thumbnail, error) -> {
+            if (thumbnail == null) {
+                thumbnailsCache.invalidate(key);
+            }
+        });
+
+        return request;
     }
 
     /**
@@ -537,7 +550,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebGatewayApi#readTile(long, TileRequest, int, int, double)}.
      */
-    public CompletableFuture<Optional<BufferedImage>> readTile(
+    public CompletableFuture<BufferedImage> readTile(
             long id,
             TileRequest tileRequest,
             int preferredTileWidth,
@@ -550,27 +563,19 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebGatewayApi#changeChannelColors(long, List, List)}.
      */
-    public CompletableFuture<Boolean> changeChannelColors(long imageID, List<Integer> newChannelColors) {
-        return getImageSettings(imageID).thenCompose(imageSettings -> {
-            if (imageSettings.isPresent()) {
-                return webGatewayApi.changeChannelColors(imageID, newChannelColors, imageSettings.get().getChannelSettings());
-            } else {
-                return CompletableFuture.completedFuture(false);
-            }
-        });
+    public CompletableFuture<Void> changeChannelColors(long imageID, List<Integer> newChannelColors) {
+        return getImageSettings(imageID).thenCompose(imageSettings ->
+                webGatewayApi.changeChannelColors(imageID, newChannelColors, imageSettings.getChannelSettings())
+        );
     }
 
     /**
      * See {@link WebGatewayApi#changeChannelDisplayRanges(long, List, List)}.
      */
-    public CompletableFuture<Boolean> changeChannelDisplayRanges(long imageID, List<ChannelSettings> newChannelSettings) {
-        return getImageSettings(imageID).thenCompose(imageSettings -> {
-            if (imageSettings.isPresent()) {
-                return webGatewayApi.changeChannelDisplayRanges(imageID, newChannelSettings, imageSettings.get().getChannelSettings());
-            } else {
-                return CompletableFuture.completedFuture(false);
-            }
-        });
+    public CompletableFuture<Void> changeChannelDisplayRanges(long imageID, List<ChannelSettings> newChannelSettings) {
+        return getImageSettings(imageID).thenCompose(imageSettings ->
+                webGatewayApi.changeChannelDisplayRanges(imageID, newChannelSettings, imageSettings.getChannelSettings())
+        );
     }
 
     /**
@@ -583,7 +588,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link IViewerApi#writeROIs(long, Collection, Collection, String)}.
      */
-    public CompletableFuture<Boolean> writeROIs(long id, Collection<Shape> shapes, boolean removeExistingROIs) {
+    public CompletableFuture<Void> writeROIs(long id, Collection<Shape> shapes, boolean removeExistingROIs) {
         CompletableFuture<List<Shape>> roisToRemoveFuture = removeExistingROIs ? getROIs(id) : CompletableFuture.completedFuture(List.of());
 
         return roisToRemoveFuture.thenCompose(roisToRemove -> iViewerApi.writeROIs(id, shapes, roisToRemove, jsonApi.getToken()));
@@ -592,11 +597,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link IViewerApi#getImageSettings(long)}.
      */
-    public CompletableFuture<Optional<ImageSettings>> getImageSettings(long imageId) {
+    public CompletableFuture<ImageSettings> getImageSettings(long imageId) {
         return iViewerApi.getImageSettings(imageId);
-    }
-
-    private synchronized void setOrphanedImagesLoading(boolean orphanedImagesLoading) {
-        areOrphanedImagesLoading.set(orphanedImagesLoading);
     }
 }

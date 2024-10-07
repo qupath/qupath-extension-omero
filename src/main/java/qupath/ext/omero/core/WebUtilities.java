@@ -104,34 +104,47 @@ public class WebUtilities {
      *     <li>If the entity is a dataset, the URIs of the children of this dataset (which are images) are returned.</li>
      *     <li>If the entity is a project, the URIs of each children of the datasets of this project are returned.</li>
      *     <li>If the entity is an image, the input URI is returned.</li>
-     *     <li>Else, nothing is returned.</li>
+     *     <li>Else, an error is returned.</li>
      * </ul>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @param entityURI  the URI of the entity whose images should be retrieved. It can be URL encoded
-     * @param apisHandler  the request handler corresponding to the current server
-     * @return a CompletableFuture with the list described above
+     * @param entityURI the URI of the entity whose images should be retrieved. It can be URL encoded
+     * @param apisHandler the request handler corresponding to the current server
+     * @return a CompletableFuture (that may complete exceptionally) with the list described above
      */
     public static CompletableFuture<List<URI>> getImagesURIFromEntityURI(URI entityURI, ApisHandler apisHandler) {
         String entityURL = decodeURI(entityURI);
 
-        if (datasetPattern.matcher(entityURL).find()) {
-            var datasetID = parseEntityId(entityURI);
-
-            if (datasetID.isPresent()) {
-                return apisHandler.getImagesURIOfDataset(datasetID.getAsLong());
-            }
-        } else if (projectPattern.matcher(entityURL).find()) {
+        if (projectPattern.matcher(entityURL).find()) {
             var projectID = parseEntityId(entityURI);
 
             if (projectID.isPresent()) {
                 return apisHandler.getImagesURIOfProject(projectID.getAsLong());
+            } else {
+                return CompletableFuture.failedFuture(new IllegalArgumentException(
+                        String.format("The provided URI %s was detected as a project but no ID was found", entityURL)
+                ));
+            }
+        } else if (datasetPattern.matcher(entityURL).find()) {
+            var datasetID = parseEntityId(entityURI);
+
+            if (datasetID.isPresent()) {
+                return apisHandler.getImagesURIOfDataset(datasetID.getAsLong());
+            } else {
+                return CompletableFuture.failedFuture(new IllegalArgumentException(
+                        String.format("The provided URI %s was detected as a dataset but no ID was found", entityURL)
+                ));
             }
         } else if (imagePatterns.stream().anyMatch(pattern -> pattern.matcher(entityURL).find())) {
             return CompletableFuture.completedFuture(List.of(entityURI));
+        } else {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    String.format("The provided URI %s does not represent a project, dataset, or image", entityURL)
+            ));
         }
-
-        return CompletableFuture.completedFuture(List.of());
     }
 
     private static String decodeURI(URI uri) {
