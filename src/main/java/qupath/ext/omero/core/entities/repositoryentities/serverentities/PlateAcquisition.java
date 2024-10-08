@@ -12,7 +12,6 @@ import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -152,7 +151,6 @@ public class PlateAcquisition extends ServerEntity {
                                 .flatMap(List::stream)
                                 .map(id -> client.getApisHandler().getImage(id))
                                 .map(CompletableFuture::join)
-                                .flatMap(Optional::stream)
                                 .toList()
                         )
                         .exceptionally(error -> {

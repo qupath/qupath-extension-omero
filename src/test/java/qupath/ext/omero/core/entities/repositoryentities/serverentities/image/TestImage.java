@@ -68,7 +68,7 @@ public class TestImage extends OmeroServer {
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
             client = OmeroServer.createClient(userType);
-            image = client.getApisHandler().getImage(OmeroServer.getRGBImage(userType).getId()).get().orElse(null);
+            image = client.getApisHandler().getImage(OmeroServer.getRGBImage(userType).getId()).get();
         }
     }
 
@@ -78,7 +78,7 @@ public class TestImage extends OmeroServer {
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
             client = OmeroServer.createClient(userType);
-            image = client.getApisHandler().getImage(OmeroServer.getComplexImage(userType).getId()).get().orElse(null);
+            image = client.getApisHandler().getImage(OmeroServer.getComplexImage(userType).getId()).get();
         }
     }
 }

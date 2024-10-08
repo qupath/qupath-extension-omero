@@ -245,10 +245,8 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Ping() throws ExecutionException, InterruptedException {
-            boolean pingSucceeded = apisHandler.ping().get();
-
-            Assertions.assertTrue(pingSucceeded);
+        void Check_Ping() {
+            Assertions.assertDoesNotThrow(() -> apisHandler.ping().get());
         }
 
         @Test
@@ -332,18 +330,16 @@ public class TestApisHandler extends OmeroServer {
             Image expectedImage = OmeroServer.getRGBImage(userType);
             long imageID = expectedImage.getId();
 
-            Image image = apisHandler.getImage(imageID).get().orElse(null);
+            Image image = apisHandler.getImage(imageID).get();
 
             Assertions.assertEquals(expectedImage, image);
         }
 
         @Test
-        void Check_Image_With_Invalid_ID() throws ExecutionException, InterruptedException {
+        void Check_Image_With_Invalid_ID() {
             long imageID = -1;
 
-            Image image = apisHandler.getImage(imageID).get().orElse(null);
-
-            Assertions.assertNull(image);
+            Assertions.assertThrows(CompletionException.class, () -> apisHandler.getImage(imageID).get());
         }
 
         @Test
@@ -562,19 +558,17 @@ public class TestApisHandler extends OmeroServer {
             long imageId = image.getId();
             ImageServerMetadata expectedMetadata = OmeroServer.getImageMetadata(image);
 
-            ImageServerMetadata metadata = apisHandler.getImageMetadata(imageId).get().orElse(null);
+            ImageServerMetadata metadata = apisHandler.getImageMetadata(imageId).get();
 
             Assertions.assertNotNull(metadata);
             Assertions.assertEquals(expectedMetadata, metadata);
         }
 
         @Test
-        void Check_Image_Metadata_With_Invalid_Image_ID() throws ExecutionException, InterruptedException {
+        void Check_Image_Metadata_With_Invalid_Image_ID() {
             long invalidImageID = -1;
 
-            Optional<ImageServerMetadata> metadata = apisHandler.getImageMetadata(invalidImageID).get();
-
-            Assertions.assertTrue(metadata.isEmpty());
+            Assertions.assertThrows(CompletionException.class, () -> apisHandler.getImageMetadata(invalidImageID).get());
         }
 
         @Test

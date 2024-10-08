@@ -11,7 +11,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
 import java.util.List;
-import java.util.Optional;
 
 public class TestImageMetadataResponseParser {
 
@@ -19,9 +18,7 @@ public class TestImageMetadataResponseParser {
     void Check_Response_When_Empty() {
         JsonObject jsonObject = new JsonObject();
 
-        Optional<ImageServerMetadata> metadata = ImageMetadataResponseParser.createMetadataFromJson(jsonObject);
-
-        Assertions.assertTrue(metadata.isEmpty());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> ImageMetadataResponseParser.createMetadataFromJson(jsonObject));
     }
 
     @Test
@@ -437,6 +434,6 @@ public class TestImageMetadataResponseParser {
                     "invertAxis": false
                   }
                 }
-                """).getAsJsonObject()).orElse(null);
+                """).getAsJsonObject());
     }
 }

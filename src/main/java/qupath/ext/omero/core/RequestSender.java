@@ -3,8 +3,6 @@ package qupath.ext.omero.core;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.lib.io.GsonTools;
 
 import javax.imageio.ImageIO;
@@ -39,7 +37,6 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  */
 public class RequestSender {
 
-    private static final Logger logger = LoggerFactory.getLogger(RequestSender.class);
     private static final int REQUEST_TIMEOUT = 20;
     /**
      * <p>
@@ -68,9 +65,9 @@ public class RequestSender {
      * @param uri the link of the request
      * @param acceptedHTTPCodes a list of HTTP status codes that make the request successful
      *                          (the 200 code can be omitted)
-     * @return a CompletableFuture (that will complete successfully) indicating whether the provided link is reachable
+     * @return a void CompletableFuture (that completes exceptionally if the link is not reachable)
      */
-    public static CompletableFuture<Boolean> isLinkReachableWithGet(URI uri, int... acceptedHTTPCodes) {
+    public static CompletableFuture<Void> isLinkReachableWithGet(URI uri, int... acceptedHTTPCodes) {
         return isLinkReachable(getGETRequest(uri), acceptedHTTPCodes);
     }
 
@@ -80,9 +77,9 @@ public class RequestSender {
      * @param uri the link of the request
      * @param acceptedHTTPCodes a list of HTTP status codes that make the request successful
      *                          (the 200 code can be omitted)
-     * @return a CompletableFuture (that will complete successfully) indicating whether the provided link is reachable
+     * @return a void CompletableFuture (that completes exceptionally if the link is not reachable)
      */
-    public static CompletableFuture<Boolean> isLinkReachableWithOptions(URI uri, int... acceptedHTTPCodes) {
+    public static CompletableFuture<Void> isLinkReachableWithOptions(URI uri, int... acceptedHTTPCodes) {
         return isLinkReachable(getOPTIONSRequest(uri), acceptedHTTPCodes);
     }
 
@@ -327,21 +324,15 @@ public class RequestSender {
         ));
     }
 
-    private static CompletableFuture<Boolean> isLinkReachable(HttpRequest httpRequest, int... acceptedHTTPCodes) {
+    private static CompletableFuture<Void> isLinkReachable(HttpRequest httpRequest, int... acceptedHTTPCodes) {
         return httpClient
                 .sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
-                .handle((response, error) -> {
-                    if (error != null) {
-                        logger.debug(String.format("GET request to %s failed", httpRequest.uri()), error);
-                        return false;
+                .thenAccept(response -> {
+                    if (response.statusCode() != 200 && Arrays.stream(acceptedHTTPCodes).noneMatch(code -> code == response.statusCode())) {
+                        throw new RuntimeException(String.format(
+                                "Request to %s failed with status code %d", httpRequest.uri(), response.statusCode()
+                        ));
                     }
-
-                    if (response.statusCode() != 200 || Arrays.stream(acceptedHTTPCodes).anyMatch(code -> code == response.statusCode())) {
-                        logger.debug(String.format("GET request to %s failed with status code %d", httpRequest.uri(), response.statusCode()));
-                        return false;
-                    }
-
-                    return true;
                 });
     }
 

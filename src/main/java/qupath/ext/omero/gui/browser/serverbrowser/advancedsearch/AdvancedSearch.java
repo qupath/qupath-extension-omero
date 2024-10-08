@@ -4,7 +4,6 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.beans.property.ReadOnlyStringWrapper;
-import javafx.collections.FXCollections;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -14,8 +13,9 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.search.SearchQuery;
@@ -23,12 +23,12 @@ import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.browser.serverbrowser.advancedsearch.cellfactories.LinkCellFactory;
 import qupath.ext.omero.gui.browser.serverbrowser.advancedsearch.cellfactories.TypeCellFactory;
+import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
-import java.net.URI;
 import java.text.DateFormat;
+import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -40,6 +40,7 @@ import java.util.ResourceBundle;
  */
 public class AdvancedSearch extends Stage {
 
+    private static final Logger logger = LoggerFactory.getLogger(AdvancedSearch.class);
     private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
     private static final ResourceBundle resources = UiUtilities.getResources();
     private final WebClient client;
@@ -136,12 +137,26 @@ public class AdvancedSearch extends Stage {
                 screens.isSelected(),
                 group.getSelectionModel().getSelectedItem(),
                 owner.getSelectionModel().getSelectedItem()
-        )).thenAccept(searchResults -> Platform.runLater(() -> {
-            search.setGraphic(null);
-            search.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.search"));
+        )).handle((searchResults, error) -> {
+            Platform.runLater(() -> {
+                search.setGraphic(null);
+                search.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.search"));
 
-            results.getItems().setAll(searchResults);
-        }));
+                if (error == null) {
+                    results.getItems().setAll(searchResults);
+                } else {
+                    logger.error("Error when searching", error);
+                    Dialogs.showErrorNotification(
+                            resources.getString("Browser.ServerBrowser.AdvancedSearch.search"),
+                            MessageFormat.format(
+                                    resources.getString("Browser.ServerBrowser.AdvancedSearch.errorOccurred"),
+                                    error.getLocalizedMessage()
+                            )
+                    );
+                }
+            });
+            return null;
+        });
     }
 
     @FXML
@@ -221,9 +236,7 @@ public class AdvancedSearch extends Stage {
 
     private void importSelectedImages() {
         UiUtilities.openImages(results.getSelectionModel().getSelectedItems().stream()
-                .map(item -> WebUtilities.createURI(item.getLink()))
-                .flatMap(Optional::stream)
-                .map(URI::toString)
+                .map(SearchResult::getLink)
                 .toArray(String[]::new)
         );
     }

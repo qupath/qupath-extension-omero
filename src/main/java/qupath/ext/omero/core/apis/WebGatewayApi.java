@@ -4,14 +4,11 @@ import com.google.gson.JsonObject;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.imagemetadata.ImageMetadataResponseParser;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.RequestSender;
 
 import java.awt.image.BufferedImage;
@@ -20,7 +17,6 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -34,7 +30,6 @@ import java.util.stream.IntStream;
  */
 class WebGatewayApi {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebGatewayApi.class);
     private static final String ICON_URL = "%s/static/webgateway/img/%s";
     private static final String PROJECT_ICON_NAME = "folder16.png";
     private static final String DATASET_ICON_NAME = "folder_image16.png";
@@ -142,26 +137,24 @@ class WebGatewayApi {
 
     /**
      * <p>Attempt to retrieve the metadata of an image.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param id  the OMERO image ID
-     * @return a CompletableFuture with the metadata, or an empty Optional if an error occurred
+     * @param id the OMERO image ID
+     * @return a CompletableFuture (that may complete exceptionally) with the metadata
      */
-    public CompletableFuture<Optional<ImageServerMetadata>> getImageMetadata(long id) {
-        var uri = WebUtilities.createURI(String.format(IMAGE_DATA_URL, host, id));
-
-        if (uri.isPresent()) {
-            return RequestSender.getAndConvert(uri.get(), JsonObject.class).handle((jsonObject, error) -> {
-                if (error != null) {
-                    logger.error("Error while retrieving image metadata", error);
-                    return Optional.empty();
-                }
-
-                return ImageMetadataResponseParser.createMetadataFromJson(jsonObject);
-            });
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
+    public CompletableFuture<ImageServerMetadata> getImageMetadata(long id) {
+        URI uri;
+        try {
+            uri = new URI(String.format(IMAGE_DATA_URL, host, id));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return RequestSender.getAndConvert(uri, JsonObject.class).thenApplyAsync(ImageMetadataResponseParser::createMetadataFromJson);
+
     }
 
     /**

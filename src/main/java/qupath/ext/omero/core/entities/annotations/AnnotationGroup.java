@@ -73,7 +73,9 @@ public class AnnotationGroup {
     }
 
     private void createAnnotations(JsonObject json, List<Experimenter> experimenters) {
-        Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer()).setLenient().create();
+        Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer())
+                .setStrictness(Strictness.LENIENT)
+                .create();
         JsonElement annotationsJSON = json.get("annotations");
 
         if (annotationsJSON != null && annotationsJSON.isJsonArray()) {
@@ -103,7 +105,9 @@ public class AnnotationGroup {
     }
 
     private static List<Experimenter> createExperimenters(JsonObject json) {
-        Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer()).setLenient().create();
+        Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer())
+                .setStrictness(Strictness.LENIENT)
+                .create();
 
         List<Experimenter> experimenters = new ArrayList<>();
 

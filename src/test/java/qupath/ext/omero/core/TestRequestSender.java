@@ -17,21 +17,17 @@ import java.util.concurrent.ExecutionException;
 public class TestRequestSender extends OmeroServer {
 
     @Test
-    void Check_Link_Reachable() throws ExecutionException, InterruptedException {
+    void Check_Link_Reachable() {
         URI reachableLink = URI.create(OmeroServer.getWebServerURI());
 
-        boolean linkReachable = RequestSender.isLinkReachableWithGet(reachableLink).get();
-
-        Assertions.assertTrue(linkReachable);
+        Assertions.assertDoesNotThrow(() -> RequestSender.isLinkReachableWithGet(reachableLink));
     }
 
     @Test
-    void Check_Link_Unreachable() throws ExecutionException, InterruptedException {
+    void Check_Link_Unreachable() {
         URI unreachableLink = URI.create("http://invalid.invalid");
 
-        boolean linkReachable = RequestSender.isLinkReachableWithGet(unreachableLink).get();
-
-        Assertions.assertFalse(linkReachable);
+        Assertions.assertThrows(CompletionException.class, () -> RequestSender.isLinkReachableWithGet(unreachableLink).get());
     }
 
     @Test

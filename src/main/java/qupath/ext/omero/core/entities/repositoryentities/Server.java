@@ -10,7 +10,6 @@ import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -77,11 +76,15 @@ public class Server implements RepositoryEntity {
      *     Call {@link #create(ApisHandler, Group, long)} if you want to create the server for an
      *     authenticated user.
      * </p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param apisHandler  the APIs handler of the browser
-     * @return the new server, or an empty Optional if the creation failed
+     * @param apisHandler the APIs handler of the browser
+     * @return a CompletableFuture (that may complete exceptionally) with the new server
      */
-    public static CompletableFuture<Optional<Server>> create(ApisHandler apisHandler) {
+    public static CompletableFuture<Server> create(ApisHandler apisHandler) {
         return create(apisHandler, null, -1);
     }
 
@@ -89,43 +92,31 @@ public class Server implements RepositoryEntity {
      * Same as {@link #create(ApisHandler)}, but for creating the server for an
      * <b>authenticated</b> user.
      *
-     * @param apisHandler  the APIs handler of the browser
-     * @param defaultGroup  the default group of the provided user
-     * @param userId  the ID of the connected user. It should not correspond to the root account
-     *                as no images should be uploaded with this user. In that case, this function will
-     *                return an empty Optional
-     * @return the new server, or an empty Optional if the creation failed
+     * @param apisHandler the APIs handler of the browser
+     * @param defaultGroup the default group of the provided user
+     * @param userId the ID of the connected user. It should not correspond to the root account
+     *               as no images should be uploaded with this user. In that case, this function will
+     *               return an empty Optional
+     * @return a CompletableFuture (that may complete exceptionally) with the new server
      */
-    public static CompletableFuture<Optional<Server>> create(ApisHandler apisHandler, Group defaultGroup, long userId) {
+    public static CompletableFuture<Server> create(ApisHandler apisHandler, Group defaultGroup, long userId) {
         if (userId == 0) {
-            logger.error("It is forbidden to use the root account to log in, as no images should be uploaded with this user");
-            return CompletableFuture.completedFuture(Optional.empty());
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    "It is forbidden to use the root account to log in, as no images should be uploaded with this user"
+            ));
         }
 
-        CompletableFuture<Optional<Long>> userIdRequest = userId == -1 ?
+        CompletableFuture<Long> userIdRequest = userId == -1 ?
                 apisHandler.getPublicUserId() :
-                CompletableFuture.completedFuture(Optional.of(userId));
+                CompletableFuture.completedFuture(userId);
 
-        return userIdRequest.thenCompose(userIdResponse -> {
-            if (userIdResponse.isPresent()) {
-                return apisHandler.getGroups(userIdResponse.get()).handle((groups, error) -> {
-                    if (error == null) {
-                        return new UserIdGroups(userIdResponse.get(), groups);
-                    } else {
-                        logger.error("Error when retrieving groups", error);
-                        return null;
-                    }
-                });
-            } else {
-                return CompletableFuture.completedFuture(null);
-            }
-        }).thenApply(userIdGroups -> {
-            if (userIdGroups == null) {
-                return Optional.empty();
-            }
+        return userIdRequest.thenCompose(userIdResponse ->
+                apisHandler.getGroups(userIdResponse).thenApply(groups -> new UserIdGroups(userIdResponse, groups))
+        ).thenApply(userIdGroups -> {
             if (userIdGroups.groups().isEmpty()) {
-                logger.error(String.format("The server didn't return any group for user with ID %d", userIdGroups.userId()));
-                return Optional.empty();
+                throw new RuntimeException(String.format(
+                        "The server didn't return any group for user with ID %d", userIdGroups.userId()
+                ));
             }
 
             List<Owner> owners = userIdGroups.groups().stream()
@@ -139,12 +130,11 @@ public class Server implements RepositoryEntity {
                     .findAny()
                     .orElse(null);
             if (connectedOwner == null) {
-                logger.error(String.format(
+                throw new RuntimeException(String.format(
                         "The provided owner of ID %d was not found in the list returned by the server (%s)",
                         userIdGroups.userId(),
                         owners
                 ));
-                return Optional.empty();
             }
 
             Group group;
@@ -164,13 +154,13 @@ public class Server implements RepositoryEntity {
                 }
             }
 
-            return Optional.of(new Server(
+            return new Server(
                     apisHandler,
                     owners,
                     userIdGroups.groups(),
                     connectedOwner,
                     group
-            ));
+            );
         });
     }
 

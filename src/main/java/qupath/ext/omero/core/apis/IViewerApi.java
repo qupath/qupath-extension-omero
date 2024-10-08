@@ -110,13 +110,13 @@ class IViewerApi {
      * @return a CompletableFuture (that may complete exceptionally) with the retrieved image settings
      */
     public CompletableFuture<ImageSettings> getImageSettings(long imageId) {
-        URI uri;
         try {
-            uri = new URI(String.format(IMAGE_SETTINGS_URL, host, imageId));
+            return RequestSender.getAndConvert(
+                    new URI(String.format(IMAGE_SETTINGS_URL, host, imageId)),
+                    ImageSettings.class
+            );
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
-
-        return RequestSender.getAndConvert(uri, ImageSettings.class);
     }
 }

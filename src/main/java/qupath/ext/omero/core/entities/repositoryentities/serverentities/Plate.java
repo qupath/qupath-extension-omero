@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
-import com.google.common.collect.Lists;
 import com.google.gson.annotations.SerializedName;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -8,12 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -162,7 +158,6 @@ public class Plate extends ServerEntity {
                                 .flatMap(List::stream)
                                 .map(id -> client.getApisHandler().getImage(id))
                                 .map(CompletableFuture::join)
-                                .flatMap(Optional::stream)
                                 .toList()
                         )
                         .exceptionally(error -> {

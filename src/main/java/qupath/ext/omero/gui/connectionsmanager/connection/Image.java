@@ -41,9 +41,14 @@ class Image extends HBox {
 
         var imageID = WebUtilities.parseEntityId(imageUri);
         if (imageID.isPresent()) {
-            client.getApisHandler().getImage(imageID.getAsLong()).thenAccept(image -> Platform.runLater(() ->
-                    image.ifPresent(value -> name.setText(value.getLabel()))
-            ));
+            client.getApisHandler().getImage(imageID.getAsLong())
+                    .exceptionally(error -> {
+                        logger.error(String.format("Error when retrieving image of ID %d", imageID.getAsLong()), error);
+                        return null;
+                    })
+                    .thenAccept(image -> Platform.runLater(() ->
+                        name.setText(image.getLabel())
+                    ));
 
             client.getApisHandler().getThumbnail(imageID.getAsLong(), (int) thumbnail.getWidth())
                     .exceptionally(error -> {
@@ -56,13 +61,21 @@ class Image extends HBox {
                     }));
         }
 
-        RequestSender.isLinkReachableWithGet(imageUri, 403).thenAccept(success -> Platform.runLater(() ->
-                setStatus(success ? imageUri.toString() : resources.getString("ConnectionsManager.Image.unreachableImage"), success))
-        );
+        RequestSender.isLinkReachableWithGet(imageUri, 403).handle((v, error) -> {
+            if (error == null) {
+                setStatus(imageUri.toString(), true);
+            } else {
+                logger.debug(String.format("Cannot reach %s", imageUri), error);
+                setStatus(resources.getString("ConnectionsManager.Image.unreachableImage"), false);
+            }
+            return null;
+        });
     }
 
     private void setStatus(String text, boolean isActive) {
-        name.setTooltip(new Tooltip(text));
-        name.setGraphic(UiUtilities.createStateNode(isActive));
+        Platform.runLater(() -> {
+            name.setTooltip(new Tooltip(text));
+            name.setGraphic(UiUtilities.createStateNode(isActive));
+        });
     }
 }

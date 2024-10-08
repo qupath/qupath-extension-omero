@@ -3,8 +3,6 @@ package qupath.ext.omero.core.apis;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.FileAnnotation;
@@ -19,7 +17,6 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEn
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.RequestSender;
 
 import java.awt.image.BufferedImage;
@@ -29,8 +26,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -47,7 +44,6 @@ import java.util.stream.Stream;
  */
 class WebclientApi implements AutoCloseable {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebclientApi.class);
     private static final String PING_URL = "%s/webclient/keepalive_ping/";
     private static final String ITEM_URL = "%s/webclient/?show=%s-%d";
     private static final String LOGOUT_URL = "%s/webclient/logout/";
@@ -83,41 +79,28 @@ class WebclientApi implements AutoCloseable {
     /**
      * Creates a web client.
      *
-     * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
-     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     *               used by this session. This is needed to properly close this API.
+     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     *              used by this session. This is needed to properly close this API.
+     * @throws IllegalArgumentException when the ping URI cannot be created from the host
      */
     public WebclientApi(URI host, String token) {
         this.host = host;
         this.token = token;
 
-        pingUri = WebUtilities.createURI(String.format(PING_URL, host)).orElse(null);
+        pingUri = URI.create(String.format(PING_URL, host));
     }
 
     @Override
-    public void close() {
-        if (token != null) {
-            String body = "csrfmiddlewaretoken=" + token;
+    public void close() throws URISyntaxException, ExecutionException, InterruptedException {
+        URI uri = new URI(String.format(LOGOUT_URL, host));
 
-            URI uri;
-            try {
-                uri = new URI(String.format(LOGOUT_URL, host));
-            } catch (URISyntaxException e) {
-                logger.error(String.format("Cannot convert logout URL %s to URI", String.format(LOGOUT_URL, host)));
-                return;
-            }
-
-            RequestSender.post(
-                    uri,
-                    body.getBytes(StandardCharsets.UTF_8),
-                    uri.toString(),
-                    token
-            ).whenComplete((response, error) -> {
-                if (error != null) {
-                    logger.error("Error while logging out", error);
-                }
-            });
-        }
+        RequestSender.post(
+                uri,
+                String.format("csrfmiddlewaretoken=%s", token).getBytes(StandardCharsets.UTF_8),
+                uri.toString(),
+                token
+        ).get();
     }
 
     @Override
@@ -143,7 +126,8 @@ class WebclientApi implements AutoCloseable {
             ));
         }
 
-        return String.format(ITEM_URL,
+        return String.format(
+                ITEM_URL,
                 host,
                 TYPE_TO_URI_LABEL.get(entity.getClass()),
                 entity.getId()
@@ -155,16 +139,15 @@ class WebclientApi implements AutoCloseable {
      *     Attempt to send a ping to the server. This is needed to keep the connection alive between the client
      *     and the server.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @return a CompletableFuture indicating the success of the operation
+     * @return a void CompletableFuture (that completes exceptionally if the ping fails)
      */
-    public CompletableFuture<Boolean> ping() {
-        if (pingUri == null) {
-            return CompletableFuture.completedFuture(false);
-        } else {
-            return RequestSender.isLinkReachableWithGet(pingUri);
-        }
+    public CompletableFuture<Void> ping() {
+        return RequestSender.isLinkReachableWithGet(pingUri);
     }
 
     /**
@@ -204,37 +187,30 @@ class WebclientApi implements AutoCloseable {
      *     Attempt to get the ID of the public user of the server.
      *     This only works if there is no active authenticated connection with the server.
      * </p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request or the conversion failed for example).
+     * </p>
      *
-     * @return a CompletableFuture with the public user ID, or an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the public user ID
      */
-    public CompletableFuture<Optional<Long>> getPublicUserId() {
-        var uri = WebUtilities.createURI(String.format(WEBCLIENT_URL, host));
-
-        if (uri.isPresent()) {
-            return RequestSender.get(uri.get()).handle((response, error) -> {
-                if (error != null) {
-                    logger.error("Error while retrieving public user ID", error);
-                    return Optional.empty();
-                }
-
-                Matcher matcher = USER_ID_PATTERN.matcher(response);
-                if (matcher.find()) {
-                    String id = matcher.group(1);
-                    try {
-                        return Optional.of(Long.parseLong(id));
-                    } catch (NumberFormatException e) {
-                        logger.error(String.format("Could not convert %s to long", id));
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error(String.format("Pattern %s not found in %s", USER_ID_PATTERN, response));
-                    return Optional.empty();
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
+    public CompletableFuture<Long> getPublicUserId() {
+        URI uri;
+        try {
+            uri = new URI(String.format(WEBCLIENT_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return RequestSender.get(uri).thenApply(response -> {
+            Matcher matcher = USER_ID_PATTERN.matcher(response);
+
+            if (matcher.find()) {
+                return Long.parseLong(matcher.group(1));
+            } else {
+                throw new RuntimeException(String.format("Pattern %s not found in %s", USER_ID_PATTERN, response));
+            }
+        });
     }
 
     /**
@@ -280,10 +256,13 @@ class WebclientApi implements AutoCloseable {
 
     /**
      * <p>Attempt to perform a search on the server.</p>
-     * <p>This function is asynchronous.</p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the request failed for example).
+     * </p>
      *
-     * @param searchQuery  the parameters used in the search
-     * @return a CompletableFuture with a list of search results, or an empty list if an error occurred
+     * @param searchQuery the parameters used in the search
+     * @return a CompletableFuture (that may complete exceptionally) with a list of search results, or an empty list if an error occurred
      */
     public CompletableFuture<List<SearchResult>> getSearchResults(SearchQuery searchQuery) {
         StringBuilder fields = new StringBuilder();
@@ -314,26 +293,21 @@ class WebclientApi implements AutoCloseable {
             dataTypes.append("&datatype=screens");
         }
 
-        var uri = WebUtilities.createURI(String.format(SEARCH_URL,
-                host,
-                searchQuery.query(),
-                fields,
-                dataTypes,
-                searchQuery.group().getId(),
-                searchQuery.owner().id(),
-                System.currentTimeMillis()
-        ));
-        if (uri.isPresent()) {
-            return RequestSender.get(uri.get()).handle((response, error) -> {
-                if (error != null) {
-                    logger.error("Error when performing a search on the server", error);
-                    return List.of();
-                }
-
-                return SearchResult.createFromHTMLResponse(response, host);
-            });
-        } else {
-            return CompletableFuture.completedFuture(List.of());
+        try {
+            return RequestSender
+                    .get(new URI(String.format(SEARCH_URL,
+                            host,
+                            searchQuery.query(),
+                            fields,
+                            dataTypes,
+                            searchQuery.group().getId(),
+                            searchQuery.owner().id(),
+                            System.currentTimeMillis()
+                    ))).thenApplyAsync(response ->
+                            SearchResult.createFromHTMLResponse(response, host)
+                    );
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 

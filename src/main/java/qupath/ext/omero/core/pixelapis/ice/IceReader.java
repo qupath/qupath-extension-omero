@@ -47,10 +47,10 @@ class IceReader implements PixelAPIReader {
     /**
      * Creates a new Ice reader.
      *
-     * @param gatewayWrapper  a wrapper around a valid connection with an ICE server
-     * @param imageID  the ID of the image to open
-     * @param channels  the channels of the image to open
-     * @throws IOException  when the reader creation fails
+     * @param gatewayWrapper a wrapper around a valid connection with an ICE server
+     * @param imageID the ID of the image to open
+     * @param channels the channels of the image to open
+     * @throws IOException when the reader creation fails
      */
     public IceReader(GatewayWrapper gatewayWrapper, long imageID, List<ImageChannel> channels) throws IOException {
         try {

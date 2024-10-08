@@ -142,15 +142,15 @@ public class WebClient implements AutoCloseable {
         this.status = status;
         this.failReason = failReason;
 
+        //TODO: find alternative with Futures?
         if (timeoutTimer != null) {
             timeoutTimer.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    apisHandler.ping().thenAccept(success -> {
-                        if (!success) {
-                            logger.warn("Ping failed. Removing client");
-                            WebClients.removeClient(WebClient.this);
-                        }
+                    apisHandler.ping().exceptionally(error -> {
+                        logger.error("Ping failed. Removing client", error);
+                        WebClients.removeClient(WebClient.this);
+                        return null;
                     });
                 }
             }, PING_DELAY_MILLISECONDS, PING_DELAY_MILLISECONDS);
@@ -460,65 +460,62 @@ public class WebClient implements AutoCloseable {
             case CANCELED -> new WebClient(Status.CANCELED);
             case FAILED -> new WebClient(Status.FAILED);
             case UNAUTHENTICATED, SUCCESS -> {
+                Server server;
                 try {
-                    Optional<Server> server = loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS) ?
+                    server = loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS) ?
                             Server.create(apisHandler, loginResponse.getGroup(), loginResponse.getUserId()).get() :
                             Server.create(apisHandler).get();
-
-                    yield server.map(s -> new WebClient(
-                            s,
-                            apisHandler,
-                            s.getConnectedOwner().username(),
-                            loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS),
-                            List.of(
-                                    new WebAPI(apisHandler),
-                                    new IceAPI(apisHandler, loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS), loginResponse.getSessionUuid()),
-                                    new MsPixelBufferAPI(apisHandler)
-                            ),
-                            loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS) ? new Timer("omero-keep-alive", true) : null,
-                            loginResponse.getSessionUuid(),
-                            Status.SUCCESS,
-                            null
-                    )).orElseGet(() -> new WebClient(Status.FAILED));
                 } catch (InterruptedException | ExecutionException e) {
                     logger.error("Error initializing client", e);
                     yield new WebClient(Status.FAILED);
                 }
+
+                yield new WebClient(
+                        server,
+                        apisHandler,
+                        server.getConnectedOwner().username(),
+                        loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS),
+                        List.of(
+                                new WebAPI(apisHandler),
+                                new IceAPI(apisHandler, loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS), loginResponse.getSessionUuid()),
+                                new MsPixelBufferAPI(apisHandler)
+                        ),
+                        loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS) ? new Timer("omero-keep-alive", true) : null,
+                        loginResponse.getSessionUuid(),
+                        Status.SUCCESS,
+                        null
+                );
             }
         };
     }
 
     private static LoginResponse authenticate(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) {
-        try {
-            Optional<String> usernameFromArgs = getCredentialFromArgs("--username", "-u", args);
-            Optional<String> passwordFromArgs = getCredentialFromArgs("--password", "-p", args);
+        String usernameFromArgs = getCredentialFromArgs("--username", "-u", args).orElse(null);
+        String passwordFromArgs = getCredentialFromArgs("--password", "-p", args).orElse(null);
 
-            return switch (authentication) {
-                case ENFORCE -> apisHandler.login(
-                        usernameFromArgs.orElse(null),
-                        passwordFromArgs.orElse(null)
-                ).get();
-                case TRY_TO_SKIP -> {
-                    if (apisHandler.canSkipAuthentication()) {
-                        yield LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
-                    } else {
-                        yield apisHandler.login(
-                                usernameFromArgs.orElse(null),
-                                passwordFromArgs.orElse(null)
-                        ).get();
-                    }
+        CompletableFuture<LoginResponse> loginRequest = switch (authentication) {
+            case ENFORCE -> apisHandler.login(usernameFromArgs, passwordFromArgs);
+            case TRY_TO_SKIP -> {
+                if (apisHandler.canSkipAuthentication()) {
+                    yield CompletableFuture.completedFuture(LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
+                } else {
+                    yield apisHandler.login(usernameFromArgs, passwordFromArgs);
                 }
-                case SKIP -> {
-                    if (apisHandler.canSkipAuthentication()) {
-                        yield LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
-                    } else {
-                        logger.warn(String.format("The server %s doesn't allow browsing without being authenticated", uri));
-                        yield LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED);
-                    }
+            }
+            case SKIP -> {
+                if (apisHandler.canSkipAuthentication()) {
+                    yield CompletableFuture.completedFuture(LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
+                } else {
+                    logger.warn(String.format("The server %s doesn't allow browsing without being authenticated", uri));
+                    yield CompletableFuture.completedFuture(LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED));
                 }
-            };
+            }
+        };
+
+        try {
+            return loginRequest.get();
         } catch (ExecutionException | InterruptedException e) {
-            logger.error("Error initializing client", e);
+            logger.error("Error authenticating", e);
             return LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED);
         }
     }

@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
@@ -20,6 +19,8 @@ import qupath.lib.images.servers.PixelType;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 /**
  * <p>
@@ -177,16 +178,37 @@ public class MsPixelBufferAPI implements PixelAPI {
     }
 
     private void setAvailable(boolean performInBackground) {
-        Optional<URI> uri = WebUtilities.createURI(host + "/tile");
-
-        if (uri.isPresent()) {
-            if (performInBackground) {
-                RequestSender.isLinkReachableWithOptions(uri.get()).thenAccept(isAvailable::set);
-            } else {
-                isAvailable.set(RequestSender.isLinkReachableWithOptions(uri.get()).join());
+        URI uri;
+        try {
+            uri = new URI(String.format("%s/tile", host));
+        } catch (URISyntaxException e) {
+            logger.error(String.format("Cannot create URI from %s", String.format("%s/tile", host)), e);
+            synchronized (this) {
+                isAvailable.set(false);
             }
-        } else {
-            isAvailable.set(false);
+            return;
+        }
+
+        CompletableFuture<Void> request = RequestSender.isLinkReachableWithOptions(uri).handle((v, error) -> {
+            if (error == null) {
+                synchronized (this) {
+                    isAvailable.set(true);
+                }
+            } else {
+                logger.debug(String.format("Connexion to %s failed", uri), error);
+                synchronized (this) {
+                    isAvailable.set(false);
+                }
+            }
+            return null;
+        });
+
+        if (!performInBackground) {
+            try {
+                request.get();
+            } catch (ExecutionException | InterruptedException e) {
+                logger.debug(String.format("Connexion to %s failed", uri), e);
+            }
         }
     }
 

@@ -31,29 +31,20 @@ public class ImageMetadataResponseParser {
      * Parse a metadata response.
      *
      * @param metadataResponse a JSON containing metadata to parse
-     * @return the parsed metadata, or an empty Optional if one the following parameter was not found:
-     * image width, image height, channels, pixel type
+     * @return the parsed metadata
+     * @throws IllegalArgumentException when it was not possible to parse image width, image height,
+     * channels or pixel type from the provided JSON object
      */
-    public static Optional<ImageServerMetadata> createMetadataFromJson(JsonObject metadataResponse) {
+    public static ImageServerMetadata createMetadataFromJson(JsonObject metadataResponse) {
         ImageServerMetadata.Builder metadataBuilder = new ImageServerMetadata.Builder();
 
-        if (!setImageSize(metadataResponse, metadataBuilder)) {
-            return Optional.empty();
-        }
-
+        setImageSize(metadataResponse, metadataBuilder);
         setPixelSize(metadataResponse, metadataBuilder);
 
         List<ImageChannel> channels = setChannels(metadataResponse, metadataBuilder);
-        if (channels.isEmpty()) {
-            return Optional.empty();
-        }
+        PixelType pixelType = setImageNameAndPixelType(metadataResponse, metadataBuilder);
 
-        Optional<PixelType> pixelType = setImageNameAndPixelType(metadataResponse, metadataBuilder);
-        if (pixelType.isEmpty()) {
-            return Optional.empty();
-        }
-
-        metadataBuilder.rgb(channels.size() == 3 && pixelType.get() == PixelType.UINT8);
+        metadataBuilder.rgb(channels.size() == 3 && pixelType == PixelType.UINT8);
 
         setTileSize(metadataResponse, metadataBuilder);
         setLevels(metadataResponse, metadataBuilder);
@@ -62,34 +53,20 @@ public class ImageMetadataResponseParser {
                 metadataBuilder.magnification(number.doubleValue())
         );
 
-        return Optional.of(metadataBuilder.build());
+        return metadataBuilder.build();
     }
 
-    private static boolean setImageSize(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
+    private static void setImageSize(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
         if (!metadataResponse.has("size") || !metadataResponse.get("size").isJsonObject()) {
-            logger.error(String.format("'size' JSON object not found in %s", metadataResponse));
-            return false;
+            throw new IllegalArgumentException(String.format("'size' JSON object not found in %s", metadataResponse));
         }
         JsonObject size = metadataResponse.getAsJsonObject("size");
 
-        Optional<Number> sizeX = getNumberFromJsonObject(size, "width", logger.atError());
-        if (sizeX.isEmpty()) {
-            return false;
-        } else {
-            metadataBuilder.width(sizeX.get().intValue());
-        }
-
-        Optional<Number> sizeY = getNumberFromJsonObject(size, "height", logger.atError());
-        if (sizeY.isEmpty()) {
-            return false;
-        } else {
-            metadataBuilder.height(sizeY.get().intValue());
-        }
+        metadataBuilder.width(getNumberFromJsonObject(size, "width").intValue());
+        metadataBuilder.height(getNumberFromJsonObject(size, "height").intValue());
 
         getNumberFromJsonObject(size, "z", logger.atDebug()).ifPresent(number -> metadataBuilder.sizeZ(number.intValue()));
         getNumberFromJsonObject(size, "t", logger.atDebug()).ifPresent(number -> metadataBuilder.sizeT(number.intValue()));
-
-        return true;
     }
 
     private static void setPixelSize(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
@@ -118,80 +95,82 @@ public class ImageMetadataResponseParser {
     }
 
     private static List<ImageChannel> setChannels(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
-        if (metadataResponse.has("channels") && metadataResponse.get("channels").isJsonArray()) {
-            List<JsonElement> channelsJson = metadataResponse.getAsJsonArray("channels").asList();
-
-            List<ImageChannel> channels = IntStream.range(0, channelsJson.size())
-                    .mapToObj(i -> {
-                        if (channelsJson.get(i).isJsonObject()) {
-                            JsonObject channel = channelsJson.get(i).getAsJsonObject();
-
-                            if (channel.has("color") && channel.get("color").isJsonPrimitive()
-                                    && channel.has("label") && channel.get("label").isJsonPrimitive()
-                            ) {
-                                String color = channelsJson.get(i).getAsJsonObject().get("color").getAsString();
-
-                                try {
-                                    return ImageChannel.getInstance(
-                                            channel.get("label").getAsString(),
-                                            ColorTools.packRGB(
-                                                    Integer.valueOf(color.substring(0, 2), 16),
-                                                    Integer.valueOf(color.substring(2, 4), 16),
-                                                    Integer.valueOf(color.substring(4, 6), 16)
-                                            )
-                                    );
-                                } catch (IndexOutOfBoundsException |  NumberFormatException e) {
-                                    logger.debug(String.format("Could not parse a color from %s", color), e);
-                                }
-                            } else {
-                                logger.debug(String.format("'color' or 'label' string not found in %s", channel));
-                            }
-                        } else {
-                            logger.debug(String.format("The JSON element %s is not a JSON object", channelsJson.get(i)));
-                        }
-
-                        return ImageChannel.getInstance(
-                                "Channel " + i,
-                                ImageChannel.getDefaultChannelColor(i)
-                        );
-                    })
-                    .toList();
-
-            metadataBuilder.channels(channels);
-            return channels;
-        } else {
-            logger.error(String.format("'channels' JSON array not found in %s", metadataResponse));
-            return List.of();
+        if (!metadataResponse.has("channels") || !metadataResponse.get("channels").isJsonArray() ||
+                metadataResponse.getAsJsonArray("channels").size() == 0
+        ) {
+            throw new IllegalArgumentException(String.format("Non empty 'channels' JSON array not found in %s", metadataResponse));
         }
+        List<JsonElement> channelsJson = metadataResponse.getAsJsonArray("channels").asList();
+
+        List<ImageChannel> channels = IntStream.range(0, channelsJson.size())
+                .mapToObj(i -> {
+                    if (!channelsJson.get(i).isJsonObject()) {
+                        throw new IllegalArgumentException(String.format("The JSON element %s is not a JSON object", channelsJson.get(i)));
+                    }
+                    JsonObject channel = channelsJson.get(i).getAsJsonObject();
+
+                    String channelName;
+                    if (channel.has("label") && channel.get("label").isJsonPrimitive()) {
+                        channelName = channel.get("label").getAsString();
+                    } else {
+                        logger.debug(String.format("'label' string not found in %s", channel));
+                        channelName = String.format("Channel %d", i);
+                    }
+
+                    Integer color;
+                    if (channel.has("color") && channel.get("color").isJsonPrimitive()) {
+                        String colorText = channelsJson.get(i).getAsJsonObject().get("color").getAsString();
+
+                        try {
+                            color = ColorTools.packRGB(
+                                    Integer.valueOf(colorText.substring(0, 2), 16),
+                                    Integer.valueOf(colorText.substring(2, 4), 16),
+                                    Integer.valueOf(colorText.substring(4, 6), 16)
+                            );
+                        } catch (IndexOutOfBoundsException |  NumberFormatException e) {
+                            logger.debug(String.format("Could not parse a color from %s", colorText), e);
+                            color = ImageChannel.getDefaultChannelColor(i);
+                        }
+                    } else {
+                        logger.debug(String.format("'color' string not found in %s", channel));
+                        color = ImageChannel.getDefaultChannelColor(i);
+                    }
+
+                    return ImageChannel.getInstance(
+                            channelName,
+                            color
+                    );
+                })
+                .toList();
+
+        metadataBuilder.channels(channels);
+        return channels;
     }
 
-    private static Optional<PixelType> setImageNameAndPixelType(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
-        if (metadataResponse.has("meta") && metadataResponse.get("meta").isJsonObject()) {
-            JsonObject meta = metadataResponse.getAsJsonObject("meta");
-
-            if (meta.has("imageName") && meta.get("imageName").isJsonPrimitive()) {
-                metadataBuilder.name(meta.get("imageName").getAsString());
-            } else {
-                logger.debug(String.format("'imageName' string not found in %s", meta));
-            }
-
-            if (meta.has("pixelsType") && meta.get("pixelsType").isJsonPrimitive()) {
-                Optional<PixelType> pixelType = ApisHandler.getPixelType(meta.get("pixelsType").getAsString());
-
-                if (pixelType.isPresent()) {
-                    metadataBuilder.pixelType(pixelType.get());
-                } else {
-                    logger.error(String.format("Cannot convert %s to a known pixel type", meta.get("pixelsType").getAsString()));
-                }
-                return pixelType;
-            } else {
-                logger.error(String.format("'pixelsType' string not found in %s", meta));
-                return Optional.empty();
-            }
-        } else {
-            logger.debug(String.format("'meta' JSON object not found in %s", metadataResponse));
-            return Optional.empty();
+    private static PixelType setImageNameAndPixelType(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
+        if (!metadataResponse.has("meta") || !metadataResponse.get("meta").isJsonObject()) {
+            throw new IllegalArgumentException(String.format("'meta' JSON object not found in %s", metadataResponse));
         }
+        JsonObject meta = metadataResponse.getAsJsonObject("meta");
+
+        if (meta.has("imageName") && meta.get("imageName").isJsonPrimitive()) {
+            metadataBuilder.name(meta.get("imageName").getAsString());
+        } else {
+            logger.debug(String.format("'imageName' string not found in %s", meta));
+        }
+
+        if (!meta.has("pixelsType") || !meta.get("pixelsType").isJsonPrimitive()) {
+            throw new IllegalArgumentException(String.format("'pixelsType' string not found in %s", meta));
+        }
+        String pixelsType = meta.get("pixelsType").getAsString();
+
+        PixelType pixelType = ApisHandler.getPixelType(pixelsType).orElseThrow(() -> new IllegalArgumentException(
+                String.format("Cannot convert %s to a known pixel type", pixelsType)
+        ));
+        metadataBuilder.pixelType(pixelType);
+
+        return pixelType;
+
     }
 
     private static void setTileSize(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
@@ -228,11 +207,19 @@ public class ImageMetadataResponseParser {
         }
     }
 
-    private static Optional<Number> getNumberFromJsonObject(JsonObject jsonObject, String attributeName, LoggingEventBuilder logger) {
+    private static Number getNumberFromJsonObject(JsonObject jsonObject, String attributeName) {
         if (jsonObject.has(attributeName) && jsonObject.get(attributeName).isJsonPrimitive() && jsonObject.getAsJsonPrimitive(attributeName).isNumber()) {
-            return Optional.of(jsonObject.getAsJsonPrimitive(attributeName).getAsNumber());
+            return jsonObject.getAsJsonPrimitive(attributeName).getAsNumber();
         } else {
-            logger.log(String.format("'%s' number not found in %s", attributeName, jsonObject));
+            throw new IllegalArgumentException(String.format("'%s' number not found in %s", attributeName, jsonObject));
+        }
+    }
+
+    private static Optional<Number> getNumberFromJsonObject(JsonObject jsonObject, String attributeName, LoggingEventBuilder logger) {
+        try {
+            return Optional.of(getNumberFromJsonObject(jsonObject, attributeName));
+        } catch (IllegalArgumentException e) {
+            logger.log(e.getMessage());
             return Optional.empty();
         }
     }

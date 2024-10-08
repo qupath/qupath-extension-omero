@@ -1,7 +1,5 @@
 package qupath.ext.omero.core.imageserver;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.shapes.Shape;
@@ -31,6 +29,7 @@ import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Stream;
 
 /**
  * <p>{@link qupath.lib.images.servers.ImageServer Image server} of the extension.</p>
@@ -40,10 +39,6 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServer.class);
     private static final String PIXEL_API_ARGUMENT = "--pixelAPI";
-    private static final int METADATA_CACHE_SIZE = 50;
-    private static final Cache<Long, CompletableFuture<Optional<ImageServerMetadata>>> metadataCache = CacheBuilder.newBuilder()
-            .maximumSize(METADATA_CACHE_SIZE)
-            .build();
     private final URI uri;
     private final WebClient client;
     private final PixelAPIReader pixelAPIReader;
@@ -65,74 +60,68 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         this.id = id;
         this.originalMetadata = originalMetadata;
         this.args = args;
+
+        this.client.addOpenedImage(uri);
     }
 
     /**
-     * Attempt to create an OmeroImageServer.
-     * This should only be used by an {@link OmeroImageServerBuilder}.
+     * <p>
+     *     Attempt to create an OmeroImageServer.
+     * </p>
+     * <p>
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if a request failed for example).
+     * </p>
      *
-     * @param uri  the image URI
-     * @param client  the corresponding WebClient
-     * @param args  optional arguments used to open the image
-     * @return an OmeroImageServer, or an empty Optional if an error occurred
+     * @param uri the image URI
+     * @param client the corresponding WebClient
+     * @param args optional arguments used to open the image
+     * @return a CompletableFuture (that may complete exceptionally) with the OmeroImageServer
      */
-    static Optional<OmeroImageServer> create(URI uri, WebClient client, String... args) {
+    public static CompletableFuture<OmeroImageServer> create(URI uri, WebClient client, String... args) {
         OptionalLong id = WebUtilities.parseEntityId(uri);
-        if (id.isPresent()) {
-            Optional<ImageServerMetadata> originalMetadata = Optional.empty();
-            try {
-                originalMetadata = getOriginalMetadata(uri, client).get();
-            } catch (Exception e) {
-                logger.error("Error while retrieving metadata", e);
-            }
-
-            if (originalMetadata.isPresent()) {
-                PixelAPI pixelAPI;
-                var pixelAPIFromArgs = getPixelAPIFromArgs(client, args);
-
-                if (pixelAPIFromArgs.isPresent()) {
-                    pixelAPI = pixelAPIFromArgs.get();
-                } else {
-                    pixelAPI = client.getSelectedPixelAPI().get();
-                    if (pixelAPI == null) {
-                        logger.error("No selected pixel API");
-                        return Optional.empty();
-                    }
-
-                    args = addPixelAPIToArgs(pixelAPI, args);
-                }
-
-                pixelAPI.setParametersFromArgs(args);
-
-                if (pixelAPI.canReadImage(originalMetadata.get().getPixelType(), originalMetadata.get().getSizeC())) {
-                    try {
-                        client.addOpenedImage(uri);
-
-                        PixelAPIReader apiReader = pixelAPI.createReader(id.getAsLong(), originalMetadata.get());
-
-                        return Optional.of(new OmeroImageServer(
-                                uri,
-                                client,
-                                apiReader,
-                                id.getAsLong(),
-                                originalMetadata.get(),
-                                args
-                        ));
-                    } catch (IOException e) {
-                        logger.error("Couldn't create pixel API reader", e);
-                        return Optional.empty();
-                    }
-                } else {
-                    logger.error("The selected pixel API (" + pixelAPI + ") can't read the provided image");
-                    return Optional.empty();
-                }
-            } else {
-                return Optional.empty();
-            }
-        } else {
-            logger.warn("Could not get image ID from " + uri);
-            return Optional.empty();
+        if (id.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(String.format(
+                    "Impossible to parse an ID from the provided URI %s", uri
+            )));
         }
+
+        List<String> arguments = Arrays.stream(args).toList();
+
+        return client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(metadata -> {
+            Optional<PixelAPI> pixelAPIFromArgs = getPixelAPIFromArgs(client, arguments);
+
+            PixelAPI pixelAPI;
+            List<String> newArguments = List.of();
+            if (pixelAPIFromArgs.isPresent()) {
+                pixelAPI = pixelAPIFromArgs.get();
+            } else {
+                pixelAPI = client.getSelectedPixelAPI().get();
+                if (pixelAPI == null) {
+                    throw new IllegalStateException("No supplied pixel API and no selected pixel API");
+                }
+
+                newArguments = getPixelAPIArgs(pixelAPI);
+            }
+            String[] newArgs = Stream.concat(
+                    arguments.stream(),
+                    newArguments.stream()
+            ).toArray(String[]::new);
+            pixelAPI.setParametersFromArgs(newArgs);
+
+            try {
+                return new OmeroImageServer(
+                        uri,
+                        client,
+                        pixelAPI.createReader(id.getAsLong(), metadata),
+                        id.getAsLong(),
+                        metadata,
+                        newArgs
+                );
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     @Override
@@ -221,6 +210,11 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         return String.format("OMERO image server of %s", uri);
     }
 
+    @Override
+    public void close() throws Exception {
+        pixelAPIReader.close();
+    }
+
     /**
      * @return the client owning this image server
      */
@@ -235,52 +229,13 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         return id;
     }
 
-    /**
-     * <p>
-     *     Attempt to retrieve metadata associated with the image specified by the
-     *     provided parameters.
-     * </p>
-     * <p>
-     *     The results are cached in a cache of size {@link #METADATA_CACHE_SIZE}.
-     * </p>
-     *
-     * @param uri  the URI of the image
-     * @param client  the client of the corresponding server
-     * @return a CompletableFuture with the metadata, or an empty Optional if the request failed
-     */
-    public static CompletableFuture<Optional<ImageServerMetadata>> getOriginalMetadata(URI uri, WebClient client) {
-        OptionalLong id = WebUtilities.parseEntityId(uri);
-
-        if (id.isPresent()) {
-            try {
-                CompletableFuture<Optional<ImageServerMetadata>> request = metadataCache.get(
-                        id.getAsLong(),
-                        () -> client.getApisHandler().getImageMetadata(id.getAsLong())
-                );
-
-                request.thenAccept(response -> {
-                    if (response.isEmpty()) {
-                        metadataCache.invalidate(id.getAsLong());
-                    }
-                });
-                return request;
-            } catch (ExecutionException e) {
-                logger.error("Error when retrieving metadata", e);
-                return CompletableFuture.completedFuture(Optional.empty());
-            }
-        } else {
-            logger.warn("Could not get image ID from " + uri);
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
-    }
-
-    private static Optional<PixelAPI> getPixelAPIFromArgs(WebClient client, String... args) {
+    private static Optional<PixelAPI> getPixelAPIFromArgs(WebClient client, List<String> args) {
         String pixelAPIName = null;
         int i = 0;
-        while (i < args.length-1) {
-            String parameter = args[i++];
+        while (i < args.size()-1) {
+            String parameter = args.get(i++);
             if (PIXEL_API_ARGUMENT.equalsIgnoreCase(parameter.trim())) {
-                pixelAPIName = args[i++].trim();
+                pixelAPIName = args.get(i++).trim();
             }
         }
 
@@ -290,28 +245,19 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                     return Optional.of(pixelAPI);
                 }
             }
-            logger.warn(
-                    "The provided pixel API (" + pixelAPIName + ") was not recognized, or the corresponding OMERO server doesn't support it." +
-                            "Another one will be used."
-            );
+            logger.warn(String.format(
+                    "The provided pixel API (%s) was not recognized, or the corresponding OMERO server doesn't support it. Another one will be used.",
+                    pixelAPIName
+            ));
         }
 
         return Optional.empty();
     }
 
-    private static String[] addPixelAPIToArgs(PixelAPI pixelAPI, String[] args) {
-        String[] pixelApiArgs = pixelAPI.getArgs();
-        int currentArgsSize = args.length;
-
-        args = Arrays.copyOf(args, args.length + 2 + pixelApiArgs.length);
-
-        args[currentArgsSize] = PIXEL_API_ARGUMENT;
-        args[currentArgsSize + 1] = pixelAPI.getName();
-
-        for (int i=0; i<pixelApiArgs.length; ++i) {
-            args[currentArgsSize + 2 + i] = pixelApiArgs[i];
-        }
-
-        return args;
+    private static List<String> getPixelAPIArgs(PixelAPI pixelAPI) {
+        return Stream.concat(
+                Stream.of(PIXEL_API_ARGUMENT, pixelAPI.getName()),
+                Arrays.stream(pixelAPI.getArgs())
+        ).toList();
     }
 }

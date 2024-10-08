@@ -12,7 +12,7 @@ import java.util.List;
  * <p>
  *     A wrapper around an Ice {@link Gateway}.
  *     This is needed because if a {@link Gateway} is directly used in the {@link IceAPI}
- *     class when the Ice dependencies are not available, the program will freeze.
+ *     class when the Ice dependencies are not available, the program will crash.
  * </p>
  * <p>
  *     This class needs to be {@link #close() closed} once no longer used.
@@ -39,8 +39,8 @@ class GatewayWrapper implements AutoCloseable {
      * Attempt to connect the gateway with the provided credentials.
      * If a connection is already established, nothing will happen.
      *
-     * @param loginCredentials  the credentials to use when connecting. If some credentials work,
-     *                          the remaining will not be tested.
+     * @param loginCredentials the credentials to use when connecting. If some credentials work,
+     *                         the remaining will not be tested.
      * @return whether the gateway is connected after the connection attempts
      */
     public synchronized boolean connect(List<LoginCredentials> loginCredentials) {
@@ -60,7 +60,7 @@ class GatewayWrapper implements AutoCloseable {
                     }
                 } catch (Exception e) {
                     if (i < loginCredentials.size()-1) {
-                        logger.warn(String.format(
+                        logger.debug(String.format(
                                 "Ice can't connect to %s:%d. Trying %s:%d...",
                                 loginCredentials.get(i).getServer().getHost(),
                                 loginCredentials.get(i).getServer().getPort(),
@@ -68,7 +68,7 @@ class GatewayWrapper implements AutoCloseable {
                                 loginCredentials.get(i+1).getServer().getPort()
                         ), e);
                     } else {
-                        logger.warn(String.format(
+                        logger.error(String.format(
                                 "Ice can't connect to %s:%d. No more credentials available",
                                 loginCredentials.get(i).getServer().getHost(),
                                 loginCredentials.get(i).getServer().getPort()

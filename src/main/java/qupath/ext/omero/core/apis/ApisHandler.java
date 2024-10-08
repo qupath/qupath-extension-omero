@@ -19,7 +19,6 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -34,7 +33,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -50,6 +48,7 @@ public class ApisHandler implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(ApisHandler.class);
     private static final int THUMBNAIL_SIZE = 256;
     private static final int THUMBNAIL_CACHE_SIZE = 1000;
+    private static final int METADATA_CACHE_SIZE = 50;
     private static final Map<String, PixelType> PIXEL_TYPE_MAP = Map.of(
             "uint8", PixelType.UINT8,
             "int8", PixelType.INT8,
@@ -69,7 +68,11 @@ public class ApisHandler implements AutoCloseable {
     private final Cache<IdSizeWrapper, CompletableFuture<BufferedImage>> thumbnailsCache = CacheBuilder.newBuilder()
             .maximumSize(THUMBNAIL_CACHE_SIZE)
             .build();
-    private final Map<Class<? extends RepositoryEntity>, BufferedImage> omeroIconsCache = new ConcurrentHashMap<>();
+    private final Cache<Class<? extends RepositoryEntity>, CompletableFuture<BufferedImage>> omeroIconsCache = CacheBuilder.newBuilder()
+            .build();
+    private final Cache<Long, CompletableFuture<ImageServerMetadata>> metadataCache = CacheBuilder.newBuilder()
+            .maximumSize(METADATA_CACHE_SIZE)
+            .build();
     private final boolean canSkipAuthentication;
     private record IdSizeWrapper(long id, int size) {}
 
@@ -91,15 +94,17 @@ public class ApisHandler implements AutoCloseable {
      *     if the request failed for example).
      * </p>
      *
-     * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
      * @return a CompletableFuture (that may complete exceptionally) with the request handler
      */
     public static CompletableFuture<ApisHandler> create(URI host) {
         return JsonApi.create(host).thenApplyAsync(jsonApi -> {
             try {
-                return new ApisHandler(host, jsonApi, jsonApi.canSkipAuthentication().get());
+                jsonApi.canSkipAuthentication().get();
+                return new ApisHandler(host, jsonApi, true);
             } catch (InterruptedException | ExecutionException e) {
-                throw new RuntimeException(e);
+                logger.debug("Cannot skip authentication", e);
+                return new ApisHandler(host, jsonApi, false);
             }
         });
     }
@@ -183,8 +188,7 @@ public class ApisHandler implements AutoCloseable {
     public CompletableFuture<List<URI>> getImagesURIOfDataset(long datasetID) {
         return getImages(datasetID).thenApply(images -> images.stream()
                 .map(this::getItemURI)
-                .map(WebUtilities::createURI)
-                .flatMap(Optional::stream)
+                .map(URI::create)
                 .toList()
         );
     }
@@ -238,7 +242,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebclientApi#ping()}.
      */
-    public CompletableFuture<Boolean> ping() {
+    public CompletableFuture<Void> ping() {
         return webclientApi.ping();
     }
 
@@ -252,7 +256,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebclientApi#getPublicUserId()}.
      */
-    public CompletableFuture<Optional<Long>> getPublicUserId() {
+    public CompletableFuture<Long> getPublicUserId() {
         return webclientApi.getPublicUserId();
     }
 
@@ -457,53 +461,45 @@ public class ApisHandler implements AutoCloseable {
      *
      * @param type the class of the entity whose icon is to be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the icon
-     * @throws IllegalArgumentException if the provided type is not part of the list described above
+     * @throws com.google.common.util.concurrent.UncheckedExecutionException if the provided type is not part of the list described above
      */
     public CompletableFuture<BufferedImage> getOmeroIcon(Class<? extends RepositoryEntity> type) {
-        if (omeroIconsCache.containsKey(type)) {
-            return CompletableFuture.completedFuture(omeroIconsCache.get(type));
-        } else {
-            if (type.equals(Project.class)) {
-                return webGatewayApi.getProjectIcon().thenApply(icon -> {
-                    omeroIconsCache.put(type, icon);
-                    return icon;
-                });
-            } else if (type.equals(Dataset.class)) {
-                return webGatewayApi.getDatasetIcon().thenApply(icon -> {
-                    omeroIconsCache.put(type, icon);
-                    return icon;
-                });
-            } else if (type.equals(OrphanedFolder.class)) {
-                return webGatewayApi.getOrphanedFolderIcon().thenApply(icon -> {
-                    omeroIconsCache.put(type, icon);
-                    return icon;
-                });
-            } else if (type.equals(Image.class)) {
-                return webclientApi.getImageIcon().thenApply(icon -> {
-                    omeroIconsCache.put(type, icon);
-                    return icon;
-                });
-            } else if (type.equals(Screen.class)) {
-                return webclientApi.getScreenIcon().thenApply(icon -> {
-                    omeroIconsCache.put(type, icon);
-                    return icon;
-                });
-            } else if (type.equals(Plate.class)) {
-                return webclientApi.getPlateIcon().thenApply(icon -> {
-                    omeroIconsCache.put(type, icon);
-                    return icon;
-                });
-            } else if (type.equals(PlateAcquisition.class)) {
-                return webclientApi.getPlateAcquisitionIcon().thenApply(icon -> {
-                    omeroIconsCache.put(type, icon);
-                    return icon;
-                });
-            } else {
-                throw new IllegalArgumentException(String.format(
-                        "The provided type %s is not an orphaned folder, project, dataset, image, screen, plate or plate acquisition", type
-                ));
-            }
+        CompletableFuture<BufferedImage> request;
+
+        try {
+            request = omeroIconsCache.get(
+                    type,
+                    () -> {
+                        if (type.equals(Project.class)) {
+                            return webGatewayApi.getProjectIcon();
+                        } else if (type.equals(Dataset.class)) {
+                            return webGatewayApi.getDatasetIcon();
+                        } else if (type.equals(OrphanedFolder.class)) {
+                            return webGatewayApi.getOrphanedFolderIcon();
+                        } else if (type.equals(Image.class)) {
+                            return webclientApi.getImageIcon();
+                        } else if (type.equals(Screen.class)) {
+                            return webclientApi.getScreenIcon();
+                        } else if (type.equals(Plate.class)) {
+                            return webclientApi.getPlateIcon();
+                        } else if (type.equals(PlateAcquisition.class)) {
+                            return webclientApi.getPlateAcquisitionIcon();
+                        } else {
+                            throw new IllegalArgumentException(String.format(
+                                    "The provided type %s is not an orphaned folder, project, dataset, image, screen, plate or plate acquisition", type
+                            ));
+                        }
+                    }
+            );
+        } catch (ExecutionException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return request.whenComplete((icon, error) -> {
+            if (icon == null) {
+                omeroIconsCache.invalidate(type);
+            }
+        });
     }
 
     /**
@@ -531,20 +527,30 @@ public class ApisHandler implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        request.whenComplete((thumbnail, error) -> {
+        return request.whenComplete((thumbnail, error) -> {
             if (thumbnail == null) {
                 thumbnailsCache.invalidate(key);
             }
         });
-
-        return request;
     }
 
     /**
      * See {@link WebGatewayApi#getImageMetadata(long)}.
+     * Metadata is cached in a cache of size {@link #METADATA_CACHE_SIZE}.
      */
-    public CompletableFuture<Optional<ImageServerMetadata>> getImageMetadata(long id) {
-        return webGatewayApi.getImageMetadata(id);
+    public CompletableFuture<ImageServerMetadata> getImageMetadata(long id) {
+        CompletableFuture<ImageServerMetadata> request;
+        try {
+            request = metadataCache.get(id, () -> webGatewayApi.getImageMetadata(id));
+        } catch (ExecutionException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        return request.whenComplete((metadata, error) -> {
+            if (metadata == null) {
+                metadataCache.invalidate(id);
+            }
+        });
     }
 
     /**
