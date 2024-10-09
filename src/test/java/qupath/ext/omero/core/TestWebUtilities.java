@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Optional;
 
 public class TestWebUtilities {
@@ -91,11 +92,11 @@ public class TestWebUtilities {
     }
 
     @Test
-    void Check_Host_Part_Of_URI() {
+    void Check_Host_Part_Of_URI() throws URISyntaxException {
         URI expectedServerURI = URI.create("http://localhost:4080");
         URI uri = URI.create(expectedServerURI + "/iviewer/?images=12546&dataset=1157");
 
-        URI serverURI = WebUtilities.getServerURI(uri).orElse(null);
+        URI serverURI = WebUtilities.getServerURI(uri);
 
         Assertions.assertEquals(expectedServerURI, serverURI);
     }

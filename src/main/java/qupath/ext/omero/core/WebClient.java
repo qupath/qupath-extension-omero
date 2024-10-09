@@ -23,15 +23,15 @@ import qupath.lib.gui.viewer.QuPathViewer;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
- * <p>Class representing an OMERO Web Client.</p>
  * <p>
- *     It handles creating a connection with an OMERO server and keeping the connection alive.
+ *     Class representing an OMERO Web Client. It handles creating a connection with an OMERO server
+ *     and keeping the connection alive.
  * </p>
  * <p>
  *     A client can be connected to a server without being authenticated if the server allows it.
@@ -50,57 +50,25 @@ import java.util.concurrent.ExecutionException;
  *     A client must be {@link #close() closed} once no longer used.
  *     This is handled by {@link WebClients#removeClient(WebClient)}.
  * </p>
+ * <p>
+ *     This class is thread-safe.
+ * </p>
  */
 public class WebClient implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebClient.class);
-    private static final long PING_DELAY_MILLISECONDS = 60000L;
+    private static final int PING_DELAY_SECONDS = 60;
     private final ObservableList<PixelAPI> availablePixelAPIs = FXCollections.observableArrayList();
     private final ObservableList<PixelAPI> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelAPIs);
     private final ObjectProperty<PixelAPI> selectedPixelAPI = new SimpleObjectProperty<>();
     private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet();
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
+    private final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
     private final Server server;
     private final ApisHandler apisHandler;
     private final String username;
     private final boolean authenticated;
     private final List<PixelAPI> allPixelAPIs;
-    private final Timer timeoutTimer;
-    private final String sessionUuid;
-    private final Status status;
-    private final FailReason failReason;
-
-    /**
-     * Status of a client creation
-     */
-    public enum Status {
-        /**
-         * The client creation was cancelled by the user
-         */
-        CANCELED,
-        /**
-         * The client creation failed
-         */
-        FAILED,
-        /**
-         * The client creation succeeded
-         */
-        SUCCESS
-    }
-
-    /**
-     * Reason why a client creation failed
-     */
-    public enum FailReason {
-        /**
-         * A client with the same URI is already being created
-         */
-        ALREADY_CREATING,
-        /**
-         * The format of the provided URI is incorrect
-         */
-        INVALID_URI_FORMAT
-    }
 
     /**
      * How to handle authentication when creation a connection
@@ -126,171 +94,88 @@ public class WebClient implements AutoCloseable {
             ApisHandler apisHandler,
             String username,
             boolean authenticated,
-            List<PixelAPI> allPixelAPIs,
-            Timer timeoutTimer,
-            String sessionUuid,
-            Status status,
-            FailReason failReason
+            List<PixelAPI> allPixelAPIs
     ) {
         this.server = server;
         this.apisHandler = apisHandler;
         this.username = username;
         this.authenticated = authenticated;
         this.allPixelAPIs = allPixelAPIs;
-        this.timeoutTimer = timeoutTimer;
-        this.sessionUuid = sessionUuid;
-        this.status = status;
-        this.failReason = failReason;
 
-        //TODO: find alternative with Futures?
-        if (timeoutTimer != null) {
-            timeoutTimer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    apisHandler.ping().exceptionally(error -> {
+        if (authenticated) {
+            pingScheduler.scheduleAtFixedRate(
+                    () -> apisHandler.ping().exceptionally(error -> {
                         logger.error("Ping failed. Removing client", error);
                         WebClients.removeClient(WebClient.this);
                         return null;
-                    });
-                }
-            }, PING_DELAY_MILLISECONDS, PING_DELAY_MILLISECONDS);
+                    }),
+                    0,
+                    PING_DELAY_SECONDS,
+                    TimeUnit.SECONDS
+            );
         }
 
-        if (allPixelAPIs != null) {
-            setUpPixelAPIs();
-        }
+        setUpPixelAPIs();
 
-        if (status.equals(Status.SUCCESS)) {
-            String message = String.format("Connected to the OMERO.web instance at %s", apisHandler.getWebServerURI());
-            if (authenticated) {
-                message += String.format(" with user %s", username);
-            } else {
-                message += "with unauthenticated user";
-            }
-            logger.info(message);
-        }
-    }
-
-    private WebClient(Status status, FailReason failReason) {
-        this(null, null, null, false, null, null, null, status, failReason);
-    }
-
-    private WebClient(Status status) {
-        this(status, null);
+        logger.info(String.format(
+                "Connected to the OMERO.web instance at %s with %s",
+                apisHandler.getWebServerURI(),
+                authenticated ? String.format("user %s", username) : "unauthenticated user"
+        ));
     }
 
     /**
      * <p>
-     *     Static factory method creating a new client.
-     *     It will initialize the connection and ask for credentials if this is required to access the server.
+     *     Static factory method creating a new client. It will initialize the connection and
+     *     ask for credentials if this is required to access the server.
      * </p>
      * <p>
      *     This function should only be used by {@link WebClients WebClients}
      *     which monitors opened clients (see {@link WebClients#createClient(String, Authentication, String...)}).
-     * </p>
-     * <p>
-     *     Note that this function is not guaranteed to create a valid client. Call the
-     *     {@link #getStatus()} function to check the validity of the returned client
-     *     before using it. If a client is not valid, some functions of this class
-     *     will throw exceptions.
      * </p>
      * <p>The optional arguments must have one of the following format:</p>
      * <ul>
      *     <li>{@code --username [username] --password [password]}</li>
      *     <li>{@code -u [username] -p [password]}</li>
      * </ul>
-     * <p>This function is asynchronous.</p>
-     *
-     * @param uri  the server URI to connect to
-     * @param authentication  how to handle authentication
-     * @param args  optional arguments to authenticate (see description above)
-     * @return a CompletableFuture with the client
-     */
-    static CompletableFuture<WebClient> create(URI uri, Authentication authentication, String... args) {
-        return ApisHandler.create(uri).thenApplyAsync(apisHandler -> {
-            if (apisHandler.isPresent()) {
-                return authenticateAndCreateClient(apisHandler.get(), uri, authentication, args);
-            } else {
-                return new WebClient(Status.FAILED);
-            }
-        });
-    }
-
-    /**
-     * <p>Synchronous version of {@link #create(URI, Authentication, String...)}.</p>
-     * <p>This function may block the calling thread for around a second.</p>
-     */
-    static WebClient createSync(URI uri, Authentication authentication, String... args) {
-        Optional<ApisHandler> apisHandler = Optional.empty();
-        try {
-            apisHandler = ApisHandler.create(uri).get();
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Error initializing client", e);
-        }
-
-        if (apisHandler.isPresent()) {
-            return authenticateAndCreateClient(apisHandler.get(), uri, authentication, args);
-        } else {
-            return new WebClient(Status.FAILED);
-        }
-    }
-
-    /**
-     * <p>Creates an invalid client.</p>
      * <p>
-     *     This function should only be used by {@link WebClients WebClients}
-     *     which monitors opened clients.
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if a request failed for example).
      * </p>
      *
-     * @param failReason  the reason why the creation failed
-     * @return an invalid client
+     * @param uri the server URI to connect to
+     * @param authentication how to handle authentication
+     * @param args optional arguments to authenticate (see description above)
+     * @return a CompletableFuture (that may complete exceptionally) with the client. The returned client will be null if the user cancelled
+     * the client creation
      */
-    static WebClient createInvalidClient(FailReason failReason) {
-        return new WebClient(Status.FAILED, failReason);
+    static CompletableFuture<WebClient> create(URI uri, Authentication authentication, String... args) {
+        return ApisHandler.create(uri).thenCompose(apisHandler ->
+                authenticateAndCreateClient(apisHandler, uri, authentication, args)
+        );
     }
 
     @Override
     public void close() throws Exception {
-        if (status.equals(Status.SUCCESS)) {
-            logger.info(String.format("Disconnected from the OMERO.web instance at %s", apisHandler.getWebServerURI()));
-        }
-        if (allPixelAPIs != null) {
+        logger.info(String.format("Disconnected from the OMERO.web instance at %s", apisHandler.getWebServerURI()));
+
+        synchronized (this) {
             for (PixelAPI pixelAPI: allPixelAPIs) {
                 pixelAPI.close();
             }
         }
-        if (apisHandler != null) {
-            apisHandler.close();
-        }
-        if (timeoutTimer != null) {
-            timeoutTimer.cancel();
-        }
+        pingScheduler.close();
+        apisHandler.close();
     }
 
     @Override
     public String toString() {
         return String.format("""
                 Web client of:
-                    status: %s
                     username: %s
                     authenticated: %s
                     selectedPixelAPI: %s
-                """, status, username, authenticated, selectedPixelAPI.get());
-    }
-
-    /**
-     * @return the status of the client
-     */
-    public Status getStatus() {
-        return status;
-    }
-
-    /**
-     * @return the reason why the client creation failed, or an empty Optional
-     * if the reason was not specified
-     */
-    public Optional<FailReason> getFailReason() {
-        return Optional.ofNullable(failReason);
+                """, username, authenticated, selectedPixelAPI.get());
     }
 
     /**
@@ -320,14 +205,6 @@ public class WebClient implements AutoCloseable {
      */
     public String getUsername() {
         return username;
-    }
-
-    /**
-     * @return the session UUID of the authenticated user, or an empty Optional if
-     * there is no authentication
-     */
-    public Optional<String> getSessionUuid() {
-        return Optional.ofNullable(sessionUuid);
     }
 
     /**
@@ -370,22 +247,17 @@ public class WebClient implements AutoCloseable {
      * Return the pixel API corresponding to the class passed in parameter.
      * This pixel API is not guaranteed to be available.
      *
-     * @param pixelAPIClass  the class of the pixel API to retrieve
+     * @param pixelAPIClass the class of the pixel API to retrieve
      * @return the pixel API corresponding to the class passed in parameter
      * @param <T>  the class of the pixel API to retrieve
      * @throws IllegalArgumentException if the pixel API was not found
      */
-    public <T extends PixelAPI> T getPixelAPI(Class<T> pixelAPIClass) {
-        var pixelAPI = allPixelAPIs.stream()
+    public synchronized <T extends PixelAPI> T getPixelAPI(Class<T> pixelAPIClass) {
+        return allPixelAPIs.stream()
                 .filter(pixelAPIClass::isInstance)
                 .map(pixelAPIClass::cast)
-                .findAny();
-
-        if (pixelAPI.isPresent()) {
-            return pixelAPI.get();
-        } else {
-            throw new IllegalArgumentException("The pixel API was not found");
-        }
+                .findAny()
+                .orElseThrow(() -> new IllegalArgumentException("The pixel API was not found"));
     }
 
     /**
@@ -432,10 +304,12 @@ public class WebClient implements AutoCloseable {
         );
         for (PixelAPI pixelAPI: allPixelAPIs) {
             pixelAPI.isAvailable().addListener((p, o, n) -> {
-                if (n && !availablePixelAPIs.contains(pixelAPI)) {
-                    availablePixelAPIs.add(pixelAPI);
-                } else {
-                    availablePixelAPIs.remove(pixelAPI);
+                synchronized (this) {
+                    if (n && !availablePixelAPIs.contains(pixelAPI)) {
+                        availablePixelAPIs.add(pixelAPI);
+                    } else {
+                        availablePixelAPIs.remove(pixelAPI);
+                    }
                 }
             });
         }
@@ -445,79 +319,61 @@ public class WebClient implements AutoCloseable {
                 .findAny()
                 .orElse(availablePixelAPIs.get(0))
         );
-        availablePixelAPIs.addListener((ListChangeListener<? super PixelAPI>) change ->
+        availablePixelAPIs.addListener((ListChangeListener<? super PixelAPI>) change -> {
+            synchronized (this) {
                 selectedPixelAPI.set(availablePixelAPIs.stream()
                         .filter(PixelAPI::canAccessRawPixels)
                         .findAny()
-                        .orElse(availablePixelAPIs.get(0))
-                ));
-    }
-
-    private static WebClient authenticateAndCreateClient(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) {
-        LoginResponse loginResponse = authenticate(apisHandler, uri, authentication, args);
-
-        return switch (loginResponse.getStatus()) {
-            case CANCELED -> new WebClient(Status.CANCELED);
-            case FAILED -> new WebClient(Status.FAILED);
-            case UNAUTHENTICATED, SUCCESS -> {
-                Server server;
-                try {
-                    server = loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS) ?
-                            Server.create(apisHandler, loginResponse.getGroup(), loginResponse.getUserId()).get() :
-                            Server.create(apisHandler).get();
-                } catch (InterruptedException | ExecutionException e) {
-                    logger.error("Error initializing client", e);
-                    yield new WebClient(Status.FAILED);
-                }
-
-                yield new WebClient(
-                        server,
-                        apisHandler,
-                        server.getConnectedOwner().username(),
-                        loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS),
-                        List.of(
-                                new WebAPI(apisHandler),
-                                new IceAPI(apisHandler, loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS), loginResponse.getSessionUuid()),
-                                new MsPixelBufferAPI(apisHandler)
-                        ),
-                        loginResponse.getStatus().equals(LoginResponse.Status.SUCCESS) ? new Timer("omero-keep-alive", true) : null,
-                        loginResponse.getSessionUuid(),
-                        Status.SUCCESS,
-                        null
-                );
+                        .orElse(availablePixelAPIs.get(0)));
             }
-        };
+        });
     }
 
-    private static LoginResponse authenticate(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) {
+    private static CompletableFuture<WebClient> authenticateAndCreateClient(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) {
+        return authenticate(apisHandler, uri, authentication, args)
+                .thenApplyAsync(loginResponse -> switch (loginResponse.getStatus()) {
+                    case CANCELED -> null;
+                    case UNAUTHENTICATED, AUTHENTICATED -> {
+                        Server server = loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED) ?
+                                    Server.create(apisHandler, loginResponse.getGroup(), loginResponse.getUserId()).join() :
+                                    Server.create(apisHandler).join();
+
+                        yield new WebClient(
+                                server,
+                                apisHandler,
+                                server.getConnectedOwner().username(),
+                                loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED),
+                                List.of(
+                                        new WebAPI(apisHandler),
+                                        new IceAPI(apisHandler, loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED), loginResponse.getSessionUuid()),
+                                        new MsPixelBufferAPI(apisHandler)
+                                )
+                        );
+                    }
+                });
+    }
+
+    private static CompletableFuture<LoginResponse> authenticate(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) {
         String usernameFromArgs = getCredentialFromArgs("--username", "-u", args).orElse(null);
         String passwordFromArgs = getCredentialFromArgs("--password", "-p", args).orElse(null);
 
-        CompletableFuture<LoginResponse> loginRequest = switch (authentication) {
+        return switch (authentication) {
             case ENFORCE -> apisHandler.login(usernameFromArgs, passwordFromArgs);
             case TRY_TO_SKIP -> {
                 if (apisHandler.canSkipAuthentication()) {
-                    yield CompletableFuture.completedFuture(LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
+                    yield CompletableFuture.completedFuture(LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
                 } else {
                     yield apisHandler.login(usernameFromArgs, passwordFromArgs);
                 }
             }
             case SKIP -> {
                 if (apisHandler.canSkipAuthentication()) {
-                    yield CompletableFuture.completedFuture(LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
+                    yield CompletableFuture.completedFuture(LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
                 } else {
-                    logger.warn(String.format("The server %s doesn't allow browsing without being authenticated", uri));
-                    yield CompletableFuture.completedFuture(LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED));
+                    throw new IllegalArgumentException(String.format("The server %s doesn't allow browsing without being authenticated", uri));
                 }
             }
         };
-
-        try {
-            return loginRequest.get();
-        } catch (ExecutionException | InterruptedException e) {
-            logger.error("Error authenticating", e);
-            return LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED);
-        }
     }
 
     private static Optional<String> getCredentialFromArgs(

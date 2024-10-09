@@ -22,6 +22,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Im
 import qupath.ext.omero.core.entities.serverinformation.OmeroAPI;
 import qupath.ext.omero.core.entities.serverinformation.OmeroServerList;
 import qupath.ext.omero.core.RequestSender;
+import qupath.lib.io.GsonTools;
 
 import java.net.PasswordAuthentication;
 import java.net.URI;
@@ -225,7 +226,7 @@ class JsonApi {
                 new PasswordAuthentication(username, password.toCharArray());
 
         if (authentication == null) {
-            return CompletableFuture.completedFuture(LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.CANCELED));
+            return CompletableFuture.completedFuture(LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.CANCELED));
         } else {
             char[] encodedPassword = ApiUtilities.urlEncode(authentication.getPassword());
 
@@ -241,7 +242,9 @@ class JsonApi {
                     token
             ).whenComplete((response, error) -> {
                 Arrays.fill(body, (byte) 0);    // clear password
-            }).thenApply(LoginResponse::createSuccessfulLoginResponse);
+            })
+                    .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
+                    .thenApply(LoginResponse::createAuthenticatedLoginResponse);
         }
     }
 

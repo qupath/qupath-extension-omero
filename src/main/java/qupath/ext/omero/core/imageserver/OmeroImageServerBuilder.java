@@ -13,8 +13,7 @@ import qupath.ext.omero.core.WebUtilities;
 import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalLong;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -28,44 +27,44 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
     @Override
     public ImageServer<BufferedImage> buildServer(URI uri, String... args) {
-        return getClientAndCheckURIReachable(uri, args)
-                .map(webClient -> {
-                    try {
-                        return OmeroImageServer.create(uri, webClient, args).get();
-                    } catch (InterruptedException | ExecutionException e) {
-                        logger.debug("Error while creating OMERO image server", e);
-                        return null;
-                    }
-                })
-                .orElse(null);
+        try {
+            return getClientAndCheckURIReachable(uri, args).thenCompose(client -> {
+                if (client == null) {
+                    return CompletableFuture.completedFuture(null);
+                } else {
+                    return OmeroImageServer.create(uri, client, args);
+                }
+            }).get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.debug("Error while creating OMERO image server", e);
+            return null;
+        }
     }
 
     @Override
     public ImageServerBuilder.UriImageSupport<BufferedImage> checkImageSupport(URI entityURI, String... args) {
-        Optional<WebClient> client = getClientAndCheckURIReachable(entityURI, args);
+        try {
+            return getClientAndCheckURIReachable(entityURI, args).thenApplyAsync(client -> {
+                List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = WebUtilities.getImagesURIFromEntityURI(
+                        entityURI,
+                        client.getApisHandler()
+                )
+                        .join()
+                        .stream()
+                        .map(uri -> createServerBuilder(client, uri, args))
+                        .map(CompletableFuture::join)
+                        .toList();
 
-        if (client.isPresent()) {
-            List<URI> imagesURIs;
-            try {
-                imagesURIs = WebUtilities.getImagesURIFromEntityURI(entityURI, client.get().getApisHandler()).get();
-            } catch (InterruptedException | ExecutionException e) {
-                logger.debug("Error when retrieving image URIs", e);
+
                 return UriImageSupport.createInstance(
                         this.getClass(),
-                        0,
-                        List.of()
+                        builders.isEmpty() ? 0 : SUPPORT_LEVEL,
+                        builders
                 );
-            }
+            }).get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.debug("Error when checking image support", e);
 
-            return UriImageSupport.createInstance(
-                    this.getClass(),
-                    imagesURIs.isEmpty() ? 0 : SUPPORT_LEVEL,
-                    imagesURIs.stream()
-                            .map(uri -> createServerBuilder(client.get(), uri))
-                            .flatMap(Optional::stream)
-                            .toList()
-            );
-        } else {
             return UriImageSupport.createInstance(
                     this.getClass(),
                     0,
@@ -102,52 +101,31 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         return false;
     }
 
-    private static Optional<WebClient> getClientAndCheckURIReachable(URI uri, String... args) {
-        //TODO: this link can return 403 if not authenticated> Check that now it works
-        try {
-            RequestSender.isLinkReachableWithGet(uri, 403).get();
-        } catch (InterruptedException | ExecutionException e) {
-            logger.debug(String.format("URI %s not reachable. OMERO can't open it", uri), e);
-            return Optional.empty();
-        }
-
-        WebClient client = WebClients.createClientSync(
+    private static CompletableFuture<WebClient> getClientAndCheckURIReachable(URI uri, String... args) {
+        return RequestSender.isLinkReachableWithGet(uri, 403).thenCompose(v -> WebClients.createClient(
                 uri.toString(),
                 ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(true) ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE,
                 args
-        );
-
-        if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-            return Optional.of(client);
-        } else {
-            logger.debug("Client creation failed");
-            return Optional.empty();
-        }
+        ));
     }
 
-    private static Optional<ImageServerBuilder.ServerBuilder<BufferedImage>> createServerBuilder(
+    private static CompletableFuture<ImageServerBuilder.ServerBuilder<BufferedImage>> createServerBuilder(
             WebClient client,
             URI uri,
             String... args
     ) {
-        try {
-            OptionalLong id = WebUtilities.parseEntityId(uri);
-
-            if (id.isPresent()) {
-                return Optional.of(DefaultImageServerBuilder.createInstance(
+        return client.getApisHandler()
+                .getImageMetadata(WebUtilities
+                        .parseEntityId(uri)
+                        .orElseThrow(() -> new IllegalArgumentException(String.format(
+                                "ID not found in %s", uri
+                        )))
+                )
+                .thenApply(metadata -> DefaultImageServerBuilder.createInstance(
                         OmeroImageServerBuilder.class,
-                        client.getApisHandler().getImageMetadata(id.getAsLong()).get(),
+                        metadata,
                         uri,
                         args
                 ));
-            } else {
-                logger.error(String.format("ID not found in %s", uri));
-                return Optional.empty();
-            }
-
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Error while retrieving image metadata", e);
-            return Optional.empty();
-        }
     }
 }

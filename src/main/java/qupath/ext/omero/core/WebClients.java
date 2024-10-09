@@ -6,10 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <p>
@@ -24,7 +25,7 @@ public class WebClients {
     private static final Logger logger = LoggerFactory.getLogger(WebClients.class);
     private static final ObservableList<WebClient> clients = FXCollections.observableArrayList();
     private static final ObservableList<WebClient> clientsImmutable = FXCollections.unmodifiableObservableList(clients);
-    private static final Set<URI> clientsBeingCreated = ConcurrentHashMap.newKeySet();
+    private static final Set<URI> clientsBeingCreated = new HashSet<>();
 
     private WebClients() {
         throw new AssertionError("This class is not instantiable.");
@@ -37,113 +38,74 @@ public class WebClients {
      *     and internally stores the newly created client.
      * </p>
      * <p>
-     *     Note that this function is not guaranteed to create a valid client. Call the
-     *     {@link WebClient#getStatus()} function to check the validity of the returned client
-     *     before using it.
+     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     *     if the client creation failed).
      * </p>
-     * <p>This function is asynchronous.</p>
      *
-     * @param url  the URL of the server. It doesn't have to be the base URL of the server
-     * @param authentication  how to handle authentication
-     * @param args  optional arguments to login. See {@link WebClient#create(URI, WebClient.Authentication, String...) WebClient.create()}
-     * @return a CompletableFuture with the client
+     * @param url the URL of the server. It doesn't have to be the base URL of the server
+     * @param authentication how to handle authentication
+     * @param args optional arguments to login. See {@link WebClient#create(URI, WebClient.Authentication, String...) WebClient.create()}
+     * @return a CompletableFuture (that may complete exceptionally) with the client. The returned client will be null if the user cancelled
+     * the client creation
      */
     public static CompletableFuture<WebClient> createClient(String url, WebClient.Authentication authentication, String... args) {
-        var serverURI = getServerURI(url);
-
-        if (serverURI.isPresent()) {
-            var existingClient = getExistingClient(serverURI.get());
-
-            return existingClient.map(CompletableFuture::completedFuture).orElseGet(() -> {
-                if (clientsBeingCreated.contains(serverURI.get())) {
-                    logger.warn(String.format("Client for %s already being created", serverURI.get()));
-                    return CompletableFuture.completedFuture(WebClient.createInvalidClient(WebClient.FailReason.ALREADY_CREATING));
-                } else {
-                    clientsBeingCreated.add(serverURI.get());
-
-                    return WebClient.create(serverURI.get(), authentication, args).thenApply(client -> {
-                        if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-                            ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
-                            ClientsPreferencesManager.setEnableUnauthenticated(client.getApisHandler().getWebServerURI(), switch (authentication) {
-                                case ENFORCE -> false;
-                                case TRY_TO_SKIP, SKIP -> true;
-                            });
-
-                            synchronized(WebClients.class) {
-                                clients.add(client);
-                            }
-                        }
-                        clientsBeingCreated.remove(serverURI.get());
-
-                        return client;
-                    });
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(WebClient.createInvalidClient(WebClient.FailReason.INVALID_URI_FORMAT));
+        URI serverURI;
+        try {
+            serverURI = WebUtilities.getServerURI(new URI(url));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
-    }
 
-    /**
-     * <p>
-     *     Synchronous version of {@link #createClient(String, WebClient.Authentication, String...)} that calls
-     *     {@link WebClient#createSync(URI, WebClient.Authentication, String...)}.
-     * </p>
-     * <p>
-     *     Note that this function is not guaranteed to create a valid client. Call the
-     *     {@link WebClient#getStatus()} function to check the validity of the returned client
-     *     before using it.
-     * </p>
-     * <p>This function may block the calling thread for around a second.</p>
-     */
-    public static WebClient createClientSync(String url, WebClient.Authentication authentication, String... args) {
-        var serverURI = getServerURI(url);
+        return getExistingClient(serverURI)
+                .map(CompletableFuture::completedFuture)
+                .orElseGet(() -> {
+                    synchronized (WebClients.class) {
+                        if (clientsBeingCreated.contains(serverURI)) {
+                            return CompletableFuture.failedFuture(new IllegalStateException(
+                                    String.format("Client for %s already being created", serverURI)
+                            ));
+                        } else {
+                            clientsBeingCreated.add(serverURI);
 
-        if (serverURI.isPresent()) {
-            var existingClient = getExistingClient(serverURI.get());
+                            return WebClient.create(serverURI, authentication, args)
+                                    .thenApply(client -> {
+                                        if (client != null) {
+                                            ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
+                                            ClientsPreferencesManager.setEnableUnauthenticated(client.getApisHandler().getWebServerURI(), switch (authentication) {
+                                                case ENFORCE -> false;
+                                                case TRY_TO_SKIP, SKIP -> true;
+                                            });
 
-            if (existingClient.isEmpty()) {
-                if (clientsBeingCreated.contains(serverURI.get())) {
-                    logger.warn(String.format("Client for %s already being created", serverURI.get()));
-                    return WebClient.createInvalidClient(WebClient.FailReason.ALREADY_CREATING);
-                } else {
-                    clientsBeingCreated.add(serverURI.get());
-
-                    var client = WebClient.createSync(serverURI.get(), authentication, args);
-                    if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-                        ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
-
-                        synchronized(WebClients.class) {
-                            clients.add(client);
-                        }
+                                            synchronized (WebClients.class) {
+                                                clients.add(client);
+                                            }
+                                        }
+                                        return client;
+                                    })
+                                    .whenComplete((client, error) -> {
+                                        synchronized (WebClients.class) {
+                                            clientsBeingCreated.remove(serverURI);
+                                        }
+                                    });
                     }
-                    clientsBeingCreated.remove(serverURI.get());
-
-                    return client;
-                }
-            } else {
-                return existingClient.get();
             }
-        } else {
-            return WebClient.createInvalidClient(WebClient.FailReason.INVALID_URI_FORMAT);
-        }
+        });
     }
 
     /**
      * Retrieve the client corresponding to the provided uri.
      *
-     * @param uri  the web server URI of the client to retrieve
+     * @param uri the web server URI of the client to retrieve
      * @return the client corresponding to the URI, or an empty Optional if not found
      */
-    public static Optional<WebClient> getClientFromURI(URI uri) {
+    public static synchronized Optional<WebClient> getClientFromURI(URI uri) {
         return clients.stream().filter(client -> client.getApisHandler().getWebServerURI().equals(uri)).findAny();
     }
 
     /**
-     * Close the given client connection. The function may return
-     * before the connection is actually closed.
+     * Close the given client connection
      *
-     * @param client  the client to remove
+     * @param client the client to remove
      */
     public static void removeClient(WebClient client) {
         try {
@@ -167,16 +129,7 @@ public class WebClients {
         return clientsImmutable;
     }
 
-    private static Optional<URI> getServerURI(String url) {
-        var uri = WebUtilities.createURI(url);
-        if (uri.isPresent()) {
-            return WebUtilities.getServerURI(uri.get());
-        } else {
-            return Optional.empty();
-        }
-    }
-
-    private static Optional<WebClient> getExistingClient(URI uri) {
+    private static synchronized Optional<WebClient> getExistingClient(URI uri) {
         return clients.stream().filter(e -> e.getApisHandler().getWebServerURI().equals(uri)).findAny();
     }
 }

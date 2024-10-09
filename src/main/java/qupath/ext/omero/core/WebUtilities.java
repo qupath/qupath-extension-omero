@@ -92,10 +92,11 @@ public class WebUtilities {
      * Returns the host part of a complex URI. For example,
      * {@code https://www.my-server.com/show=image-462} returns {@code https://www.my-server.com}
      *
-     * @return the host part of the URI, or an empty Optional if it could not be determined
+     * @return the host part of the URI
+     * @throws URISyntaxException when the server URI could not have been created
      */
-    public static Optional<URI> getServerURI(URI uri) {
-        return createURI(uri.getScheme() + "://" + uri.getAuthority());
+    public static URI getServerURI(URI uri) throws URISyntaxException {
+        return new URI(uri.getScheme() + "://" + uri.getAuthority());
     }
 
     /**

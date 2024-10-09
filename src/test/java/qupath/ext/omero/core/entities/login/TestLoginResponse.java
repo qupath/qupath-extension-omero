@@ -1,5 +1,7 @@
 package qupath.ext.omero.core.entities.login;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -7,7 +9,7 @@ public class TestLoginResponse {
 
     @Test
     void Check_Failed_Response() {
-        LoginResponse loginResponse = LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.CANCELED);
+        LoginResponse loginResponse = LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.CANCELED);
 
         LoginResponse.Status status = loginResponse.getStatus();
 
@@ -15,21 +17,8 @@ public class TestLoginResponse {
     }
 
     @Test
-    void Check_Blank_Response() {
-        LoginResponse loginResponse = LoginResponse.createSuccessfulLoginResponse("");
-
-        LoginResponse.Status status = loginResponse.getStatus();
-
-        Assertions.assertEquals(LoginResponse.Status.FAILED, status);
-    }
-
-    @Test
     void Check_Empty_Response() {
-        LoginResponse loginResponse = LoginResponse.createSuccessfulLoginResponse("{}");
-
-        LoginResponse.Status status = loginResponse.getStatus();
-
-        Assertions.assertEquals(LoginResponse.Status.FAILED, status);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> LoginResponse.createAuthenticatedLoginResponse(new JsonObject()));
     }
 
     @Test
@@ -38,7 +27,7 @@ public class TestLoginResponse {
 
         LoginResponse.Status status = loginResponse.getStatus();
 
-        Assertions.assertEquals(LoginResponse.Status.SUCCESS, status);
+        Assertions.assertEquals(LoginResponse.Status.AUTHENTICATED, status);
     }
 
     @Test
@@ -69,7 +58,7 @@ public class TestLoginResponse {
     }
 
     private LoginResponse getSuccessfulLoginResponse() {
-        return LoginResponse.createSuccessfulLoginResponse(
+        return LoginResponse.createAuthenticatedLoginResponse(JsonParser.parseString(
                 """
                 {
                     "eventContext": {
@@ -80,6 +69,6 @@ public class TestLoginResponse {
                     }
                 }
                 """
-        );
+        ).getAsJsonObject());
     }
 }

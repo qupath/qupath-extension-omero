@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
+//TODO: delete sync
 public class TestWebClients extends OmeroServer {
 
     abstract static class GenericWebClientCreation {
@@ -219,15 +220,6 @@ public class TestWebClients extends OmeroServer {
         @Override
         protected WebClient createClient(String url, WebClient.Authentication authentication, String... args) throws ExecutionException, InterruptedException {
             return WebClients.createClient(url, authentication, args).get();
-        }
-    }
-
-    @Nested
-    class SyncCreation extends GenericWebClientCreation {
-
-        @Override
-        protected WebClient createClient(String url, WebClient.Authentication authentication, String... args) {
-            return WebClients.createClientSync(url, authentication, args);
         }
     }
 }

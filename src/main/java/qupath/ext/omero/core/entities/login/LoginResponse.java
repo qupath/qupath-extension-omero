@@ -1,23 +1,16 @@
 package qupath.ext.omero.core.entities.login;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
+import omero.IllegalArgumentException;
 import qupath.ext.omero.core.entities.permissions.Group;
+import qupath.lib.io.GsonTools;
 
 /**
- * <p>Reads the response from a login request.</p>
- * <p>
- *     When accessing data of an instance of this class, remember to first
- *     check that the login operation was successful with {@link #getStatus()}
- *     (otherwise some data might be null or incorrect).
- * </p>
+ * Reads the response from a login request.
  */
 public class LoginResponse {
 
-    private static final Logger logger = LoggerFactory.getLogger(LoginResponse.class);
     private final Status status;
     private final Group group;
     private final long userId;
@@ -27,22 +20,19 @@ public class LoginResponse {
      * The login status
      */
     public enum Status {
+
         /**
-         * The login was cancelled by the user
+         * The authentication was cancelled by the user
          */
         CANCELED,
-        /**
-         * The login failed
-         */
-        FAILED,
         /**
          * The guest account (without authentication) is used
          */
         UNAUTHENTICATED,
         /**
-         * The login succeeded
+         * The authentication succeeded and the user is logged in
          */
-        SUCCESS
+        AUTHENTICATED
     }
 
     private LoginResponse(Status status, Group group, long userId, String sessionUuid) {
@@ -62,15 +52,15 @@ public class LoginResponse {
     }
 
     /**
-     * Create a new login response with an unauthenticated, failed, or canceled status.
+     * Create a new login response with an unauthenticated or canceled status.
      * It is not possible to call this function with a successful login.
      *
-     * @param status  the status of the login
+     * @param status the status of the login
      * @return a response with the given status
-     * @throws IllegalArgumentException when {@code status} is {@code Status.SUCCESS}
+     * @throws IllegalArgumentException when {@code status} is {@link Status#AUTHENTICATED}
      */
-    public static LoginResponse createNonSuccessfulLoginResponse(Status status) {
-        if (status.equals(Status.SUCCESS)) {
+    public static LoginResponse createNonAuthenticatedLoginResponse(Status status) {
+        if (status.equals(Status.AUTHENTICATED)) {
             throw new IllegalArgumentException("You cannot create a non successful login response with a success status");
         }
         return new LoginResponse(status);
@@ -79,52 +69,70 @@ public class LoginResponse {
     /**
      * Parse and read a server response.
      *
-     * @param serverResponse  the raw server response of the login request
-     * @return a successful LoginResponse if all necessary information was correctly
-     * parsed, or a response with a failed status
+     * @param serverResponse the raw server response of the login request
+     * @return an authenticated LoginResponse
+     * @throws IllegalArgumentException when the server response doesn't contain the required elements
      */
-    public static LoginResponse createSuccessfulLoginResponse(String serverResponse) {
-        try {
-            JsonElement element = JsonParser.parseString(serverResponse).getAsJsonObject().get("eventContext");
-
-            return new LoginResponse(
-                    Status.SUCCESS,
-                    new Gson().fromJson(element, Group.class),
-                    element.getAsJsonObject().get("userId").getAsLong(),
-                    element.getAsJsonObject().get("sessionUuid").getAsString()
-            );
-        } catch (Exception e) {
-            logger.error("Error when reading login response", e);
-            return new LoginResponse(Status.FAILED);
+    public static LoginResponse createAuthenticatedLoginResponse(JsonObject serverResponse) {
+        if (!serverResponse.has("eventContext") || !serverResponse.get("eventContext").isJsonObject()) {
+            throw new IllegalArgumentException(String.format(
+                    "'eventContext' JSON object not found in %s", serverResponse
+            ));
         }
+        JsonObject eventContext = serverResponse.get("eventContext").getAsJsonObject();
+
+        if (!eventContext.has("userId") || !eventContext.get("userId").isJsonPrimitive() || !eventContext.getAsJsonPrimitive("userId").isNumber()) {
+            throw new IllegalArgumentException(String.format(
+                    "'userId' number not found in %s", eventContext
+            ));
+        }
+        if (!eventContext.has("sessionUuid") || !eventContext.get("sessionUuid").isJsonPrimitive()) {
+            throw new IllegalArgumentException(String.format(
+                    "'sessionUuid' text not found in %s", eventContext
+            ));
+        }
+
+        Group group;
+        try {
+            group = GsonTools.getInstance().fromJson(eventContext, Group.class);
+        } catch (JsonSyntaxException e) {
+            throw new java.lang.IllegalArgumentException(e);
+        }
+
+        return new LoginResponse(
+                Status.AUTHENTICATED,
+                group,
+                eventContext.get("userId").getAsJsonPrimitive().getAsNumber().intValue(),
+                eventContext.get("sessionUuid").getAsString()
+        );
     }
 
     /**
-     * @return whether the login attempt was successful
+     * @return the authentication status
      */
     public Status getStatus() {
         return status;
     }
 
     /**
-     * @return the user ID of the authenticated user, or -1 if the login
-     * attempt failed
+     * @return the user ID of the authenticated user, or -1 if no authentication
+     * was performed
      */
     public long getUserId() {
         return userId;
     }
 
     /**
-     * @return the session UUID of the authenticated user, or null if the login
-     * attempt failed
+     * @return the session UUID of the authenticated user, or null if no authentication
+     * was performed
      */
     public String getSessionUuid() {
         return sessionUuid;
     }
 
     /**
-     * @return the group of the authenticated user, or null if the login
-     * attempt failed
+     * @return the group of the authenticated user, or null if no authentication
+     * was performed
      */
     public Group getGroup() {
         return group;
