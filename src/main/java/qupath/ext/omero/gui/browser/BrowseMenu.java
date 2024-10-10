@@ -104,13 +104,14 @@ public class BrowseMenu extends Menu {
                 if (dialogConfirmed) {
                     String url = newServerForm.getURL();
 
+                    //TODO: if error instance of URISyntaxException, Browser.BrowseMenu.invalidURI
+                    //TODO: create custom exception for Browser.BrowseMenu.alreadyCreating?
                     WebClients.createClient(
                             url,
                             newServerForm.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
                     ).thenAccept(client -> Platform.runLater(() -> {
                         if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-                            BrowserCommand browser = getBrowserCommand(client.getApisHandler().getWebServerURI());
-                            browser.run();
+                            getBrowserCommand(client.getApisHandler().getWebServerURI()).run();
                         } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
                             Optional<WebClient.FailReason> failReason = client.getFailReason();
                             String message = null;

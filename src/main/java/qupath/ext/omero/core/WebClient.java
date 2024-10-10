@@ -370,7 +370,9 @@ public class WebClient implements AutoCloseable {
                 if (apisHandler.canSkipAuthentication()) {
                     yield CompletableFuture.completedFuture(LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
                 } else {
-                    throw new IllegalArgumentException(String.format("The server %s doesn't allow browsing without being authenticated", uri));
+                    yield CompletableFuture.failedFuture(new IllegalArgumentException(String.format(
+                            "The server %s doesn't allow browsing without being authenticated", uri
+                    )));
                 }
             }
         };

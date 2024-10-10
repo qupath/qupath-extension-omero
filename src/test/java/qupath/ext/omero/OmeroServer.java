@@ -823,19 +823,23 @@ public abstract class OmeroServer {
         }
     }
 
-    private static WebClient createValidClient(WebClient.Authentication authentication, String... args) throws ExecutionException, InterruptedException {
-        WebClient webClient;
+    private static WebClient createValidClient(WebClient.Authentication authentication, String... args) {
+        WebClient webClient = null;
         int attempt = 0;
 
         do {
-            webClient = WebClients.createClient(getWebServerURI(), authentication, args).get();
-        } while (!webClient.getStatus().equals(WebClient.Status.SUCCESS) && ++attempt < CLIENT_CREATION_ATTEMPTS);
+            try {
+                webClient = WebClients.createClient(getWebServerURI(), authentication, args).get();
+            } catch (ExecutionException | InterruptedException e) {
+                logger.debug(String.format("Client creation attempt %d of %d failed", attempt, CLIENT_CREATION_ATTEMPTS-1), e);
+            }
+        } while (webClient != null && ++attempt < CLIENT_CREATION_ATTEMPTS);
 
-        if (webClient.getStatus().equals(WebClient.Status.SUCCESS)) {
+        if (webClient == null) {
+            throw new IllegalStateException("Client creation failed");
+        } else {
             webClient.getPixelAPI(MsPixelBufferAPI.class).setPort(getMsPixelBufferApiPort(), true);
             return webClient;
-        } else {
-            throw new IllegalStateException("Client creation failed");
         }
     }
 
