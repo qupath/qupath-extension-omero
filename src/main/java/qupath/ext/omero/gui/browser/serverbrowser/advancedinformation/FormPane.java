@@ -1,7 +1,9 @@
 package qupath.ext.omero.gui.browser.serverbrowser.advancedinformation;
 
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
+import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.fx.utils.GridPaneUtils;
@@ -27,7 +29,7 @@ class FormPane extends TitledPane {
     /**
      * Creates a new FormPane.
      *
-     * @param title  the title the pane should have
+     * @param title the title the pane should have
      * @throws IOException if an error occurs while creating the pane
      */
     public FormPane(String title) throws IOException {
@@ -39,7 +41,7 @@ class FormPane extends TitledPane {
     /**
      * Set the text displayed on top of the pane
      *
-     * @param title  the text to display
+     * @param title the text to display
      */
     public void setTitle(String title) {
         setText(title);
@@ -48,9 +50,9 @@ class FormPane extends TitledPane {
     /**
      * Add a row to the table.
      *
-     * @param key  the text that should appear in the first column
-     * @param value  the text that should appear in the second column
-     * @param tooltip  the text that should appear when the user hovers over this row
+     * @param key the text that should appear in the first column
+     * @param value the text that should appear in the second column
+     * @param tooltip the text that should appear when the user hovers over this row
      */
     public void addRow(String key, String value, String tooltip) {
         if (content.getRowCount() > 0) {
@@ -63,8 +65,8 @@ class FormPane extends TitledPane {
     /**
      * Add a row to the table.
      *
-     * @param key  the text that should appear in the first column
-     * @param value  the text that should appear in the second column
+     * @param key the text that should appear in the first column
+     * @param value the text that should appear in the second column
      */
     public void addRow(String key, String value) {
         addRow(key, value, key);

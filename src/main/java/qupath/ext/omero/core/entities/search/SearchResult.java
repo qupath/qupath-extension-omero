@@ -47,13 +47,13 @@ public class SearchResult {
      * You should rather use {@link #createFromHTMLResponse(String, URI)}
      * to create search results.
      *
-     * @param type  the type of the object (e.g. dataset, image)
-     * @param id  the id of the object
-     * @param name  the name of the object
-     * @param group  the group name whose object belongs to
-     * @param link  a URL linking to the object
-     * @param dateAcquired  the date this object was acquired
-     * @param dateImported  the date this object was imported
+     * @param type the type of the object (e.g. dataset, image)
+     * @param id the id of the object
+     * @param name the name of the object
+     * @param group the group name whose object belongs to
+     * @param link a URL linking to the object
+     * @param dateAcquired the date this object was acquired
+     * @param dateImported the date this object was imported
      */
     public SearchResult(
             String type,
@@ -90,8 +90,8 @@ public class SearchResult {
     /**
      * Creates a list of results from an HTML search query response.
      *
-     * @param htmlResponse  the HTML search query response
-     * @param serverURI  the URI of the server
+     * @param htmlResponse the HTML search query response
+     * @param serverURI the URI of the server
      * @return a list of search results, or an empty list if an error occurred or no result was found
      */
     public static List<SearchResult> createFromHTMLResponse(String htmlResponse, URI serverURI) {

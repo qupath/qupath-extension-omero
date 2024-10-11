@@ -21,8 +21,8 @@ public class ImageSettings {
     /**
      * Create an image settings.
      *
-     * @param name  the name of the image
-     * @param channelSettings  the channel settings of the image
+     * @param name the name of the image
+     * @param channelSettings the channel settings of the image
      */
     public ImageSettings(String name, List<ChannelSettings> channelSettings) {
         this.name = name;

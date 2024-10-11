@@ -21,7 +21,7 @@ public class ConnectionsManagerCommand implements Runnable {
 	/**
 	 * Creates a new connection manager command.
 	 *
-	 * @param owner  the stage that should own the connection manager window
+	 * @param owner the stage that should own the connection manager window
 	 */
 	public ConnectionsManagerCommand(Stage owner) {
 		this.owner = owner;

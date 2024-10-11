@@ -112,7 +112,7 @@ public class Project extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a project
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a project
      */
     public static boolean isProject(String type) {

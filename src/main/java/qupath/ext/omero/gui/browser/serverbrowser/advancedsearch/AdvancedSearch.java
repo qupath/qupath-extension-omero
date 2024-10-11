@@ -7,7 +7,14 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
@@ -90,8 +97,8 @@ public class AdvancedSearch extends Stage {
     /**
      * Creates the advanced search window.
      *
-     * @param ownerWindow  the stage who should own this window
-     * @param client  the client on which the search will be performed
+     * @param ownerWindow the stage who should own this window
+     * @param client the client on which the search will be performed
      * @throws IOException if an error occurs while creating the window
      */
     public AdvancedSearch(Stage ownerWindow, WebClient client) throws IOException {

@@ -20,8 +20,8 @@ public class Point extends Shape {
     /**
      * Create a point.
 
-     * @param x  the x-coordinate of the point
-     * @param y  the y-coordinate of the point
+     * @param x the x-coordinate of the point
+     * @param y the y-coordinate of the point
      */
     public Point(double x, double y) {
         super(TYPE);
@@ -33,7 +33,7 @@ public class Point extends Shape {
     /**
      * Create a list of points corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
+     * @param pathObject the path object corresponding to this shape
      * @return a list of points corresponding to the path object
      */
     public static List<Point> create(PathObject pathObject) {

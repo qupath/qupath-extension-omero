@@ -55,7 +55,7 @@ public class UiUtilities {
     /**
      * Creates a Label whose text is selectable with the cursor.
      *
-     * @param text  the text to display in the label
+     * @param text the text to display in the label
      * @return a Label that can be selected
      */
     public static Label createSelectableLabel(String text) {
@@ -83,8 +83,8 @@ public class UiUtilities {
     /**
      * Loads the FXML file located at the URL and set its controller.
      *
-     * @param controller  the controller of the FXML file to load
-     * @param url  the path of the FXML file to load
+     * @param controller the controller of the FXML file to load
+     * @param url the path of the FXML file to load
      * @throws IOException if an error occurs while loading the FXML file
      */
     public static void loadFXML(Object controller, URL url) throws IOException {
@@ -114,8 +114,8 @@ public class UiUtilities {
      * Paint the specified image onto the specified canvas.
      * Additionally, it returns the {@code WritableImage} for further use.
      *
-     * @param image  the image to paint on the canvas
-     * @param canvas  the canvas to paint
+     * @param image the image to paint on the canvas
+     * @param canvas the canvas to paint
      * @return a copy of the input image
      */
     public static WritableImage paintBufferedImageOnCanvas(BufferedImage image, Canvas canvas) {
@@ -137,7 +137,7 @@ public class UiUtilities {
      *     without using a project), an error message will appear.
      * </p>
      *
-     * @param uris  the URIs of the images to open
+     * @param uris the URIs of the images to open
      */
     public static void openImages(String... uris) {
         if (uris.length == 0) {
@@ -169,9 +169,9 @@ public class UiUtilities {
      * <p>Propagates changes made to a property to another property.</p>
      * <p>The listening property is updated in the UI thread.</p>
      *
-     * @param propertyToUpdate  the property to update
-     * @param propertyToListen  the property to listen
-     * @param <T>  the type of the property
+     * @param propertyToUpdate the property to update
+     * @param propertyToListen the property to listen
+     * @param <T> the type of the property
      */
     public static <T> void bindPropertyInUIThread(WritableValue<T> propertyToUpdate, ObservableValue<T> propertyToListen) {
         propertyToUpdate.setValue(propertyToListen.getValue());
@@ -188,9 +188,9 @@ public class UiUtilities {
      * <p>Propagates changes made to an observable set to another observable set.</p>
      * <p>The listening set is updated in the UI thread.</p>
      *
-     * @param setToUpdate  the set to update
-     * @param setToListen  the set to listen
-     * @param <T>  the type of the elements of the sets
+     * @param setToUpdate the set to update
+     * @param setToListen the set to listen
+     * @param <T> the type of the elements of the sets
      */
     public static <T> void bindSetInUIThread(ObservableSet<T> setToUpdate, ObservableSet<T> setToListen) {
         setToUpdate.addAll(setToListen);
@@ -220,9 +220,9 @@ public class UiUtilities {
      * <p>Propagates changes made to an observable list to another observable list.</p>
      * <p>The listening list is updated in the UI thread.</p>
      *
-     * @param listToUpdate  the list to update
-     * @param listToListen  the list to listen
-     * @param <T>  the type of the elements of the lists
+     * @param listToUpdate the list to update
+     * @param listToListen the list to listen
+     * @param <T> the type of the elements of the lists
      */
     public static <T> void bindListInUIThread(ObservableList<T> listToUpdate, ObservableList<T> listToListen) {
         listToUpdate.addAll(listToListen);
@@ -257,7 +257,7 @@ public class UiUtilities {
     /**
      * Show a window. The focus is also set to it.
      *
-     * @param window  the window to show
+     * @param window the window to show
      */
     public static void showWindow(Stage window) {
         window.show();

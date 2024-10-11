@@ -21,7 +21,7 @@ class InformationPane extends TitledPane {
     /**
      * Creates a new InformationPane.
      *
-     * @param title  the title the pane should have
+     * @param title the title the pane should have
      * @throws IOException if an error occurs while creating the pane
      */
     public InformationPane(String title) throws IOException {
@@ -33,8 +33,8 @@ class InformationPane extends TitledPane {
     /**
      * Add a row to the pane in the first column.
      *
-     * @param value  the text that should appear in the row
-     * @param tooltip  the text that should appear when the user hovers over this row
+     * @param value the text that should appear in the row
+     * @param tooltip the text that should appear when the user hovers over this row
      */
     public void addRow(String value, String tooltip) {
         GridPaneUtils.addGridRow(content, content.getRowCount(), 0, tooltip, new Label(value));
@@ -43,7 +43,7 @@ class InformationPane extends TitledPane {
     /**
      * Add a column to the pane in the first row.
      *
-     * @param colum  the content of the column
+     * @param colum the content of the column
      */
     public void addColum(Node colum) {
         content.add(colum, content.getColumnCount(), 0);

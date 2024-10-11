@@ -59,9 +59,9 @@ public class IceAPI implements PixelAPI {
     /**
      * Creates a new IceAPI.
      *
-     * @param apisHandler  the apis handler owning this API
-     * @param isAuthenticated  whether the user is currently authenticated to the OMERO server
-     * @param sessionUuid  the session UUID of the client connection. Can be null if the user is not authenticated
+     * @param apisHandler the apis handler owning this API
+     * @param isAuthenticated whether the user is currently authenticated to the OMERO server
+     * @param sessionUuid the session UUID of the client connection. Can be null if the user is not authenticated
      */
     public IceAPI(ApisHandler apisHandler, boolean isAuthenticated, @Nullable String sessionUuid) {
         this.apisHandler = apisHandler;
@@ -194,7 +194,7 @@ public class IceAPI implements PixelAPI {
     /**
      * Set the address used to communicate with the OMERO server.
      *
-     * @param serverAddress  the URL of the OMERO server
+     * @param serverAddress the URL of the OMERO server
      */
     public void setServerAddress(String serverAddress) {
         this.serverAddress.set(serverAddress);
@@ -216,7 +216,7 @@ public class IceAPI implements PixelAPI {
     /**
      * Set the port used to communicate with the OMERO server.
      *
-     * @param serverPort  the port of the OMERO server
+     * @param serverPort the port of the OMERO server
      */
     public void setServerPort(int serverPort) {
         this.serverPort.set(serverPort);

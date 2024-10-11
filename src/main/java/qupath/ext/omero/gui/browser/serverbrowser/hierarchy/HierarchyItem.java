@@ -36,11 +36,11 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
     /**
      * Creates a hierarchy item.
      *
-     * @param repositoryEntity  the OMERO entity that will be displayed by this item
-     * @param ownerBinding  the children of this item won't be shown if they are not owned by this owner
-     * @param groupBinding  the children of this item won't be shown if they are not owned by this group
-     * @param labelPredicate  the children of this item won't be shown if they are images and don't match
-     *                        this predicate (which is based on the label of this item)
+     * @param repositoryEntity the OMERO entity that will be displayed by this item
+     * @param ownerBinding the children of this item won't be shown if they are not owned by this owner
+     * @param groupBinding the children of this item won't be shown if they are not owned by this group
+     * @param labelPredicate the children of this item won't be shown if they are images and don't match
+     *                       this predicate (which is based on the label of this item)
      */
     public HierarchyItem(
             RepositoryEntity repositoryEntity,

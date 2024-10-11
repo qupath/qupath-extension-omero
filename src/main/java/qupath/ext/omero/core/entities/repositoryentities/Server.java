@@ -64,7 +64,7 @@ public class Server implements RepositoryEntity {
 
     @Override
     public synchronized boolean isPopulatingChildren() {
-        return childrenTypesPopulated == NUMBER_OF_CHILDREN_TYPES;
+        return childrenTypesPopulated != NUMBER_OF_CHILDREN_TYPES;
     }
 
     /**

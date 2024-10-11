@@ -12,6 +12,7 @@ import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -30,7 +31,7 @@ public class BrowserCommand implements Runnable {
     /**
      * Creates a browser command.
      *
-     * @param uri  the URI of the web client which will be used by the browser to retrieve data from the corresponding OMERO server
+     * @param uri the URI of the web client which will be used by the browser to retrieve data from the corresponding OMERO server
      */
     public BrowserCommand(URI uri) {
         this.uri = uri;
@@ -70,33 +71,31 @@ public class BrowserCommand implements Runnable {
                 WebClients.createClient(
                         uri.toString(),
                         ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(true) ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
-                ).thenAccept(client -> Platform.runLater(() -> {
-                    if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+                ).exceptionally(error -> {
+                    logger.error(String.format("Connection to %s failed", uri), error);
+
+                    String message;
+                    if (error instanceof URISyntaxException) {
+                        message = MessageFormat.format(resources.getString("Browser.BrowserCommand.invalidURI"), uri.toString());
+                    } else if (error instanceof WebClients.ClientAlreadyExistingException) {
+                        message = MessageFormat.format(resources.getString("Browser.BrowserCommand.alreadyCreating"), uri.toString());
+                    } else {
+                        message = MessageFormat.format(resources.getString("Browser.BrowserCommand.connectionFailed"), uri.toString());
+                    }
+
+                    Platform.runLater(() -> Dialogs.showErrorMessage(
+                            resources.getString("Browser.BrowserCommand.webServer"),
+                            message
+                    ));
+
+                    return null;
+                }).thenAccept(client -> Platform.runLater(() -> {
+                    if (client != null) {
                         try {
                             browser = new Browser(client);
                             this.client = client;
                         } catch (IOException e) {
                             logger.error("Error while creating the browser", e);
-                        }
-                    } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
-                        Optional<WebClient.FailReason> failReason = client.getFailReason();
-                        String message = null;
-
-                        if (failReason.isPresent()) {
-                            if (failReason.get().equals(WebClient.FailReason.INVALID_URI_FORMAT)) {
-                                message = MessageFormat.format(resources.getString("Browser.BrowserCommand.invalidURI"), uri.toString());
-                            } else if (failReason.get().equals(WebClient.FailReason.ALREADY_CREATING)) {
-                                message = MessageFormat.format(resources.getString("Browser.BrowserCommand.alreadyCreating"), uri.toString());
-                            }
-                        } else {
-                            message = MessageFormat.format(resources.getString("Browser.BrowserCommand.connectionFailed"), uri.toString());
-                        }
-
-                        if (message != null) {
-                            Dialogs.showErrorMessage(
-                                    resources.getString("Browser.BrowserCommand.webServer"),
-                                    message
-                            );
                         }
                     }
                 }));

@@ -49,8 +49,8 @@ public abstract class ServerEntity implements RepositoryEntity {
     /**
      * Indicates if this entity belongs to the provided group and owner.
      *
-     * @param groupFilter  the group the entity should belong to
-     * @param ownerFilter  the owner the entity should belong to
+     * @param groupFilter the group the entity should belong to
+     * @param ownerFilter the owner the entity should belong to
      * @return whether this entity matches all the filters
      */
     public boolean isFilteredByGroupOwner(Group groupFilter, Owner ownerFilter) {

@@ -111,7 +111,7 @@ public class ClientsPreferencesManager {
      * Adds a server URI to the list of server URI stored by the preferences
      * (if it's not already there).
      *
-     * @param uri  the URI to add
+     * @param uri the URI to add
      */
     public static synchronized void addURI(URI uri) {
         latestServerPreference.set(uri.toString());
@@ -125,7 +125,7 @@ public class ClientsPreferencesManager {
      * Remove a server URI from the list of server URI stored by the preferences
      * (if it exists).
      *
-     * @param uri  the URI to remove
+     * @param uri the URI to remove
      */
     public static synchronized void removeURI(URI uri) {
         if (latestServerPreference.get().equals(uri.toString())) {
@@ -156,7 +156,7 @@ public class ClientsPreferencesManager {
     /**
      * Set the last username value.
      *
-     * @param username  the username to set
+     * @param username the username to set
      */
     public static synchronized void setLastUsername(String username) {
         latestUsernamePreference.set(username);
@@ -165,7 +165,7 @@ public class ClientsPreferencesManager {
     /**
      * Return whether to enable logging as an unauthenticated user when connecting to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO web server to connect to
+     * @param serverURI the URI of the OMERO web server to connect to
      * @return whether to enable logging as an unauthenticated user, or an empty optional if not defined
      */
     public static Optional<Boolean> getEnableUnauthenticated(URI serverURI) {
@@ -175,8 +175,8 @@ public class ClientsPreferencesManager {
     /**
      * Set whether to enable logging as an unauthenticated user when connecting to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO web server to connect to
-     * @param enableUnauthenticated  whether to enable logging as an unauthenticated user for this URI
+     * @param serverURI the URI of the OMERO web server to connect to
+     * @param enableUnauthenticated whether to enable logging as an unauthenticated user for this URI
      */
     public static void setEnableUnauthenticated(URI serverURI, boolean enableUnauthenticated) {
         setProperty(enableUnauthenticatedPreference, serverURI, String.valueOf(enableUnauthenticated));
@@ -186,7 +186,7 @@ public class ClientsPreferencesManager {
      * Get the saved port used by the pixel buffer microservice of the OMERO server
      * corresponding to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO web server to whose port should be retrieved
+     * @param serverURI the URI of the OMERO web server to whose port should be retrieved
      * @return the port, or an empty optional if not found
      */
     public static Optional<Integer> getMsPixelBufferPort(URI serverURI) {
@@ -204,8 +204,8 @@ public class ClientsPreferencesManager {
      * Set the saved port used by the pixel buffer microservice of the OMERO server
      * corresponding to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO web server to whose port should be set
-     * @param port  the pixel buffer microservice port
+     * @param serverURI the URI of the OMERO web server to whose port should be set
+     * @param port the pixel buffer microservice port
      */
     public static void setMsPixelBufferPort(URI serverURI, int port) {
         setProperty(msPixelBufferPortPreference, serverURI, String.valueOf(port));
@@ -214,7 +214,7 @@ public class ClientsPreferencesManager {
     /**
      * Get the saved JPEG quality used by the pixel web API corresponding to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO web server to whose JPEG quality should be retrieved
+     * @param serverURI the URI of the OMERO web server to whose JPEG quality should be retrieved
      * @return the JPEG quality, or an empty optional if not found
      */
     public static Optional<Float> getWebJpegQuality(URI serverURI) {
@@ -231,8 +231,8 @@ public class ClientsPreferencesManager {
     /**
      * Set the saved JPEG quality used by the pixel web API corresponding to the provided URI.
      *
-     * @param serverURI  the URI of the OMERO web server to whose port should be set
-     * @param jpegQuality  the JPEG quality
+     * @param serverURI the URI of the OMERO web server to whose port should be set
+     * @param jpegQuality the JPEG quality
      */
     public static void setWebJpegQuality(URI serverURI, float jpegQuality) {
         setProperty(webJpegQualityPreference, serverURI, String.valueOf(jpegQuality));
@@ -241,7 +241,7 @@ public class ClientsPreferencesManager {
     /**
      * Get the saved address of the OMERO (Ice) server corresponding to the provided URI of web server.
      *
-     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server address should be retrieved
+     * @param serverURI the URI of the OMERO web server to whose OMERO (Ice) server address should be retrieved
      * @return the OMERO (Ice) server address, or an empty optional if not found
      */
     public static Optional<String> getIceAddress(URI serverURI) {
@@ -251,8 +251,8 @@ public class ClientsPreferencesManager {
     /**
      * Set the saved OMERO (Ice) server address corresponding to the provided URI of web server.
      *
-     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server address should be set
-     * @param iceAddress  the OMERO (Ice) server address
+     * @param serverURI the URI of the OMERO web server to whose OMERO (Ice) server address should be set
+     * @param iceAddress the OMERO (Ice) server address
      */
     public static void setIceAddress(URI serverURI, String iceAddress) {
         setProperty(iceAddressPreference, serverURI, iceAddress);
@@ -261,7 +261,7 @@ public class ClientsPreferencesManager {
     /**
      * Get the saved port of the OMERO (Ice) server corresponding to the provided URI of web server.
      *
-     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server port should be retrieved
+     * @param serverURI the URI of the OMERO web server to whose OMERO (Ice) server port should be retrieved
      * @return the OMERO (Ice) server port, or an empty optional if not found
      */
     public static Optional<Integer> getIcePort(URI serverURI) {
@@ -278,8 +278,8 @@ public class ClientsPreferencesManager {
     /**
      * Set the saved OMERO (Ice) server port corresponding to the provided URI of web server.
      *
-     * @param serverURI  the URI of the OMERO web server to whose OMERO (Ice) server port should be set
-     * @param icePort  the OMERO (Ice) server port
+     * @param serverURI the URI of the OMERO web server to whose OMERO (Ice) server port should be set
+     * @param icePort the OMERO (Ice) server port
      */
     public static void setIcePort(URI serverURI, int icePort) {
         setProperty(icePortPreference, serverURI, String.valueOf(icePort));

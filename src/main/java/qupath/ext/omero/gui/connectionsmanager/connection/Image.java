@@ -32,8 +32,8 @@ class Image extends HBox {
     /**
      * Creates an Image label.
      *
-     * @param client  the client owning this image
-     * @param imageUri  the URI of the image
+     * @param client the client owning this image
+     * @param imageUri the URI of the image
      * @throws IOException if an error occurs while creating the window
      */
     public Image(WebClient client, URI imageUri) throws IOException {

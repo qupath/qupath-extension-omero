@@ -43,11 +43,11 @@ class MsPixelBufferReader implements PixelAPIReader {
     /**
      * Create a new MsPixelBuffer reader.
      *
-     * @param host  the URI from which this microservice is available
-     * @param imageID  the ID of the image to open
-     * @param pixelType  the pixel type of the image to open
-     * @param channels  the channels of the image to open
-     * @param numberOfLevels  the number of resolution levels of the image to open
+     * @param host the URI from which this microservice is available
+     * @param imageID the ID of the image to open
+     * @param pixelType the pixel type of the image to open
+     * @param channels the channels of the image to open
+     * @param numberOfLevels the number of resolution levels of the image to open
      */
     public MsPixelBufferReader(
             String host,

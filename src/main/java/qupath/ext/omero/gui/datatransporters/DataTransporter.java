@@ -13,8 +13,8 @@ public interface DataTransporter {
     /**
      * Indicate if this transporter can transport data given the provided conditions.
      *
-     * @param projectOpened  whether there is a QuPath project currently opened
-     * @param isRGB  whether the current image uses the RGB format
+     * @param projectOpened whether there is a QuPath project currently opened
+     * @param isRGB whether the current image uses the RGB format
      * @return whether this transport can work
      */
     boolean canTransportData(boolean projectOpened, boolean isRGB);

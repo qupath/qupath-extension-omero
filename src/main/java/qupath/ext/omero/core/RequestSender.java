@@ -116,7 +116,16 @@ public class RequestSender {
      * See {@link #getAndConvert(URI, Class)}. This method is suited for generic types.
      */
     public static <T> CompletableFuture<T> getAndConvert(URI uri, TypeToken<T> conversionClass) {
-        return get(uri).thenApply(response -> GsonTools.getInstance().fromJson(response, conversionClass));
+        return get(uri).thenApply(response -> {
+            T processedResponse = GsonTools.getInstance().fromJson(response, conversionClass);
+            if (processedResponse == null) {
+                throw new IllegalArgumentException(String.format(
+                        "The provided response %s is empty", response
+                ));
+            } else {
+                return processedResponse;
+            }
+        });
     }
 
     /**
@@ -182,7 +191,13 @@ public class RequestSender {
                 .sendAsync(getGETRequest(uri), HttpResponse.BodyHandlers.ofByteArray())
                 .thenApplyAsync(response -> {
                     try (InputStream targetStream = new ByteArrayInputStream(response.body())) {
-                        return ImageIO.read(targetStream);
+                        BufferedImage image = ImageIO.read(targetStream);
+
+                        if (image == null) {
+                            throw new IllegalArgumentException("Could not decode image from response");
+                        } else {
+                            return image;
+                        }
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }

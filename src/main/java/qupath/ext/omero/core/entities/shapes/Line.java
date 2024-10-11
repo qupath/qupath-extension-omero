@@ -22,10 +22,10 @@ public class Line extends Shape {
     /**
      * Creates a line.
      *
-     * @param x1  the x-coordinate of the start point of the line
-     * @param y1  the y-coordinate of the start point of the line
-     * @param x2  the x-coordinate of the end point of the line
-     * @param y2  the y-coordinate of the end point of the line
+     * @param x1 the x-coordinate of the start point of the line
+     * @param y1 the y-coordinate of the start point of the line
+     * @param x2 the x-coordinate of the end point of the line
+     * @param y2 the y-coordinate of the end point of the line
      */
     public Line(double x1, double y1, double x2, double y2) {
         super(TYPE);
@@ -39,8 +39,8 @@ public class Line extends Shape {
     /**
      * Creates a line corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
-     * @param lineRoi  the ROI describing this line
+     * @param pathObject the path object corresponding to this shape
+     * @param lineRoi the ROI describing this line
      */
     public Line(PathObject pathObject, LineROI lineRoi) {
         this(

@@ -20,7 +20,7 @@ public class Polyline extends Shape {
     /**
      * Creates a polyline.
      *
-     * @param points  a list of points describing the polyline
+     * @param points a list of points describing the polyline
      */
     public Polyline(List<Point2> points) {
         super(TYPE);
@@ -31,7 +31,7 @@ public class Polyline extends Shape {
     /**
      * Creates a polyline corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
+     * @param pathObject the path object corresponding to this shape
      */
     public Polyline(PathObject pathObject) {
         this(pathObject.getROI().getAllPoints());

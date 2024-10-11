@@ -33,7 +33,7 @@ public class WebAPI implements PixelAPI {
     /**
      * Creates a new WebAPI.
      *
-     * @param apisHandler  the api handler owning this API
+     * @param apisHandler the api handler owning this API
      */
     public WebAPI(ApisHandler apisHandler) {
         this.apisHandler = apisHandler;

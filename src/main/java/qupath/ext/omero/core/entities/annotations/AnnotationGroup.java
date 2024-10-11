@@ -50,7 +50,7 @@ public class AnnotationGroup {
     /**
      * Returns all annotations contained in this annotation group.
      * They are organized by type of annotation (e.g. all comment annotations form one group,
-     * all file annotations form another group, etc).
+     * all file annotations form another group, etc.).
      *
      * @return the annotations of this annotation group
      */
@@ -61,7 +61,7 @@ public class AnnotationGroup {
     /**
      * Return all annotations belonging to the provided class.
      *
-     * @param annotationClass  the class of the annotations to retrieve
+     * @param annotationClass the class of the annotations to retrieve
      * @return all annotations belonging to the provided class
      * @param <T> the type of annotation to retrieve
      */

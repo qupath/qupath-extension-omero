@@ -36,6 +36,16 @@ public class ImageSettingsImporter implements DataTransporter {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageSettingsImporter.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
+    private final QuPathGUI quPath;
+
+    /**
+     * Create the image settings importer.
+     *
+     * @param quPath the quPath window
+     */
+    public ImageSettingsImporter(QuPathGUI quPath) {
+        this.quPath = quPath;
+    }
 
     @Override
     public String getMenuTitle() {
@@ -49,14 +59,13 @@ public class ImageSettingsImporter implements DataTransporter {
 
     @Override
     public void transportData() {
-        QuPathGUI quPathGUI = QuPathGUI.getInstance();
-        QuPathViewer viewer = quPathGUI.getViewer();
+        QuPathViewer viewer = quPath.getViewer();
 
         if (viewer.getServer() instanceof OmeroImageServer omeroImageServer) {
             ImageSettingsForm imageSettingsForm;
             try {
                 imageSettingsForm = new ImageSettingsForm(
-                        quPathGUI.getProject() == null,
+                        quPath.getProject() == null,
                         omeroImageServer.getMetadata().isRGB()
                 );
             } catch (IOException e) {
@@ -85,7 +94,7 @@ public class ImageSettingsImporter implements DataTransporter {
                                         StringBuilder errorMessage = new StringBuilder();
 
                                         if (selectedChoices.contains(ImageSettingsForm.Choice.IMAGE_NAME)) {
-                                            if (changeImageName(quPathGUI, viewer.getImageData(), imageSettings.getName())) {
+                                            if (changeImageName(quPath, viewer.getImageData(), imageSettings.getName())) {
                                                 successMessage
                                                         .append(resources.getString("DataTransporters.ImageSettingsImporter.imageNameUpdated"))
                                                         .append("\n");
@@ -161,8 +170,8 @@ public class ImageSettingsImporter implements DataTransporter {
         }
     }
 
-    private static boolean changeImageName(QuPathGUI quPathGUI, ImageData<BufferedImage> imageData, String imageName) {
-        Project<BufferedImage> project = quPathGUI.getProject();
+    private static boolean changeImageName(QuPathGUI quPath, ImageData<BufferedImage> imageData, String imageName) {
+        Project<BufferedImage> project = quPath.getProject();
 
         if (project != null && project.getEntry(imageData) != null) {
             project.getEntry(imageData).setImageName(imageName);

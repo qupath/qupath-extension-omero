@@ -42,8 +42,8 @@ public class Settings extends Stage {
     /**
      * Creates the settings window.
      *
-     * @param ownerWindow  the stage who should own this window
-     * @param client  the client whose settings should be displayed
+     * @param ownerWindow the stage who should own this window
+     * @param client the client whose settings should be displayed
      * @throws IOException if an error occurs while creating the window
      */
     public Settings(Stage ownerWindow, WebClient client) throws IOException {

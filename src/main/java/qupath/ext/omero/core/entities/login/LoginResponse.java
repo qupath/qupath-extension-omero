@@ -2,7 +2,6 @@ package qupath.ext.omero.core.entities.login;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import omero.IllegalArgumentException;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.lib.io.GsonTools;
 
@@ -96,7 +95,7 @@ public class LoginResponse {
         try {
             group = GsonTools.getInstance().fromJson(eventContext, Group.class);
         } catch (JsonSyntaxException e) {
-            throw new java.lang.IllegalArgumentException(e);
+            throw new IllegalArgumentException(e);
         }
 
         return new LoginResponse(

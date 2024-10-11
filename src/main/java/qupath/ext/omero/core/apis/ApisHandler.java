@@ -74,6 +74,7 @@ public class ApisHandler implements AutoCloseable {
             .maximumSize(METADATA_CACHE_SIZE)
             .build();
     private final boolean canSkipAuthentication;
+    private CompletableFuture<List<Long>> orphanedImagesIds = null;
     private record IdSizeWrapper(long id, int size) {}
 
     private ApisHandler(URI host, JsonApi jsonApi, boolean canSkipAuthentication) {
@@ -109,6 +110,12 @@ public class ApisHandler implements AutoCloseable {
         });
     }
 
+    /**
+     * Close the connection.
+     * This may take a moment as an HTTP request is made.
+     *
+     * @throws Exception when an error occurs when closing the connection
+     */
     @Override
     public void close() throws Exception {
         webclientApi.close();
@@ -136,7 +143,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * Convert a pixel type returned by OMERO to a QuPath {@link PixelType}
      *
-     * @param pixelType  the OMERO pixel type
+     * @param pixelType the OMERO pixel type
      * @return the QuPath pixel type, or an empty Optional if the OMERO pixel type was not recognized
      */
     public static Optional<PixelType> getPixelType(String pixelType) {
@@ -249,8 +256,12 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebclientApi#getOrphanedImagesIds()}.
      */
-    public CompletableFuture<List<Long>> getOrphanedImagesIds() {
-        return webclientApi.getOrphanedImagesIds();
+    public synchronized CompletableFuture<List<Long>> getOrphanedImagesIds() {
+        if (orphanedImagesIds == null) {
+            orphanedImagesIds = webclientApi.getOrphanedImagesIds();
+        }
+
+        return orphanedImagesIds;
     }
 
     /**

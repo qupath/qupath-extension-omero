@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Plate extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Plate.class);
-    private static final int NUMBER_OF_CHILDREN_TYPES = 5;
+    private static final int NUMBER_OF_CHILDREN_TYPES = 2;
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final String[] ATTRIBUTES = new String[] {
             resources.getString("Web.Entities.Plate.name"),
@@ -84,7 +84,7 @@ public class Plate extends ServerEntity {
 
     @Override
     public synchronized boolean isPopulatingChildren() {
-        return childrenTypesPopulated == NUMBER_OF_CHILDREN_TYPES;
+        return childrenTypesPopulated != NUMBER_OF_CHILDREN_TYPES;
     }
 
     @Override
@@ -122,7 +122,7 @@ public class Plate extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a plate.
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a plate
      */
     public static boolean isPlate(String type) {

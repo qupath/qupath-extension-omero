@@ -96,7 +96,7 @@ public class ImageMetadataResponseParser {
 
     private static List<ImageChannel> setChannels(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
         if (!metadataResponse.has("channels") || !metadataResponse.get("channels").isJsonArray() ||
-                metadataResponse.getAsJsonArray("channels").size() == 0
+                metadataResponse.getAsJsonArray("channels").isEmpty()
         ) {
             throw new IllegalArgumentException(String.format("Non empty 'channels' JSON array not found in %s", metadataResponse));
         }

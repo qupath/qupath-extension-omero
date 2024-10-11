@@ -20,7 +20,7 @@ public class Polygon extends Shape {
     /**
      * Creates a polygon.
      *
-     * @param points  a list of points describing the polygon
+     * @param points a list of points describing the polygon
      */
     public Polygon(List<Point2> points) {
         super(TYPE);
@@ -31,7 +31,7 @@ public class Polygon extends Shape {
     /**
      * Creates a polygon corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
+     * @param pathObject the path object corresponding to this shape
      * @param roi the roi describing the polygon
      */
     public Polygon(PathObject pathObject, ROI roi) {

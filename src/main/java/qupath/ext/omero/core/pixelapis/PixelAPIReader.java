@@ -18,7 +18,7 @@ public interface PixelAPIReader extends AutoCloseable {
     /**
      * Read a tile of an image.
      *
-     * @param tileRequest  the tile parameters
+     * @param tileRequest the tile parameters
      * @return the resulting image
      * @throws IOException when a reading error occurs
      */

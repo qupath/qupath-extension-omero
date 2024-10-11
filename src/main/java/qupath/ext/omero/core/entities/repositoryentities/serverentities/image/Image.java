@@ -172,7 +172,7 @@ public class Image extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to an image
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to an image
      */
     public static boolean isImage(String type) {

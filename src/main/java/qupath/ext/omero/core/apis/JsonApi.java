@@ -34,7 +34,6 @@ import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 
 /**
  * <p>The OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">JSON API</a>.</p>
@@ -122,14 +121,8 @@ class JsonApi {
                     }
                 })
                 .thenApplyAsync(urls -> {
-                    OmeroServerList serverInformation;
-                    String token;
-                    try {
-                        serverInformation = getServerInformation(urls).get();
-                        token = getToken(urls).get();
-                    } catch (InterruptedException | ExecutionException e) {
-                        throw new RuntimeException(e);
-                    }
+                    OmeroServerList serverInformation = getServerInformation(urls).join();
+                    String token = getToken(urls).join();
 
                     if (serverInformation.getServerHost().isPresent() &&
                             serverInformation.getServerId().isPresent() &&
@@ -200,17 +193,13 @@ class JsonApi {
      *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      *     if a request failed for example).
      * </p>
-     *
-     * <p>The arguments must have one of the following format:</p>
-     * <ul>
-     *     <li>{@code --username [username] --password [password]}</li>
-     *     <li>{@code -u [username] -p [password]}</li>
-     * </ul>
      * <p>
      *     If the arguments are not enough to authenticate, the user will
      *     automatically be asked for credentials.
      * </p>
      *
+     * @param username the username to use when login, or null to prompt the user for credentials
+     * @param password the password to use when login, or null to prompt the user for credentials
      * @return a CompletableFuture (that may complete exceptionally) with the authentication status
      */
     public CompletableFuture<LoginResponse> login(@Nullable String username, @Nullable String password) {
@@ -326,7 +315,7 @@ class JsonApi {
      *     if the request failed for example).
      * </p>
      *
-     * @param projectID  the project ID whose datasets should be retrieved
+     * @param projectID the project ID whose datasets should be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all datasets of the project
      */
     public CompletableFuture<List<Dataset>> getDatasets(long projectID) {
@@ -342,7 +331,7 @@ class JsonApi {
      *     if the request failed for example).
      * </p>
      *
-     * @param datasetID  the dataset ID whose images should be retrieved
+     * @param datasetID the dataset ID whose images should be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all images of the dataset
      */
     public CompletableFuture<List<Image>> getImages(long datasetID) {
@@ -568,7 +557,8 @@ class JsonApi {
      * </p>
      *
      * @param id the OMERO image ID
-     * @return a CompletableFuture (that may complete exceptionally) with the list of ROIs
+     * @return a CompletableFuture (that may complete exceptionally) with the list of ROIs, or an empty list if no ROIs
+     * was found with the provided ID
      */
     public CompletableFuture<List<Shape>> getROIs(long id) {
         URI uri;

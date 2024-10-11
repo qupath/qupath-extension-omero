@@ -53,6 +53,11 @@ public class AnnotationSender implements DataTransporter {
         SEND_DETECTION_MEASUREMENTS
     }
 
+    /**
+     * Create the annotation sender.
+     *
+     * @param quPath the quPath window
+     */
     public AnnotationSender(QuPathGUI quPath) {
         this.quPath = quPath;
     }

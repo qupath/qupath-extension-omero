@@ -40,8 +40,8 @@ public class ObjectPool<E> implements AutoCloseable {
     /**
      * Create the pool of objects. This will not create any object yet.
      *
-     * @param size  the capacity of the pool (greater than 0)
-     * @param objectCreator  a function to create an object. It is allowed to return null
+     * @param size the capacity of the pool (greater than 0)
+     * @param objectCreator a function to create an object. It is allowed to return null
      * @throws IllegalArgumentException when size is less than 1
      */
     public ObjectPool(int size, Supplier<E> objectCreator) {
@@ -51,9 +51,9 @@ public class ObjectPool<E> implements AutoCloseable {
     /**
      * Create the pool of objects. This will not create any object yet.
      *
-     * @param size  the capacity of the pool (greater than 0)
-     * @param objectCreator  a function to create an object. It is allowed to return null
-     * @param objectCloser  a function that will be called on each object of this pool when it is closed
+     * @param size the capacity of the pool (greater than 0)
+     * @param objectCreator a function to create an object. It is allowed to return null
+     * @param objectCloser a function that will be called on each object of this pool when it is closed
      * @throws IllegalArgumentException when size is less than 1
      */
     public ObjectPool(int size, Supplier<E> objectCreator, Consumer<E> objectCloser) {
@@ -134,7 +134,7 @@ public class ObjectPool<E> implements AutoCloseable {
      * Give an object back to this pool. This function must be used once an object
      * returned {@link #get()} is not used anymore.
      *
-     * @param object  the object to give back. Nothing will happen if the object is null
+     * @param object the object to give back. Nothing will happen if the object is null
      */
     public void giveBack(E object) {
         if (object != null) {

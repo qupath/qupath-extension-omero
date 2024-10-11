@@ -7,8 +7,21 @@ import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
-import javafx.scene.control.*;
-import javafx.scene.input.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
+import javafx.scene.control.TreeView;
+import javafx.scene.control.TreeItem;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
@@ -40,8 +53,6 @@ import java.text.MessageFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -127,7 +138,7 @@ public class Browser extends Stage {
     /**
      * Create the browser window.
      *
-     * @param client  the web client which will be used by this browser to retrieve data from the corresponding OMERO server
+     * @param client the web client which will be used by this browser to retrieve data from the corresponding OMERO server
      * @throws IOException if an error occurs while creating the browser
      */
     public Browser(WebClient client) throws IOException {
@@ -147,8 +158,17 @@ public class Browser extends Stage {
         WebClients.createClient(
                 client.getApisHandler().getWebServerURI().toString(),
                 WebClient.Authentication.ENFORCE
-        ).thenAccept(client -> Platform.runLater(() -> {
-            if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+        ).exceptionally(error -> {
+            logger.error(String.format("Connection to %s failed", client.getApisHandler().getWebServerURI()), error);
+
+            Platform.runLater(() -> Dialogs.showErrorMessage(
+                    resources.getString("Browser.ServerBrowser.login"),
+                    resources.getString("Browser.ServerBrowser.loginFailed")
+            ));
+
+            return null;
+        }).thenAccept(client -> Platform.runLater(() -> {
+            if (client != null) {
                 Dialogs.showInfoNotification(
                         resources.getString("Browser.ServerBrowser.login"),
                         MessageFormat.format(
@@ -159,11 +179,6 @@ public class Browser extends Stage {
                 );
 
                 OmeroExtension.getBrowseMenu().openBrowserOfClient(client.getApisHandler().getWebServerURI());
-            } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
-                Dialogs.showErrorMessage(
-                        resources.getString("Browser.ServerBrowser.login"),
-                        resources.getString("Browser.ServerBrowser.loginFailed")
-                );
             }
         }));
     }
@@ -172,35 +187,28 @@ public class Browser extends Stage {
     private void onLogoutClicked(ActionEvent ignoredEvent) {
         WebClients.removeClient(client);
 
-        // The client may take some time to close, but it must be closed before
-        // attempting to create a new connection, so the unauthenticated client
-        // is created after 100ms
-        new Timer().schedule(
-                new TimerTask() {
-                    @Override
-                    public void run() {
-                        WebClients.createClient(
-                                client.getApisHandler().getWebServerURI().toString(),
-                                WebClient.Authentication.TRY_TO_SKIP
-                        ).thenAccept(client -> Platform.runLater(() -> {
-                            if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-                                Dialogs.showInfoNotification(
-                                        resources.getString("Browser.ServerBrowser.logout"),
-                                        resources.getString("Browser.ServerBrowser.logoutSuccessful")
-                                );
+        WebClients.createClient(
+                client.getApisHandler().getWebServerURI().toString(),
+                WebClient.Authentication.TRY_TO_SKIP
+        ).exceptionally(error -> {
+            logger.error(String.format("Connection to %s failed", client.getApisHandler().getWebServerURI()), error);
 
-                                OmeroExtension.getBrowseMenu().openBrowserOfClient(client.getApisHandler().getWebServerURI());
-                            } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
-                                Dialogs.showErrorMessage(
-                                        resources.getString("Browser.ServerBrowser.login"),
-                                        resources.getString("Browser.ServerBrowser.loginFailed")
-                                );
-                            }
-                        }));
-                    }
-                },
-                100
-        );
+            Platform.runLater(() ->Dialogs.showErrorMessage(
+                    resources.getString("Browser.ServerBrowser.login"),
+                    resources.getString("Browser.ServerBrowser.loginFailed")
+            ));
+
+            return null;
+        }).thenAccept(client -> Platform.runLater(() -> {
+            if (client != null) {
+                Dialogs.showInfoNotification(
+                        resources.getString("Browser.ServerBrowser.logout"),
+                        resources.getString("Browser.ServerBrowser.logoutSuccessful")
+                );
+
+                OmeroExtension.getBrowseMenu().openBrowserOfClient(client.getApisHandler().getWebServerURI());
+            }
+        }));
     }
 
     @FXML
@@ -237,14 +245,14 @@ public class Browser extends Stage {
                     .exceptionally(error -> {
                         logger.error("Error while retrieving annotations", error);
 
-                        Dialogs.showErrorMessage(
+                        Platform.runLater(() -> Dialogs.showErrorMessage(
                                 resources.getString("Browser.ServerBrowser.cantDisplayInformation"),
                                 MessageFormat.format(
                                         resources.getString("Browser.ServerBrowser.errorWhenFetchingInformation"),
                                         serverEntity.getLabel(),
                                         error.getLocalizedMessage()
                                 )
-                        );
+                        ));
 
                         return null;
                     }).thenAccept(annotations -> Platform.runLater(() -> {

@@ -22,10 +22,9 @@ import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.MessageFormat;
 import java.util.ResourceBundle;
-import java.util.Timer;
-import java.util.TimerTask;
 
 /**
  * <p>
@@ -75,7 +74,7 @@ public class Connection extends VBox {
      * Since a WebClient is present, there is already a connection with the server, so the user will have the possibility
      * to log in, log out, or remove the connection, but not to connect to the server.
      *
-     * @param client  the client corresponding to the connection with the server
+     * @param client the client corresponding to the connection with the server
      * @throws IOException if an error occurs while creating the pane
      */
     public Connection(WebClient client) throws IOException {
@@ -88,7 +87,7 @@ public class Connection extends VBox {
      * to connect to the server or to remove the connection, but not to log in or log out.
      * Logging in or logging out will only be possible after a connection to the server is made.
      *
-     * @param serverURI  the URI of the server
+     * @param serverURI the URI of the server
      * @throws IOException if an error occurs while creating the pane
      */
     public Connection(URI serverURI) throws IOException {
@@ -121,14 +120,15 @@ public class Connection extends VBox {
         WebClients.createClient(
                 serverURI.toString(),
                 skipAuthentication.isSelected() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
-        ).thenAccept(client -> Platform.runLater(() -> {
-            if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+        ).exceptionally(error -> {
+            showConnectionError(serverURI.toString(), error);
+            return null;
+        }).thenAccept(client -> Platform.runLater(() -> {
+            if (client != null) {
                 Dialogs.showInfoNotification(
                         resources.getString("ConnectionsManager.Connection.webServer"),
                         MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectedTo"), serverURI.toString())
                 );
-            } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
-                showConnectionError(serverURI.toString(), client.getFailReason().orElse(null));
             }
         }));
     }
@@ -141,8 +141,11 @@ public class Connection extends VBox {
             WebClients.createClient(
                     client.getApisHandler().getWebServerURI().toString(),
                     WebClient.Authentication.ENFORCE
-            ).thenAccept(client -> Platform.runLater(() -> {
-                if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
+            ).exceptionally(error -> {
+                showConnectionError(client.getApisHandler().getWebServerURI().toString(), error);
+                return null;
+            }).thenAccept(client -> Platform.runLater(() -> {
+                if (client != null) {
                     Dialogs.showInfoNotification(
                             resources.getString("ConnectionsManager.Connection.login"),
                             MessageFormat.format(
@@ -151,8 +154,6 @@ public class Connection extends VBox {
                                     client.getUsername()
                             )
                     );
-                } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
-                    showConnectionError(this.client.getApisHandler().getWebServerURI().toString(), client.getFailReason().orElse(null));
                 }
             }));
         }
@@ -163,27 +164,26 @@ public class Connection extends VBox {
         if (client != null) {
             WebClients.removeClient(client);
 
-            // The client may take some time to close, but it must be closed before
-            // attempting to create a new connection, so the unauthenticated client
-            // is created after 100ms
-            new Timer().schedule(
-                    new TimerTask() {
-                        @Override
-                        public void run() {
-                            WebClients.createClient(
-                                    client.getApisHandler().getWebServerURI().toString(),
-                                    WebClient.Authentication.SKIP
-                            ).thenAccept(client -> Platform.runLater(() -> Dialogs.showInfoNotification(
-                                    resources.getString("ConnectionsManager.Connection.logout"),
-                                    resources.getString(client.getStatus().equals(WebClient.Status.SUCCESS) ?
-                                            "ConnectionsManager.Connection.logoutSuccessful" :
-                                            "ConnectionsManager.Connection.logoutSuccessfulButNoUnauthenticated"
-                                    )
-                            )));
-                        }
-                    },
-                    100
-            );
+            WebClients.createClient(
+                    client.getApisHandler().getWebServerURI().toString(),
+                    WebClient.Authentication.SKIP
+            ).exceptionally(error -> {
+                logger.error(String.format("Connection to %s failed", client.getApisHandler().getWebServerURI().toString()), error);
+
+                Platform.runLater(() -> Dialogs.showInfoNotification(
+                        resources.getString("ConnectionsManager.Connection.logout"),
+                        resources.getString("ConnectionsManager.Connection.logoutSuccessfulButNoUnauthenticated")
+                ));
+
+                return null;
+            }).thenAccept(client -> Platform.runLater(() -> {
+                if (client != null) {
+                    Dialogs.showInfoNotification(
+                            resources.getString("ConnectionsManager.Connection.logout"),
+                            resources.getString("ConnectionsManager.Connection.logoutSuccessful")
+                    );
+                }
+            }));
         }
     }
 
@@ -284,21 +284,21 @@ public class Connection extends VBox {
         }
     }
 
-    private static void showConnectionError(String uri, WebClient.FailReason failReason) {
-        String message;
+    private static void showConnectionError(String uri, Throwable error) {
+        logger.error(String.format("Connection to %s failed", uri), error);
 
-        if (failReason == null) {
-            message = MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectionFailed"), uri);
+        String message;
+        if (error instanceof URISyntaxException) {
+            message = MessageFormat.format(resources.getString("ConnectionsManager.Connection.invalidURI"), uri);
+        } else if (error instanceof WebClients.ClientAlreadyExistingException) {
+            message = MessageFormat.format(resources.getString("ConnectionsManager.Connection.alreadyCreating"), uri);
         } else {
-            message = switch (failReason) {
-                case ALREADY_CREATING -> MessageFormat.format(resources.getString("ConnectionsManager.Connection.alreadyCreating"), uri);
-                case INVALID_URI_FORMAT -> MessageFormat.format(resources.getString("ConnectionsManager.Connection.invalidURI"), uri);
-            };
+            message = MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectionFailed"), uri);
         }
 
-        Dialogs.showErrorMessage(
+        Platform.runLater(() -> Dialogs.showErrorMessage(
                 resources.getString("ConnectionsManager.Connection.webServer"),
                 message
-        );
+        ));
     }
 }

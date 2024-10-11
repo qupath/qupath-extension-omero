@@ -26,6 +26,7 @@ public class WebClients {
     private static final ObservableList<WebClient> clients = FXCollections.observableArrayList();
     private static final ObservableList<WebClient> clientsImmutable = FXCollections.unmodifiableObservableList(clients);
     private static final Set<URI> clientsBeingCreated = new HashSet<>();
+    public static class ClientAlreadyExistingException extends RuntimeException {}
 
     private WebClients() {
         throw new AssertionError("This class is not instantiable.");
@@ -61,9 +62,7 @@ public class WebClients {
                 .orElseGet(() -> {
                     synchronized (WebClients.class) {
                         if (clientsBeingCreated.contains(serverURI)) {
-                            return CompletableFuture.failedFuture(new IllegalStateException(
-                                    String.format("Client for %s already being created", serverURI)
-                            ));
+                            return CompletableFuture.failedFuture(new ClientAlreadyExistingException());
                         } else {
                             clientsBeingCreated.add(serverURI);
 
@@ -103,7 +102,8 @@ public class WebClients {
     }
 
     /**
-     * Close the given client connection
+     * Close the given client connection.
+     * This may take a moment as an HTTP request is made.
      *
      * @param client the client to remove
      */

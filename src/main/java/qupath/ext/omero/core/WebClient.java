@@ -155,10 +155,14 @@ public class WebClient implements AutoCloseable {
         );
     }
 
+    /**
+     * Close the connection.
+     * This may take a moment as an HTTP request is made.
+     *
+     * @throws Exception when an error occurs when closing the connection
+     */
     @Override
     public void close() throws Exception {
-        logger.info(String.format("Disconnected from the OMERO.web instance at %s", apisHandler.getWebServerURI()));
-
         synchronized (this) {
             for (PixelAPI pixelAPI: allPixelAPIs) {
                 pixelAPI.close();
@@ -166,6 +170,8 @@ public class WebClient implements AutoCloseable {
         }
         pingScheduler.close();
         apisHandler.close();
+
+        logger.info(String.format("Disconnected from the OMERO.web instance at %s", apisHandler.getWebServerURI()));
     }
 
     @Override
@@ -218,7 +224,7 @@ public class WebClient implements AutoCloseable {
     /**
      * Set the currently selected pixel API of this client.
      *
-     * @param pixelAPI  the pixel API to select
+     * @param pixelAPI the pixel API to select
      * @throws IllegalArgumentException when the provided pixel API is not available
      * or not part of the pixel APIs of this client
      */
@@ -279,7 +285,7 @@ public class WebClient implements AutoCloseable {
      * Add an image URI to the list of currently opened images given by
      * {@link #getOpenedImagesURIs() getOpenedImagesURIs}.
      *
-     * @param imageURI  the image URI
+     * @param imageURI the image URI
      */
     public synchronized void addOpenedImage(URI imageURI) {
         openedImagesURIs.add(imageURI);

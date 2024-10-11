@@ -6,7 +6,6 @@ import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.core.pixelapis.web.WebAPI;
 
 import java.net.URI;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
@@ -33,9 +32,6 @@ public class TestWebClient extends OmeroServer {
 
             Assertions.assertEquals(expectedUsername, username);
         }
-
-        @Test
-        abstract void Check_Client_Session_UUID();
 
         @Test
         void Check_Selected_Pixel_API() {
@@ -81,14 +77,6 @@ public class TestWebClient extends OmeroServer {
 
             Assertions.assertFalse(isAuthenticated);
         }
-
-        @Test
-        @Override
-        void Check_Client_Session_UUID() {
-            Optional<String> sessionUuid = client.getSessionUuid();
-
-            Assertions.assertTrue(sessionUuid.isEmpty());
-        }
     }
 
     @Nested
@@ -106,14 +94,6 @@ public class TestWebClient extends OmeroServer {
             boolean isAuthenticated = client.isAuthenticated();
 
             Assertions.assertTrue(isAuthenticated);
-        }
-
-        @Test
-        @Override
-        void Check_Client_Session_UUID() {
-            Optional<String> sessionUuid = client.getSessionUuid();
-
-            Assertions.assertTrue(sessionUuid.isPresent());     // the exact value changes every time, so only the presence is checked
         }
     }
 }

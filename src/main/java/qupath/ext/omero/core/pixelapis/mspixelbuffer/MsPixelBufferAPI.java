@@ -43,7 +43,7 @@ public class MsPixelBufferAPI implements PixelAPI {
     /**
      * Creates a new MsPixelBufferAPI.
      *
-     * @param apisHandler  the apis handler owning this API
+     * @param apisHandler the apis handler owning this API
      */
     public MsPixelBufferAPI(ApisHandler apisHandler) {
         this.apisHandler = apisHandler;
@@ -151,10 +151,10 @@ public class MsPixelBufferAPI implements PixelAPI {
      * This may change the availability of this pixel API.
      *
      * @param port the new port this microservice uses on the OMERO server
-     * @param checkAvailabilityNow  whether to directly check if the new port changes the
-     *                              availability of this pixel API. If false, the check will
-     *                              be performed in the background (recommended to avoid blocking
-     *                              the calling thread)
+     * @param checkAvailabilityNow whether to directly check if the new port changes the
+     *                             availability of this pixel API. If false, the check will
+     *                             be performed in the background (recommended to avoid blocking
+     *                             the calling thread)
      */
     public void setPort(int port, boolean checkAvailabilityNow) {
         this.port.set(port);

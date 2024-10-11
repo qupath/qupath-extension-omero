@@ -31,7 +31,7 @@ public interface PixelAPI extends AutoCloseable {
     /**
      * Change parameters of this API based on the provided arguments.
      *
-     * @param args  the arguments containing parameters
+     * @param args the arguments containing parameters
      */
     default void setParametersFromArgs(String... args) {}
 
@@ -49,8 +49,8 @@ public interface PixelAPI extends AutoCloseable {
      * Indicates if an image with the provided parameters can be read by this API.
      * This method shouldn't need to be overridden.
      *
-     * @param pixelType  the pixel type of the image
-     * @param numberOfChannels  the number of channels of the image
+     * @param pixelType the pixel type of the image
+     * @param numberOfChannels the number of channels of the image
      * @return whether the image can be read
      */
     default boolean canReadImage(PixelType pixelType, int numberOfChannels) {
@@ -60,7 +60,7 @@ public interface PixelAPI extends AutoCloseable {
     /**
      * Indicates if an image with the provided parameters can be read by this API.
      *
-     * @param pixelType  the pixel type of the image
+     * @param pixelType the pixel type of the image
      * @return whether the image can be read
      */
     boolean canReadImage(PixelType pixelType);
@@ -68,7 +68,7 @@ public interface PixelAPI extends AutoCloseable {
     /**
      * Indicates if an image with the provided parameters can be read by this API.
      *
-     * @param numberOfChannels  the number of channels of the image
+     * @param numberOfChannels the number of channels of the image
      * @return whether the image can be read
      */
     boolean canReadImage(int numberOfChannels);
@@ -83,8 +83,8 @@ public interface PixelAPI extends AutoCloseable {
      *     no longer used.
      * </p>
      *
-     * @param id  the ID of the image to open
-     * @param metadata  the metadata of the image to open
+     * @param id the ID of the image to open
+     * @param metadata the metadata of the image to open
      * @return a new reader corresponding to this API
      * @throws IOException when the reader creation fails
      * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})

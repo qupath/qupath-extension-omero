@@ -16,10 +16,10 @@ import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -96,48 +96,47 @@ public class BrowseMenu extends Menu {
     private void createNewServerItem() {
         newServerItem = new MenuItem(resources.getString("Browser.BrowseMenu.newServer"));
         newServerItem.setOnAction(ignoredEvent -> {
+            NewServerForm newServerForm;
             try {
-                NewServerForm newServerForm = new NewServerForm();
-
-                boolean dialogConfirmed = Dialogs.showConfirmDialog(resources.getString("Browser.BrowseMenu.enterURL"), newServerForm);
-
-                if (dialogConfirmed) {
-                    String url = newServerForm.getURL();
-
-                    //TODO: if error instance of URISyntaxException, Browser.BrowseMenu.invalidURI
-                    //TODO: create custom exception for Browser.BrowseMenu.alreadyCreating?
-                    WebClients.createClient(
-                            url,
-                            newServerForm.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
-                    ).thenAccept(client -> Platform.runLater(() -> {
-                        if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-                            getBrowserCommand(client.getApisHandler().getWebServerURI()).run();
-                        } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
-                            Optional<WebClient.FailReason> failReason = client.getFailReason();
-                            String message = null;
-
-                            if (failReason.isPresent()) {
-                                if (failReason.get().equals(WebClient.FailReason.INVALID_URI_FORMAT)) {
-                                    message = MessageFormat.format(resources.getString("Browser.BrowseMenu.invalidURI"), url);
-                                } else if (failReason.get().equals(WebClient.FailReason.ALREADY_CREATING)) {
-                                    message = MessageFormat.format(resources.getString("Browser.BrowseMenu.alreadyCreating"), url);
-                                }
-                            } else {
-                                message = MessageFormat.format(resources.getString("Browser.BrowseMenu.connectionFailed"), url);
-                            }
-
-                            if (message != null) {
-                                Dialogs.showErrorMessage(
-                                        resources.getString("Browser.BrowseMenu.webServer"),
-                                        message
-                                );
-                            }
-                        }
-                    }));
-                }
+                newServerForm = new NewServerForm();
             } catch (IOException e) {
                 logger.error("Error while creating the new server form", e);
+                return;
             }
+
+            boolean dialogConfirmed = Dialogs.showConfirmDialog(resources.getString("Browser.BrowseMenu.enterURL"), newServerForm);
+            if (!dialogConfirmed) {
+                return;
+            }
+
+            String url = newServerForm.getURL();
+            WebClients.createClient(
+                    url,
+                    newServerForm.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
+            ).exceptionally(error -> {
+                logger.error(String.format("Connection to %s failed", url), error);
+
+                String message;
+                if (error instanceof URISyntaxException) {
+                    message = MessageFormat.format(resources.getString("Browser.BrowseMenu.invalidURI"), url);
+                } else if (error instanceof WebClients.ClientAlreadyExistingException) {
+                    message = MessageFormat.format(resources.getString("Browser.BrowseMenu.alreadyCreating"), url);
+                } else {
+                    message = MessageFormat.format(resources.getString("Browser.BrowseMenu.connectionFailed"), url);
+                }
+
+                Platform.runLater(() -> Dialogs.showErrorMessage(
+                        resources.getString("Browser.BrowseMenu.webServer"),
+                        message
+                ));
+
+                return null;
+            }).thenAccept(client -> {
+                if (client != null) {
+                    Platform.runLater(() -> getBrowserCommand(client.getApisHandler().getWebServerURI()).run());
+                }
+            });
+
         });
         getItems().add(newServerItem);
     }

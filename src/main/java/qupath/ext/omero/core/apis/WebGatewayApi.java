@@ -50,9 +50,9 @@ class WebGatewayApi {
     /**
      * Creates a web gateway client.
      *
-     * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
-     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     *               used by this session. This is needed to perform some functions of this API.
+     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     *              used by this session. This is needed to perform some functions of this API.
      */
     public WebGatewayApi(URI host, String token) {
         this.host = host;

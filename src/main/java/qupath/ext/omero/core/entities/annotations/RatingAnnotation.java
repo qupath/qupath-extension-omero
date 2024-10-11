@@ -50,7 +50,7 @@ public class RatingAnnotation extends Annotation {
     /**
      * Indicates if an annotation type refers to a rating annotation.
      *
-     * @param type  the annotation type
+     * @param type the annotation type
      * @return whether this annotation type refers to a rating annotation
      */
     public static boolean isOfType(String type) {

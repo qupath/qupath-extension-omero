@@ -116,7 +116,7 @@ public class Dataset extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a dataset
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a dataset
      */
     public static boolean isDataset(String type) {

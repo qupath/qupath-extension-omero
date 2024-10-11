@@ -1,8 +1,18 @@
 package qupath.ext.omero.gui.browser.serverbrowser;
 
 import javafx.application.Platform;
-import javafx.beans.property.*;
-import javafx.collections.*;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.collections.ObservableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
@@ -53,7 +63,7 @@ public class BrowserModel {
     /**
      * Creates a new browser model
      *
-     * @param client  the client whose properties and lists should be listened
+     * @param client the client whose properties and lists should be listened
      */
     public BrowserModel(WebClient client) {
         UiUtilities.bindPropertyInUIThread(numberOfEntitiesLoading, client.getApisHandler().getNumberOfEntitiesLoading());

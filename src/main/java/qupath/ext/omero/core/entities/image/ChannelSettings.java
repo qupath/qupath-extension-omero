@@ -17,10 +17,10 @@ public class ChannelSettings {
     /**
      * Create a new channel settings
      *
-     * @param name  the name of the channel
-     * @param minDisplayRange  the minimum table lookup value for this channel
-     * @param maxDisplayRange  the maximum table lookup value for this channel
-     * @param rgbColor  the RGB color of this channel as a packed (A)RGB integer
+     * @param name the name of the channel
+     * @param minDisplayRange the minimum table lookup value for this channel
+     * @param maxDisplayRange the maximum table lookup value for this channel
+     * @param rgbColor the RGB color of this channel as a packed (A)RGB integer
      */
     public ChannelSettings(String name, double minDisplayRange, double maxDisplayRange, int rgbColor) {
         this.name = name;
@@ -32,9 +32,9 @@ public class ChannelSettings {
     /**
      * Create a new channel settings
      *
-     * @param minDisplayRange  the minimum table lookup value for this channel
-     * @param maxDisplayRange  the maximum table lookup value for this channel
-     * @param rgbColor  the RGB color of this channel as a packed (A)RGB integer
+     * @param minDisplayRange the minimum table lookup value for this channel
+     * @param maxDisplayRange the maximum table lookup value for this channel
+     * @param rgbColor the RGB color of this channel as a packed (A)RGB integer
      */
     public ChannelSettings(double minDisplayRange, double maxDisplayRange, int rgbColor) {
         this("", minDisplayRange, maxDisplayRange, rgbColor);
@@ -43,8 +43,8 @@ public class ChannelSettings {
     /**
      * Create a new channel settings
      *
-     * @param minDisplayRange  the minimum table lookup value for this channel
-     * @param maxDisplayRange  the maximum table lookup value for this channel
+     * @param minDisplayRange the minimum table lookup value for this channel
+     * @param maxDisplayRange the maximum table lookup value for this channel
      */
     public ChannelSettings(double minDisplayRange, double maxDisplayRange) {
         this("", minDisplayRange, maxDisplayRange, 0);
@@ -53,7 +53,7 @@ public class ChannelSettings {
     /**
      * Create a new channel settings
      *
-     * @param name  the name of the channel
+     * @param name the name of the channel
      */
     public ChannelSettings(String name) {
         this(name, 0, 0, 0);

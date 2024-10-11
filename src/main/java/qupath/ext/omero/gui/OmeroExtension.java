@@ -59,29 +59,29 @@ public class OmeroExtension implements QuPathExtension, GitHubProject {
 	private static BrowseMenu browseMenu;
 
 	@Override
-	public void installExtension(QuPathGUI qupath) {
+	public void installExtension(QuPathGUI quPath) {
 		if (!alreadyInstalled) {
 			alreadyInstalled = true;
 
 			browseMenu = new BrowseMenu();
 
-			MenuTools.addMenuItems(qupath.getMenu("Extensions", false),
+			MenuTools.addMenuItems(quPath.getMenu("Extensions", false),
 					MenuTools.createMenu("OMERO",
 							browseMenu,
 							ActionTools.createAction(
-									new ConnectionsManagerCommand(qupath.getStage()),
+									new ConnectionsManagerCommand(quPath.getStage()),
 									ConnectionsManagerCommand.getMenuTitle()
 							),
 							new SeparatorMenuItem(),
 							new DataTransporterMenu(
 									resources.getString("Extension.sendToOMERO"),
-									qupath,
-									List.of(new AnnotationSender(qupath), new KeyValuesSender(), new ImageSettingsSender())
+									quPath,
+									List.of(new AnnotationSender(quPath), new KeyValuesSender(quPath), new ImageSettingsSender(quPath))
 							),
 							new DataTransporterMenu(
 									resources.getString("Extension.importFromOMERO"),
-									qupath,
-									List.of(new AnnotationImporter(), new KeyValuesImporter(), new ImageSettingsImporter())
+									quPath,
+									List.of(new AnnotationImporter(quPath), new KeyValuesImporter(quPath), new ImageSettingsImporter(quPath))
 							)
 					)
 			);

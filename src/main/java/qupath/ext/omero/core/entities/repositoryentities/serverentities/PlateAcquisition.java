@@ -115,7 +115,7 @@ public class PlateAcquisition extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a plate acquisition.
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a plate acquisition
      */
     public static boolean isPlateAcquisition(String type) {
@@ -125,7 +125,7 @@ public class PlateAcquisition extends ServerEntity {
     /**
      * Set the number of wells of this plate acquisition.
      *
-     * @param numberOfWells  the number of wells of this plate acquisition
+     * @param numberOfWells the number of wells of this plate acquisition
      */
     public synchronized void setNumberOfWells(int numberOfWells) {
         this.numberOfWells = numberOfWells;

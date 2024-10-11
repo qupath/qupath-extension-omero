@@ -199,7 +199,7 @@ public abstract class Shape {
      *     or {@code Detection:Stroma:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:205037ff-7dd7-4549-89d8-a4e3cbf61294}
      * </p>
      *
-     * @param pathObject  the path object that should correspond to this shape
+     * @param pathObject the path object that should correspond to this shape
      */
     protected void linkWithPathObject(PathObject pathObject) {
         this.text = String.format(
@@ -222,8 +222,8 @@ public abstract class Shape {
     /**
      * Parse the OMERO string representing points into a list.
      *
-     * @param pointsString  a String describing a list of points returned by the OMERO API,
-     *                      for example "2,3 4,2 7,9"
+     * @param pointsString a String describing a list of points returned by the OMERO API,
+     *                     for example "2,3 4,2 7,9"
      * @return a list of points corresponding to the input
      */
     protected static List<Point2> parseStringPoints(String pointsString) {

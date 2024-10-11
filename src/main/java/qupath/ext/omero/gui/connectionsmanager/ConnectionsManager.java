@@ -38,7 +38,7 @@ public class ConnectionsManager extends Stage {
     /**
      * Creates the connection manager window.
      *
-     * @param owner  the stage that should own this window
+     * @param owner the stage that should own this window
      * @throws IOException if an error occurs while creating the window
      */
     public ConnectionsManager(Stage owner) throws IOException {

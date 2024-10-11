@@ -49,8 +49,8 @@ public abstract class Annotation {
      *     on the adder and the owner.
      * </p>
      *
-     * @param experimenters  the list of experimenters having information on
-     *                       the adder and the owner of this annotation
+     * @param experimenters the list of experimenters having information on
+     *                      the adder and the owner of this annotation
      */
     public void updateAdderAndOwner(List<Experimenter> experimenters) {
         updateOwner(experimenters, owner).ifPresent(owner -> this.owner = owner);

@@ -21,10 +21,10 @@ public class Ellipse extends Shape {
     /**
      * Creates an ellipse.
      *
-     * @param x  x-coordinate of the center of the ellipse
-     * @param y  y-coordinate of the center of the ellipse
-     * @param radiusX  radius along the x-axis
-     * @param radiusY  radius along the y-axis
+     * @param x x-coordinate of the center of the ellipse
+     * @param y y-coordinate of the center of the ellipse
+     * @param radiusX radius along the x-axis
+     * @param radiusY radius along the y-axis
      */
     public Ellipse(double x, double y, double radiusX, double radiusY) {
         super(TYPE);
@@ -38,7 +38,7 @@ public class Ellipse extends Shape {
     /**
      * Creates an ellipse corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
+     * @param pathObject the path object corresponding to this shape
      */
     public Ellipse(PathObject pathObject) {
         this(

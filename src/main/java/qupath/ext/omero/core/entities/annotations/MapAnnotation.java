@@ -46,7 +46,7 @@ public class MapAnnotation extends Annotation {
     /**
      * Indicates if an annotation type refers to a map annotation.
      *
-     * @param type  the annotation type
+     * @param type the annotation type
      * @return whether this annotation type refers to a map annotation
      */
     public static boolean isOfType(String type) {
@@ -57,7 +57,7 @@ public class MapAnnotation extends Annotation {
      * Get a map containing all values of a list of map annotations.
      * If two annotations contain the same keys, one value is randomly selected.
      *
-     * @param annotations  the annotations containing the values
+     * @param annotations the annotations containing the values
      * @return a map containing all values of the provided annotations
      */
     public static Map<String, String> getCombinedValues(List<MapAnnotation> annotations) {

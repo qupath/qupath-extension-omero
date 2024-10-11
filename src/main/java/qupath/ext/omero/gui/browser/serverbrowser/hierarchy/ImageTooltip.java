@@ -33,8 +33,8 @@ class ImageTooltip extends VBox {
     /**
      * Creates the ImageTooltip.
      *
-     * @param image  the image to describe
-     * @param client  the corresponding client, used to retrieve the thumbnail
+     * @param image the image to describe
+     * @param client the corresponding client, used to retrieve the thumbnail
      * @throws IOException if an error occurs while creating the tooltip
      */
     public ImageTooltip(Image image, WebClient client) throws IOException {

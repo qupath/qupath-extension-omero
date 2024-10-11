@@ -95,7 +95,7 @@ public class Well extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a well.
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a well
      */
     public static boolean isWell(String type) {
@@ -105,7 +105,7 @@ public class Well extends ServerEntity {
     /**
      * Retrieve a list of image ids belonging to this well.
      *
-     * @param withPlateAcquisition  whether to include image that are part of a plate acquisition
+     * @param withPlateAcquisition whether to include image that are part of a plate acquisition
      * @return the image ids belonging to this well
      */
     public List<Long> getImagesIds(boolean withPlateAcquisition) {

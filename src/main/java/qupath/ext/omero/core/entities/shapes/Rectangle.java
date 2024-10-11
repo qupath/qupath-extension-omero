@@ -21,10 +21,10 @@ public class Rectangle extends Shape {
     /**
      * Creates a rectangle.
      *
-     * @param x  the x-coordinate of the top left point of the rectangle
-     * @param y  the y-coordinate of the top left point of the rectangle
-     * @param width  the width of the rectangle
-     * @param height  the height of the rectangle
+     * @param x the x-coordinate of the top left point of the rectangle
+     * @param y the y-coordinate of the top left point of the rectangle
+     * @param width the width of the rectangle
+     * @param height the height of the rectangle
      */
     public Rectangle(
             double x,
@@ -43,7 +43,7 @@ public class Rectangle extends Shape {
     /**
      * Creates a rectangle corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
+     * @param pathObject the path object corresponding to this shape
      */
     public Rectangle(PathObject pathObject) {
         this(

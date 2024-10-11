@@ -94,7 +94,7 @@ public class Group {
     /**
      * Set the owners belonging to this group
      *
-     * @param owners  the owners of this group
+     * @param owners the owners of this group
      * @throws NullPointerException when the provided list is null
      */
     public synchronized void setOwners(List<Owner> owners) {

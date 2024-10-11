@@ -44,7 +44,7 @@ public class TagAnnotation extends Annotation {
     /**
      * Indicates if an annotation type refers to a tag annotation.
      *
-     * @param type  the annotation type
+     * @param type the annotation type
      * @return whether this annotation type refers to a tag annotation
      */
     public static boolean isOfType(String type) {

@@ -10,7 +10,13 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.controlsfx.glyphfont.Glyph;
-import qupath.ext.omero.core.entities.annotations.*;
+import qupath.ext.omero.core.entities.annotations.Annotation;
+import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
+import qupath.ext.omero.core.entities.annotations.CommentAnnotation;
+import qupath.ext.omero.core.entities.annotations.FileAnnotation;
+import qupath.ext.omero.core.entities.annotations.MapAnnotation;
+import qupath.ext.omero.core.entities.annotations.RatingAnnotation;
+import qupath.ext.omero.core.entities.annotations.TagAnnotation;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
@@ -43,9 +49,9 @@ public class AdvancedInformation extends Stage {
     /**
      * Create the advanced information window.
      *
-     * @param owner  the stage who should own this window.
-     * @param serverEntity  the OMERO entity whose information should be displayed.
-     * @param annotationGroup  the OMERO annotations who belong to the OMERO entity.
+     * @param owner the stage who should own this window.
+     * @param serverEntity the OMERO entity whose information should be displayed.
+     * @param annotationGroup the OMERO annotations who belong to the OMERO entity.
      * @throws IOException if an error occurs while creating the window
      */
     public AdvancedInformation(Stage owner, ServerEntity serverEntity, AnnotationGroup annotationGroup) throws IOException {
@@ -104,7 +110,7 @@ public class AdvancedInformation extends Stage {
             }
 
             if (pane != null) {
-                pane.setExpanded(annotationList.size() > 0);
+                pane.setExpanded(!annotationList.isEmpty());
                 content.getChildren().add(pane);
             }
         }
@@ -191,7 +197,7 @@ public class AdvancedInformation extends Stage {
             RatingAnnotation ratingAnnotation = (RatingAnnotation) annotation;
             averageRating += ratingAnnotation.getValue();
         }
-        if (annotationList.size() != 0) {
+        if (!annotationList.isEmpty()) {
             averageRating /= annotationList.size();
         }
 

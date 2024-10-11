@@ -31,6 +31,16 @@ public class KeyValuesSender implements DataTransporter {
 
     private static final Logger logger = LoggerFactory.getLogger(KeyValuesSender.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
+    private final QuPathGUI quPath;
+
+    /**
+     * Create the key value sender.
+     *
+     * @param quPath the quPath window
+     */
+    public KeyValuesSender(QuPathGUI quPath) {
+        this.quPath = quPath;
+    }
 
     @Override
     public String getMenuTitle() {
@@ -44,68 +54,71 @@ public class KeyValuesSender implements DataTransporter {
 
     @Override
     public void transportData() {
-        QuPathGUI qupath = QuPathGUI.getInstance();
-
-        if (qupath.getProject() == null) {
+        if (quPath.getProject() == null) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
                     resources.getString("DataTransporters.KeyValuesSender.projectNotOpened")
             );
-        } else if (qupath.getViewer() == null || !(qupath.getViewer().getServer() instanceof OmeroImageServer omeroImageServer)) {
+            return;
+        }
+
+        if (quPath.getViewer() == null || !(quPath.getViewer().getServer() instanceof OmeroImageServer omeroImageServer)) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
                     resources.getString("DataTransporters.KeyValuesSender.notFromOMERO")
             );
-        } else {
-            ProjectImageEntry<BufferedImage> entry = qupath.getProject().getEntry(qupath.getImageData());
-            Map<String,String> keyValues = entry.getMetadataMap();
-
-            if (keyValues.isEmpty()) {
-                Dialogs.showErrorMessage(
-                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                        resources.getString("DataTransporters.KeyValuesSender.noValues")
-                );
-            } else {
-                KeyValuesForm keyValuesForm;
-                try {
-                    keyValuesForm = new KeyValuesForm();
-                } catch (IOException e) {
-                    logger.error("Error when creating the key values form", e);
-                    Dialogs.showErrorMessage(
-                            resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                            e.getLocalizedMessage()
-                    );
-                    return;
-                }
-
-                boolean confirmed = Dialogs.showConfirmDialog(
-                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                        keyValuesForm
-                );
-
-                if (confirmed) {
-                    omeroImageServer.getClient().getApisHandler().sendKeyValuePairs(
-                            omeroImageServer.getId(),
-                            keyValues,
-                            keyValuesForm.getChoice().equals(KeyValuesForm.Choice.REPLACE_EXITING),
-                            keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)
-                    ).handle((v, error) -> {
-                        if (error == null) {
-                            Dialogs.showInfoNotification(
-                                    resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                                    resources.getString("DataTransporters.KeyValuesSender.keyValuesSent")
-                            );
-                        } else {
-                            logger.error("Error while sending key value pairs", error);
-                            Dialogs.showErrorNotification(
-                                    resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                                    resources.getString("DataTransporters.KeyValuesSender.keyValuesNotSent")
-                            );
-                        }
-                        return null;
-                    });
-                }
-            }
+            return;
         }
+
+        ProjectImageEntry<BufferedImage> entry = quPath.getProject().getEntry(quPath.getImageData());
+        Map<String,String> keyValues = entry.getMetadata();
+        if (keyValues.isEmpty()) {
+            Dialogs.showErrorMessage(
+                    resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                    resources.getString("DataTransporters.KeyValuesSender.noValues")
+            );
+            return;
+        }
+
+        KeyValuesForm keyValuesForm;
+        try {
+            keyValuesForm = new KeyValuesForm();
+        } catch (IOException e) {
+            logger.error("Error when creating the key values form", e);
+            Dialogs.showErrorMessage(
+                    resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                    e.getLocalizedMessage()
+            );
+            return;
+        }
+
+        boolean confirmed = Dialogs.showConfirmDialog(
+                resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                keyValuesForm
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        omeroImageServer.getClient().getApisHandler().sendKeyValuePairs(
+                omeroImageServer.getId(),
+                keyValues,
+                keyValuesForm.getChoice().equals(KeyValuesForm.Choice.REPLACE_EXITING),
+                keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)
+        ).handle((v, error) -> {
+            if (error == null) {
+                Platform.runLater(() -> Dialogs.showInfoNotification(
+                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                        resources.getString("DataTransporters.KeyValuesSender.keyValuesSent")
+                ));
+            } else {
+                logger.error("Error while sending key value pairs", error);
+                Platform.runLater(() -> Dialogs.showErrorNotification(
+                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                        resources.getString("DataTransporters.KeyValuesSender.keyValuesNotSent")
+                ));
+            }
+            return null;
+        });
     }
 }

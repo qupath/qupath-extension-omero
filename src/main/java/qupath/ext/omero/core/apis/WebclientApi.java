@@ -91,6 +91,14 @@ class WebclientApi implements AutoCloseable {
         pingUri = URI.create(String.format(PING_URL, host));
     }
 
+    /**
+     * Close the connection by sending a login out request.
+     * This may take a moment as it waits for the request to complete.
+     *
+     * @throws URISyntaxException when the login out request URI is invalid
+     * @throws ExecutionException when the request failed
+     * @throws InterruptedException when the wait for the request to end was interrupted
+     */
     @Override
     public void close() throws URISyntaxException, ExecutionException, InterruptedException {
         URI uri = new URI(String.format(LOGOUT_URL, host));
@@ -111,9 +119,9 @@ class WebclientApi implements AutoCloseable {
     /**
      * Returns a link of the OMERO.web client pointing to a server entity.
      *
-     * @param entity  the entity to have a link to.
-     *                Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                {@link Screen}, {@link Plate} or {@link PlateAcquisition}
+     * @param entity the entity to have a link to.
+     *               Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *               {@link Screen}, {@link Plate} or {@link PlateAcquisition}
      * @return a URL pointing to the server entity
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
@@ -462,13 +470,13 @@ class WebclientApi implements AutoCloseable {
      *     if the request failed for example).
      * </p>
      *
-     * @param entityId  the ID of the entity
-     * @param entityClass  the class of the entity.
-     *                     Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                     {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
-     * @param attachmentName  the name of the file to send. A prefix will be added to it to mark
-     *                        this file as coming from QuPath
-     * @param attachmentContent  the content of the file to send
+     * @param entityId the ID of the entity
+     * @param entityClass the class of the entity.
+     *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     * @param attachmentName the name of the file to send. A prefix will be added to it to mark
+     *                       this file as coming from QuPath
+     * @param attachmentContent the content of the file to send
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition

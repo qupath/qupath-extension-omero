@@ -11,7 +11,6 @@ import qupath.ext.omero.TestUtilities;
 import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.util.List;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 public class TestRequestSender extends OmeroServer {
@@ -27,7 +26,7 @@ public class TestRequestSender extends OmeroServer {
     void Check_Link_Unreachable() {
         URI unreachableLink = URI.create("http://invalid.invalid");
 
-        Assertions.assertThrows(CompletionException.class, () -> RequestSender.isLinkReachableWithGet(unreachableLink).get());
+        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.isLinkReachableWithGet(unreachableLink).get());
     }
 
     @Test
@@ -58,7 +57,7 @@ public class TestRequestSender extends OmeroServer {
     void Check_Get_Request_And_Convert_On_Invalid_Link() {
         URI invalidApiLink = URI.create(OmeroServer.getWebServerURI());
 
-        Assertions.assertThrows(CompletionException.class, () ->
+        Assertions.assertThrows(ExecutionException.class, () ->
                 RequestSender.getAndConvert(invalidApiLink, ApiResponse.class).get()
         );
     }
@@ -76,7 +75,7 @@ public class TestRequestSender extends OmeroServer {
     void Check_Get_Image_On_Invalid_Link() {
         URI invalidImageLink = URI.create(OmeroServer.getWebServerURI());
 
-        Assertions.assertThrows(CompletionException.class, () -> RequestSender.getImage(invalidImageLink).get());
+        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.getImage(invalidImageLink).get());
     }
 
     @Test
@@ -95,7 +94,7 @@ public class TestRequestSender extends OmeroServer {
         URI invalidJsonListLink = URI.create(OmeroServer.getWebServerURI());
         String memberName = "data";
 
-        Assertions.assertThrows(CompletionException.class, () -> RequestSender.getAndConvertToJsonList(invalidJsonListLink, memberName));
+        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.getAndConvertToJsonList(invalidJsonListLink, memberName).get());
     }
 
     @Test
@@ -103,7 +102,7 @@ public class TestRequestSender extends OmeroServer {
         URI jsonListLink = URI.create(OmeroServer.getWebServerURI() + "/api/");
         String memberName = "invalid";
 
-        Assertions.assertThrows(CompletionException.class, () -> RequestSender.getAndConvertToJsonList(jsonListLink, memberName));
+        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.getAndConvertToJsonList(jsonListLink, memberName).get());
     }
 
     private static class ApiResponse {

@@ -51,7 +51,7 @@ public class WebUtilities {
      * the reason is logged.
      * The provided text must contain a valid scheme (http or https).
      *
-     * @param url  the text the URI should be created from. It can be null
+     * @param url the text the URI should be created from. It can be null
      * @return a URI if it was successfully created, or an empty Optional otherwise
      */
     public static Optional<URI> createURI(String url) {
@@ -72,7 +72,7 @@ public class WebUtilities {
     /**
      * Parse the OMERO entity ID from a URI.
      *
-     * @param uri  the URI that is supposed to contain the ID. It can be URL encoded
+     * @param uri the URI that is supposed to contain the ID. It can be URL encoded
      * @return the entity ID, or an empty Optional if it was not found
      */
     public static OptionalLong parseEntityId(URI uri) {

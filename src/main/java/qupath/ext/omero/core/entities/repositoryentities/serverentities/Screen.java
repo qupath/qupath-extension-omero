@@ -113,7 +113,7 @@ public class Screen extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a screen
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a screen
      */
     public static boolean isScreen(String type) {

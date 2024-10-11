@@ -32,6 +32,16 @@ public class ImageSettingsSender implements DataTransporter {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageSettingsSender.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
+    private final QuPathGUI quPath;
+
+    /**
+     * Create the image settings sender.
+     *
+     * @param quPath the quPath window
+     */
+    public ImageSettingsSender(QuPathGUI quPath) {
+        this.quPath = quPath;
+    }
 
     @Override
     public String getMenuTitle() {
@@ -45,68 +55,70 @@ public class ImageSettingsSender implements DataTransporter {
 
     @Override
     public void transportData() {
-        QuPathGUI quPathGUI = QuPathGUI.getInstance();
-        QuPathViewer viewer = quPathGUI.getViewer();
+        QuPathViewer viewer = quPath.getViewer();
 
-        if (viewer != null && viewer.getServer() instanceof OmeroImageServer omeroImageServer) {
-            ImageSettingsForm imageSettingsForm;
-            try {
-                imageSettingsForm = new ImageSettingsForm(
-                        quPathGUI.getProject() == null,
-                        omeroImageServer.getMetadata().isRGB()
-                );
-            } catch (IOException e) {
-                logger.error("Error when creating the image settings form", e);
-                Dialogs.showErrorMessage(
-                        resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
-                        e.getLocalizedMessage()
-                );
-                return;
-            }
-
-            boolean confirmed = Dialogs.showConfirmDialog(
-                    resources.getString("DataTransporters.ImageSettingsSender.dataToSend"),
-                    imageSettingsForm
-            );
-
-            if (confirmed && !imageSettingsForm.getSelectedChoices().isEmpty()) {
-                Map<ImageSettingsForm.Choice, CompletableFuture<Void>> requests = createRequests(
-                        imageSettingsForm.getSelectedChoices(),
-                        omeroImageServer,
-                        viewer
-                );
-
-                CompletableFuture.supplyAsync(() -> requests.entrySet().stream().collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> entry.getValue().handle((v, error) -> error).join()
-                ))).thenAccept(errors -> Platform.runLater(() -> {
-                    logErrors(errors);
-
-                    String successMessage = createMessageFromResponses(errors, true);
-                    String errorMessage = createMessageFromResponses(errors, false);
-
-                    if (!errorMessage.isEmpty()) {
-                        errorMessage += String.format("\n\n%s", resources.getString("DataTransporters.ImageSettingsSender.notAllParametersSent"));
-                        Dialogs.showErrorMessage(
-                                resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
-                                errorMessage
-                        );
-                    }
-
-                    if (!successMessage.isEmpty()) {
-                        Dialogs.showInfoNotification(
-                                resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
-                                successMessage
-                        );
-                    }
-                }));
-            }
-        } else {
+        if (viewer == null || !(viewer.getServer() instanceof OmeroImageServer omeroImageServer)) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
                     resources.getString("DataTransporters.ImageSettingsSender.notFromOMERO")
             );
+            return;
         }
+
+        ImageSettingsForm imageSettingsForm;
+        try {
+            imageSettingsForm = new ImageSettingsForm(
+                    quPath.getProject() == null,
+                    omeroImageServer.getMetadata().isRGB()
+            );
+        } catch (IOException e) {
+            logger.error("Error when creating the image settings form", e);
+            Dialogs.showErrorMessage(
+                    resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
+                    e.getLocalizedMessage()
+            );
+            return;
+        }
+
+        boolean confirmed = Dialogs.showConfirmDialog(
+                resources.getString("DataTransporters.ImageSettingsSender.dataToSend"),
+                imageSettingsForm
+        );
+
+        if (!confirmed || imageSettingsForm.getSelectedChoices().isEmpty()) {
+            return;
+        }
+
+        Map<ImageSettingsForm.Choice, CompletableFuture<Void>> requests = createRequests(
+                imageSettingsForm.getSelectedChoices(),
+                omeroImageServer,
+                viewer
+        );
+
+        CompletableFuture.supplyAsync(() -> requests.entrySet().stream().collect(Collectors.toMap(
+                Map.Entry::getKey,
+                entry -> entry.getValue().handle((v, error) -> error).join()
+        ))).thenAccept(errors -> Platform.runLater(() -> {
+            logErrors(errors);
+
+            String successMessage = createMessageFromResponses(errors, true);
+            String errorMessage = createMessageFromResponses(errors, false);
+
+            if (!errorMessage.isEmpty()) {
+                errorMessage += String.format("\n\n%s", resources.getString("DataTransporters.ImageSettingsSender.notAllParametersSent"));
+                Dialogs.showErrorMessage(
+                        resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
+                        errorMessage
+                );
+            }
+
+            if (!successMessage.isEmpty()) {
+                Dialogs.showInfoNotification(
+                        resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
+                        successMessage
+                );
+            }
+        }));
     }
 
     private static Map<ImageSettingsForm.Choice, CompletableFuture<Void>> createRequests(

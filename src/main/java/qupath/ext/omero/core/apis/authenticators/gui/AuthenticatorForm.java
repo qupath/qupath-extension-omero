@@ -27,9 +27,9 @@ class AuthenticatorForm extends GridPane {
      * <p>Creates the authenticator form.</p>
      * <p>All parameters can be null. If so, they won't be taken into account.</p>
      *
-     * @param prompt  a message asking the user for credentials
-     * @param host  the URI of the server, to remind the user
-     * @param username  the username of the user, to pre-populate the username input
+     * @param prompt a message asking the user for credentials
+     * @param host the URI of the server, to remind the user
+     * @param username the username of the user, to pre-populate the username input
      * @throws IOException if an error occurs while creating the form
      */
     public AuthenticatorForm(String prompt, String host, String username) throws IOException {

@@ -44,7 +44,7 @@ public class CommentAnnotation extends Annotation {
     /**
      * Indicates if an annotation type refers to a comment annotation.
      *
-     * @param type  the annotation type
+     * @param type the annotation type
      * @return whether this annotation type refers to a comment annotation
      */
     public static boolean isOfType(String type) {
