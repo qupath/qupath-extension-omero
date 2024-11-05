@@ -14,7 +14,6 @@ import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 /**
  * <p>{@link qupath.lib.images.servers.ImageServerBuilder Image server builder} of this extension.</p>
@@ -28,14 +27,14 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     @Override
     public ImageServer<BufferedImage> buildServer(URI uri, String... args) {
         try {
-            return getClientAndCheckURIReachable(uri, args).thenCompose(client -> {
-                if (client == null) {
-                    return CompletableFuture.completedFuture(null);
-                } else {
-                    return OmeroImageServer.create(uri, client, args);
-                }
-            }).get();
-        } catch (InterruptedException | ExecutionException e) {
+            WebClient client = getClientAndCheckURIReachable(uri, args);
+
+            if (client == null) {
+                return null;
+            } else {
+                return OmeroImageServer.create(uri, client, args).get();
+            }
+        } catch (Exception e) {
             logger.debug("Error while creating OMERO image server", e);
             return null;
         }
@@ -44,25 +43,24 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     @Override
     public ImageServerBuilder.UriImageSupport<BufferedImage> checkImageSupport(URI entityURI, String... args) {
         try {
-            return getClientAndCheckURIReachable(entityURI, args).thenApplyAsync(client -> {
-                List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = WebUtilities.getImagesURIFromEntityURI(
-                        entityURI,
-                        client.getApisHandler()
-                )
-                        .join()
-                        .stream()
-                        .map(uri -> createServerBuilder(client, uri, args))
-                        .map(CompletableFuture::join)
-                        .toList();
+            WebClient client = getClientAndCheckURIReachable(entityURI, args);
 
+            List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = WebUtilities.getImagesURIFromEntityURI(
+                            entityURI,
+                            client.getApisHandler()
+                    )
+                    .join()
+                    .stream()
+                    .map(uri -> createServerBuilder(client, uri, args))
+                    .map(CompletableFuture::join)
+                    .toList();
 
-                return UriImageSupport.createInstance(
-                        this.getClass(),
-                        builders.isEmpty() ? 0 : SUPPORT_LEVEL,
-                        builders
-                );
-            }).get();
-        } catch (InterruptedException | ExecutionException e) {
+            return UriImageSupport.createInstance(
+                    this.getClass(),
+                    builders.isEmpty() ? 0 : SUPPORT_LEVEL,
+                    builders
+            );
+        } catch (Exception e) {
             logger.debug("Error when checking image support", e);
 
             return UriImageSupport.createInstance(
@@ -101,12 +99,14 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         return false;
     }
 
-    private static CompletableFuture<WebClient> getClientAndCheckURIReachable(URI uri, String... args) {
-        return RequestSender.isLinkReachableWithGet(uri, 403).thenCompose(v -> WebClients.createClient(
+    private static WebClient getClientAndCheckURIReachable(URI uri, String... args) throws Exception {
+        RequestSender.isLinkReachableWithGet(uri, 403).get();
+
+        return WebClients.createClientSync(
                 uri.toString(),
                 ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(true) ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE,
                 args
-        ));
+        );
     }
 
     private static CompletableFuture<ImageServerBuilder.ServerBuilder<BufferedImage>> createServerBuilder(

@@ -24,6 +24,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -150,8 +151,25 @@ public class WebClient implements AutoCloseable {
      * the client creation
      */
     static CompletableFuture<WebClient> create(URI uri, Authentication authentication, String... args) {
-        return ApisHandler.create(uri).thenCompose(apisHandler ->
-                authenticateAndCreateClient(apisHandler, uri, authentication, args)
+        return ApisHandler.create(uri).thenApplyAsync(apisHandler -> {
+            try {
+                return authenticateAndCreateClient(apisHandler, uri, authentication, args);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    /**
+     * Synchronous version of {@link #create(URI, Authentication, String...)}.
+     * @throws Exception when the client creation fails
+     */
+    static WebClient createSync(URI uri, Authentication authentication, String... args) throws Exception {
+        return authenticateAndCreateClient(
+                ApisHandler.create(uri).get(),
+                uri,
+                authentication,
+                args
         );
     }
 
@@ -335,50 +353,51 @@ public class WebClient implements AutoCloseable {
         });
     }
 
-    private static CompletableFuture<WebClient> authenticateAndCreateClient(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) {
-        return authenticate(apisHandler, uri, authentication, args)
-                .thenApplyAsync(loginResponse -> switch (loginResponse.getStatus()) {
-                    case CANCELED -> null;
-                    case UNAUTHENTICATED, AUTHENTICATED -> {
-                        Server server = loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED) ?
-                                    Server.create(apisHandler, loginResponse.getGroup(), loginResponse.getUserId()).join() :
-                                    Server.create(apisHandler).join();
+    private static WebClient authenticateAndCreateClient(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) throws Exception {
+        LoginResponse loginResponse = authenticate(apisHandler, uri, authentication, args);
 
-                        yield new WebClient(
-                                server,
-                                apisHandler,
-                                server.getConnectedOwner().username(),
-                                loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED),
-                                List.of(
-                                        new WebAPI(apisHandler),
-                                        new IceAPI(apisHandler, loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED), loginResponse.getSessionUuid()),
-                                        new MsPixelBufferAPI(apisHandler)
-                                )
-                        );
-                    }
-                });
+        return switch (loginResponse.getStatus()) {
+            case CANCELED -> null;
+            case UNAUTHENTICATED, AUTHENTICATED -> {
+                Server server = loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED) ?
+                        Server.create(apisHandler, loginResponse.getGroup(), loginResponse.getUserId()).get() :
+                        Server.create(apisHandler).get();
+
+                yield new WebClient(
+                        server,
+                        apisHandler,
+                        server.getConnectedOwner().username(),
+                        loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED),
+                        List.of(
+                                new WebAPI(apisHandler),
+                                new IceAPI(apisHandler, loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED), loginResponse.getSessionUuid()),
+                                new MsPixelBufferAPI(apisHandler)
+                        )
+                );
+            }
+        };
     }
 
-    private static CompletableFuture<LoginResponse> authenticate(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) {
+    private static LoginResponse authenticate(ApisHandler apisHandler, URI uri, Authentication authentication, String... args) throws Exception {
         String usernameFromArgs = getCredentialFromArgs("--username", "-u", args).orElse(null);
         String passwordFromArgs = getCredentialFromArgs("--password", "-p", args).orElse(null);
 
         return switch (authentication) {
-            case ENFORCE -> apisHandler.login(usernameFromArgs, passwordFromArgs);
+            case ENFORCE -> apisHandler.login(usernameFromArgs, passwordFromArgs).get();
             case TRY_TO_SKIP -> {
                 if (apisHandler.canSkipAuthentication()) {
-                    yield CompletableFuture.completedFuture(LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
+                    yield LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
                 } else {
-                    yield apisHandler.login(usernameFromArgs, passwordFromArgs);
+                    yield apisHandler.login(usernameFromArgs, passwordFromArgs).get();
                 }
             }
             case SKIP -> {
                 if (apisHandler.canSkipAuthentication()) {
-                    yield CompletableFuture.completedFuture(LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.UNAUTHENTICATED));
+                    yield LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.UNAUTHENTICATED);
                 } else {
-                    yield CompletableFuture.failedFuture(new IllegalArgumentException(String.format(
+                    throw new IllegalArgumentException(String.format(
                             "The server %s doesn't allow browsing without being authenticated", uri
-                    )));
+                    ));
                 }
             }
         };

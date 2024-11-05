@@ -92,6 +92,49 @@ public class WebClients {
     }
 
     /**
+     * Synchronous version of {@link #createClient(String, WebClient.Authentication, String...)} that calls
+     * {@link WebClient#createSync(URI, WebClient.Authentication, String...)}.
+     * @throws Exception when the client creation fails
+     */
+    public static WebClient createClientSync(String url, WebClient.Authentication authentication, String... args) throws Exception {
+        URI serverURI = WebUtilities.getServerURI(new URI(url));
+
+        Optional<WebClient> existingClient = getExistingClient(serverURI);
+        if (existingClient.isPresent()) {
+            return existingClient.get();
+        }
+
+        synchronized (WebClients.class) {
+            if (clientsBeingCreated.contains(serverURI)) {
+                throw new ClientAlreadyExistingException();
+            } else {
+                clientsBeingCreated.add(serverURI);
+            }
+        }
+
+        try {
+            WebClient client = WebClient.createSync(serverURI, authentication, args);
+            if (client != null) {
+                ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
+                ClientsPreferencesManager.setEnableUnauthenticated(client.getApisHandler().getWebServerURI(), switch (authentication) {
+                    case ENFORCE -> false;
+                    case TRY_TO_SKIP, SKIP -> true;
+                });
+
+                synchronized (WebClients.class) {
+                    clients.add(client);
+                }
+            }
+
+            return client;
+        } finally {
+            synchronized (WebClients.class) {
+                clientsBeingCreated.remove(serverURI);
+            }
+        }
+    }
+
+    /**
      * Retrieve the client corresponding to the provided uri.
      *
      * @param uri the web server URI of the client to retrieve
