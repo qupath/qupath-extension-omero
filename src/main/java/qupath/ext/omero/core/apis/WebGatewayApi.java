@@ -45,17 +45,20 @@ class WebGatewayApi {
     private static final String CHANGE_CHANNEL_DISPLAY_RANGES_AND_COLORS_URL = "%s/webgateway/saveImgRDef/%d/?m=c&c=%s";
     private final IntegerProperty numberOfThumbnailsLoading = new SimpleIntegerProperty(0);
     private final URI host;
+    private final RequestSender requestSender;
     private final String token;
 
     /**
      * Creates a web gateway client.
      *
      * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param requestSender the request sender to use
      * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
      *              used by this session. This is needed to perform some functions of this API.
      */
-    public WebGatewayApi(URI host, String token) {
+    public WebGatewayApi(URI host, RequestSender requestSender, String token) {
         this.host = host;
+        this.requestSender = requestSender;
         this.token = token;
     }
 
@@ -82,7 +85,11 @@ class WebGatewayApi {
      * @return a CompletableFuture (that may complete exceptionally) with the project icon
      */
     public CompletableFuture<BufferedImage> getProjectIcon() {
-        return ApiUtilities.getImage(String.format(ICON_URL, host, PROJECT_ICON_NAME));
+        try {
+            return requestSender.getImage(new URI(String.format(ICON_URL, host, PROJECT_ICON_NAME)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -95,7 +102,11 @@ class WebGatewayApi {
      * @return a CompletableFuture (that may complete exceptionally) with the dataset icon
      */
     public CompletableFuture<BufferedImage> getDatasetIcon() {
-        return ApiUtilities.getImage(String.format(ICON_URL, host, DATASET_ICON_NAME));
+        try {
+            return requestSender.getImage(new URI(String.format(ICON_URL, host, DATASET_ICON_NAME)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -108,7 +119,11 @@ class WebGatewayApi {
      * @return a CompletableFuture (that may complete exceptionally) with the orphaned folder icon
      */
     public CompletableFuture<BufferedImage> getOrphanedFolderIcon() {
-        return ApiUtilities.getImage(String.format(ICON_URL, host, ORPHANED_FOLDER_ICON_NAME));
+        try {
+            return requestSender.getImage(new URI(String.format(ICON_URL, host, ORPHANED_FOLDER_ICON_NAME)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -127,12 +142,16 @@ class WebGatewayApi {
             numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() + 1);
         }
 
-        return ApiUtilities.getImage(String.format(THUMBNAIL_URL, host, id, size))
-                .whenComplete((thumbnail, error) -> {
-                    synchronized (this) {
-                        numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() - 1);
-                    }
-                });
+        try {
+            return requestSender.getImage(new URI(String.format(THUMBNAIL_URL, host, id, size)))
+                    .whenComplete((thumbnail, error) -> {
+                        synchronized (this) {
+                            numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() - 1);
+                        }
+                    });
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -153,7 +172,7 @@ class WebGatewayApi {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.getAndConvert(uri, JsonObject.class).thenApplyAsync(ImageMetadataResponseParser::createMetadataFromJson);
+        return requestSender.getAndConvert(uri, JsonObject.class).thenApplyAsync(ImageMetadataResponseParser::createMetadataFromJson);
 
     }
 
@@ -172,13 +191,17 @@ class WebGatewayApi {
      * @return a CompletableFuture (that may complete exceptionally) with the tile
      */
     public CompletableFuture<BufferedImage> readTile(long id, TileRequest tileRequest, int preferredTileWidth, int preferredTileHeight, double quality) {
-        return ApiUtilities.getImage(String.format(TILE_URL,
-                host, id, tileRequest.getZ(), tileRequest.getT(),
-                tileRequest.getLevel(), tileRequest.getTileX() / preferredTileWidth, tileRequest.getTileY() / preferredTileHeight,
-                preferredTileWidth, preferredTileHeight,
-                TILE_CHANNEL_PARAMETER,
-                quality
-        ));
+        try {
+            return requestSender.getImage(new URI(String.format(TILE_URL,
+                    host, id, tileRequest.getZ(), tileRequest.getT(),
+                    tileRequest.getLevel(), tileRequest.getTileX() / preferredTileWidth, tileRequest.getTileY() / preferredTileHeight,
+                    preferredTileWidth, preferredTileHeight,
+                    TILE_CHANNEL_PARAMETER,
+                    quality
+            )));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -286,7 +309,7 @@ class WebGatewayApi {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.post(
+        return requestSender.post(
                 uri,
                 "",
                 String.format("%s/iviewer/?images=%d", host, imageID),

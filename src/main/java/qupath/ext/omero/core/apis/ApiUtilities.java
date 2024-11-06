@@ -1,16 +1,11 @@
 package qupath.ext.omero.core.apis;
 
 import qupath.ext.omero.core.apis.utilities.CharArrayURLEncoder;
-import qupath.ext.omero.core.RequestSender;
 
-import java.awt.image.BufferedImage;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Utility methods used by the different APIs.
@@ -19,27 +14,6 @@ class ApiUtilities {
 
     private ApiUtilities() {
         throw new AssertionError("This class is not instantiable.");
-    }
-
-    /**
-     * <p>Attempt to retrieve an image from a URL link.</p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
-     *
-     * @param url the URL of the request
-     * @return a CompletableFuture (that may complete exceptionally) containing the resulting image
-     */
-    public static CompletableFuture<BufferedImage> getImage(String url) {
-        URI uri;
-        try {
-            uri = new URI(url);
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        return RequestSender.getImage(uri);
     }
 
     /**

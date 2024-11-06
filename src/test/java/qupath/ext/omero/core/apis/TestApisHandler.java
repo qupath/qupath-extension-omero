@@ -5,6 +5,7 @@ import javafx.collections.ObservableList;
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
+import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
@@ -160,6 +161,29 @@ public class TestApisHandler extends OmeroServer {
             boolean canSkipAuthentication = apisHandler.canSkipAuthentication();
 
             Assertions.assertTrue(canSkipAuthentication);
+        }
+
+        @Test
+        void Check_Base_URL_Reachable() {
+            URI serverURI = URI.create(OmeroServer.getWebServerURI());
+
+            Assertions.assertDoesNotThrow(() -> apisHandler.isLinkReachable(serverURI, RequestSender.RequestType.GET).get());
+        }
+
+        @Test
+        void Check_Get_Image() throws ExecutionException, InterruptedException {
+            URI imageLink = URI.create(OmeroServer.getWebServerURI() + "/static/webgateway/img/folder16.png");
+
+            BufferedImage image = apisHandler.getImage(imageLink).get();
+
+            Assertions.assertNotNull(image);
+        }
+
+        @Test
+        void Check_Get_Image_On_Invalid_Link() {
+            URI invalidImageLink = URI.create(OmeroServer.getWebServerURI());
+
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.getImage(invalidImageLink).get());
         }
 
         @Test

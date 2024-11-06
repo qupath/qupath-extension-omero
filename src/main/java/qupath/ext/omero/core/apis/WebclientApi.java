@@ -73,6 +73,7 @@ class WebclientApi implements AutoCloseable {
             PlateAcquisition.class, "run"
     );
     private final URI host;
+    private final RequestSender requestSender;
     private final URI pingUri;
     private final String token;
 
@@ -80,12 +81,14 @@ class WebclientApi implements AutoCloseable {
      * Creates a web client.
      *
      * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param requestSender the request sender to use when making requests
      * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
      *              used by this session. This is needed to properly close this API.
      * @throws IllegalArgumentException when the ping URI cannot be created from the host
      */
-    public WebclientApi(URI host, String token) {
+    public WebclientApi(URI host, RequestSender requestSender, String token) {
         this.host = host;
+        this.requestSender = requestSender;
         this.token = token;
 
         pingUri = URI.create(String.format(PING_URL, host));
@@ -103,7 +106,7 @@ class WebclientApi implements AutoCloseable {
     public void close() throws URISyntaxException, ExecutionException, InterruptedException {
         URI uri = new URI(String.format(LOGOUT_URL, host));
 
-        RequestSender.post(
+        requestSender.post(
                 uri,
                 String.format("csrfmiddlewaretoken=%s", token).getBytes(StandardCharsets.UTF_8),
                 uri.toString(),
@@ -155,7 +158,7 @@ class WebclientApi implements AutoCloseable {
      * @return a void CompletableFuture (that completes exceptionally if the ping fails)
      */
     public CompletableFuture<Void> ping() {
-        return RequestSender.isLinkReachableWithGet(pingUri);
+        return requestSender.isLinkReachable(pingUri, RequestSender.RequestType.GET, true, false);
     }
 
     /**
@@ -175,7 +178,7 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.getAndConvertToJsonList(uri, "images").thenApply(elements ->
+        return requestSender.getAndConvertToJsonList(uri, "images").thenApply(elements ->
                 elements.stream()
                         .map(jsonElement -> {
                             if (jsonElement.isJsonObject() && jsonElement.getAsJsonObject().has("id")) {
@@ -210,7 +213,7 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.get(uri).thenApply(response -> {
+        return requestSender.get(uri).thenApply(response -> {
             Matcher matcher = USER_ID_PATTERN.matcher(response);
 
             if (matcher.find()) {
@@ -258,7 +261,7 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.getAndConvert(uri, JsonObject.class)
+        return requestSender.getAndConvert(uri, JsonObject.class)
                 .thenApply(AnnotationGroup::new);
     }
 
@@ -302,7 +305,7 @@ class WebclientApi implements AutoCloseable {
         }
 
         try {
-            return RequestSender
+            return requestSender
                     .get(new URI(String.format(SEARCH_URL,
                             host,
                             searchQuery.query(),
@@ -361,7 +364,7 @@ class WebclientApi implements AutoCloseable {
                         ));
             }
 
-            return RequestSender.post(
+            return requestSender.post(
                     uri,
                     String.format(
                             "image=%d&mapAnnotation=%s",
@@ -406,7 +409,7 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.post(
+        return requestSender.post(
                 uri,
                 String.format(
                         "name=%s&",
@@ -444,7 +447,7 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.post(
+        return requestSender.post(
                 uri,
                 String.format(
                         "%ssave=save",
@@ -501,7 +504,7 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.post(
+        return requestSender.post(
                 uri,
                 QUPATH_FILE_IDENTIFIER + attachmentName,
                 attachmentContent,
@@ -544,7 +547,7 @@ class WebclientApi implements AutoCloseable {
         ).thenAcceptAsync(attachmentIds -> {
             List<String> responses = attachmentIds.stream()
                     .map(annotationId -> URI.create(String.format(DELETE_ATTACHMENT_URL, host, annotationId)))
-                    .map(uri -> RequestSender.post(uri, "", String.format("%s/webclient/", host), token))
+                    .map(uri -> requestSender.post(uri, "", String.format("%s/webclient/", host), token))
                     .map(CompletableFuture::join)
                     .toList();
 
@@ -568,7 +571,11 @@ class WebclientApi implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getImageIcon() {
-        return ApiUtilities.getImage(String.format(IMAGE_ICON_URL, host));
+        try {
+            return requestSender.getImage(new URI(String.format(IMAGE_ICON_URL, host)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -581,7 +588,11 @@ class WebclientApi implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getScreenIcon() {
-        return ApiUtilities.getImage(String.format(SCREEN_ICON_URL, host));
+        try {
+            return requestSender.getImage(new URI(String.format(SCREEN_ICON_URL, host)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -594,7 +605,11 @@ class WebclientApi implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getPlateIcon() {
-        return ApiUtilities.getImage(String.format(PLATE_ICON_URL, host));
+        try {
+            return requestSender.getImage(new URI(String.format(PLATE_ICON_URL, host)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -607,7 +622,11 @@ class WebclientApi implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getPlateAcquisitionIcon() {
-        return ApiUtilities.getImage(String.format(PLATE_ACQUISITION_ICON_URL, host));
+        try {
+            return requestSender.getImage(new URI(String.format(PLATE_ACQUISITION_ICON_URL, host)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotations(URI uri, long imageId) {
@@ -617,7 +636,7 @@ class WebclientApi implements AutoCloseable {
             List<CompletableFuture<String>> requests = existingAnnotations.stream()
                     .map(Annotation::getId)
                     .map(id -> String.format("image=%d&annId=%d&mapAnnotation=\"\"", imageId, id))
-                    .map(body -> RequestSender.post(
+                    .map(body -> requestSender.post(
                             uri,
                             body.getBytes(StandardCharsets.UTF_8),
                             String.format("%s/webclient/", host),

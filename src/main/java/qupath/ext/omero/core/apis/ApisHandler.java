@@ -9,6 +9,7 @@ import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
@@ -60,6 +61,7 @@ public class ApisHandler implements AutoCloseable {
             "double", PixelType.FLOAT64
     );
     private final URI host;
+    private final RequestSender requestSender;
     private final JsonApi jsonApi;
     private final WebclientApi webclientApi;
     private final WebGatewayApi webGatewayApi;
@@ -77,13 +79,14 @@ public class ApisHandler implements AutoCloseable {
     private CompletableFuture<List<Long>> orphanedImagesIds = null;
     private record IdSizeWrapper(long id, int size) {}
 
-    private ApisHandler(URI host, JsonApi jsonApi, boolean canSkipAuthentication) {
+    private ApisHandler(URI host, RequestSender requestSender, JsonApi jsonApi, boolean canSkipAuthentication) {
         this.host = host;
+        this.requestSender = requestSender;
 
         this.jsonApi = jsonApi;
-        this.webclientApi = new WebclientApi(host, jsonApi.getToken());
-        this.webGatewayApi = new WebGatewayApi(host, jsonApi.getToken());
-        this.iViewerApi = new IViewerApi(host);
+        this.webclientApi = new WebclientApi(host, requestSender, jsonApi.getToken());
+        this.webGatewayApi = new WebGatewayApi(host, requestSender, jsonApi.getToken());
+        this.iViewerApi = new IViewerApi(host, requestSender);
 
         this.canSkipAuthentication = canSkipAuthentication;
     }
@@ -99,13 +102,15 @@ public class ApisHandler implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the request handler
      */
     public static CompletableFuture<ApisHandler> create(URI host) {
-        return JsonApi.create(host).thenApplyAsync(jsonApi -> {
+        RequestSender requestSender = new RequestSender();
+
+        return JsonApi.create(host, requestSender).thenApplyAsync(jsonApi -> {
             try {
                 jsonApi.canSkipAuthentication().get();
-                return new ApisHandler(host, jsonApi, true);
+                return new ApisHandler(host, requestSender, jsonApi, true);
             } catch (InterruptedException | ExecutionException e) {
                 logger.debug("Cannot skip authentication", e);
-                return new ApisHandler(host, jsonApi, false);
+                return new ApisHandler(host, requestSender, jsonApi, false);
             }
         });
     }
@@ -119,6 +124,7 @@ public class ApisHandler implements AutoCloseable {
     @Override
     public void close() throws Exception {
         webclientApi.close();
+        requestSender.close();
     }
 
     @Override
@@ -180,6 +186,26 @@ public class ApisHandler implements AutoCloseable {
      */
     public boolean canSkipAuthentication() {
         return canSkipAuthentication;
+    }
+
+    /**
+     * Performs a request to the specified URI to determine if it is reachable
+     * and returns a 200 status code. The request will follow redirections and
+     * use session cookies.
+     *
+     * @param uri the link of the request
+     * @param requestType the type of request to send
+     * @return a void CompletableFuture (that completes exceptionally if the link is not reachable)
+     */
+    public CompletableFuture<Void> isLinkReachable(URI uri, RequestSender.RequestType requestType) {
+        return requestSender.isLinkReachable(uri, requestType, true, true);
+    }
+
+    /**
+     * See {@link RequestSender#getImage(URI)}.
+     */
+    public CompletableFuture<BufferedImage> getImage(URI uri) {
+        return requestSender.getImage(uri);
     }
 
     /**

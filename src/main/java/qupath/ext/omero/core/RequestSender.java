@@ -11,13 +11,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.CookieManager;
-import java.net.CookiePolicy;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -30,14 +28,25 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 
 /**
  * <p>
- *     Utility class that sends web request and can convert HTTP responses
+ *     A class that sends web request and can convert HTTP responses
  *     to an understandable format (like JSON for example).
  * </p>
- * <p>Each request is performed asynchronously with CompletableFutures.</p>
+ * <p>
+ *     Unless stated otherwise, all requests follow HTTP redirections
+ *     and use session cookies (one cookie handler per instance of this
+ *     class).
+ * </p>
+ * <p>
+ *     Each request is performed asynchronously with CompletableFutures.
+ * </p>
+ * <p>
+ *     A request sender must be {@link #close() closed} once no longer used.
+ * </p>
  */
-public class RequestSender {
+public class RequestSender implements AutoCloseable {
 
     private static final int REQUEST_TIMEOUT = 20;
+    private final java.net.CookieHandler cookieHandler = new CookieManager();
     /**
      * <p>
      *     The redirection policy is specified to allow the HTTP client to automatically
@@ -50,37 +59,64 @@ public class RequestSender {
      *     This token is stored in a session cookie, so we need to store this session cookie.
      * </p>
      */
-    private static final HttpClient httpClient = HttpClient.newBuilder()
+    private final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.ALWAYS)
-            .cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ORIGINAL_SERVER))
+            .cookieHandler(cookieHandler)
             .build();
 
-    private RequestSender() {
-        throw new RuntimeException("This class is not instantiable.");
+    /**
+     * A type of HTTP method request.
+     */
+    public enum RequestType {
+        /**
+         * A <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/GET">GET</a> HTTP request
+         */
+        GET,
+        /**
+         * An <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS">OPTIONS</a> HTTP request
+         */
+        OPTIONS
+    }
+
+    @Override
+    public void close() throws Exception {
+        httpClient.close();
     }
 
     /**
-     * Performs a GET request to the specified URI to determine if it is reachable.
+     * Performs a request to the specified URI to determine if it is reachable
+     * and returns a 200 status code.
      *
      * @param uri the link of the request
-     * @param acceptedHTTPCodes a list of HTTP status codes that make the request successful
-     *                          (the 200 code can be omitted)
+     * @param requestType the type of request to send
+     * @param useSessionCookies whether to use the cookies of this request sender
+     * @param followRedirection whether to follow HTTP redirections
      * @return a void CompletableFuture (that completes exceptionally if the link is not reachable)
      */
-    public static CompletableFuture<Void> isLinkReachableWithGet(URI uri, int... acceptedHTTPCodes) {
-        return isLinkReachable(getGETRequest(uri), acceptedHTTPCodes);
+    public CompletableFuture<Void> isLinkReachable(URI uri, RequestType requestType, boolean useSessionCookies, boolean followRedirection) {
+        return isLinkReachable(getRequest(uri, requestType), useSessionCookies, followRedirection);
     }
 
     /**
-     * Performs an OPTIONS request to the specified URI to determine if it is reachable.
+     * Performs a GET request to the specified URI and returns its HTTP status code. The request will
+     * not use any session cookie. Note that exception handling is left to the caller (the returned
+     * CompletableFuture may complete exceptionally if the request failed).
      *
      * @param uri the link of the request
-     * @param acceptedHTTPCodes a list of HTTP status codes that make the request successful
-     *                          (the 200 code can be omitted)
-     * @return a void CompletableFuture (that completes exceptionally if the link is not reachable)
+     * @param followRedirection whether to use URL redirections
+     * @return a CompletableFuture (that may complete exceptionally) with the HTTP response status code as described
+     * <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status">here</a>
      */
-    public static CompletableFuture<Void> isLinkReachableWithOptions(URI uri, int... acceptedHTTPCodes) {
-        return isLinkReachable(getOPTIONSRequest(uri), acceptedHTTPCodes);
+    public static CompletableFuture<Integer> getStatusCodeOfGetRequest(URI uri, boolean followRedirection) {
+        HttpClient httpClient = HttpClient
+                .newBuilder()
+                .followRedirects(followRedirection ? HttpClient.Redirect.ALWAYS : HttpClient.Redirect.NEVER)
+                .build();
+
+        return httpClient
+                .sendAsync(getRequest(uri, RequestType.GET), HttpResponse.BodyHandlers.ofString())
+                .thenApply(HttpResponse::statusCode)
+                .whenComplete((i, e) -> httpClient.close());
     }
 
     /**
@@ -90,13 +126,19 @@ public class RequestSender {
      * @param uri the link of the request
      * @return a CompletableFuture (that may complete exceptionally) with the raw HTTP response in text format
      */
-    public static CompletableFuture<String> get(URI uri) {
+    public CompletableFuture<String> get(URI uri) {
         return httpClient
                 .sendAsync(
-                        getGETRequest(uri),
+                        getRequest(uri, RequestType.GET),
                         HttpResponse.BodyHandlers.ofString()
                 )
-                .thenApply(HttpResponse::body);
+                .thenApply(response -> {
+                    if (response.statusCode() != 200) {
+                        throw new RuntimeException(String.format("The request to %s failed with status code %d", uri, response.statusCode()));
+                    } else {
+                        return response.body();
+                    }
+                });
     }
 
     /**
@@ -108,19 +150,19 @@ public class RequestSender {
      * @param conversionClass the class the response should be converted to
      * @return a CompletableFuture (that may complete exceptionally) with the HTTP response converted to the desired format
      */
-    public static <T> CompletableFuture<T> getAndConvert(URI uri, Class<T> conversionClass) {
+    public <T> CompletableFuture<T> getAndConvert(URI uri, Class<T> conversionClass) {
         return getAndConvert(uri, TypeToken.get(conversionClass));
     }
 
     /**
      * See {@link #getAndConvert(URI, Class)}. This method is suited for generic types.
      */
-    public static <T> CompletableFuture<T> getAndConvert(URI uri, TypeToken<T> conversionClass) {
+    public <T> CompletableFuture<T> getAndConvert(URI uri, TypeToken<T> conversionClass) {
         return get(uri).thenApply(response -> {
             T processedResponse = GsonTools.getInstance().fromJson(response, conversionClass);
             if (processedResponse == null) {
                 throw new IllegalArgumentException(String.format(
-                        "The provided response %s is empty", response
+                        "The response of %s is empty", uri
                 ));
             } else {
                 return processedResponse;
@@ -144,7 +186,7 @@ public class RequestSender {
      * @param uri the link of the request
      * @return a CompletableFuture (that may complete exceptionally) with a list of JSON elements
      */
-    public static CompletableFuture<List<JsonElement>> getPaginated(URI uri) {
+    public CompletableFuture<List<JsonElement>> getPaginated(URI uri) {
         String delimiter = uri.getQuery() == null || uri.getQuery().isEmpty() ? "?" : "&";
 
         return getAndConvert(uri, JsonObject.class).thenApply(response -> {
@@ -186,9 +228,9 @@ public class RequestSender {
      * @param uri the link of the request
      * @return a CompletableFuture (that may complete exceptionally) with the HTTP response converted to an image
      */
-    public static CompletableFuture<BufferedImage> getImage(URI uri) {
+    public CompletableFuture<BufferedImage> getImage(URI uri) {
         return httpClient
-                .sendAsync(getGETRequest(uri), HttpResponse.BodyHandlers.ofByteArray())
+                .sendAsync(getRequest(uri, RequestType.GET), HttpResponse.BodyHandlers.ofByteArray())
                 .thenApplyAsync(response -> {
                     try (InputStream targetStream = new ByteArrayInputStream(response.body())) {
                         BufferedImage image = ImageIO.read(targetStream);
@@ -218,7 +260,7 @@ public class RequestSender {
      * @param memberName the member of the response that should contain the list to convert
      * @return a CompletableFuture (that may complete exceptionally) with a list of JSON elements
      */
-    public static CompletableFuture<List<JsonElement>> getAndConvertToJsonList(URI uri, String memberName) {
+    public CompletableFuture<List<JsonElement>> getAndConvertToJsonList(URI uri, String memberName) {
         return getAndConvert(uri, JsonObject.class).thenApply(response -> {
             if (response.has(memberName) && response.get(memberName).isJsonArray()) {
                 return response.getAsJsonArray(memberName).asList();
@@ -245,7 +287,7 @@ public class RequestSender {
      *              of the session
      * @return a CompletableFuture (that may complete exceptionally) with the raw HTTP response with the text format
      */
-    public static CompletableFuture<String> post(URI uri, byte[] body, String referer, String token) {
+    public CompletableFuture<String> post(URI uri, byte[] body, String referer, String token) {
         return post(
                 getPOSTRequest(
                         uri,
@@ -274,7 +316,7 @@ public class RequestSender {
      *               of the session
      * @return the raw HTTP response (that may complete exceptionally) with the text format
      */
-    public static CompletableFuture<String> post(URI uri, String body, String referer, String token) {
+    public CompletableFuture<String> post(URI uri, String body, String referer, String token) {
         return post(
                 getPOSTRequest(
                         uri,
@@ -305,7 +347,7 @@ public class RequestSender {
      * @param parameters additional parameters to be included in the body of the request
      * @return the raw HTTP response (that may complete exceptionally) with the text format
      */
-    public static CompletableFuture<String> post(
+    public CompletableFuture<String> post(
             URI uri,
             String fileName,
             String fileContent,
@@ -339,37 +381,43 @@ public class RequestSender {
         ));
     }
 
-    private static CompletableFuture<Void> isLinkReachable(HttpRequest httpRequest, int... acceptedHTTPCodes) {
+    private CompletableFuture<Void> isLinkReachable(HttpRequest httpRequest, boolean useSessionCookies, boolean followRedirection) {
+        HttpClient.Builder builder = HttpClient
+                .newBuilder()
+                .followRedirects(followRedirection ? HttpClient.Redirect.ALWAYS : HttpClient.Redirect.NEVER);
+        if (useSessionCookies) {
+            builder = builder.cookieHandler(cookieHandler);
+        }
+        HttpClient httpClient = builder.build();
+
         return httpClient
                 .sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
-                    if (response.statusCode() != 200 && Arrays.stream(acceptedHTTPCodes).noneMatch(code -> code == response.statusCode())) {
+                    if (response.statusCode() != 200) {
                         throw new RuntimeException(String.format(
                                 "Request to %s failed with status code %d", httpRequest.uri(), response.statusCode()
                         ));
                     }
-                });
+                })
+                .whenComplete((v, e) -> httpClient.close());
     }
 
-    private static HttpRequest getGETRequest(URI uri) {
+    private static HttpRequest getRequest(URI uri, RequestType requestType) {
         return HttpRequest.newBuilder()
                 .uri(uri)
-                .GET()
+                .method(
+                        switch (requestType) {
+                            case GET -> "GET";
+                            case OPTIONS -> "OPTIONS";
+                        },
+                        HttpRequest.BodyPublishers.noBody()
+                )
                 .version(HttpClient.Version.HTTP_1_1)
                 .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
                 .build();
     }
 
-    private static HttpRequest getOPTIONSRequest(URI uri) {
-        return HttpRequest.newBuilder()
-                .uri(uri)
-                .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
-                .version(HttpClient.Version.HTTP_1_1)
-                .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
-                .build();
-    }
-
-    private static List<JsonElement> readFollowingPages(String uri, int limit, int totalCount) {
+    private List<JsonElement> readFollowingPages(String uri, int limit, int totalCount) {
         return IntStream.iterate(limit, i -> i + limit)
                 .limit(max(0, (totalCount - limit) / limit))
                 .mapToObj(offset -> URI.create(uri + "offset=" + offset))
@@ -398,7 +446,7 @@ public class RequestSender {
                 .build();
     }
 
-    private static CompletableFuture<String> post(HttpRequest request) {
+    private CompletableFuture<String> post(HttpRequest request) {
         return httpClient
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body);

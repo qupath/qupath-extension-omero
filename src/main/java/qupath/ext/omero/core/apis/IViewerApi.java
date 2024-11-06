@@ -35,14 +35,17 @@ class IViewerApi {
     private static final String ROIS_REFERER_URL = "%s/iviewer/?images=%d";
     private static final String IMAGE_SETTINGS_URL = "%s/iviewer/image_data/%d/";
     private final URI host;
+    private final RequestSender requestSender;
 
     /**
      * Creates an iviewer client.
      *
-     * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param requestSender the request sender to use
      */
-    public IViewerApi(URI host) {
+    public IViewerApi(URI host, RequestSender requestSender) {
         this.host = host;
+        this.requestSender = requestSender;
     }
 
     @Override
@@ -79,7 +82,7 @@ class IViewerApi {
                 .map(shape -> String.format("\"%s\":[\"%s\"]", shape.getOldId().split(":")[0], shape.getOldId()))
                 .collect(Collectors.joining(","));
 
-        return RequestSender.post(
+        return requestSender.post(
                 uri,
                 String.format(
                         ROIS_BODY,
@@ -111,7 +114,7 @@ class IViewerApi {
      */
     public CompletableFuture<ImageSettings> getImageSettings(long imageId) {
         try {
-            return RequestSender.getAndConvert(
+            return requestSender.getAndConvert(
                     new URI(String.format(IMAGE_SETTINGS_URL, host, imageId)),
                     ImageSettings.class
             );

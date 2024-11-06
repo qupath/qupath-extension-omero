@@ -1,7 +1,7 @@
 package qupath.ext.omero.core.pixelapis.mspixelbuffer;
 
 import loci.formats.gui.AWTImageTools;
-import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelAPIReader;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
@@ -34,6 +34,7 @@ class MsPixelBufferReader implements PixelAPIReader {
 
     private static final String TILE_URI = "%s/tile/%d/%d/%d/%d?x=%d&y=%d&w=%d&h=%d&format=tif&resolution=%d";
     private final String host;
+    private final ApisHandler apisHandler;
     private final long imageID;
     private final PixelType pixelType;
     private final int numberOfChannels;
@@ -44,6 +45,7 @@ class MsPixelBufferReader implements PixelAPIReader {
      * Create a new MsPixelBuffer reader.
      *
      * @param host the URI from which this microservice is available
+     * @param apisHandler the apis handler to use when sending requests
      * @param imageID the ID of the image to open
      * @param pixelType the pixel type of the image to open
      * @param channels the channels of the image to open
@@ -51,12 +53,14 @@ class MsPixelBufferReader implements PixelAPIReader {
      */
     public MsPixelBufferReader(
             String host,
+            ApisHandler apisHandler,
             long imageID,
             PixelType pixelType,
             List<ImageChannel> channels,
             int numberOfLevels
     ) {
         this.host = host;
+        this.apisHandler = apisHandler;
         this.imageID = imageID;
         this.pixelType = pixelType;
         this.numberOfChannels = channels.size();
@@ -129,7 +133,7 @@ class MsPixelBufferReader implements PixelAPIReader {
 
     private CompletableFuture<BufferedImage> readTile(long imageID, int channel, int level, TileRequest tileRequest) {
         try {
-            return RequestSender.getImage(new URI(String.format(TILE_URI,
+            return apisHandler.getImage(new URI(String.format(TILE_URI,
                     host,
                     imageID,
                     tileRequest.getZ(),

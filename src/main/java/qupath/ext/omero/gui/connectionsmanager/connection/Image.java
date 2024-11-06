@@ -61,7 +61,7 @@ class Image extends HBox {
                     }));
         }
 
-        RequestSender.isLinkReachableWithGet(imageUri, 403).handle((v, error) -> {
+        client.getApisHandler().isLinkReachable(imageUri, RequestSender.RequestType.GET).handle((v, error) -> {
             if (error == null) {
                 setStatus(imageUri.toString(), true);
             } else {

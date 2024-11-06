@@ -133,12 +133,12 @@ public abstract class OmeroServer {
                                 logger.info("Attempting to connect to the OMERO server");
 
                                 try {
-                                    RequestSender.isLinkReachableWithGet(URI.create(getWebServerURI())).get();
-                                    logger.info("Connection to the OMERO server succeeded");
-                                    return;
-                                } catch (Exception ignored) {
-                                    logger.info("Connection to the OMERO server failed. Retrying in five seconds.");
-                                }
+                                    if (RequestSender.getStatusCodeOfGetRequest(URI.create(getWebServerURI()), true).get() == 200) {
+                                        logger.info("Connection to the OMERO server succeeded");
+                                        return;
+                                    }
+                                } catch (Exception ignored) {}
+                                logger.info("Connection to the OMERO server failed. Retrying in five seconds.");
 
                                 try {
                                     TimeUnit.SECONDS.sleep(5);

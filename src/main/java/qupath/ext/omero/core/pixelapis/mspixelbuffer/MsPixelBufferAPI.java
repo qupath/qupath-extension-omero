@@ -109,6 +109,7 @@ public class MsPixelBufferAPI implements PixelAPI {
 
         return new MsPixelBufferReader(
                 host,
+                apisHandler,
                 id,
                 metadata.getPixelType(),
                 metadata.getChannels(),
@@ -189,7 +190,7 @@ public class MsPixelBufferAPI implements PixelAPI {
             return;
         }
 
-        CompletableFuture<Void> request = RequestSender.isLinkReachableWithOptions(uri).handle((v, error) -> {
+        CompletableFuture<Void> request = apisHandler.isLinkReachable(uri, RequestSender.RequestType.OPTIONS).handle((v, error) -> {
             if (error == null) {
                 synchronized (this) {
                     isAvailable.set(true);

@@ -70,14 +70,16 @@ class JsonApi {
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
     private final URI webURI;
+    private final RequestSender requestSender;
     private final Map<String, String> urls;
     private final int serverID;
     private final String serverURI;
     private final int port;
     private final String token;
 
-    private JsonApi(URI webURI, Map<String, String> urls, int serverID, String serverURI, int port, String token) {
+    private JsonApi(URI webURI, RequestSender requestSender, Map<String, String> urls, int serverID, String serverURI, int port, String token) {
         this.webURI = webURI;
+        this.requestSender = requestSender;
         this.urls = urls;
         this.serverID = serverID;
         this.serverURI = serverURI;
@@ -98,9 +100,10 @@ class JsonApi {
      * </p>
      *
      * @param uri the web server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param requestSender the request sender to use when making requests
      * @return a CompletableFuture (that may complete exceptionally) with the JSON API client
      */
-    public static CompletableFuture<JsonApi> create(URI uri) {
+    public static CompletableFuture<JsonApi> create(URI uri, RequestSender requestSender) {
         URI apiURI;
         try {
             apiURI = new URI(String.format(API_URL, uri));
@@ -108,11 +111,11 @@ class JsonApi {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.getAndConvert(apiURI, OmeroAPI.class)
+        return requestSender.getAndConvert(apiURI, OmeroAPI.class)
                 .thenCompose(omeroAPI -> {
                     if (omeroAPI.getLatestVersionURL().isPresent()) {
                         try {
-                            return RequestSender.getAndConvert(new URI(omeroAPI.getLatestVersionURL().get()), new TypeToken<Map<String, String>>() {});
+                            return requestSender.getAndConvert(new URI(omeroAPI.getLatestVersionURL().get()), new TypeToken<Map<String, String>>() {});
                         } catch (URISyntaxException e) {
                             return CompletableFuture.failedFuture(e);
                         }
@@ -121,14 +124,15 @@ class JsonApi {
                     }
                 })
                 .thenApplyAsync(urls -> {
-                    OmeroServerList serverInformation = getServerInformation(urls).join();
-                    String token = getToken(urls).join();
+                    OmeroServerList serverInformation = getServerInformation(requestSender, urls).join();
+                    String token = getToken(requestSender, urls).join();
 
                     if (serverInformation.getServerHost().isPresent() &&
                             serverInformation.getServerId().isPresent() &&
                             serverInformation.getServerPort().isPresent()) {
                         return new JsonApi(
                                 uri,
+                                requestSender,
                                 urls,
                                 serverInformation.getServerId().getAsInt(),
                                 serverInformation.getServerHost().get(),
@@ -224,7 +228,7 @@ class JsonApi {
                     encodedPassword
             );
 
-            return RequestSender.post(
+            return requestSender.post(
                     uri,
                     body,
                     uri.toString(),
@@ -257,7 +261,7 @@ class JsonApi {
             return CompletableFuture.failedFuture(e);
         }
 
-        return RequestSender.getPaginated(uri).thenApplyAsync(jsonElements -> {
+        return requestSender.getPaginated(uri).thenApplyAsync(jsonElements -> {
             List<Group> groups = jsonElements.stream()
                     .map(jsonElement -> new Gson().fromJson(jsonElement, Group.class))
                     .filter(group -> !GROUPS_TO_EXCLUDE.contains(group.getName()))
@@ -267,7 +271,7 @@ class JsonApi {
                 URI experimenterLink = URI.create(group.getExperimentersLink());
 
                 group.setOwners(
-                        RequestSender.getPaginated(experimenterLink).join().stream()
+                        requestSender.getPaginated(experimenterLink).join().stream()
                                 .map(jsonElement -> new Gson().fromJson(jsonElement, Owner.class))
                                 .filter(owner -> !group.isPrivate() || owner.id() == userId)
                                 .toList()
@@ -362,7 +366,7 @@ class JsonApi {
             numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
         }
 
-        return RequestSender.getAndConvert(uri, JsonObject.class)
+        return requestSender.getAndConvert(uri, JsonObject.class)
                 .thenApply(jsonImage -> {
                     if (!jsonImage.has("data")) {
                         throw new RuntimeException(String.format("'data' member not present in %s", jsonImage));
@@ -531,7 +535,6 @@ class JsonApi {
 
     /**
      * <p>Indicates if the server can be browsed without being authenticated.</p>
-     * <p>This works only if the client isn't already authenticated to the server.</p>
      * <p>
      *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      *     if the request failed for example).
@@ -541,7 +544,7 @@ class JsonApi {
      */
     public CompletableFuture<Void> canSkipAuthentication() {
         try {
-            return RequestSender.isLinkReachableWithGet(new URI(urls.get(PROJECTS_URL_KEY)));
+            return requestSender.isLinkReachable(new URI(urls.get(PROJECTS_URL_KEY)), RequestSender.RequestType.GET, false, false);
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -572,7 +575,7 @@ class JsonApi {
                 .setStrictness(Strictness.LENIENT)
                 .create();
 
-        return RequestSender.getPaginated(uri).thenApply(jsonElements -> jsonElements.stream()
+        return requestSender.getPaginated(uri).thenApply(jsonElements -> jsonElements.stream()
                 .map(jsonElement -> {
                     if (!jsonElement.isJsonObject()) {
                         throw new RuntimeException(String.format("The provided JSON element %s is not a JSON object", jsonElement));
@@ -602,12 +605,12 @@ class JsonApi {
         );
     }
 
-    private static CompletableFuture<OmeroServerList> getServerInformation(Map<String, String> urls) {
+    private static CompletableFuture<OmeroServerList> getServerInformation(RequestSender requestSender, Map<String, String> urls) {
         String token = SERVERS_URL_KEY;
 
         if (urls.containsKey(token)) {
             try {
-                return RequestSender.getAndConvert(new URI(urls.get(token)), OmeroServerList.class);
+                return requestSender.getAndConvert(new URI(urls.get(token)), OmeroServerList.class);
             } catch (URISyntaxException e) {
                 return CompletableFuture.failedFuture(e);
             }
@@ -618,7 +621,7 @@ class JsonApi {
         }
     }
 
-    private static CompletableFuture<String> getToken(Map<String, String> urls) {
+    private static CompletableFuture<String> getToken(RequestSender requestSender, Map<String, String> urls) {
         String token = TOKEN_URL_KEY;
 
         if (urls.containsKey(token)) {
@@ -629,7 +632,7 @@ class JsonApi {
                 return CompletableFuture.failedFuture(e);
             }
 
-            return RequestSender.getAndConvert(uri, new TypeToken<Map<String, String>>() {}).thenApply(response -> {
+            return requestSender.getAndConvert(uri, new TypeToken<Map<String, String>>() {}).thenApply(response -> {
                 if (response.containsKey("data")) {
                     return response.get("data");
                 } else {
@@ -655,7 +658,7 @@ class JsonApi {
             numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
         }
 
-        return RequestSender.getPaginated(uri)
+        return requestSender.getPaginated(uri)
                 .thenApply(jsonElements ->
                         jsonElements.stream()
                                 .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webURI))
@@ -669,7 +672,7 @@ class JsonApi {
     }
 
     private CompletableFuture<JsonObject> requestImageInfo(URI uri) {
-        return RequestSender.getAndConvert(uri, JsonObject.class).thenApply(response -> {
+        return requestSender.getAndConvert(uri, JsonObject.class).thenApply(response -> {
             if (response.has("data") && response.get("data").isJsonObject()) {
                 return response.get("data").getAsJsonObject();
             } else {

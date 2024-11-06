@@ -3,7 +3,9 @@ package qupath.ext.omero.core;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
@@ -15,32 +17,58 @@ import java.util.concurrent.ExecutionException;
 
 public class TestRequestSender extends OmeroServer {
 
+    private static RequestSender requestSender;
+
+    @BeforeAll
+    static void createClient() {
+        requestSender = new RequestSender();
+    }
+
+    @AfterAll
+    static void removeClient() throws Exception {
+        requestSender.close();
+    }
+
     @Test
     void Check_Link_Reachable() {
         URI reachableLink = URI.create(OmeroServer.getWebServerURI());
 
-        Assertions.assertDoesNotThrow(() -> RequestSender.isLinkReachableWithGet(reachableLink));
+        Assertions.assertDoesNotThrow(() ->
+                requestSender.isLinkReachable(reachableLink, RequestSender.RequestType.GET, false, true).get()
+        );
     }
 
     @Test
     void Check_Link_Unreachable() {
         URI unreachableLink = URI.create("http://invalid.invalid");
 
-        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.isLinkReachableWithGet(unreachableLink).get());
+        Assertions.assertThrows(ExecutionException.class, () ->
+                requestSender.isLinkReachable(unreachableLink, RequestSender.RequestType.GET, false, false).get()
+        );
+    }
+
+    @Test
+    void Check_Status_Code() throws ExecutionException, InterruptedException {
+        int expectedCode = 200;
+        URI reachableLink = URI.create(OmeroServer.getWebServerURI());
+
+        int code = RequestSender.getStatusCodeOfGetRequest(reachableLink, true).get();
+
+        Assertions.assertEquals(expectedCode, code);
     }
 
     @Test
     void Check_Get_Request() {
         URI reachableLink = URI.create(OmeroServer.getWebServerURI());
 
-        Assertions.assertDoesNotThrow(() -> RequestSender.get(reachableLink).get());
+        Assertions.assertDoesNotThrow(() -> requestSender.get(reachableLink).get());
     }
 
     @Test
     void Check_Get_Request_On_Invalid_Link() {
         URI unreachableLink = URI.create("http://invalid.invalid");
 
-        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.get(unreachableLink).get());
+        Assertions.assertThrows(ExecutionException.class, () -> requestSender.get(unreachableLink).get());
     }
 
     @Test
@@ -48,7 +76,7 @@ public class TestRequestSender extends OmeroServer {
         URI apiLink = URI.create(OmeroServer.getWebServerURI() + "/api/");
         ApiResponse expectedResponse = new ApiResponse(OmeroServer.getWebServerURI());
 
-        ApiResponse response = RequestSender.getAndConvert(apiLink, ApiResponse.class).get();
+        ApiResponse response = requestSender.getAndConvert(apiLink, ApiResponse.class).get();
 
         Assertions.assertEquals(expectedResponse, response);
     }
@@ -58,7 +86,7 @@ public class TestRequestSender extends OmeroServer {
         URI invalidApiLink = URI.create(OmeroServer.getWebServerURI());
 
         Assertions.assertThrows(ExecutionException.class, () ->
-                RequestSender.getAndConvert(invalidApiLink, ApiResponse.class).get()
+                requestSender.getAndConvert(invalidApiLink, ApiResponse.class).get()
         );
     }
 
@@ -66,7 +94,7 @@ public class TestRequestSender extends OmeroServer {
     void Check_Get_Image() throws ExecutionException, InterruptedException {
         URI imageLink = URI.create(OmeroServer.getWebServerURI() + "/static/webgateway/img/folder16.png");
 
-        BufferedImage image = RequestSender.getImage(imageLink).get();
+        BufferedImage image = requestSender.getImage(imageLink).get();
 
         Assertions.assertNotNull(image);
     }
@@ -75,7 +103,7 @@ public class TestRequestSender extends OmeroServer {
     void Check_Get_Image_On_Invalid_Link() {
         URI invalidImageLink = URI.create(OmeroServer.getWebServerURI());
 
-        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.getImage(invalidImageLink).get());
+        Assertions.assertThrows(ExecutionException.class, () -> requestSender.getImage(invalidImageLink).get());
     }
 
     @Test
@@ -84,7 +112,7 @@ public class TestRequestSender extends OmeroServer {
         String memberName = "data";
         List<JsonElement> expectedResponse = List.of(new Gson().toJsonTree(new ApiResponseVersion(OmeroServer.getWebServerURI())));
 
-        List<JsonElement> response = RequestSender.getAndConvertToJsonList(jsonListLink, memberName).get();
+        List<JsonElement> response = requestSender.getAndConvertToJsonList(jsonListLink, memberName).get();
 
         TestUtilities.assertCollectionsEqualsWithoutOrder(expectedResponse, response);
     }
@@ -94,7 +122,7 @@ public class TestRequestSender extends OmeroServer {
         URI invalidJsonListLink = URI.create(OmeroServer.getWebServerURI());
         String memberName = "data";
 
-        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.getAndConvertToJsonList(invalidJsonListLink, memberName).get());
+        Assertions.assertThrows(ExecutionException.class, () -> requestSender.getAndConvertToJsonList(invalidJsonListLink, memberName).get());
     }
 
     @Test
@@ -102,7 +130,7 @@ public class TestRequestSender extends OmeroServer {
         URI jsonListLink = URI.create(OmeroServer.getWebServerURI() + "/api/");
         String memberName = "invalid";
 
-        Assertions.assertThrows(ExecutionException.class, () -> RequestSender.getAndConvertToJsonList(jsonListLink, memberName).get());
+        Assertions.assertThrows(ExecutionException.class, () -> requestSender.getAndConvertToJsonList(jsonListLink, memberName).get());
     }
 
     private static class ApiResponse {
