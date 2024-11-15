@@ -10,16 +10,16 @@ plugins {
     id("org.bytedeco.gradle-javacpp-platform")
 }
 
-val moduleName = "qupath.extension.omero"
+extra["moduleName"] = "qupath.extension.omero"
 version = "0.1.1-rc1"
 description = "QuPath extension to support image reading using OMERO APIs."
 group = "io.github.qupath"
-val qupathVersion = "0.6.0-rc1"
+extra["qupathVersion"] = gradle.extra["qupathVersion"]
 extra["qupathJavaVersion"] = libs.versions.jdk.get()
 
 dependencies {
-    shadow("io.github.qupath:qupath-gui-fx:${qupathVersion}")
-    shadow("io.github.qupath:qupath-extension-bioformats:${qupathVersion}")
+    shadow("io.github.qupath:qupath-gui-fx:${project.extra["qupathVersion"]}")
+    shadow("io.github.qupath:qupath-extension-bioformats:${project.extra["qupathVersion"]}")
     shadow(libs.qupath.fxtras)
     shadow(libs.guava)
 
@@ -28,8 +28,8 @@ dependencies {
     // Auto-discover if OMERO-Gateway is available
     shadow("org.openmicroscopy:omero-gateway:5.8.2")
 
-    testImplementation("io.github.qupath:qupath-gui-fx:${qupathVersion}")
-    testImplementation("io.github.qupath:qupath-extension-bioformats:${qupathVersion}")
+    testImplementation("io.github.qupath:qupath-gui-fx:${project.extra["qupathVersion"]}")
+    testImplementation("io.github.qupath:qupath-extension-bioformats:${project.extra["qupathVersion"]}")
     testImplementation("org.openmicroscopy:omero-gateway:5.8.2")
     testImplementation(libs.junit)
     testImplementation("org.testcontainers:testcontainers:1.19.1")
@@ -41,9 +41,17 @@ tasks.withType<Jar> {
         attributes(mapOf(
                 "Implementation-Title" to project.name,
                 "Implementation-Version" to archiveVersion,
-                "Automatic-Module-Name" to moduleName
+                "Automatic-Module-Name" to project.extra["moduleName"]
         ))
     }
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(project.extra["qupathJavaVersion"] as String))
+    }
+    withSourcesJar()
+    withJavadocJar()
 }
 
 /**
@@ -54,7 +62,7 @@ tasks.withType<Jar> {
 configurations.shadow {
     val runtimeAttributes = configurations.runtimeClasspath.get().attributes
     runtimeAttributes.keySet().forEach { key ->
-        attributes.attribute(key as Attribute<Any>, runtimeAttributes.getAttribute(key))
+        attributes.attribute(key as Attribute<Any>, runtimeAttributes.getAttribute(key) as Any)
     }
 }
 
@@ -70,14 +78,6 @@ tasks.register<Copy>("copyDependencies") {
 
     from(configurations.default)
     into("build/libs")
-}
-
-java {
-    toolchain {
-        //languageVersion.set(JavaLanguageVersion.of(extra["qupathJavaVersion"] as String))
-    }
-    withSourcesJar()
-    withJavadocJar()
 }
 
 tasks.withType<Javadoc> {

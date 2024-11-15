@@ -6,14 +6,11 @@ pluginManagement {
 
 rootProject.name = "qupath-extension-omero"
 
-gradle.extra["qupathVersion"] = "0.6.0-SNAPSHOT"
+extra["qupathVersion"] = "0.6.0-SNAPSHOT"
 
 dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
-
-        }
-        libs {
             from("io.github.qupath:qupath-catalog:${extra["qupathVersion"]}")
         }
     }
