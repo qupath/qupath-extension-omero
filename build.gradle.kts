@@ -18,13 +18,13 @@ dependencies {
     shadow(libs.qupath.fxtras)
     shadow(libs.qupath.ext.bioformats)
     shadow(libs.guava)
-    shadow("org.openmicroscopy:omero-gateway:5.8.2")
+    shadow("org.openmicroscopy:omero-gateway:5.10.0")
 
     testImplementation(libs.bundles.qupath)
     testImplementation(libs.junit)
-    testImplementation("org.openmicroscopy:omero-gateway:5.8.2")
-    testImplementation("org.testcontainers:testcontainers:1.19.1")
-    testImplementation("org.testcontainers:junit-jupiter:1.19.1")
+    testImplementation("org.openmicroscopy:omero-gateway:5.10.0")
+    testImplementation("org.testcontainers:testcontainers:1.20.4")
+    testImplementation("org.testcontainers:junit-jupiter:1.20.4")
 }
 
 
