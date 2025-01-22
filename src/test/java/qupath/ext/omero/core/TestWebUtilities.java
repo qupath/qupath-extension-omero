@@ -10,25 +10,6 @@ import java.util.Optional;
 public class TestWebUtilities {
 
     @Test
-    void Check_URI_Creation() {
-        String validURL = "http://localhost:4080/iviewer/?images=12546&dataset=1157";
-        URI expectedURI = URI.create(validURL);
-
-        URI uri = WebUtilities.createURI(validURL).orElse(null);
-
-        Assertions.assertEquals(expectedURI, uri);
-    }
-
-    @Test
-    void Check_Malformed_URI_Creation() {
-        String malformedURL = "://";
-
-        Optional<URI> uri = WebUtilities.createURI(malformedURL);
-
-        Assertions.assertTrue(uri.isEmpty());
-    }
-
-    @Test
     void Check_OMERO_ID_On_Project() {
         long expectedID = 201;
         URI uri = URI.create(String.format(

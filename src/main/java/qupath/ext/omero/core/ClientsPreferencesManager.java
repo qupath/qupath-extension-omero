@@ -173,7 +173,7 @@ public class ClientsPreferencesManager {
     }
 
     /**
-     * Set whether to enable logging as an unauthenticated user when connecting to the provided URI.
+     * Set whether to enable logging in as an unauthenticated user when connecting to the provided URI.
      *
      * @param serverURI the URI of the OMERO web server to connect to
      * @param enableUnauthenticated whether to enable logging as an unauthenticated user for this URI

@@ -63,6 +63,8 @@ public class IceAPI implements PixelAPI {
      * @param isAuthenticated whether the user is currently authenticated to the OMERO server
      * @param sessionUuid the session UUID of the client connection. Can be null if the user is not authenticated
      */
+
+    //TODO: 2 constructors with/without sessionuuid
     public IceAPI(ApisHandler apisHandler, boolean isAuthenticated, @Nullable String sessionUuid) {
         this.apisHandler = apisHandler;
         this.isAuthenticated = isAuthenticated;

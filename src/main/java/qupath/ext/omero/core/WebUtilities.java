@@ -1,7 +1,5 @@
 package qupath.ext.omero.core;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.apis.ApisHandler;
 
 import java.net.URI;
@@ -9,7 +7,6 @@ import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
@@ -19,7 +16,6 @@ import java.util.regex.Pattern;
  */
 public class WebUtilities {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebUtilities.class);
     private static final Pattern webclientImagePattern = Pattern.compile("/webclient/\\?show=image-(\\d+)");
     private static final Pattern webclientImagePatternAlternate = Pattern.compile("/webclient/img_detail/(\\d+)");
     private static final Pattern webgatewayImagePattern = Pattern.compile("/webgateway/img_detail/(\\d+)");
@@ -44,29 +40,6 @@ public class WebUtilities {
 
     private WebUtilities() {
         throw new AssertionError("This class is not instantiable.");
-    }
-
-    /**
-     * Attempt to create a web URI from the provided text. If the attempt fails,
-     * the reason is logged.
-     * The provided text must contain a valid scheme (http or https).
-     *
-     * @param url the text the URI should be created from. It can be null
-     * @return a URI if it was successfully created, or an empty Optional otherwise
-     */
-    public static Optional<URI> createURI(String url) {
-        try {
-            URI uri = new URI(url);
-            if ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())) {
-                return Optional.of(uri);
-            } else {
-                logger.error(String.format("Couldn't create URI %s: no valid scheme (http or https) detected", url));
-                return Optional.empty();
-            }
-        } catch (URISyntaxException e) {
-            logger.error("Couldn't create URI " + url, e);
-            return Optional.empty();
-        }
     }
 
     /**

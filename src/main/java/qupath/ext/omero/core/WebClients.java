@@ -57,7 +57,7 @@ public class WebClients {
             return CompletableFuture.failedFuture(e);
         }
 
-        return getExistingClient(serverURI)
+        return getClientFromURI(serverURI)
                 .map(CompletableFuture::completedFuture)
                 .orElseGet(() -> {
                     synchronized (WebClients.class) {
@@ -99,7 +99,7 @@ public class WebClients {
     public static WebClient createClientSync(String url, WebClient.Authentication authentication, String... args) throws Exception {
         URI serverURI = WebUtilities.getServerURI(new URI(url));
 
-        Optional<WebClient> existingClient = getExistingClient(serverURI);
+        Optional<WebClient> existingClient = getClientFromURI(serverURI);
         if (existingClient.isPresent()) {
             return existingClient.get();
         }
@@ -170,9 +170,5 @@ public class WebClients {
      */
     public static ObservableList<WebClient> getClients() {
         return clientsImmutable;
-    }
-
-    private static synchronized Optional<WebClient> getExistingClient(URI uri) {
-        return clients.stream().filter(e -> e.getApisHandler().getWebServerURI().equals(uri)).findAny();
     }
 }
