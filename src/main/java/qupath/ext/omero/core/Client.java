@@ -9,9 +9,9 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.login.LoginResponse;
+import qupath.ext.omero.core.apis.ApisHandler2;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.entities.repositoryentities.Server2;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.core.pixelapis.PixelAPI;
 import qupath.ext.omero.core.pixelapis.ice.IceAPI;
@@ -42,48 +42,30 @@ public class Client implements AutoCloseable {
     private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet();
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
     private final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
-    private final URI webServerUri;
     private final Credentials credentials;
-    private final ApisHandler apisHandler;
-    private final Server server;
+    private final ApisHandler2 apisHandler;
+    private final Server2 server;
     private final List<PixelAPI> allPixelAPIs;
 
-    private Client(URI webServerUri, Credentials credentials) throws ExecutionException, InterruptedException {
-        this.webServerUri = webServerUri;
+    private Client(URI webServerUri, Credentials credentials) throws ExecutionException, InterruptedException, URISyntaxException {
         this.credentials = credentials;
-        this.apisHandler = ApisHandler.create(webServerUri).get();
-        this.server = switch (credentials.getUserType()) {
-            case PUBLIC_USER -> Server.create(apisHandler).get();
-            case REGULAR_USER -> {
-                //TODO: this should be handled in ApisHandler.create?
-                LoginResponse loginResponse = apisHandler.login(credentials.getUsername(), credentials.getPassword()).get();
-
-                yield Server.create(apisHandler, loginResponse.getGroup(), loginResponse.getUserId()).get();
-            }
-        };
+        this.apisHandler = new ApisHandler2(webServerUri, credentials);
+        this.server = new Server2(apisHandler);
         this.allPixelAPIs = List.of(
                 new WebAPI(apisHandler),
-                switch (credentials.getUserType()) {
-                    case PUBLIC_USER -> new IceAPI(apisHandler, false, null);
-                    case REGULAR_USER -> {
-                        //TODO: this should be handled in ApisHandler.create?
-                        LoginResponse loginResponse = apisHandler.login(credentials.getUsername(), credentials.getPassword()).get();
-
-                        yield new IceAPI(apisHandler, loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED), loginResponse.getSessionUuid());
-                    }
-                },
+                new IceAPI(apisHandler, credentials.getUserType()),
                 new MsPixelBufferAPI(apisHandler)
         );
 
         if (credentials.getUserType().equals(Credentials.UserType.REGULAR_USER)) {
             pingScheduler.scheduleAtFixedRate(
                     () -> apisHandler.ping().exceptionally(error -> {
-                        logger.error("Ping failed. Removing {}", Client.this.webServerUri, error);
+                        logger.error("Ping failed. Closing connection to {}", Client.this.apisHandler.getWebServerURI(), error);
 
                         try {
                             Client.this.close();
                         } catch (Exception e) {
-                            logger.error("Error while closing {}", Client.this.webServerUri, e);
+                            logger.error("Error while closing {}", Client.this.apisHandler.getWebServerURI(), e);
                         }
                         return null;
                     }),
@@ -95,11 +77,7 @@ public class Client implements AutoCloseable {
 
         setUpPixelAPIs();
 
-        logger.info(String.format(
-                "Connected to the OMERO.web instance at %s with %s",
-                apisHandler.getWebServerURI(),
-                credentials
-        ));
+        logger.info("Connected to the OMERO.web instance at {} with {}", apisHandler.getWebServerURI(), credentials);
     }
 
     /**
@@ -117,7 +95,9 @@ public class Client implements AutoCloseable {
         URI webServerURI = WebUtilities.getServerURI(new URI(url)); //TODO: accept uri without scheme and automatically add https?
 
         synchronized (Client.class) {
-            Optional<Client> existingClientWithUrl = clients.stream().filter(client -> client.webServerUri.getAuthority().equals(webServerURI.getAuthority())).findAny();
+            Optional<Client> existingClientWithUrl = clients.stream()
+                    .filter(client -> client.apisHandler.getWebServerURI().getAuthority().equals(webServerURI.getAuthority()))
+                    .findAny();
             if (existingClientWithUrl.isPresent()) {
                 if (existingClientWithUrl.get().credentials.equals(credentials)) {
                     logger.debug("Found existing client of {} with corresponding user {}. Returning it", url, credentials);
@@ -157,12 +137,12 @@ public class Client implements AutoCloseable {
         pingScheduler.close();
         apisHandler.close();
 
-        logger.info(String.format("Disconnected from the OMERO.web instance at %s", apisHandler.getWebServerURI()));
+        logger.info("Disconnected from the OMERO.web instance at {}", apisHandler.getWebServerURI());
     }
 
     @Override
     public String toString() {
-        return String.format("Client of %s with %s", webServerUri, credentials);
+        return String.format("Client of %s with %s", apisHandler.getWebServerURI(), credentials);
     }
 
     @Override
@@ -174,18 +154,18 @@ public class Client implements AutoCloseable {
             return false;
         }
         Client client = (Client) object;
-        return Objects.equals(webServerUri, client.webServerUri) && Objects.equals(credentials, client.credentials);
+        return Objects.equals(apisHandler, client.apisHandler) && Objects.equals(credentials, client.credentials);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(webServerUri, credentials);
+        return Objects.hash(apisHandler, credentials);
     }
 
     /**
-     * @return the {@link ApisHandler} of this client
+     * @return the {@link ApisHandler2} of this client
      */
-    public ApisHandler getApisHandler() {
+    public ApisHandler2 getApisHandler() {
         return apisHandler;
     }
 
@@ -310,14 +290,14 @@ public class Client implements AutoCloseable {
         selectedPixelAPI.set(availablePixelAPIs.stream()
                 .filter(PixelAPI::canAccessRawPixels)
                 .findAny()
-                .orElse(availablePixelAPIs.get(0))
+                .orElse(availablePixelAPIs.getFirst())
         );
         availablePixelAPIs.addListener((ListChangeListener<? super PixelAPI>) change -> {
             synchronized (this) {
                 selectedPixelAPI.set(availablePixelAPIs.stream()
                         .filter(PixelAPI::canAccessRawPixels)
                         .findAny()
-                        .orElse(availablePixelAPIs.get(0)));
+                        .orElse(availablePixelAPIs.getFirst()));
             }
         });
     }

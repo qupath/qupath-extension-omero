@@ -89,7 +89,7 @@ class MsPixelBufferReader implements PixelAPIReader {
         }
 
         if (numberOfChannels == 1 && pixelType.equals(PixelType.UINT8)) {
-            return images.get(0);
+            return images.getFirst();
         } else {
             DataBuffer dataBuffer = getDataBuffer(images.stream()
                     .map(AWTImageTools::getPixels)

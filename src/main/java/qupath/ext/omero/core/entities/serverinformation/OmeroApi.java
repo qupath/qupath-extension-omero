@@ -8,7 +8,7 @@ import java.util.Optional;
 /**
  * Response of the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#list-supported-versions">supported version API request</a>
  */
-public class OmeroAPI {
+public class OmeroApi {
 
     @SerializedName("data") private List<OmeroAPIVersion> versions;
 

@@ -51,28 +51,30 @@ class GatewayWrapper implements AutoCloseable {
                 try {
                     ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
                     if (experimenterData != null) {
-                        logger.info(String.format(
-                                "Connected to the OMERO.server instance at %s with user %s",
+                        logger.info(
+                                "Connected to the OMERO.server instance at {} with user {}",
                                 loginCredentials.get(i).getServer(),
-                                experimenterData.getUserName())
+                                experimenterData.getUserName()
                         );
                         return true;
                     }
                 } catch (Exception e) {
                     if (i < loginCredentials.size()-1) {
-                        logger.debug(String.format(
-                                "Ice can't connect to %s:%d. Trying %s:%d...",
+                        logger.debug(
+                                "Ice can't connect to {}:{}. Trying {}:{}...",
                                 loginCredentials.get(i).getServer().getHost(),
                                 loginCredentials.get(i).getServer().getPort(),
-                                loginCredentials.get(i+1).getServer().getHost(),
-                                loginCredentials.get(i+1).getServer().getPort()
-                        ), e);
+                                loginCredentials.get(i + 1).getServer().getHost(),
+                                loginCredentials.get(i + 1).getServer().getPort(),
+                                e
+                        );
                     } else {
-                        logger.error(String.format(
-                                "Ice can't connect to %s:%d. No more credentials available",
+                        logger.error(
+                                "Ice can't connect to {}:{}. No more credentials available",
                                 loginCredentials.get(i).getServer().getHost(),
-                                loginCredentials.get(i).getServer().getPort()
-                        ), e);
+                                loginCredentials.get(i).getServer().getPort(),
+                                e
+                        );
                     }
                 }
             }

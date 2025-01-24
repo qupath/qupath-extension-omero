@@ -6,11 +6,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
 
-public class TestOmeroAPI {
+public class TestOmeroApi {
 
     @Test
     void Check_Empty() {
-        OmeroAPI omeroAPI = new Gson().fromJson("{}", OmeroAPI.class);
+        OmeroApi omeroAPI = new Gson().fromJson("{}", OmeroApi.class);
 
         Optional<String> latestVersionURL = omeroAPI.getLatestVersionURL();
 
@@ -19,14 +19,14 @@ public class TestOmeroAPI {
 
     @Test
     void Check_Latest_Version_URL() {
-        OmeroAPI omeroAPI = createOmeroAPI();
+        OmeroApi omeroAPI = createOmeroAPI();
 
         String latestVersionURL = omeroAPI.getLatestVersionURL().orElse("");
 
         Assertions.assertEquals("https://idr.openmicroscopy.org/api/v1/", latestVersionURL);
     }
 
-    private OmeroAPI createOmeroAPI() {
+    private OmeroApi createOmeroAPI() {
         String json = """
                 {
                     "data": [
@@ -39,6 +39,6 @@ public class TestOmeroAPI {
                     ]
                 }
                 """;
-        return new Gson().fromJson(json, OmeroAPI.class);
+        return new Gson().fromJson(json, OmeroApi.class);
     }
 }
