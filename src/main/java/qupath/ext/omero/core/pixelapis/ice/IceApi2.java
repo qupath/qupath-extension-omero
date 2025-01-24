@@ -125,6 +125,8 @@ public class IceApi2 implements PixelAPI {
             }
         }
 
+        //TODO: cache created reader
+
         if (gatewayWrapper.isConnected()) {
             return new IceReader(gatewayWrapper, id, metadata.getChannels());
         } else {
@@ -167,6 +169,8 @@ public class IceApi2 implements PixelAPI {
         if (gatewayWrapper != null) {
             gatewayWrapper.close();
         }
+
+        //TODO: close all readers, and remove reader deletion from image server
     }
 
     /**
