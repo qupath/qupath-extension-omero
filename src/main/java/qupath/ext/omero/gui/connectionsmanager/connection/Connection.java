@@ -13,8 +13,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.PreferencesManager;
 import qupath.ext.omero.gui.OmeroExtension;
-import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.gui.UiUtilities;
@@ -25,6 +26,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.MessageFormat;
 import java.util.ResourceBundle;
+import java.util.function.Consumer;
 
 /**
  * <p>
@@ -45,6 +47,7 @@ public class Connection extends VBox {
     private static final ResourceBundle resources = UiUtilities.getResources();
     private final WebClient client;
     private final URI serverURI;
+    private final Consumer<Client> openClientBrowser;
     private final ConnectionModel connectionModel;
     @FXML
     private Label uri;
@@ -75,10 +78,11 @@ public class Connection extends VBox {
      * to log in, log out, or remove the connection, but not to connect to the server.
      *
      * @param client the client corresponding to the connection with the server
+     * @param openClientBrowser a function that will be called to request opening the browser of a client
      * @throws IOException if an error occurs while creating the pane
      */
-    public Connection(WebClient client) throws IOException {
-        this(client, client.getApisHandler().getWebServerURI());
+    public Connection(WebClient client, Consumer<Client> openClientBrowser) throws IOException {
+        this(client, client.getApisHandler().getWebServerURI(), openClientBrowser);
     }
 
     /**
@@ -88,15 +92,17 @@ public class Connection extends VBox {
      * Logging in or logging out will only be possible after a connection to the server is made.
      *
      * @param serverURI the URI of the server
+     * @param openClientBrowser a function that will be called to request opening the browser of a client
      * @throws IOException if an error occurs while creating the pane
      */
-    public Connection(URI serverURI) throws IOException {
-        this(null, serverURI);
+    public Connection(URI serverURI, Consumer<Client> openClientBrowser) throws IOException {
+        this(null, serverURI, openClientBrowser);
     }
 
-    private Connection(WebClient client, URI serverURI) throws IOException {
+    private Connection(WebClient client, URI serverURI, Consumer<Client> openClientBrowser) throws IOException {
         this.client = client;
         this.serverURI = serverURI;
+        this.openClientBrowser = openClientBrowser;
 
         if (client == null) {
             connectionModel = null;
@@ -111,7 +117,7 @@ public class Connection extends VBox {
     @FXML
     private void onBrowseClicked(ActionEvent ignoredEvent) {
         if (client != null) {
-            OmeroExtension.getBrowseMenu().openBrowserOfClient(client.getApisHandler().getWebServerURI());
+            openClientBrowser.accept(client);
         }
     }
 
@@ -219,13 +225,13 @@ public class Connection extends VBox {
             if (client != null) {
                 WebClients.removeClient(client);
             }
-            ClientsPreferencesManager.removeURI(serverURI);
+            PreferencesManager.removeURI(serverURI);
         }
     }
 
     @FXML
     private void onSkipAuthenticationClicked(ActionEvent ignoredEvent) {
-        ClientsPreferencesManager.setEnableUnauthenticated(serverURI, skipAuthentication.isSelected());
+        PreferencesManager.setEnableUnauthenticated(serverURI, skipAuthentication.isSelected());
     }
 
     private void initUI() throws IOException {
@@ -257,7 +263,7 @@ public class Connection extends VBox {
             }
         }
 
-        skipAuthentication.setSelected(ClientsPreferencesManager.getEnableUnauthenticated(serverURI).orElse(true));
+        skipAuthentication.setSelected(PreferencesManager.getEnableUnauthenticated(serverURI).orElse(true));
     }
 
     private void setUpListeners() {

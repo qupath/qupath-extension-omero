@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
+import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
@@ -46,9 +46,9 @@ public class BrowserModel {
     private final IntegerProperty numberOfOrphanedImages = new SimpleIntegerProperty();
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfThumbnailsLoading = new SimpleIntegerProperty(0);
-    private final ObjectProperty<PixelAPI> selectedPixelAPI = new SimpleObjectProperty<>();
-    private final ObservableList<PixelAPI> availablePixelAPIs = FXCollections.observableArrayList();
-    private final ObservableList<PixelAPI> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelAPIs);
+    private final ObjectProperty<PixelApi> selectedPixelAPI = new SimpleObjectProperty<>();
+    private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableArrayList();
+    private final ObservableList<PixelApi> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelApis);
     private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet();
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
     private final ObjectProperty<Owner> selectedOwner;
@@ -72,7 +72,7 @@ public class BrowserModel {
         UiUtilities.bindPropertyInUIThread(numberOfThumbnailsLoading, client.getApisHandler().getNumberOfThumbnailsLoading());
         UiUtilities.bindPropertyInUIThread(selectedPixelAPI, client.getSelectedPixelAPI());
 
-        UiUtilities.bindListInUIThread(availablePixelAPIs, client.getAvailablePixelAPIs());
+        UiUtilities.bindListInUIThread(availablePixelApis, client.getAvailablePixelAPIs());
 
         UiUtilities.bindSetInUIThread(openedImagesURIs, client.getOpenedImagesURIs());
 
@@ -130,14 +130,14 @@ public class BrowserModel {
     /**
      * See {@link WebClient#getSelectedPixelAPI()}.
      */
-    public ReadOnlyObjectProperty<PixelAPI> getSelectedPixelAPI() {
+    public ReadOnlyObjectProperty<PixelApi> getSelectedPixelAPI() {
         return selectedPixelAPI;
     }
 
     /**
      * See {@link WebClient#getAvailablePixelAPIs()}.
      */
-    public ObservableList<PixelAPI> getAvailablePixelAPIs() {
+    public ObservableList<PixelApi> getAvailablePixelAPIs() {
         return availablePixelAPIsImmutable;
     }
 

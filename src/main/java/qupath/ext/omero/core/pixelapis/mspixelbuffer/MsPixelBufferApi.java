@@ -8,47 +8,46 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.ext.omero.core.pixelapis.PixelApi;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
+import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * <p>
- *     This API uses the <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO Pixel Data Microservice</a>
- *     to access pixel values of an image. Any image can be used, and pixel values are accurate.
- *     However, the server needs to have this microservice installed.
- * </p>
+ * This API uses the <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO Pixel Data Microservice</a>
+ * to access pixel values of an image. Any image can be used, and pixel values are accurate.
+ * However, the server needs to have this microservice installed.
  */
-public class MsPixelBufferAPI implements PixelAPI {
+public class MsPixelBufferApi implements PixelApi {
 
-    static final String NAME = "Pixel Buffer Microservice";
+    private static final String NAME = "Pixel Buffer Microservice";
     private static final int DEFAULT_PORT = 8082;
     private static final String PORT_PARAMETER = "--msPixelBufferPort";
-    private static final Logger logger = LoggerFactory.getLogger(MsPixelBufferAPI.class);
+    private static final Logger logger = LoggerFactory.getLogger(MsPixelBufferApi.class);
     private final ApisHandler apisHandler;
     private final BooleanProperty isAvailable = new SimpleBooleanProperty(false);
     private final IntegerProperty port;
     private String host;
 
     /**
-     * Creates a new MsPixelBufferAPI.
+     * Creates a new MsPixelBufferApi.
      *
      * @param apisHandler the apis handler owning this API
      */
-    public MsPixelBufferAPI(ApisHandler apisHandler) {
+    public MsPixelBufferApi(ApisHandler apisHandler) {
         this.apisHandler = apisHandler;
-        port = new SimpleIntegerProperty(
-                ClientsPreferencesManager.getMsPixelBufferPort(apisHandler.getWebServerURI()).orElse(DEFAULT_PORT)
+        this.port = new SimpleIntegerProperty(
+                PreferencesManager.getMsPixelBufferPort(apisHandler.getWebServerURI()).orElse(DEFAULT_PORT)
         );
 
         setHost();
@@ -67,6 +66,8 @@ public class MsPixelBufferAPI implements PixelAPI {
 
     @Override
     public void setParametersFromArgs(String... args) {
+        logger.debug("Setting parameters of ms pixel buffer API from {}", Arrays.stream(args).toList());
+
         for (int i=0; i<args.length-1; ++i) {
             if (args[i].equals(PORT_PARAMETER)) {
                 try {
@@ -99,7 +100,7 @@ public class MsPixelBufferAPI implements PixelAPI {
     }
 
     @Override
-    public PixelAPIReader createReader(long id, ImageServerMetadata metadata) {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata) {
         if (!isAvailable().get()) {
             throw new IllegalStateException("This API is not available and cannot be used");
         }
@@ -121,7 +122,7 @@ public class MsPixelBufferAPI implements PixelAPI {
     public boolean equals(Object obj) {
         if (obj == this)
             return true;
-        if (!(obj instanceof MsPixelBufferAPI msPixelBufferAPI))
+        if (!(obj instanceof MsPixelBufferApi msPixelBufferAPI))
             return false;
         return msPixelBufferAPI.apisHandler.equals(apisHandler);
     }
@@ -137,7 +138,7 @@ public class MsPixelBufferAPI implements PixelAPI {
     }
 
     @Override
-    public void close() throws Exception {}
+    public void close() {}
 
     /**
      * @return the port used by this microservice on the OMERO server.
@@ -159,11 +160,11 @@ public class MsPixelBufferAPI implements PixelAPI {
      */
     public void setPort(int port, boolean checkAvailabilityNow) {
         this.port.set(port);
-
-        ClientsPreferencesManager.setMsPixelBufferPort(
+        PreferencesManager.setMsPixelBufferPort(
                 apisHandler.getWebServerURI(),
                 port
         );
+        logger.debug("Ms pixel buffer server port changed to {}", port);
 
         setHost();
         setAvailable(!checkAvailabilityNow);
@@ -176,6 +177,8 @@ public class MsPixelBufferAPI implements PixelAPI {
         } else {
             host = apisHandler.getWebServerURI().toString();
         }
+
+        logger.debug("Ms pixel buffer server host changed to {}", host);
     }
 
     private void setAvailable(boolean performInBackground) {
@@ -201,6 +204,8 @@ public class MsPixelBufferAPI implements PixelAPI {
                     isAvailable.set(false);
                 }
             }
+
+            logger.debug("Ms pixel buffer availability changed to {}", isAvailable);
             return null;
         });
 

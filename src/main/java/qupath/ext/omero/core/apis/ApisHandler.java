@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.apis;
 
-import com.drew.lang.annotations.Nullable;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import javafx.beans.property.BooleanProperty;
@@ -9,25 +8,32 @@ import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
-import qupath.ext.omero.core.entities.login.LoginResponse;
+import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -37,12 +43,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * <p>This class provides functions to perform operations with an OMERO server.</p>
+ * This class provides functions to perform operations with an OMERO server.
  * <p>
- *     As different APIs are used to perform the operations, this class only
- *     redirects each web request to the appropriate API contained in this package.
- * </p>
- * <p>An instance of this class must be {@link #close() closed} once no longer used.</p>
+ * As different APIs are used to perform the operations, this class only redirects
+ * each web request to the appropriate API contained in this package.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
 public class ApisHandler implements AutoCloseable {
 
@@ -60,59 +66,44 @@ public class ApisHandler implements AutoCloseable {
             "float", PixelType.FLOAT32,
             "double", PixelType.FLOAT64
     );
-    private final URI host;
-    private final RequestSender requestSender;
-    private final JsonApi jsonApi;
-    private final WebclientApi webclientApi;
-    private final WebGatewayApi webGatewayApi;
-    private final IViewerApi iViewerApi;
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
+    private final Cache<Class<? extends RepositoryEntity>, CompletableFuture<BufferedImage>> omeroIconsCache = CacheBuilder.newBuilder()
+            .build();
     private final Cache<IdSizeWrapper, CompletableFuture<BufferedImage>> thumbnailsCache = CacheBuilder.newBuilder()
             .maximumSize(THUMBNAIL_CACHE_SIZE)
-            .build();
-    private final Cache<Class<? extends RepositoryEntity>, CompletableFuture<BufferedImage>> omeroIconsCache = CacheBuilder.newBuilder()
             .build();
     private final Cache<Long, CompletableFuture<ImageServerMetadata>> metadataCache = CacheBuilder.newBuilder()
             .maximumSize(METADATA_CACHE_SIZE)
             .build();
-    private final boolean canSkipAuthentication;
+    private final URI webServerUri;
+    private final Credentials credentials;
+    private final RequestSender requestSender = new RequestSender();
+    private final JsonApi jsonApi;
+    private final WebclientApi webclientApi;
+    private final WebGatewayApi webGatewayApi;
+    private final IViewerApi iViewerApi;
     private CompletableFuture<List<Long>> orphanedImagesIds = null;
     private record IdSizeWrapper(long id, int size) {}
 
-    private ApisHandler(URI host, RequestSender requestSender, JsonApi jsonApi, boolean canSkipAuthentication) {
-        this.host = host;
-        this.requestSender = requestSender;
-
-        this.jsonApi = jsonApi;
-        this.webclientApi = new WebclientApi(host, requestSender, jsonApi.getToken());
-        this.webGatewayApi = new WebGatewayApi(host, requestSender, jsonApi.getToken());
-        this.iViewerApi = new IViewerApi(host, requestSender);
-
-        this.canSkipAuthentication = canSkipAuthentication;
-    }
-
     /**
-     * <p>Attempt to create a request handler.</p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Create an APIs handler. This will send a few requests to get basic information on the server and
+     * authenticate if necessary, so it can take a few seconds. However, this operation is cancellable.
      *
-     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
-     * @return a CompletableFuture (that may complete exceptionally) with the request handler
+     * @param webServerUri the URL to the OMERO web server to connect to
+     * @param credentials the credentials to use for the authentication
+     * @throws URISyntaxException if a link to the server cannot be created
+     * @throws ExecutionException if a request to the server fails or if a response does not contain expected elements.
+     * This can happen if the server is unreachable or if the authentication fails for example
+     * @throws InterruptedException if the running thread is interrupted
+     * @throws IllegalArgumentException if the server doesn't return all necessary information on it
      */
-    public static CompletableFuture<ApisHandler> create(URI host) {
-        RequestSender requestSender = new RequestSender();
-
-        return JsonApi.create(host, requestSender).thenApplyAsync(jsonApi -> {
-            try {
-                jsonApi.canSkipAuthentication().get();
-                return new ApisHandler(host, requestSender, jsonApi, true);
-            } catch (InterruptedException | ExecutionException e) {
-                logger.debug("Cannot skip authentication", e);
-                return new ApisHandler(host, requestSender, jsonApi, false);
-            }
-        });
+    public ApisHandler(URI webServerUri, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
+        this.webServerUri = webServerUri;
+        this.credentials = credentials;
+        this.jsonApi = new JsonApi(webServerUri, requestSender, credentials);
+        this.webclientApi = new WebclientApi(webServerUri, requestSender, jsonApi.getToken());
+        this.webGatewayApi = new WebGatewayApi(webServerUri, requestSender, jsonApi.getToken());
+        this.iViewerApi = new IViewerApi(webServerUri, requestSender);
     }
 
     /**
@@ -129,21 +120,20 @@ public class ApisHandler implements AutoCloseable {
 
     @Override
     public String toString() {
-        return String.format("APIs handler of %s", host);
+        return String.format("APIs handler of %s", webServerUri);
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj == this)
-            return true;
-        if (!(obj instanceof ApisHandler apisHandler))
-            return false;
-        return Objects.equals(apisHandler.host, host);
+    public boolean equals(Object object) {
+        if (this == object) return true;
+        if (object == null || getClass() != object.getClass()) return false;
+        ApisHandler that = (ApisHandler) object;
+        return Objects.equals(webServerUri, that.webServerUri) && Objects.equals(credentials, that.credentials);
     }
 
     @Override
     public int hashCode() {
-        return host.hashCode();
+        return Objects.hash(webServerUri, credentials);
     }
 
     /**
@@ -164,7 +154,14 @@ public class ApisHandler implements AutoCloseable {
      * @return the URI of the web server
      */
     public URI getWebServerURI() {
-        return host;
+        return webServerUri;
+    }
+
+    /**
+     * @return the credentials used for authenticating to this server
+     */
+    public Credentials getCredentials() {
+        return credentials;
     }
 
     /**
@@ -182,10 +179,31 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * @return whether the server can be browsed without being authenticated
+     * @return the ID of the connected user, or the ID of the public user of
+     * the server if no authentication was performed
      */
-    public boolean canSkipAuthentication() {
-        return canSkipAuthentication;
+    public CompletableFuture<Long> getUserId() {
+        long userId = jsonApi.getUserId();
+
+        if (userId > -1) {
+            return CompletableFuture.completedFuture(userId);
+        } else {
+            return webclientApi.getPublicUserId();
+        }
+    }
+
+    /**
+     * See {@link JsonApi#getDefaultGroup()} ()}.
+     */
+    public Group getDefaultGroup() {
+        return jsonApi.getDefaultGroup();
+    }
+
+    /**
+     * See {@link JsonApi#getSessionUuid()} ()} ()}.
+     */
+    public String getSessionUuid() {
+        return jsonApi.getSessionUuid();
     }
 
     /**
@@ -266,13 +284,6 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#login(String, String)}.
-     */
-    public CompletableFuture<LoginResponse> login(@Nullable String username, @Nullable String password) {
-        return jsonApi.login(username, password);
-    }
-
-    /**
      * See {@link WebclientApi#ping()}.
      */
     public CompletableFuture<Void> ping() {
@@ -288,13 +299,6 @@ public class ApisHandler implements AutoCloseable {
         }
 
         return orphanedImagesIds;
-    }
-
-    /**
-     * See {@link WebclientApi#getPublicUserId()}.
-     */
-    public CompletableFuture<Long> getPublicUserId() {
-        return webclientApi.getPublicUserId();
     }
 
     /**

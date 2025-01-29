@@ -4,15 +4,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.lib.images.servers.TileRequest;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 /**
  * Read pixel values using the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">OMERO JSON API</a>.
  */
-class WebReader implements PixelAPIReader {
+class WebReader implements PixelApiReader {
 
     private static final Logger logger = LoggerFactory.getLogger(WebReader.class);
     private final ApisHandler apisHandler;
@@ -22,7 +23,7 @@ class WebReader implements PixelAPIReader {
     private final double jpegQuality;
 
     /**
-     * Creates a new WebAPI.
+     * Creates a new WebApi.
      *
      * @param apisHandler  the request handler which will be used to perform web requests
      * @param imageID  the ID of the image to open
@@ -45,7 +46,9 @@ class WebReader implements PixelAPIReader {
     }
 
     @Override
-    public BufferedImage readTile(TileRequest tileRequest) {
+    public BufferedImage readTile(TileRequest tileRequest) throws IOException {
+        logger.debug("Reading tile {} from web API", tileRequest);
+
         try {
             return apisHandler.readTile(
                     imageID,
@@ -55,14 +58,8 @@ class WebReader implements PixelAPIReader {
                     jpegQuality
             ).get();
         } catch (InterruptedException | ExecutionException e) {
-            logger.error("Unable to read tile {}", tileRequest, e);
-            return null;
+            throw new IOException(e);
         }
-    }
-
-    @Override
-    public String getName() {
-        return WebAPI.NAME;
     }
 
     @Override

@@ -63,13 +63,15 @@ public class WebUtilities {
 
     /**
      * Returns the host part of a complex URI. For example,
-     * {@code https://www.my-server.com/show=image-462} returns {@code https://www.my-server.com}
+     * {@code https://www.my-server.com/show=image-462} returns {@code https://www.my-server.com}.
+     * This also adds the "https" scheme if none is already present in the provided URI.
      *
      * @return the host part of the URI
      * @throws URISyntaxException when the server URI could not have been created
      */
     public static URI getServerURI(URI uri) throws URISyntaxException {
-        return new URI(uri.getScheme() + "://" + uri.getAuthority());
+        String scheme = uri.getScheme() == null ? "https" : uri.getScheme();
+        return new URI(String.format("%s://%s", scheme, uri.getAuthority()));
     }
 
     /**

@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
+import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
@@ -233,7 +233,7 @@ public class Image extends ServerEntity {
             isSupported = new SimpleBooleanProperty(false);
             unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
 
-            Optional<ReadOnlyObjectProperty<PixelAPI>> selectedPixelAPI = WebClients.getClientFromURI(webServerURI)
+            Optional<ReadOnlyObjectProperty<PixelApi>> selectedPixelAPI = WebClients.getClientFromURI(webServerURI)
                     .map(WebClient::getSelectedPixelAPI);
 
             if (selectedPixelAPI.isPresent()) {
@@ -249,7 +249,7 @@ public class Image extends ServerEntity {
         }
     }
 
-    private synchronized void setSupported(ReadOnlyObjectProperty<PixelAPI> selectedPixelAPI) {
+    private synchronized void setSupported(ReadOnlyObjectProperty<PixelApi> selectedPixelAPI) {
         isSupported.set(true);
         unsupportedReasons.clear();
 

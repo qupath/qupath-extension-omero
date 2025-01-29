@@ -12,29 +12,40 @@ import javafx.beans.value.ObservableBooleanValue;
 import omero.gateway.LoginCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.Credentials;
-import qupath.ext.omero.core.apis.ApisHandler2;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.pixelapis.PixelApi;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
+import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class IceApi2 implements PixelAPI {
+/**
+ * This API uses the <a href="https://omero.readthedocs.io/en/v5.6.7/developers/Java.html">OMERO gateway</a>
+ * to access pixel values of an image. Any image can be used, and pixel values are accurate.
+ * <p>
+ * This pixel API must be {@link #close() closed} once no longer used.
+ */
+public class IceApi implements PixelApi {
 
-    static final String NAME = "Ice";
+    private static final String NAME = "Ice";
     private static final String ADDRESS_PARAMETER = "--serverAddress";
     private static final String PORT_PARAMETER = "--serverPort";
-    private static final Logger logger = LoggerFactory.getLogger(IceApi2.class);
+    private static final Logger logger = LoggerFactory.getLogger(IceApi.class);
     private static final boolean gatewayAvailable;
-    private final ApisHandler2 apisHandler;
+    private final Map<Long, IceReader> readers = new HashMap<>();
+    private final ApisHandler apisHandler;
     private final StringProperty serverAddress;
     private final IntegerProperty serverPort;
     private final BooleanProperty isAvailable;
+    private GatewayWrapper gatewayWrapper;
 
     static {
         boolean available = false;
@@ -42,22 +53,28 @@ public class IceApi2 implements PixelAPI {
         try {
             Class.forName("omero.gateway.Gateway");
             available = true;
+            logger.debug("OMERO Ice gateway available ('omero.gateway.Gateway' found).");
         } catch (ClassNotFoundException e) {
-            logger.debug("OMERO Ice gateway is unavailable ('omero.gateway.Gateway' not found).");
+            logger.debug("OMERO Ice gateway unavailable ('omero.gateway.Gateway' not found).");
         } finally {
             gatewayAvailable = available;
         }
     }
 
-    public IceApi2(ApisHandler2 apisHandler, Credentials.UserType userType) {
+    /**
+     * Create a new ICE API.
+     *
+     * @param apisHandler the apis handler owning this API
+     */
+    public IceApi(ApisHandler apisHandler) {
         this.apisHandler = apisHandler;
         this.serverAddress = new SimpleStringProperty(
-                ClientsPreferencesManager.getIceAddress(apisHandler.getWebServerURI()).orElse("")
+                PreferencesManager.getIceAddress(apisHandler.getWebServerURI()).orElse("")
         );
         this.serverPort = new SimpleIntegerProperty(
-                ClientsPreferencesManager.getIcePort(apisHandler.getWebServerURI()).orElse(0)
+                PreferencesManager.getIcePort(apisHandler.getWebServerURI()).orElse(0)
         );
-        this.isAvailable = new SimpleBooleanProperty(userType.equals(Credentials.UserType.REGULAR_USER) && gatewayAvailable);
+        this.isAvailable = new SimpleBooleanProperty(apisHandler.getCredentials().userType().equals(Credentials.UserType.REGULAR_USER) && gatewayAvailable);
     }
 
     @Override
@@ -75,6 +92,8 @@ public class IceApi2 implements PixelAPI {
 
     @Override
     public void setParametersFromArgs(String... args) {
+        logger.debug("Setting parameters of ICE API from {}", Arrays.stream(args).toList());
+
         for (int i=0; i<args.length-1; ++i) {
             if (args[i].equals(ADDRESS_PARAMETER)) {
                 setServerAddress(args[i+1]);
@@ -110,7 +129,7 @@ public class IceApi2 implements PixelAPI {
     }
 
     @Override
-    public PixelAPIReader createReader(long id, ImageServerMetadata metadata) throws IOException {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata) throws IOException {
         String sessionUuid = apisHandler.getSessionUuid();
         if (!isAvailable().get() || sessionUuid == null) {
             throw new IllegalStateException("This API is not available and cannot be used");
@@ -121,26 +140,34 @@ public class IceApi2 implements PixelAPI {
 
         synchronized (this) {
             if (gatewayWrapper == null) {
-                gatewayWrapper = new GatewayWrapper();
+                logger.debug("Gateway null. Creating one...");
+
+                try {
+                    List<LoginCredentials> credentials = new ArrayList<>();
+                    if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
+                        credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
+                    }
+                    credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
+                    credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
+
+                    gatewayWrapper = new GatewayWrapper(credentials);
+                } catch (Exception e) {
+                    throw new IOException(e);
+                }
             }
-        }
 
-        //TODO: cache created reader
+            try {
+                return readers.computeIfAbsent(id, i -> {
+                    logger.debug("No reader for image with ID {} found. Creating one...", i);
 
-        if (gatewayWrapper.isConnected()) {
-            return new IceReader(gatewayWrapper, id, metadata.getChannels());
-        } else {
-            List<LoginCredentials> credentials = new ArrayList<>();
-            if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
-                credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
-            }
-            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
-            credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
-
-            if (gatewayWrapper.connect(credentials)) {
-                return new IceReader(gatewayWrapper, id, metadata.getChannels());
-            } else {
-                throw new IOException("Could not connect to Ice server");
+                    try {
+                        return new IceReader(gatewayWrapper, id, metadata.getChannels());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            } catch (RuntimeException e) {
+                throw new IOException(e);
             }
         }
     }
@@ -149,7 +176,7 @@ public class IceApi2 implements PixelAPI {
     public boolean equals(Object obj) {
         if (obj == this)
             return true;
-        if (!(obj instanceof IceApi2 iceApi))
+        if (!(obj instanceof IceApi iceApi))
             return false;
         return iceApi.apisHandler.equals(apisHandler);
     }
@@ -165,12 +192,14 @@ public class IceApi2 implements PixelAPI {
     }
 
     @Override
-    public void close() throws Exception {
+    public synchronized void close() throws Exception {
         if (gatewayWrapper != null) {
             gatewayWrapper.close();
         }
 
-        //TODO: close all readers, and remove reader deletion from image server
+        for (IceReader reader: readers.values()) {
+            reader.close();
+        }
     }
 
     /**
@@ -189,10 +218,12 @@ public class IceApi2 implements PixelAPI {
     public void setServerAddress(String serverAddress) {
         this.serverAddress.set(serverAddress);
 
-        ClientsPreferencesManager.setIceAddress(
+        PreferencesManager.setIceAddress(
                 apisHandler.getWebServerURI(),
                 serverAddress
         );
+
+        logger.debug("ICE server address set to {}", serverAddress);
     }
 
     /**
@@ -211,9 +242,11 @@ public class IceApi2 implements PixelAPI {
     public void setServerPort(int serverPort) {
         this.serverPort.set(serverPort);
 
-        ClientsPreferencesManager.setIcePort(
+        PreferencesManager.setIcePort(
                 apisHandler.getWebServerURI(),
                 serverPort
         );
+
+        logger.debug("ICE server port set to {}", serverPort);
     }
 }

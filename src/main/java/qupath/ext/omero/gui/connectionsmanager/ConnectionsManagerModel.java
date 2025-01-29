@@ -2,7 +2,7 @@ package qupath.ext.omero.gui.connectionsmanager;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import qupath.ext.omero.core.ClientsPreferencesManager;
+import qupath.ext.omero.core.PreferencesManager;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.gui.UiUtilities;
@@ -17,7 +17,7 @@ import java.net.URI;
  * <p>
  *     In effect, this class acts as an intermediate between a connections manager and a
  *     {@link WebClients WebClients} and a
- *     {@link ClientsPreferencesManager ClientsPreferencesManager}.
+ *     {@link PreferencesManager PreferencesManager}.
  *     Lists of these classes can be updated from any thread but the connections manager can
  *     only be accessed from the UI thread, so this class propagates changes made to these elements
  *     from any thread to the UI thread.
@@ -35,12 +35,12 @@ class ConnectionsManagerModel {
     }
 
     static {
-        UiUtilities.bindListInUIThread(storedServersURIs, ClientsPreferencesManager.getURIs());
+        UiUtilities.bindListInUIThread(storedServersURIs, PreferencesManager.getURIs());
         UiUtilities.bindListInUIThread(clients, WebClients.getClients());
     }
 
     /**
-     * See {@link ClientsPreferencesManager#getURIs()}.
+     * See {@link PreferencesManager#getURIs()}.
      */
     public static ObservableList<URI> getStoredServersURIs() {
         return storedServersURIsImmutable;

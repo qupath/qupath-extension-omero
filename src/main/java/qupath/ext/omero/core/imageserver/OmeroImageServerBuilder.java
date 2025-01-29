@@ -15,8 +15,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * <p>{@link qupath.lib.images.servers.ImageServerBuilder Image server builder} of this extension.</p>
- * <p>It creates an {@link OmeroImageServer}.</p>
+ * {@link qupath.lib.images.servers.ImageServerBuilder Image server builder} of this extension.
+ * <p>
+ * It creates an {@link OmeroImageServer}.
  */
 public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage> {
 

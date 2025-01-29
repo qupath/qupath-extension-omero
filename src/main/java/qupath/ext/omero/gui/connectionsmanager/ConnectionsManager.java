@@ -7,6 +7,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.connectionsmanager.connection.Connection;
@@ -14,6 +15,7 @@ import qupath.ext.omero.gui.connectionsmanager.connection.Connection;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ResourceBundle;
+import java.util.function.Consumer;
 
 /**
  * <p>
@@ -32,6 +34,7 @@ public class ConnectionsManager extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionsManager.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
+    private final Consumer<Client> openClientBrowser;
     @FXML
     private VBox container;
 
@@ -39,9 +42,12 @@ public class ConnectionsManager extends Stage {
      * Creates the connection manager window.
      *
      * @param owner the stage that should own this window
+     * @param openClientBrowser a function that will be called to request opening the browser of a client
      * @throws IOException if an error occurs while creating the window
      */
-    public ConnectionsManager(Stage owner) throws IOException {
+    public ConnectionsManager(Stage owner, Consumer<Client> openClientBrowser) throws IOException {
+        this.openClientBrowser = openClientBrowser;
+
         initUI(owner);
         setUpListeners();
     }
@@ -66,7 +72,7 @@ public class ConnectionsManager extends Stage {
 
         for (WebClient webClient: ConnectionsManagerModel.getClients()) {
             try {
-                container.getChildren().add(new Connection(webClient));
+                container.getChildren().add(new Connection(webClient, openClientBrowser));
             } catch (IOException e) {
                 logger.error("Error while creating connection pane", e);
             }
@@ -75,7 +81,7 @@ public class ConnectionsManager extends Stage {
         for (URI serverURI: ConnectionsManagerModel.getStoredServersURIs()) {
             if (!clientWithURIExists(serverURI)) {
                 try {
-                    container.getChildren().add(new Connection(serverURI));
+                    container.getChildren().add(new Connection(serverURI, openClientBrowser));
                 } catch (IOException e) {
                     logger.error("Error while creating connection pane", e);
                 }

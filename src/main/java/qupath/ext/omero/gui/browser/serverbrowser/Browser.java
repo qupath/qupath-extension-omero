@@ -28,6 +28,7 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.gui.OmeroExtension;
 import qupath.ext.omero.gui.browser.serverbrowser.hierarchy.HierarchyCellFactory;
@@ -46,13 +47,14 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEn
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.gui.UiUtilities;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
+import qupath.ext.omero.core.pixelapis.PixelApi;
 
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -83,6 +85,7 @@ public class Browser extends Stage {
     private static final float DESCRIPTION_ATTRIBUTE_PROPORTION = 0.25f;
     private static final ResourceBundle resources = UiUtilities.getResources();
     private final WebClient client;
+    private final Consumer<Client> openClientBrowser;
     private final BrowserModel browserModel;
     @FXML
     private Label serverHost;
@@ -99,7 +102,7 @@ public class Browser extends Stage {
     @FXML
     private Label rawPixelAccess;
     @FXML
-    private ComboBox<PixelAPI> pixelAPI;
+    private ComboBox<PixelApi> pixelAPI;
     @FXML
     private Label loadingObjects;
     @FXML
@@ -139,10 +142,12 @@ public class Browser extends Stage {
      * Create the browser window.
      *
      * @param client the web client which will be used by this browser to retrieve data from the corresponding OMERO server
+     * @param openClientBrowser a function that will be called to request opening the browser of a client
      * @throws IOException if an error occurs while creating the browser
      */
-    public Browser(WebClient client) throws IOException {
+    public Browser(WebClient client, Consumer<Client> openClientBrowser) throws IOException {
         this.client = client;
+        this.openClientBrowser = openClientBrowser;
         this.browserModel = new BrowserModel(client);
 
         UiUtilities.loadFXML(this, Browser.class.getResource("browser.fxml"));
@@ -178,7 +183,7 @@ public class Browser extends Stage {
                         )
                 );
 
-                OmeroExtension.getBrowseMenu().openBrowserOfClient(client.getApisHandler().getWebServerURI());
+                openClientBrowser.accept(client);
             }
         }));
     }
@@ -206,7 +211,7 @@ public class Browser extends Stage {
                         resources.getString("Browser.ServerBrowser.logoutSuccessful")
                 );
 
-                OmeroExtension.getBrowseMenu().openBrowserOfClient(client.getApisHandler().getWebServerURI());
+                openClientBrowser.accept(client);
             }
         }));
     }
@@ -365,11 +370,11 @@ public class Browser extends Stage {
         pixelAPI.setItems(browserModel.getAvailablePixelAPIs());
         pixelAPI.setConverter(new StringConverter<>() {
             @Override
-            public String toString(PixelAPI pixelAPI) {
+            public String toString(PixelApi pixelAPI) {
                 return pixelAPI == null ? "" : pixelAPI.getName();
             }
             @Override
-            public PixelAPI fromString(String string) {
+            public PixelApi fromString(String string) {
                 return null;
             }
         });

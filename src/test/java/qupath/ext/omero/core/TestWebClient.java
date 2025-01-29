@@ -2,8 +2,8 @@ package qupath.ext.omero.core;
 
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
-import qupath.ext.omero.core.pixelapis.web.WebAPI;
+import qupath.ext.omero.core.pixelapis.PixelApi;
+import qupath.ext.omero.core.pixelapis.web.WebApi;
 
 import java.net.URI;
 import java.util.Set;
@@ -35,12 +35,12 @@ public class TestWebClient extends OmeroServer {
 
         @Test
         void Check_Selected_Pixel_API() {
-            PixelAPI expectedPixelAPI = client.getPixelAPI(WebAPI.class);
-            client.setSelectedPixelAPI(expectedPixelAPI);
+            PixelApi expectedPixelApi = client.getPixelAPI(WebApi.class);
+            client.setSelectedPixelAPI(expectedPixelApi);
 
-            PixelAPI pixelAPI = client.getSelectedPixelAPI().get();
+            PixelApi pixelAPI = client.getSelectedPixelAPI().get();
 
-            Assertions.assertEquals(expectedPixelAPI, pixelAPI);
+            Assertions.assertEquals(expectedPixelApi, pixelAPI);
         }
 
         @Test

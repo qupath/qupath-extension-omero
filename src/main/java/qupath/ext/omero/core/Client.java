@@ -9,14 +9,14 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.ApisHandler2;
+import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
-import qupath.ext.omero.core.entities.repositoryentities.Server2;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
-import qupath.ext.omero.core.pixelapis.ice.IceAPI;
-import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferAPI;
-import qupath.ext.omero.core.pixelapis.web.WebAPI;
+import qupath.ext.omero.core.pixelapis.PixelApi;
+import qupath.ext.omero.core.pixelapis.ice.IceApi;
+import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
+import qupath.ext.omero.core.pixelapis.web.WebApi;
+import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.viewer.QuPathViewer;
 
@@ -25,39 +25,53 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A class representing a connection to an OMERO web server.
+ * <p>
+ * A client can be connected to a server without being authenticated if the server allows it.
+ * <p>
+ * One client corresponds to one user, which means a new client must be created to switch user.
+ * However, it is not allowed to have two different connections to the same server at the same time.
+ * <p>
+ * It has a reference to a {@link ApisHandler} which can be used to retrieve information from the OMERO server,
+ * and a reference to a {@link Server Server} which is the ancestor of all OMERO entities.
+ * <p>
+ * A client must be {@link #close() closed} once no longer used.
+ * <p>
+ * This class is thread-safe.
+ */
 public class Client implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private static final int PING_DELAY_SECONDS = 60;
     private static final ObservableList<Client> clients = FXCollections.observableArrayList();
     private static final ObservableList<Client> clientsImmutable = FXCollections.unmodifiableObservableList(clients);
-    private final ObservableList<PixelAPI> availablePixelAPIs = FXCollections.observableArrayList();
-    private final ObservableList<PixelAPI> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelAPIs);
-    private final ObjectProperty<PixelAPI> selectedPixelAPI = new SimpleObjectProperty<>();
+    private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableArrayList();
+    private final ObservableList<PixelApi> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelApis);
+    private final ObjectProperty<PixelApi> selectedPixelAPI = new SimpleObjectProperty<>();
     private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet();
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
-    private final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
-    private final Credentials credentials;
-    private final ApisHandler2 apisHandler;
-    private final Server2 server;
-    private final List<PixelAPI> allPixelAPIs;
+    private final ApisHandler apisHandler;
+    private final List<PixelApi> allPixelApis;
+    private ScheduledExecutorService pingScheduler;
+    private CompletableFuture<Server> server;
 
     private Client(URI webServerUri, Credentials credentials) throws ExecutionException, InterruptedException, URISyntaxException {
-        this.credentials = credentials;
-        this.apisHandler = new ApisHandler2(webServerUri, credentials);
-        this.server = new Server2(apisHandler);
-        this.allPixelAPIs = List.of(
-                new WebAPI(apisHandler),
-                new IceAPI(apisHandler, credentials.getUserType()),
-                new MsPixelBufferAPI(apisHandler)
+        this.apisHandler = new ApisHandler(webServerUri, credentials);
+        this.allPixelApis = List.of(
+                new WebApi(apisHandler),
+                new IceApi(apisHandler),
+                new MsPixelBufferApi(apisHandler)
         );
 
-        if (credentials.getUserType().equals(Credentials.UserType.REGULAR_USER)) {
+        if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
+            pingScheduler = Executors.newScheduledThreadPool(1);
             pingScheduler.scheduleAtFixedRate(
                     () -> apisHandler.ping().exceptionally(error -> {
                         logger.error("Ping failed. Closing connection to {}", Client.this.apisHandler.getWebServerURI(), error);
@@ -77,29 +91,48 @@ public class Client implements AutoCloseable {
 
         setUpPixelAPIs();
 
+        clients.add(this);
+
+        PreferencesManager.addServer(webServerUri, credentials);
+
         logger.info("Connected to the OMERO.web instance at {} with {}", apisHandler.getWebServerURI(), credentials);
     }
 
     /**
-     * If no connection with url exists, create one
-     * If connection with urls exists and credentials match, return matched
-     * If connection with urls exists and credentials don't match, close existing and create one
+     * Create or get a connection to the provided server:
+     * <ul>
+     *     <li>If no connection with the provided server exists, a new one is created.</li>
+     *     <li>
+     *         If a connection with the provided server exists and the connected user match the provided one in the credentials,
+     *         the existing connection is returned.</li>
+     *     <li>
+     *         If a connection with the provided server exists and the connected user doesn't match the provided one in the credentials,
+     *         the existing connection is closed and a new one is created.
+     *     </li>
+     * </ul>
+     * This will send a few requests to get basic information on the server and authenticate if necessary,
+     * so it can take a few seconds. However, this operation is cancellable.
      *
-     * @param url
-     * @param credentials
-     * @return
-     * @throws URISyntaxException
+     * @param url the URL to the OMERO web server to connect to
+     * @param credentials the credentials to use for the authentication
+     * @return a connection to the provided server
+     * @throws URISyntaxException if a link to the server cannot be created
+     * @throws ExecutionException if a request to the server fails or if a response does not contain expected elements.
+     * This can happen if the server is unreachable or if the authentication fails for example
+     * @throws InterruptedException if the running thread is interrupted
+     * @throws IllegalArgumentException if the server doesn't return all necessary information on it, or if the root account
+     * was used to log in
      */
     //TODO: runnable called when client closed?
-    public static Client createOrGet(String url, Credentials credentials) throws Exception {
-        URI webServerURI = WebUtilities.getServerURI(new URI(url)); //TODO: accept uri without scheme and automatically add https?
+    public static Client createOrGet(String url, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
+        URI webServerURI = WebUtilities.getServerURI(new URI(url));
 
         synchronized (Client.class) {
             Optional<Client> existingClientWithUrl = clients.stream()
                     .filter(client -> client.apisHandler.getWebServerURI().getAuthority().equals(webServerURI.getAuthority()))
                     .findAny();
             if (existingClientWithUrl.isPresent()) {
-                if (existingClientWithUrl.get().credentials.equals(credentials)) {
+                if (existingClientWithUrl.get().apisHandler.getCredentials().equals(credentials)) {
                     logger.debug("Found existing client of {} with corresponding user {}. Returning it", url, credentials);
 
                     return existingClientWithUrl.get();
@@ -107,19 +140,24 @@ public class Client implements AutoCloseable {
                     logger.debug(
                             "Found existing client of {} with different user {} than provided ({}). Closing it and creating new client",
                             url,
-                            existingClientWithUrl.get().credentials,
+                            existingClientWithUrl.get().apisHandler.getCredentials(),
                             credentials
                     );
 
-                    existingClientWithUrl.get().close();
+                    try {
+                        existingClientWithUrl.get().close();
+                    } catch (Exception e) {
+                        if (e instanceof InterruptedException interruptedException) {
+                            throw interruptedException;
+                        }
+                        logger.warn("Cannot close connection with {}. This might ", existingClientWithUrl.get(), e);
+                    }
                 }
             } else {
                 logger.debug("No client of {} found. Creating new one", webServerURI);
             }
 
-            Client client = new Client(webServerURI, credentials);
-            clients.add(client);
-            return client;
+            return new Client(webServerURI, credentials);
         }
     }
 
@@ -130,11 +168,13 @@ public class Client implements AutoCloseable {
         }
 
         synchronized (this) {
-            for (PixelAPI pixelAPI: allPixelAPIs) {
+            for (PixelApi pixelAPI: allPixelApis) {
                 pixelAPI.close();
             }
         }
-        pingScheduler.close();
+        if (pingScheduler != null) {
+            pingScheduler.close();
+        }
         apisHandler.close();
 
         logger.info("Disconnected from the OMERO.web instance at {}", apisHandler.getWebServerURI());
@@ -142,7 +182,7 @@ public class Client implements AutoCloseable {
 
     @Override
     public String toString() {
-        return String.format("Client of %s with %s", apisHandler.getWebServerURI(), credentials);
+        return String.format("Client of %s with %s", apisHandler.getWebServerURI(), apisHandler.getCredentials());
     }
 
     @Override
@@ -154,37 +194,57 @@ public class Client implements AutoCloseable {
             return false;
         }
         Client client = (Client) object;
-        return Objects.equals(apisHandler, client.apisHandler) && Objects.equals(credentials, client.credentials);
+        return Objects.equals(apisHandler, client.apisHandler);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(apisHandler, credentials);
+        return Objects.hash(apisHandler);
     }
 
     /**
-     * @return the {@link ApisHandler2} of this client
+     * Returns an unmodifiable list of all connected (but not necessarily authenticated) clients.
+     * <p>
+     * This list may be updated from any thread.
+     *
+     * @return the connected clients
      */
-    public ApisHandler2 getApisHandler() {
+    public static ObservableList<Client> getClients() {
+        return clientsImmutable;
+    }
+
+    /**
+     * @return the {@link ApisHandler} of this client
+     */
+    public ApisHandler getApisHandler() {
         return apisHandler;
     }
 
     /**
-     * @return the {@link Server Server} of this client
+     * Get the {@link Server Server} of this client. It is initialized upon the first call to
+     * this function.
+     * Note that the returned CompletableFuture may complete exceptionally.
+     *
+     * @return a CompletableFuture (that may complete exceptionally) with the {@link Server Server} of this client
      */
-    public Server getServer() {
+    public synchronized CompletableFuture<Server> getServer() {
+        if (server == null) {
+            server = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return new Server(apisHandler);
+                } catch (ExecutionException | InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
         return server;
-    }
-
-    public Credentials getCredentials() {
-        return credentials;
     }
 
     /**
      * @return the currently selected pixel API. This property may be updated from any thread
      * and may be null
      */
-    public ReadOnlyObjectProperty<PixelAPI> getSelectedPixelAPI() {
+    public ReadOnlyObjectProperty<PixelApi> getSelectedPixelAPI() {
         return selectedPixelAPI;
     }
 
@@ -195,11 +255,11 @@ public class Client implements AutoCloseable {
      * @throws IllegalArgumentException when the provided pixel API is not available
      * or not part of the pixel APIs of this client
      */
-    public void setSelectedPixelAPI(PixelAPI pixelAPI) {
+    public void setSelectedPixelAPI(PixelApi pixelAPI) {
         if (!pixelAPI.isAvailable().get()) {
             throw new IllegalArgumentException("The provided pixel API is not available");
         }
-        if (!allPixelAPIs.contains(pixelAPI)) {
+        if (!allPixelApis.contains(pixelAPI)) {
             throw new IllegalArgumentException("The provided pixel API is not part of the pixel APIs of this client");
         }
 
@@ -212,7 +272,7 @@ public class Client implements AutoCloseable {
      * @return an immutable observable list of all pixel APIs available for this client.
      * This set may be updated from any thread
      */
-    public ObservableList<PixelAPI> getAvailablePixelAPIs() {
+    public ObservableList<PixelApi> getAvailablePixelAPIs() {
         return availablePixelAPIsImmutable;
     }
 
@@ -225,8 +285,8 @@ public class Client implements AutoCloseable {
      * @param <T>  the class of the pixel API to retrieve
      * @throws IllegalArgumentException if the pixel API was not found
      */
-    public synchronized <T extends PixelAPI> T getPixelAPI(Class<T> pixelAPIClass) {
-        return allPixelAPIs.stream()
+    public synchronized <T extends PixelApi> T getPixelAPI(Class<T> pixelAPIClass) {
+        return allPixelApis.stream()
                 .filter(pixelAPIClass::isInstance)
                 .map(pixelAPIClass::cast)
                 .findAny()
@@ -271,33 +331,33 @@ public class Client implements AutoCloseable {
     }
 
     private void setUpPixelAPIs() {
-        availablePixelAPIs.setAll(allPixelAPIs.stream()
+        availablePixelApis.setAll(allPixelApis.stream()
                 .filter(pixelAPI -> pixelAPI.isAvailable().get())
                 .toList()
         );
-        for (PixelAPI pixelAPI: allPixelAPIs) {
+        for (PixelApi pixelAPI: allPixelApis) {
             pixelAPI.isAvailable().addListener((p, o, n) -> {
                 synchronized (this) {
-                    if (n && !availablePixelAPIs.contains(pixelAPI)) {
-                        availablePixelAPIs.add(pixelAPI);
+                    if (n && !availablePixelApis.contains(pixelAPI)) {
+                        availablePixelApis.add(pixelAPI);
                     } else {
-                        availablePixelAPIs.remove(pixelAPI);
+                        availablePixelApis.remove(pixelAPI);
                     }
                 }
             });
         }
 
-        selectedPixelAPI.set(availablePixelAPIs.stream()
-                .filter(PixelAPI::canAccessRawPixels)
+        selectedPixelAPI.set(availablePixelApis.stream()
+                .filter(PixelApi::canAccessRawPixels)
                 .findAny()
-                .orElse(availablePixelAPIs.getFirst())
+                .orElse(availablePixelApis.getFirst())
         );
-        availablePixelAPIs.addListener((ListChangeListener<? super PixelAPI>) change -> {
+        availablePixelApis.addListener((ListChangeListener<? super PixelApi>) change -> {
             synchronized (this) {
-                selectedPixelAPI.set(availablePixelAPIs.stream()
-                        .filter(PixelAPI::canAccessRawPixels)
+                selectedPixelAPI.set(availablePixelApis.stream()
+                        .filter(PixelApi::canAccessRawPixels)
                         .findAny()
-                        .orElse(availablePixelAPIs.getFirst()));
+                        .orElse(availablePixelApis.getFirst()));
             }
         });
     }

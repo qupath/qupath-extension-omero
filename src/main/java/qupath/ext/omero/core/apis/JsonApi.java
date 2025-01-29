@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.apis;
 
-import com.drew.lang.annotations.Nullable;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -12,19 +11,24 @@ import com.google.gson.reflect.TypeToken;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import qupath.ext.omero.core.apis.authenticators.Authenticator;
+import qupath.ext.omero.core.Credentials;
+import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.entities.login.LoginResponse;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
-import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.serverinformation.OmeroApi;
 import qupath.ext.omero.core.entities.serverinformation.OmeroServerList;
-import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.lib.io.GsonTools;
 
-import java.net.PasswordAuthentication;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -34,13 +38,13 @@ import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 
 /**
- * <p>The OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">JSON API</a>.</p>
+ * The OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">JSON API</a>.
  * <p>
- *     This API is used to get basic information on the server, authenticate, get details on OMERO entities
- *     (e.g. images, datasets), and get ROIs of an image.
- * </p>
+ * This API is used to get basic information on the server, authenticate, get details on OMERO entities
+ * (e.g. images, datasets), and get ROIs of an image.
  */
 class JsonApi {
 
@@ -69,83 +73,66 @@ class JsonApi {
     private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
-    private final URI webURI;
+    private final URI webServerUri;
     private final RequestSender requestSender;
     private final Map<String, String> urls;
-    private final int serverID;
     private final String serverURI;
     private final int port;
     private final String token;
+    private final Group defaultGroup;
+    private final long userId;
+    private final String sessionUuid;
 
-    private JsonApi(URI webURI, RequestSender requestSender, Map<String, String> urls, int serverID, String serverURI, int port, String token) {
-        this.webURI = webURI;
+    /**
+     * Create a JSON API client. This will send a few requests to get basic information on the server and
+     * authenticate if necessary, so it can take a few seconds. However, this operation is cancellable.
+     *
+     * @param webServerUri the URL to the OMERO web server to connect to
+     * @param requestSender the request sender to use when sending requests
+     * @param credentials the credentials to use for the authentication
+     * @throws URISyntaxException if a link to the server cannot be created
+     * @throws ExecutionException if a request to the server fails or if a response does not contain expected elements.
+     * This can happen if the server is unreachable or if the authentication fails for example
+     * @throws InterruptedException if the running thread is interrupted
+     * @throws IllegalArgumentException if the server doesn't return all necessary information on it
+     */
+    public JsonApi(URI webServerUri, RequestSender requestSender, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
+        this.webServerUri = webServerUri;
         this.requestSender = requestSender;
-        this.urls = urls;
-        this.serverID = serverID;
-        this.serverURI = serverURI;
-        this.port = port;
-        this.token = token;
+        this.urls = getUrls(requestSender, new URI(String.format(API_URL, webServerUri)));
+
+        CompletableFuture<String> tokenRequest = getToken(requestSender, this.urls);
+        CompletableFuture<OmeroServerList> serverInformationRequest = getServerInformation(requestSender, this.urls);
+
+        OmeroServerList serverInformation = serverInformationRequest.get();
+        if (serverInformation.getServerHost().isPresent() &&
+                serverInformation.getServerId().isPresent() &&
+                serverInformation.getServerPort().isPresent()) {
+            this.serverURI = serverInformation.getServerHost().get();
+            this.port = serverInformation.getServerPort().getAsInt();
+        } else {
+            throw new IllegalArgumentException(String.format(
+                    "The retrieved server information %s does not have all the required information (host, id, and port)",
+                    serverInformation
+            ));
+        }
+
+        this.token = tokenRequest.get();
+        if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
+            LoginResponse loginResponse = login(this.requestSender, credentials, this.urls, serverInformation.getServerId().getAsInt(), token);
+            this.defaultGroup = loginResponse.getGroup();
+            this.userId = loginResponse.getUserId();
+            this.sessionUuid = loginResponse.getSessionUuid();
+        } else {
+            this.defaultGroup = null;
+            this.userId = -1;
+            sessionUuid = null;
+        }
     }
 
     @Override
     public String toString() {
-        return String.format("JSON API of %s", webURI);
-    }
-
-    /**
-     * <p>Attempt to create a JSON API client.</p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
-     *
-     * @param uri the web server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
-     * @param requestSender the request sender to use when making requests
-     * @return a CompletableFuture (that may complete exceptionally) with the JSON API client
-     */
-    public static CompletableFuture<JsonApi> create(URI uri, RequestSender requestSender) {
-        URI apiURI;
-        try {
-            apiURI = new URI(String.format(API_URL, uri));
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        return requestSender.getAndConvert(apiURI, OmeroApi.class)
-                .thenCompose(omeroApi -> {
-                    if (omeroApi.getLatestVersionURL().isPresent()) {
-                        try {
-                            return requestSender.getAndConvert(new URI(omeroApi.getLatestVersionURL().get()), new TypeToken<Map<String, String>>() {});
-                        } catch (URISyntaxException e) {
-                            return CompletableFuture.failedFuture(e);
-                        }
-                    } else {
-                        throw new RuntimeException("The latest version of the API supported by the server was not found");
-                    }
-                })
-                .thenApplyAsync(urls -> {
-                    OmeroServerList serverInformation = getServerInformation(requestSender, urls).join();
-                    String token = getToken(requestSender, urls).join();
-
-                    if (serverInformation.getServerHost().isPresent() &&
-                            serverInformation.getServerId().isPresent() &&
-                            serverInformation.getServerPort().isPresent()) {
-                        return new JsonApi(
-                                uri,
-                                requestSender,
-                                urls,
-                                serverInformation.getServerId().getAsInt(),
-                                serverInformation.getServerHost().get(),
-                                serverInformation.getServerPort().getAsInt(),
-                                token
-                        );
-                    } else {
-                        throw new RuntimeException(String.format(
-                                "The retrieved server information %s does not have all the required information (host, id, and port)",
-                                serverInformation
-                        ));
-                    }
-                });
+        return String.format("JSON API of %s", webServerUri);
     }
 
     /**
@@ -184,61 +171,32 @@ class JsonApi {
     }
 
     /**
+     * @return the user ID of the connected user, or -1 if no authentication was performed
+     */
+    public long getUserId() {
+        return userId;
+    }
+
+    /**
+     * @return the default group of the connected user, or null if no authentication was performed
+     */
+    public Group getDefaultGroup() {
+        return defaultGroup;
+    }
+
+    /**
+     * @return the session UUID of the current connection, or null if no authentication was performed
+     */
+    public String getSessionUuid() {
+        return sessionUuid;
+    }
+
+    /**
      * @return the number of OMERO entities (e.g. datasets, images) currently being loaded by the API.
      * This property may be updated from any thread
      */
     public ReadOnlyIntegerProperty getNumberOfEntitiesLoading() {
         return numberOfEntitiesLoading;
-    }
-
-    /**
-     * <p>Attempt to authenticate to the current server.</p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if a request failed for example).
-     * </p>
-     * <p>
-     *     If the arguments are not enough to authenticate, the user will
-     *     automatically be asked for credentials.
-     * </p>
-     *
-     * @param username the username to use when login, or null to prompt the user for credentials
-     * @param password the password to use when login, or null to prompt the user for credentials
-     * @return a CompletableFuture (that may complete exceptionally) with the authentication status
-     */
-    public CompletableFuture<LoginResponse> login(@Nullable String username, @Nullable String password) {
-        URI uri;
-        try {
-            uri = new URI(urls.get(LOGIN_URL_KEY));
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        PasswordAuthentication authentication = username == null || password == null ?
-                Authenticator.getPasswordAuthentication(webURI.toString()) :
-                new PasswordAuthentication(username, password.toCharArray());
-
-        if (authentication == null) {
-            return CompletableFuture.completedFuture(LoginResponse.createNonAuthenticatedLoginResponse(LoginResponse.Status.CANCELED));
-        } else {
-            char[] encodedPassword = ApiUtilities.urlEncode(authentication.getPassword());
-
-            byte[] body = ApiUtilities.concatAndConvertToBytes(
-                    String.join("&", "server=" + serverID, "username=" + authentication.getUserName(), "password=").toCharArray(),
-                    encodedPassword
-            );
-
-            return requestSender.post(
-                    uri,
-                    body,
-                    uri.toString(),
-                    token
-            ).whenComplete((response, error) -> {
-                Arrays.fill(body, (byte) 0);    // clear password
-            })
-                    .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
-                    .thenApply(LoginResponse::createAuthenticatedLoginResponse);
-        }
     }
 
     /**
@@ -372,7 +330,7 @@ class JsonApi {
                         throw new RuntimeException(String.format("'data' member not present in %s", jsonImage));
                     }
 
-                    ServerEntity serverEntity = ServerEntity.createFromJsonElement(jsonImage.get("data"), webURI);
+                    ServerEntity serverEntity = ServerEntity.createFromJsonElement(jsonImage.get("data"), webServerUri);
                     if (serverEntity instanceof Image image) {
                         return image;
                     } else {
@@ -419,7 +377,7 @@ class JsonApi {
             children.addAll(batch.stream()
                     .map(this::requestImageInfo)
                     .map(CompletableFuture::join)
-                    .map(jsonObject -> ServerEntity.createFromJsonElement(jsonObject, webURI))
+                    .map(jsonObject -> ServerEntity.createFromJsonElement(jsonObject, webServerUri))
                     .map(serverEntity -> (Image) serverEntity)
                     .toList()
             );
@@ -495,7 +453,7 @@ class JsonApi {
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all plate acquisitions of the plate
      */
     public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateID) {
-        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webURI, plateID)).thenApply(
+        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webServerUri, plateID)).thenApply(
                 children -> children.stream().map(child -> (PlateAcquisition) child).toList()
         );
     }
@@ -511,7 +469,7 @@ class JsonApi {
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all wells of the plate
      */
     public CompletableFuture<List<Well>> getWellsFromPlate(long plateID) {
-        return getChildren(String.format(PLATE_WELLS_URL, webURI, plateID)).thenApply(
+        return getChildren(String.format(PLATE_WELLS_URL, webServerUri, plateID)).thenApply(
                 children -> children.stream().map(child -> (Well) child).toList()
         );
     }
@@ -528,26 +486,9 @@ class JsonApi {
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all wells of the plate acquisition
      */
     public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionID, int wellSampleIndex) {
-        return getChildren(String.format(WELLS_URL, webURI, plateAcquisitionID, wellSampleIndex)).thenApply(
+        return getChildren(String.format(WELLS_URL, webServerUri, plateAcquisitionID, wellSampleIndex)).thenApply(
                 children -> children.stream().map(child -> (Well) child).toList()
         );
-    }
-
-    /**
-     * <p>Indicates if the server can be browsed without being authenticated.</p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
-     *
-     * @return a void CompletableFuture (that completes exceptionally if authentication cannot be skipped)
-     */
-    public CompletableFuture<Void> canSkipAuthentication() {
-        try {
-            return requestSender.isLinkReachable(new URI(urls.get(PROJECTS_URL_KEY)), RequestSender.RequestType.GET, false, false);
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
     }
 
     /**
@@ -566,7 +507,7 @@ class JsonApi {
     public CompletableFuture<List<Shape>> getROIs(long id) {
         URI uri;
         try {
-            uri = new URI(String.format(ROIS_URL, webURI, id));
+            uri = new URI(String.format(ROIS_URL, webServerUri, id));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -605,19 +546,13 @@ class JsonApi {
         );
     }
 
-    private static CompletableFuture<OmeroServerList> getServerInformation(RequestSender requestSender, Map<String, String> urls) {
-        String token = SERVERS_URL_KEY;
+    private static Map<String, String> getUrls(RequestSender requestSender, URI apiURI) throws ExecutionException, InterruptedException, URISyntaxException {
+        OmeroApi omeroAPI = requestSender.getAndConvert(apiURI, OmeroApi.class).get();
 
-        if (urls.containsKey(token)) {
-            try {
-                return requestSender.getAndConvert(new URI(urls.get(token)), OmeroServerList.class);
-            } catch (URISyntaxException e) {
-                return CompletableFuture.failedFuture(e);
-            }
+        if (omeroAPI.getLatestVersionURL().isPresent()) {
+            return requestSender.getAndConvert(new URI(omeroAPI.getLatestVersionURL().get()), new TypeToken<Map<String, String>>() {}).get();
         } else {
-            return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The %s token was not found in %s", token, urls)
-            ));
+            throw new IllegalArgumentException("The latest version of the API supported by the server was not found");
         }
     }
 
@@ -646,6 +581,50 @@ class JsonApi {
         }
     }
 
+    private static CompletableFuture<OmeroServerList> getServerInformation(RequestSender requestSender, Map<String, String> urls) {
+        String token = SERVERS_URL_KEY;
+
+        if (urls.containsKey(token)) {
+            try {
+                return requestSender.getAndConvert(new URI(urls.get(token)), OmeroServerList.class);
+            } catch (URISyntaxException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        } else {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    String.format("The %s token was not found in %s", token, urls)
+            ));
+        }
+    }
+
+    private static LoginResponse login(
+            RequestSender requestSender,
+            Credentials credentials,
+            Map<String, String> urls,
+            int serverID,
+            String token
+    ) throws URISyntaxException, ExecutionException, InterruptedException {
+        URI uri = new URI(urls.get(LOGIN_URL_KEY));
+
+        char[] encodedPassword = ApiUtilities.urlEncode(credentials.password());
+
+        byte[] body = ApiUtilities.concatAndConvertToBytes(
+                String.join("&", "server=" + serverID, "username=" + credentials.username(), "password=").toCharArray(),
+                encodedPassword
+        );
+
+        return requestSender.post(
+                        uri,
+                        body,
+                        uri.toString(),
+                        token
+                ).whenComplete((response, error) -> {
+                    Arrays.fill(body, (byte) 0);    // clear password
+                })
+                .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
+                .thenApply(LoginResponse::createAuthenticatedLoginResponse).get();
+    }
+
     private CompletableFuture<List<ServerEntity>> getChildren(String url) {
         URI uri;
         try {
@@ -661,7 +640,7 @@ class JsonApi {
         return requestSender.getPaginated(uri)
                 .thenApply(jsonElements ->
                         jsonElements.stream()
-                                .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webURI))
+                                .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
                                 .toList()
                 )
                 .whenComplete((entities, error) -> {

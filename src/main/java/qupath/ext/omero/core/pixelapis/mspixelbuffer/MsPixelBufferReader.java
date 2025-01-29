@@ -1,8 +1,10 @@
 package qupath.ext.omero.core.pixelapis.mspixelbuffer;
 
 import loci.formats.gui.AWTImageTools;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
@@ -30,8 +32,9 @@ import java.util.stream.IntStream;
 /**
  * Read pixel values using the <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO Pixel Data Microservice</a>.
  */
-class MsPixelBufferReader implements PixelAPIReader {
+class MsPixelBufferReader implements PixelApiReader {
 
+    private static final Logger logger = LoggerFactory.getLogger(MsPixelBufferReader.class);
     private static final String TILE_URI = "%s/tile/%d/%d/%d/%d?x=%d&y=%d&w=%d&h=%d&format=tif&resolution=%d";
     private final String host;
     private final ApisHandler apisHandler;
@@ -70,6 +73,8 @@ class MsPixelBufferReader implements PixelAPIReader {
 
     @Override
     public BufferedImage readTile(TileRequest tileRequest) throws IOException {
+        logger.debug("Reading tile {} from MS pixel buffer API", tileRequest);
+
         // OMERO expects resolutions to be specified in reverse order
         int level = numberOfLevels - tileRequest.getLevel() - 1;
 
@@ -112,11 +117,6 @@ class MsPixelBufferReader implements PixelAPIReader {
                     null
             );
         }
-    }
-
-    @Override
-    public String getName() {
-        return MsPixelBufferAPI.NAME;
     }
 
     @Override

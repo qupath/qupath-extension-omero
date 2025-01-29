@@ -8,13 +8,14 @@ import java.io.IOException;
 /**
  * <p>
  *     This interface allows to read pixel values from a tile request.
- *     It should only be created by a {@link PixelAPI}.
+ *     It should only be created by a {@link PixelApi}.
  * </p>
  * <p>
  *     Once no longer used, any instance of this interface must be {@link #close() closed}.
  * </p>
  */
-public interface PixelAPIReader extends AutoCloseable {
+public interface PixelApiReader extends AutoCloseable {
+
     /**
      * Read a tile of an image.
      *
@@ -23,9 +24,4 @@ public interface PixelAPIReader extends AutoCloseable {
      * @throws IOException when a reading error occurs
      */
     BufferedImage readTile(TileRequest tileRequest) throws IOException;
-
-    /**
-     * @return a human-readable name of this API
-     */
-    String getName();
 }

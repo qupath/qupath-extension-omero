@@ -10,7 +10,7 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.core.imageserver.OmeroImageServerBuilder;
 import qupath.lib.analysis.stats.Histogram;
@@ -30,7 +30,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
         protected static Image image;
         protected static WebClient client;
         protected static TileRequest tileRequest;
-        protected static PixelAPIReader reader;
+        protected static PixelApiReader reader;
 
         @AfterAll
         static void removeClient() throws Exception {
@@ -96,8 +96,8 @@ public class TestMsPixelBufferReader extends OmeroServer {
                 throw new RuntimeException(e);
             }
 
-            if (metadata != null && client.getPixelAPI(MsPixelBufferAPI.class).isAvailable().get()) {
-                reader = client.getPixelAPI(MsPixelBufferAPI.class).createReader(
+            if (metadata != null && client.getPixelAPI(MsPixelBufferApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(MsPixelBufferApi.class).createReader(
                         image.getId(),
                         metadata
                 );
@@ -130,8 +130,8 @@ public class TestMsPixelBufferReader extends OmeroServer {
                 throw new RuntimeException(e);
             }
 
-            if (metadata != null && client.getPixelAPI(MsPixelBufferAPI.class).isAvailable().get()) {
-                reader = client.getPixelAPI(MsPixelBufferAPI.class).createReader(
+            if (metadata != null && client.getPixelAPI(MsPixelBufferApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(MsPixelBufferApi.class).createReader(
                         image.getId(),
                         metadata
                 );
@@ -164,8 +164,8 @@ public class TestMsPixelBufferReader extends OmeroServer {
                 throw new RuntimeException(e);
             }
 
-            if (metadata != null && client.getPixelAPI(MsPixelBufferAPI.class).isAvailable().get()) {
-                reader = client.getPixelAPI(MsPixelBufferAPI.class).createReader(
+            if (metadata != null && client.getPixelAPI(MsPixelBufferApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(MsPixelBufferApi.class).createReader(
                         image.getId(),
                         metadata
                 );
@@ -198,8 +198,8 @@ public class TestMsPixelBufferReader extends OmeroServer {
                 throw new RuntimeException(e);
             }
 
-            if (metadata != null && client.getPixelAPI(MsPixelBufferAPI.class).isAvailable().get()) {
-                reader = client.getPixelAPI(MsPixelBufferAPI.class).createReader(
+            if (metadata != null && client.getPixelAPI(MsPixelBufferApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(MsPixelBufferApi.class).createReader(
                         image.getId(),
                         metadata
                 );
@@ -232,8 +232,8 @@ public class TestMsPixelBufferReader extends OmeroServer {
                 throw new RuntimeException(e);
             }
 
-            if (metadata != null && client.getPixelAPI(MsPixelBufferAPI.class).isAvailable().get()) {
-                reader = client.getPixelAPI(MsPixelBufferAPI.class).createReader(
+            if (metadata != null && client.getPixelAPI(MsPixelBufferApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(MsPixelBufferApi.class).createReader(
                         image.getId(),
                         metadata
                 );
@@ -266,8 +266,8 @@ public class TestMsPixelBufferReader extends OmeroServer {
                 throw new RuntimeException(e);
             }
 
-            if (metadata != null && client.getPixelAPI(MsPixelBufferAPI.class).isAvailable().get()) {
-                reader = client.getPixelAPI(MsPixelBufferAPI.class).createReader(
+            if (metadata != null && client.getPixelAPI(MsPixelBufferApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(MsPixelBufferApi.class).createReader(
                         image.getId(),
                         metadata
                 );
@@ -300,8 +300,8 @@ public class TestMsPixelBufferReader extends OmeroServer {
                 throw new RuntimeException(e);
             }
 
-            if (metadata != null && client.getPixelAPI(MsPixelBufferAPI.class).isAvailable().get()) {
-                reader = client.getPixelAPI(MsPixelBufferAPI.class).createReader(
+            if (metadata != null && client.getPixelAPI(MsPixelBufferApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(MsPixelBufferApi.class).createReader(
                         image.getId(),
                         metadata
                 );

@@ -69,8 +69,8 @@ public class WebClients {
                             return WebClient.create(serverURI, authentication, args)
                                     .thenApply(client -> {
                                         if (client != null) {
-                                            ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
-                                            ClientsPreferencesManager.setEnableUnauthenticated(client.getApisHandler().getWebServerURI(), switch (authentication) {
+                                            PreferencesManager.addURI(client.getApisHandler().getWebServerURI());
+                                            PreferencesManager.setEnableUnauthenticated(client.getApisHandler().getWebServerURI(), switch (authentication) {
                                                 case ENFORCE -> false;
                                                 case TRY_TO_SKIP, SKIP -> true;
                                             });
@@ -115,8 +115,8 @@ public class WebClients {
         try {
             WebClient client = WebClient.createSync(serverURI, authentication, args);
             if (client != null) {
-                ClientsPreferencesManager.addURI(client.getApisHandler().getWebServerURI());
-                ClientsPreferencesManager.setEnableUnauthenticated(client.getApisHandler().getWebServerURI(), switch (authentication) {
+                PreferencesManager.addURI(client.getApisHandler().getWebServerURI());
+                PreferencesManager.setEnableUnauthenticated(client.getApisHandler().getWebServerURI(), switch (authentication) {
                     case ENFORCE -> false;
                     case TRY_TO_SKIP, SKIP -> true;
                 });

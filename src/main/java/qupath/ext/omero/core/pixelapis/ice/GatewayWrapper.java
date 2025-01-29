@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * <p>
  *     A wrapper around an Ice {@link Gateway}.
- *     This is needed because if a {@link Gateway} is directly used in the {@link IceAPI}
+ *     This is needed because if a {@link Gateway} is directly used in the {@link IceApi}
  *     class when the Ice dependencies are not available, the program will crash.
  * </p>
  * <p>
@@ -23,63 +23,53 @@ class GatewayWrapper implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(GatewayWrapper.class);
     private final Gateway gateway = new Gateway(new IceLogger());
 
-    @Override
-    public void close() throws Exception {
-        gateway.close();
-    }
-
     /**
-     * @return whether the gateway is connected and authenticated
-     */
-    public synchronized boolean isConnected() {
-        return gateway.isConnected();
-    }
-
-    /**
-     * Attempt to connect the gateway with the provided credentials.
-     * If a connection is already established, nothing will happen.
+     * Create a gateway and attempt to connect the gateway with the provided credentials.
      *
      * @param loginCredentials the credentials to use when connecting. If some credentials work,
      *                         the remaining will not be tested.
-     * @return whether the gateway is connected after the connection attempts
+     * @throws Exception if the connection failed with all provided credentials
      */
-    public synchronized boolean connect(List<LoginCredentials> loginCredentials) {
-        if (gateway.isConnected()) {
-            return true;
-        } else {
-            for (int i=0; i<loginCredentials.size(); i++) {
-                try {
-                    ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
-                    if (experimenterData != null) {
-                        logger.info(
-                                "Connected to the OMERO.server instance at {} with user {}",
-                                loginCredentials.get(i).getServer(),
-                                experimenterData.getUserName()
-                        );
-                        return true;
-                    }
-                } catch (Exception e) {
-                    if (i < loginCredentials.size()-1) {
-                        logger.debug(
-                                "Ice can't connect to {}:{}. Trying {}:{}...",
-                                loginCredentials.get(i).getServer().getHost(),
-                                loginCredentials.get(i).getServer().getPort(),
-                                loginCredentials.get(i + 1).getServer().getHost(),
-                                loginCredentials.get(i + 1).getServer().getPort(),
-                                e
-                        );
-                    } else {
-                        logger.error(
-                                "Ice can't connect to {}:{}. No more credentials available",
-                                loginCredentials.get(i).getServer().getHost(),
-                                loginCredentials.get(i).getServer().getPort(),
-                                e
-                        );
-                    }
+    public GatewayWrapper(List<LoginCredentials> loginCredentials) throws Exception {
+        logger.debug("Attempting to create gateway with the following credentials: {}", loginCredentials);
+
+        for (int i=0; i<loginCredentials.size(); i++) {
+            try {
+                ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
+                if (experimenterData != null) {
+                    logger.info(
+                            "Connected to the OMERO.server instance at {} with user {}",
+                            loginCredentials.get(i).getServer(),
+                            experimenterData.getUserName()
+                    );
+                    return;
+                }
+            } catch (Exception e) {
+                if (i < loginCredentials.size()-1) {
+                    logger.debug(
+                            "Ice can't connect to {}:{}. Trying {}:{}...",
+                            loginCredentials.get(i).getServer().getHost(),
+                            loginCredentials.get(i).getServer().getPort(),
+                            loginCredentials.get(i + 1).getServer().getHost(),
+                            loginCredentials.get(i + 1).getServer().getPort(),
+                            e
+                    );
+                } else {
+                    logger.error(
+                            "Ice can't connect to {}:{}. No more credentials available",
+                            loginCredentials.get(i).getServer().getHost(),
+                            loginCredentials.get(i).getServer().getPort(),
+                            e
+                    );
+                    throw e;
                 }
             }
-            return false;
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        gateway.close();
     }
 
     /**

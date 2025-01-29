@@ -1,39 +1,65 @@
 package qupath.ext.omero.core;
 
-public class Credentials {
+import java.util.Objects;
 
-    private final UserType userType;
-    private final String username;
-    private final String password;  //TODO: use char array and clear once no longer used
+/**
+ * A class to store authentication information.
+ *
+ * @param userType the type of (and whether there is) authentication
+ * @param username the username to use when authenticating. Can be null if no authentication should be performed
+ * @param password the password to use when authenticating. Can be null if no authentication should be performed
+ */
+public record Credentials(UserType userType, String username, char[] password) {
+
+    /**
+     * The type of (and whether there is) authentication.
+     */
     public enum UserType {
+        /**
+         * The public user. This doesn't require authentication
+         */
         PUBLIC_USER,
+        /**
+         * A regular user. This requires authentication.
+         */
         REGULAR_USER
     }
 
+    /**
+     * Create a public user.
+     */
     public Credentials() {
-        this.username = null;
-        this.password = null;
-        this.userType = UserType.PUBLIC_USER;
+        this(UserType.PUBLIC_USER, null, null);
     }
 
-    public Credentials(String username, String password) {
-        this.username = username;
-        this.password = password;
-        this.userType = UserType.REGULAR_USER;
+    /**
+     * Create a regular user.
+     *
+     * @param username the username of the user
+     * @param password the password of the user. It should be cleared once the authentication is performed
+     */
+    public Credentials(String username, char[] password) {
+        this(UserType.REGULAR_USER, username, password);
     }
 
-    //TODO: override equals and don't take password into account
-    //TODO: override to string (return public user or username)
-
-    public UserType getUserType() {
-        return userType;
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) return true;
+        if (object == null || getClass() != object.getClass()) return false;
+        Credentials that = (Credentials) object;
+        return userType == that.userType && Objects.equals(username, that.username);
     }
 
-    public String getUsername() {
-        return username;
+    @Override
+    public int hashCode() {
+        return Objects.hash(userType, username);
     }
 
-    public String getPassword() {
-        return password;
+    @Override
+    public String toString() {
+        return switch (userType) {
+            case PUBLIC_USER -> "Public user";
+            case REGULAR_USER -> String.format("User with username '%s'", username);
+        };
     }
 }

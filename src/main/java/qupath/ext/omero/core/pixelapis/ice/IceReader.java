@@ -12,12 +12,12 @@ import omero.model.ExperimenterGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ObjectPool;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.bioformats.OMEPixelParser;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
@@ -25,12 +25,13 @@ import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Read pixel values using the <a href="https://omero.readthedocs.io/en/v5.6.7/developers/Java.html">OMERO gateway</a>.
+ * <p>
+ * This reader must be {@link #close() closed} once no longer used.
  */
-class IceReader implements PixelAPIReader {
+class IceReader implements PixelApiReader {
 
     private static final Logger logger = LoggerFactory.getLogger(IceReader.class);
     private static final int NUMBER_OF_READERS = Runtime.getRuntime().availableProcessors() + 5;    // Tasks that include I/O or other blocking operations
@@ -50,76 +51,70 @@ class IceReader implements PixelAPIReader {
      * @param gatewayWrapper a wrapper around a valid connection with an ICE server
      * @param imageID the ID of the image to open
      * @param channels the channels of the image to open
-     * @throws IOException when the reader creation fails
+     * @throws Exception when the reader creation fails
      */
-    public IceReader(GatewayWrapper gatewayWrapper, long imageID, List<ImageChannel> channels) throws IOException {
-        try {
-            if (gatewayWrapper.isConnected()) {
-                var imageAndContext = getImageAndContext(gatewayWrapper.getGateway(), imageID, gatewayWrapper.getGateway().getLoggedInUser().getGroupId());
-                if (imageAndContext.isPresent()) {
-                    context = imageAndContext.get().context;
-                    PixelsData pixelsData = imageAndContext.get().image.getDefaultPixels();
+    public IceReader(GatewayWrapper gatewayWrapper, long imageID, List<ImageChannel> channels) throws Exception {
+        logger.debug("Creating ICE reader for image of ID {}...", imageID);
 
-                    readerPool = new ObjectPool<>(
-                            NUMBER_OF_READERS,
-                            () -> {
-                                try {
-                                    RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
-                                    reader.setPixelsId(pixelsData.getId(), false);
-                                    return reader;
-                                } catch (DSOutOfServiceException | ServerError e) {
-                                    logger.error("Error when creating RawPixelsStorePrx", e);
-                                    return null;
-                                }
-                            },
-                            reader -> {
-                                try {
-                                    reader.close();
-                                } catch (ServerError e) {
-                                    logger.error("Error when closing reader", e);
-                                }
-                            }
-                    );
+        ImageContextWrapper imageAndContext = getImageAndContext(
+                gatewayWrapper.getGateway(),
+                imageID,
+                gatewayWrapper.getGateway().getLoggedInUser().getGroupId()
+        );
+        context = imageAndContext.context;
+        PixelsData pixelsData = imageAndContext.image.getDefaultPixels();
 
+        readerPool = new ObjectPool<>(
+                NUMBER_OF_READERS,
+                () -> {
                     try {
-                        var reader = readerPool.get();
-                        if (reader.isPresent()) {
-                            numberOfResolutionLevels = reader.get().getResolutionLevels();
-                            readerPool.giveBack(reader.get());
-                        } else {
-                            throw new IOException("Cannot create RawPixelsStorePrx");
-                        }
-                    } catch (InterruptedException e) {
-                        throw new IOException(e);
-                    }
+                        RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
+                        reader.setPixelsId(pixelsData.getId(), false);
 
-                    nChannels = channels.size();
-                    effectiveNChannels = pixelsData.getSizeC();
-                    pixelType = switch (pixelsData.getPixelType()) {
-                        case PixelsData.INT8_TYPE -> PixelType.INT8;
-                        case PixelsData.UINT8_TYPE -> PixelType.UINT8;
-                        case PixelsData.INT16_TYPE -> PixelType.INT16;
-                        case PixelsData.UINT16_TYPE -> PixelType.UINT16;
-                        case PixelsData.UINT32_TYPE -> PixelType.UINT32;
-                        case PixelsData.INT32_TYPE -> PixelType.INT32;
-                        case PixelsData.FLOAT_TYPE -> PixelType.FLOAT32;
-                        case PixelsData.DOUBLE_TYPE -> PixelType.FLOAT64;
-                        default -> throw new IllegalArgumentException("Unsupported pixel type " + pixelsData.getPixelType());
-                    };
-                    colorModel = ColorModelFactory.createColorModel(pixelType, channels);
-                } else {
-                    throw new IOException("Couldn't find requested image of ID " + imageID);
+                        logger.debug("Reader for image with ID {} created", imageID);
+                        return reader;
+                    } catch (DSOutOfServiceException | ServerError e) {
+                        logger.error("Error when creating RawPixelsStorePrx", e);
+                        return null;
+                    }
+                },
+                reader -> {
+                    try {
+                        reader.close();
+                    } catch (ServerError e) {
+                        logger.error("Error when closing reader", e);
+                    }
                 }
-            } else {
-                throw new IOException("Could not connect to the ICE server");
-            }
-        } catch (DSOutOfServiceException | ExecutionException | ServerError e) {
-            throw new IOException(e);
+        );
+
+        var reader = readerPool.get();
+        if (reader.isPresent()) {
+            numberOfResolutionLevels = reader.get().getResolutionLevels();
+            readerPool.giveBack(reader.get());
+        } else {
+            throw new IllegalStateException("Cannot create RawPixelsStorePrx. Impossible to get the number of resolution levels");
         }
+
+        nChannels = channels.size();
+        effectiveNChannels = pixelsData.getSizeC();
+        pixelType = switch (pixelsData.getPixelType()) {
+            case PixelsData.INT8_TYPE -> PixelType.INT8;
+            case PixelsData.UINT8_TYPE -> PixelType.UINT8;
+            case PixelsData.INT16_TYPE -> PixelType.INT16;
+            case PixelsData.UINT16_TYPE -> PixelType.UINT16;
+            case PixelsData.UINT32_TYPE -> PixelType.UINT32;
+            case PixelsData.INT32_TYPE -> PixelType.INT32;
+            case PixelsData.FLOAT_TYPE -> PixelType.FLOAT32;
+            case PixelsData.DOUBLE_TYPE -> PixelType.FLOAT64;
+            default -> throw new IllegalArgumentException("Unsupported pixel type " + pixelsData.getPixelType());
+        };
+        colorModel = ColorModelFactory.createColorModel(pixelType, channels);
     }
 
     @Override
     public BufferedImage readTile(TileRequest tileRequest) throws IOException {
+        logger.debug("Reading tile {} from ICE", tileRequest);
+
         byte[][] bytes = new byte[effectiveNChannels][];
 
         Optional<RawPixelsStorePrx> reader = Optional.empty();
@@ -140,7 +135,7 @@ class IceReader implements PixelAPIReader {
                     );
                 }
             } else {
-                throw new IOException("Cannot create RawPixelsStorePrx");
+                throw new IOException(String.format("Cannot create RawPixelsStorePrx. Tile %s won't be read", tileRequest));
             }
         } catch (Exception e) {
             throw new IOException(e);
@@ -159,11 +154,6 @@ class IceReader implements PixelAPIReader {
     }
 
     @Override
-    public String getName() {
-        return IceAPI.NAME;
-    }
-
-    @Override
     public void close() throws Exception {
         readerPool.close();
     }
@@ -173,27 +163,48 @@ class IceReader implements PixelAPIReader {
         return String.format("Ice reader for %s", context.getServerInformation());
     }
 
-    private static Optional<ImageContextWrapper> getImageAndContext(Gateway gateway, long imageID, long userGroupId) throws ExecutionException, DSOutOfServiceException, ServerError {
+    private static ImageContextWrapper getImageAndContext(Gateway gateway, long imageID, long userGroupId) throws Exception {
         SecurityContext context = new SecurityContext(userGroupId);
         BrowseFacility browser = gateway.getFacility(BrowseFacility.class);
         try {
-            return Optional.of(new ImageContextWrapper(
+            return new ImageContextWrapper(
                     browser.getImage(context, imageID),
                     context
-            ));
-        } catch (Exception ignored) {}
+            );
+        } catch (Exception e) {
+            logger.debug("Cannot get image {} from group {}. Trying other groups of the current user...", imageID, userGroupId, e);
+        }
 
         List<ExperimenterGroup> groups = gateway.getAdminService(context).containedGroups(gateway.getLoggedInUser().asExperimenter().getId().getValue());
-        for (ExperimenterGroup group: groups) {
-            context = new SecurityContext(group.getId().getValue());
+        for (int i=0; i<groups.size(); i++) {
+            context = new SecurityContext(groups.get(i).getId().getValue());
 
             try {
-                return Optional.of(new ImageContextWrapper(
+                return new ImageContextWrapper(
                         browser.getImage(context, imageID),
                         context
-                ));
-            } catch (Exception ignored) {}
+                );
+            } catch (Exception e) {
+                if (i < groups.size()-1) {
+                    logger.debug(
+                            "Cannot get image {} from group {}. Trying group {}...",
+                            imageID,
+                            groups.get(i).getId(),
+                            groups.get(i+1).getId(),
+                            e
+                    );
+                } else {
+                    logger.error(
+                            "Cannot get image {} from group {}. No more groups available",
+                            imageID,
+                            groups.get(i).getId(),
+                            e
+                    );
+                    throw e;
+                }
+            }
         }
-        return Optional.empty();
+
+        throw new IllegalStateException(String.format("Cannot get image %d. No groups available", imageID));
     }
 }

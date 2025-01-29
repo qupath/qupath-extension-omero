@@ -5,8 +5,8 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebUtilities;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.ext.omero.core.pixelapis.PixelApi;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.images.servers.AbstractTileableImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -32,8 +32,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 /**
- * <p>{@link qupath.lib.images.servers.ImageServer Image server} of the extension.</p>
- * <p>Pixels are read using the {@link qupath.ext.omero.core.pixelapis PixelAPIs} package.</p>
+ * {@link qupath.lib.images.servers.ImageServer Image server} of the extension.
+ * <p>
+ * Pixels are read using the {@link qupath.ext.omero.core.pixelapis PixelAPIs} package.
  */
 public class OmeroImageServer extends AbstractTileableImageServer implements PathObjectReader  {
 
@@ -41,7 +42,8 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     private static final String PIXEL_API_ARGUMENT = "--pixelAPI";
     private final URI uri;
     private final WebClient client;
-    private final PixelAPIReader pixelAPIReader;
+    private final PixelApiReader pixelAPIReader;
+    private final String apiName;
     private final long id;
     private final ImageServerMetadata originalMetadata;
     private final String[] args;
@@ -49,7 +51,8 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     private OmeroImageServer(
             URI uri,
             WebClient client,
-            PixelAPIReader pixelAPIReader,
+            PixelApiReader pixelAPIReader,
+            String apiName,
             long id,
             ImageServerMetadata originalMetadata,
             String... args
@@ -57,6 +60,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         this.uri = uri;
         this.client = client;
         this.pixelAPIReader = pixelAPIReader;
+        this.apiName = apiName;
         this.id = id;
         this.originalMetadata = originalMetadata;
         this.args = args;
@@ -78,7 +82,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      * @param args optional arguments used to open the image
      * @return a CompletableFuture (that may complete exceptionally) with the OmeroImageServer
      */
-    public static CompletableFuture<OmeroImageServer> create(URI uri, WebClient client, String... args) {
+    static CompletableFuture<OmeroImageServer> create(URI uri, WebClient client, String... args) {
         OptionalLong id = WebUtilities.parseEntityId(uri);
         if (id.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(String.format(
@@ -89,31 +93,32 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         List<String> arguments = Arrays.stream(args).toList();
 
         return client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(metadata -> {
-            Optional<PixelAPI> pixelAPIFromArgs = getPixelAPIFromArgs(client, arguments);
+            Optional<PixelApi> pixelAPIFromArgs = getPixelAPIFromArgs(client, arguments);
 
-            PixelAPI pixelAPI;
+            PixelApi pixelApi;
             List<String> newArguments = List.of();
             if (pixelAPIFromArgs.isPresent()) {
-                pixelAPI = pixelAPIFromArgs.get();
+                pixelApi = pixelAPIFromArgs.get();
             } else {
-                pixelAPI = client.getSelectedPixelAPI().get();
-                if (pixelAPI == null) {
+                pixelApi = client.getSelectedPixelAPI().get();
+                if (pixelApi == null) {
                     throw new IllegalStateException("No supplied pixel API and no selected pixel API");
                 }
 
-                newArguments = getPixelAPIArgs(pixelAPI);
+                newArguments = getPixelAPIArgs(pixelApi);
             }
             String[] newArgs = Stream.concat(
                     arguments.stream(),
                     newArguments.stream()
             ).toArray(String[]::new);
-            pixelAPI.setParametersFromArgs(newArgs);
+            pixelApi.setParametersFromArgs(newArgs);
 
             try {
                 return new OmeroImageServer(
                         uri,
                         client,
-                        pixelAPI.createReader(id.getAsLong(), metadata),
+                        pixelApi.createReader(id.getAsLong(), metadata),
+                        pixelApi.getName(),
                         id.getAsLong(),
                         metadata,
                         newArgs
@@ -167,7 +172,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     @Override
     public String getServerType() {
-        return String.format("OMERO (%s)", pixelAPIReader.getName());
+        return String.format("OMERO (%s)", apiName);
     }
 
     @Override
@@ -235,7 +240,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         return id;
     }
 
-    private static Optional<PixelAPI> getPixelAPIFromArgs(WebClient client, List<String> args) {
+    private static Optional<PixelApi> getPixelAPIFromArgs(WebClient client, List<String> args) {
         String pixelAPIName = null;
         int i = 0;
         while (i < args.size()-1) {
@@ -246,7 +251,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         }
 
         if (pixelAPIName != null) {
-            for (PixelAPI pixelAPI: client.getAvailablePixelAPIs()) {
+            for (PixelApi pixelAPI: client.getAvailablePixelAPIs()) {
                 if (pixelAPI.getName().equalsIgnoreCase(pixelAPIName)) {
                     return Optional.of(pixelAPI);
                 }
@@ -260,7 +265,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         return Optional.empty();
     }
 
-    private static List<String> getPixelAPIArgs(PixelAPI pixelAPI) {
+    private static List<String> getPixelAPIArgs(PixelApi pixelAPI) {
         return Stream.concat(
                 Stream.of(PIXEL_API_ARGUMENT, pixelAPI.getName()),
                 Arrays.stream(pixelAPI.getArgs())

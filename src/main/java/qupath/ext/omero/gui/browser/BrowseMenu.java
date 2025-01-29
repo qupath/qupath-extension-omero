@@ -7,7 +7,7 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.gui.browser.newserver.NewServerForm;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.gui.browser.serverbrowser.BrowserCommand;
 import qupath.fx.dialogs.Dialogs;
 import qupath.ext.omero.core.WebClient;
@@ -47,10 +47,13 @@ public class BrowseMenu extends Menu {
         setUpListeners();
     }
 
-    public void openBrowserOfClient(URI uri) {
-        if (browserCommands.containsKey(uri)) {
-            browserCommands.get(uri).run();
-        }
+    /**
+     * Open the browser of the provided client. It will be created if it doesn't already exist.
+     *
+     * @param client the client that should be displayed in the browser to open
+     */
+    public void openBrowserOfClient(Client client) {
+        getBrowserCommand(client.getApisHandler().getWebServerURI()).run();
     }
 
     private void initUI() {
@@ -71,6 +74,7 @@ public class BrowseMenu extends Menu {
                     }
                 }
             }
+            change.reset();
 
             createURIItems();
             getItems().add(newServerItem);
@@ -143,7 +147,10 @@ public class BrowseMenu extends Menu {
 
     private BrowserCommand getBrowserCommand(URI uri) {
         if (!browserCommands.containsKey(uri)) {
-            browserCommands.put(uri, new BrowserCommand(uri));
+            browserCommands.put(
+                    uri,
+                    new BrowserCommand(uri, this::openBrowserOfClient)
+            );
         }
 
         return browserCommands.get(uri);

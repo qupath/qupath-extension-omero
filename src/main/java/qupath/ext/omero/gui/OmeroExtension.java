@@ -2,7 +2,7 @@
  * #%L
  * This file is part of QuPath.
  * %%
- * Copyright (C) 2018 - 2023 QuPath developers, The University of Edinburgh
+ * Copyright (C) 2018 - 2025 QuPath developers, The University of Edinburgh
  * %%
  * QuPath is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as
@@ -31,10 +31,8 @@ import qupath.ext.omero.gui.datatransporters.importers.KeyValuesImporter;
 import qupath.ext.omero.gui.datatransporters.senders.AnnotationSender;
 import qupath.ext.omero.gui.datatransporters.senders.ImageSettingsSender;
 import qupath.ext.omero.gui.datatransporters.senders.KeyValuesSender;
-import qupath.lib.common.Version;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.QuPathGUI;
-import qupath.lib.gui.extensions.GitHubProject;
 import qupath.lib.gui.extensions.QuPathExtension;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.ext.omero.gui.connectionsmanager.ConnectionsManagerCommand;
@@ -43,33 +41,33 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 /**
- * <p>Install the OMERO extension to a QuPath GUI.</p>
- * <p>It adds menus and actions to the Extensions menu:</p>
+ * Install the OMERO extension to a QuPath GUI.
+ * <p>
+ * It adds menus and actions to the Extensions menu:
  * <ul>
  *     <li>A browse menu, described in {@link qupath.ext.omero.gui.browser browser}.</li>
  *     <li>A connection manager action, described in {@link qupath.ext.omero.gui.connectionsmanager connection manager}.</li>
  *     <li>A menu to send and a menu to import entities to OMERO, described in {@link qupath.ext.omero.gui.datatransporters data transporters}.</li>
  * </ul>
  */
-public class OmeroExtension implements QuPathExtension, GitHubProject {
+public class OmeroExtension implements QuPathExtension {
 
 	private static final ResourceBundle resources = UiUtilities.getResources();
-	private static final Version EXTENSION_QUPATH_VERSION = Version.parse("v0.5.0");
-	private static boolean alreadyInstalled = false;
-	private static BrowseMenu browseMenu;
+	private BrowseMenu browseMenu;
 
 	@Override
-	public void installExtension(QuPathGUI quPath) {
-		if (!alreadyInstalled) {
-			alreadyInstalled = true;
-
+	public synchronized void installExtension(QuPathGUI quPath) {
+		if (browseMenu == null) {
 			browseMenu = new BrowseMenu();
 
 			MenuTools.addMenuItems(quPath.getMenu("Extensions", false),
 					MenuTools.createMenu("OMERO",
 							browseMenu,
 							ActionTools.createAction(
-									new ConnectionsManagerCommand(quPath.getStage()),
+									new ConnectionsManagerCommand(
+											quPath.getStage(),
+											client -> browseMenu.openBrowserOfClient(client)
+									),
 									ConnectionsManagerCommand.getMenuTitle()
 							),
 							new SeparatorMenuItem(),
@@ -96,19 +94,5 @@ public class OmeroExtension implements QuPathExtension, GitHubProject {
 	@Override
 	public String getDescription() {
 		return resources.getString("Extension.description");
-	}
-
-	@Override
-	public Version getQuPathVersion() {
-		return EXTENSION_QUPATH_VERSION;
-	}
-
-	@Override
-	public GitHubRepo getRepository() {
-		return GitHubRepo.create(getName(), "qupath", "qupath-extension-omero");
-	}
-
-	public static BrowseMenu getBrowseMenu() {
-		return browseMenu;
 	}
 }

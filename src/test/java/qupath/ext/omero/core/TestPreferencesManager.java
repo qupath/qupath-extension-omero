@@ -9,18 +9,18 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
-public class TestClientsPreferencesManager {
+public class TestPreferencesManager {
 
     @BeforeEach
     void clearPreferences() {
-        ClientsPreferencesManager.clearAllPreferences();
+        PreferencesManager.clearAllPreferences();
     }
 
     @Test
     void Check_URIs_Empty() {
         List<URI> expectedURIs = List.of();
 
-        List<URI> uris = ClientsPreferencesManager.getURIs();
+        List<URI> uris = PreferencesManager.getURIs();
 
         TestUtilities.assertCollectionsEqualsWithoutOrder(expectedURIs, uris);
     }
@@ -30,9 +30,9 @@ public class TestClientsPreferencesManager {
         URI uri = URI.create("https://github.com/qupath");
         List<URI> expectedURIs = List.of(uri);
 
-        ClientsPreferencesManager.addURI(uri);
+        PreferencesManager.addURI(uri);
 
-        List<URI> uris = ClientsPreferencesManager.getURIs();
+        List<URI> uris = PreferencesManager.getURIs();
         TestUtilities.assertCollectionsEqualsWithoutOrder(expectedURIs, uris);
     }
 
@@ -41,10 +41,10 @@ public class TestClientsPreferencesManager {
         URI uri = URI.create("https://github.com/qupath");
         List<URI> expectedURIs = List.of();
 
-        ClientsPreferencesManager.addURI(uri);
-        ClientsPreferencesManager.removeURI(uri);
+        PreferencesManager.addURI(uri);
+        PreferencesManager.removeURI(uri);
 
-        List<URI> uris = ClientsPreferencesManager.getURIs();
+        List<URI> uris = PreferencesManager.getURIs();
         TestUtilities.assertCollectionsEqualsWithoutOrder(expectedURIs, uris);
     }
 
@@ -52,7 +52,7 @@ public class TestClientsPreferencesManager {
     void Check_Last_Server_URI_Empty() {
         String expectedLastURI = "";
 
-        String lastURI = ClientsPreferencesManager.getLastServerURI();
+        String lastURI = PreferencesManager.getLastServerURI();
 
         Assertions.assertEquals(expectedLastURI, lastURI);
     }
@@ -61,9 +61,9 @@ public class TestClientsPreferencesManager {
     void Check_Last_Server_URI() {
         URI uri = URI.create("https://github.com/qupath");
         String expectedLastURI = uri.toString();
-        ClientsPreferencesManager.addURI(uri);
+        PreferencesManager.addURI(uri);
 
-        String lastURI = ClientsPreferencesManager.getLastServerURI();
+        String lastURI = PreferencesManager.getLastServerURI();
 
         Assertions.assertEquals(expectedLastURI, lastURI);
     }
@@ -72,7 +72,7 @@ public class TestClientsPreferencesManager {
     void Check_Last_Username_Empty() {
         String expectedLastUsername = "";
 
-        String lastUsername = ClientsPreferencesManager.getLastUsername();
+        String lastUsername = PreferencesManager.getLastUsername();
 
         Assertions.assertEquals(expectedLastUsername, lastUsername);
     }
@@ -81,9 +81,9 @@ public class TestClientsPreferencesManager {
     void Check_Last_Username_When_Set() {
         String expectedUsername = "username";
 
-        ClientsPreferencesManager.setLastUsername(expectedUsername);
+        PreferencesManager.setLastUsername(expectedUsername);
 
-        String lastUsername = ClientsPreferencesManager.getLastUsername();
+        String lastUsername = PreferencesManager.getLastUsername();
         Assertions.assertEquals(expectedUsername, lastUsername);
     }
 
@@ -92,10 +92,10 @@ public class TestClientsPreferencesManager {
         String unexpectedUsername = "unexpected username";
         String expectedUsername = "username";
 
-        ClientsPreferencesManager.setLastUsername(unexpectedUsername);
-        ClientsPreferencesManager.setLastUsername(expectedUsername);
+        PreferencesManager.setLastUsername(unexpectedUsername);
+        PreferencesManager.setLastUsername(expectedUsername);
 
-        String lastUsername = ClientsPreferencesManager.getLastUsername();
+        String lastUsername = PreferencesManager.getLastUsername();
         Assertions.assertEquals(expectedUsername, lastUsername);
     }
 
@@ -103,7 +103,7 @@ public class TestClientsPreferencesManager {
     void Check_Enable_Unauthenticated_Empty() {
         URI uri = URI.create("https://github.com/qupath");
 
-        Optional<Boolean> enableUnauthenticated = ClientsPreferencesManager.getEnableUnauthenticated(uri);
+        Optional<Boolean> enableUnauthenticated = PreferencesManager.getEnableUnauthenticated(uri);
 
         Assertions.assertTrue(enableUnauthenticated.isEmpty());
     }
@@ -112,9 +112,9 @@ public class TestClientsPreferencesManager {
     void Check_Enable_Unauthenticated() {
         boolean expectedEnableUnauthenticated = true;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
+        PreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
 
-        Boolean enableUnauthenticated = ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(null);
+        Boolean enableUnauthenticated = PreferencesManager.getEnableUnauthenticated(uri).orElse(null);
 
         Assertions.assertEquals(expectedEnableUnauthenticated, enableUnauthenticated);
     }
@@ -124,10 +124,10 @@ public class TestClientsPreferencesManager {
         boolean unexpectedEnableUnauthenticated = false;
         boolean expectedEnableUnauthenticated = true;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setEnableUnauthenticated(uri, unexpectedEnableUnauthenticated);
-        ClientsPreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
+        PreferencesManager.setEnableUnauthenticated(uri, unexpectedEnableUnauthenticated);
+        PreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
 
-        Boolean enableUnauthenticated = ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(null);
+        Boolean enableUnauthenticated = PreferencesManager.getEnableUnauthenticated(uri).orElse(null);
 
         Assertions.assertEquals(expectedEnableUnauthenticated, enableUnauthenticated);
     }
@@ -136,12 +136,12 @@ public class TestClientsPreferencesManager {
     void Check_Enable_Unauthenticated_When_Other_URI_Set() {
         URI otherUri = URI.create("https://qupath.readthedocs.io");
         boolean otherEnableUnauthenticated = false;
-        ClientsPreferencesManager.setEnableUnauthenticated(otherUri, otherEnableUnauthenticated);
+        PreferencesManager.setEnableUnauthenticated(otherUri, otherEnableUnauthenticated);
         boolean expectedEnableUnauthenticated = true;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
+        PreferencesManager.setEnableUnauthenticated(uri, expectedEnableUnauthenticated);
 
-        Boolean enableUnauthenticated = ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(null);
+        Boolean enableUnauthenticated = PreferencesManager.getEnableUnauthenticated(uri).orElse(null);
 
         Assertions.assertEquals(expectedEnableUnauthenticated, enableUnauthenticated);
     }
@@ -150,7 +150,7 @@ public class TestClientsPreferencesManager {
     void Check_Ms_Pixel_Buffer_Port_Empty() {
         URI uri = URI.create("https://github.com/qupath");
 
-        Optional<Integer> msPixelBufferPort = ClientsPreferencesManager.getMsPixelBufferPort(uri);
+        Optional<Integer> msPixelBufferPort = PreferencesManager.getMsPixelBufferPort(uri);
 
         Assertions.assertTrue(msPixelBufferPort.isEmpty());
     }
@@ -159,9 +159,9 @@ public class TestClientsPreferencesManager {
     void Check_Ms_Pixel_Buffer_Port() {
         int expectedPort = 8080;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setMsPixelBufferPort(uri, expectedPort);
+        PreferencesManager.setMsPixelBufferPort(uri, expectedPort);
 
-        int msPixelBufferPort = ClientsPreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
+        int msPixelBufferPort = PreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
 
         Assertions.assertEquals(expectedPort, msPixelBufferPort);
     }
@@ -171,10 +171,10 @@ public class TestClientsPreferencesManager {
         int unexpectedPort = 1000;
         int expectedPort = 8080;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setMsPixelBufferPort(uri, unexpectedPort);
-        ClientsPreferencesManager.setMsPixelBufferPort(uri, expectedPort);
+        PreferencesManager.setMsPixelBufferPort(uri, unexpectedPort);
+        PreferencesManager.setMsPixelBufferPort(uri, expectedPort);
 
-        int msPixelBufferPort = ClientsPreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
+        int msPixelBufferPort = PreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
 
         Assertions.assertEquals(expectedPort, msPixelBufferPort);
     }
@@ -183,12 +183,12 @@ public class TestClientsPreferencesManager {
     void Check_Ms_Pixel_Buffer_Port_When_Other_URI_Set() {
         URI otherUri = URI.create("https://qupath.readthedocs.io");
         int otherPort = 1000;
-        ClientsPreferencesManager.setMsPixelBufferPort(otherUri, otherPort);
+        PreferencesManager.setMsPixelBufferPort(otherUri, otherPort);
         int expectedPort = 8080;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setMsPixelBufferPort(uri, expectedPort);
+        PreferencesManager.setMsPixelBufferPort(uri, expectedPort);
 
-        int msPixelBufferPort = ClientsPreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
+        int msPixelBufferPort = PreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
 
         Assertions.assertEquals(expectedPort, msPixelBufferPort);
     }
@@ -197,7 +197,7 @@ public class TestClientsPreferencesManager {
     void Check_Web_Jpeg_Quality_Empty() {
         URI uri = URI.create("https://github.com/qupath");
 
-        Optional<Float> jpegQuality = ClientsPreferencesManager.getWebJpegQuality(uri);
+        Optional<Float> jpegQuality = PreferencesManager.getWebJpegQuality(uri);
 
         Assertions.assertTrue(jpegQuality.isEmpty());
     }
@@ -206,9 +206,9 @@ public class TestClientsPreferencesManager {
     void Check_Web_Jpeg_Quality() {
         float expectedJpegQuality = 0.46f;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
+        PreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
 
-        float jpegQuality = ClientsPreferencesManager.getWebJpegQuality(uri).orElse(-1f);
+        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElse(-1f);
 
         Assertions.assertEquals(expectedJpegQuality, jpegQuality);
     }
@@ -218,10 +218,10 @@ public class TestClientsPreferencesManager {
         float unexpectedJpegQuality = 0.12f;
         float expectedJpegQuality = 0.46f;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setWebJpegQuality(uri, unexpectedJpegQuality);
-        ClientsPreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
+        PreferencesManager.setWebJpegQuality(uri, unexpectedJpegQuality);
+        PreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
 
-        float jpegQuality = ClientsPreferencesManager.getWebJpegQuality(uri).orElse(-1f);
+        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElse(-1f);
 
         Assertions.assertEquals(expectedJpegQuality, jpegQuality);
     }
@@ -230,12 +230,12 @@ public class TestClientsPreferencesManager {
     void Check_Web_Jpeg_Quality_When_Other_URI_Set() {
         URI otherUri = URI.create("https://qupath.readthedocs.io");
         float otherJpegQuality = 0.78f;
-        ClientsPreferencesManager.setWebJpegQuality(otherUri, otherJpegQuality);
+        PreferencesManager.setWebJpegQuality(otherUri, otherJpegQuality);
         float expectedJpegQuality = 0.46f;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
+        PreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
 
-        float jpegQuality = ClientsPreferencesManager.getWebJpegQuality(uri).orElse(-1f);
+        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElse(-1f);
 
         Assertions.assertEquals(expectedJpegQuality, jpegQuality);
     }
@@ -244,7 +244,7 @@ public class TestClientsPreferencesManager {
     void Check_Ice_Address_Empty() {
         URI uri = URI.create("https://github.com/qupath");
 
-        Optional<String> iceAddress = ClientsPreferencesManager.getIceAddress(uri);
+        Optional<String> iceAddress = PreferencesManager.getIceAddress(uri);
 
         Assertions.assertTrue(iceAddress.isEmpty());
     }
@@ -253,9 +253,9 @@ public class TestClientsPreferencesManager {
     void Check_Ice_Address() {
         String expectedIceAddress = "https://omero.server.com/";
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+        PreferencesManager.setIceAddress(uri, expectedIceAddress);
 
-        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+        String iceAddress = PreferencesManager.getIceAddress(uri).orElse("");
 
         Assertions.assertEquals(expectedIceAddress, iceAddress);
     }
@@ -265,10 +265,10 @@ public class TestClientsPreferencesManager {
         String unexpectedIceAddress = "https://unexpected.omero.server.com/";
         String expectedIceAddress = "https://omero.server.com/";
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setIceAddress(uri, unexpectedIceAddress);
-        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+        PreferencesManager.setIceAddress(uri, unexpectedIceAddress);
+        PreferencesManager.setIceAddress(uri, expectedIceAddress);
 
-        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+        String iceAddress = PreferencesManager.getIceAddress(uri).orElse("");
 
         Assertions.assertEquals(expectedIceAddress, iceAddress);
     }
@@ -277,12 +277,12 @@ public class TestClientsPreferencesManager {
     void Check_Ice_Address_When_Other_URI_Set() {
         URI otherUri = URI.create("https://qupath.readthedocs.io");
         String otherIceAddress = "https://other.omero.server.com/";
-        ClientsPreferencesManager.setIceAddress(otherUri, otherIceAddress);
+        PreferencesManager.setIceAddress(otherUri, otherIceAddress);
         String expectedIceAddress = "https://omero.server.com/";
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setIceAddress(uri, expectedIceAddress);
+        PreferencesManager.setIceAddress(uri, expectedIceAddress);
 
-        String iceAddress = ClientsPreferencesManager.getIceAddress(uri).orElse("");
+        String iceAddress = PreferencesManager.getIceAddress(uri).orElse("");
 
         Assertions.assertEquals(expectedIceAddress, iceAddress);
     }
@@ -291,7 +291,7 @@ public class TestClientsPreferencesManager {
     void Check_Ice_Port_Empty() {
         URI uri = URI.create("https://github.com/qupath");
 
-        Optional<Integer> icePort = ClientsPreferencesManager.getIcePort(uri);
+        Optional<Integer> icePort = PreferencesManager.getIcePort(uri);
 
         Assertions.assertTrue(icePort.isEmpty());
     }
@@ -300,9 +300,9 @@ public class TestClientsPreferencesManager {
     void Check_Ice_Port() {
         int expectedIcePort = 2024;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setIcePort(uri, expectedIcePort);
+        PreferencesManager.setIcePort(uri, expectedIcePort);
 
-        int icePort = ClientsPreferencesManager.getIcePort(uri).orElse(-1);
+        int icePort = PreferencesManager.getIcePort(uri).orElse(-1);
 
         Assertions.assertEquals(expectedIcePort, icePort);
     }
@@ -312,10 +312,10 @@ public class TestClientsPreferencesManager {
         int unexpectedIcePort = 8080;
         int expectedIcePort = 4646;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setIcePort(uri, unexpectedIcePort);
-        ClientsPreferencesManager.setIcePort(uri, expectedIcePort);
+        PreferencesManager.setIcePort(uri, unexpectedIcePort);
+        PreferencesManager.setIcePort(uri, expectedIcePort);
 
-        int icePort = ClientsPreferencesManager.getIcePort(uri).orElse(-1);
+        int icePort = PreferencesManager.getIcePort(uri).orElse(-1);
 
         Assertions.assertEquals(expectedIcePort, icePort);
     }
@@ -324,12 +324,12 @@ public class TestClientsPreferencesManager {
     void Check_Ice_Port_When_Other_URI_Set() {
         URI otherUri = URI.create("https://qupath.readthedocs.io");
         int otherIcePort = 1412;
-        ClientsPreferencesManager.setIcePort(otherUri, otherIcePort);
+        PreferencesManager.setIcePort(otherUri, otherIcePort);
         int expectedIcePort = 7878;
         URI uri = URI.create("https://github.com/qupath");
-        ClientsPreferencesManager.setIcePort(uri, expectedIcePort);
+        PreferencesManager.setIcePort(uri, expectedIcePort);
 
-        int iceAddress = ClientsPreferencesManager.getIcePort(uri).orElse(-1);
+        int iceAddress = PreferencesManager.getIcePort(uri).orElse(-1);
 
         Assertions.assertEquals(expectedIcePort, iceAddress);
     }

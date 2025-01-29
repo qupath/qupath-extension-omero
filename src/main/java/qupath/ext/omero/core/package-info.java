@@ -6,7 +6,7 @@
  *         provides generic methods to send HTTP requests to a server.
  *     </li>
  *     <li>
- *         The {@link qupath.ext.omero.core.ClientsPreferencesManager ClientsPreferencesManager}
+ *         The {@link qupath.ext.omero.core.PreferencesManager PreferencesManager}
  *         stores server information in a permanent way. This is useful for the user to not have to write again server URIs
  *         after each application restart.
  *     </li>

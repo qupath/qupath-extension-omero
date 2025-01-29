@@ -12,12 +12,12 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.login.LoginResponse;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
+import qupath.ext.omero.core.pixelapis.PixelApi;
+import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
 import qupath.lib.gui.QuPathGUI;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.core.pixelapis.ice.IceAPI;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
-import qupath.ext.omero.core.pixelapis.web.WebAPI;
-import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferAPI;
+import qupath.ext.omero.core.pixelapis.web.WebApi;
 import qupath.lib.gui.viewer.QuPathViewer;
 
 import java.net.URI;
@@ -58,9 +58,9 @@ public class WebClient implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebClient.class);
     private static final int PING_DELAY_SECONDS = 60;
-    private final ObservableList<PixelAPI> availablePixelAPIs = FXCollections.observableArrayList();
-    private final ObservableList<PixelAPI> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelAPIs);
-    private final ObjectProperty<PixelAPI> selectedPixelAPI = new SimpleObjectProperty<>();
+    private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableArrayList();
+    private final ObservableList<PixelApi> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelApis);
+    private final ObjectProperty<PixelApi> selectedPixelAPI = new SimpleObjectProperty<>();
     private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet();
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
     private final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
@@ -68,7 +68,7 @@ public class WebClient implements AutoCloseable {
     private final ApisHandler apisHandler;
     private final String username;
     private final boolean authenticated;
-    private final List<PixelAPI> allPixelAPIs;
+    private final List<PixelApi> allPixelApis;
 
     /**
      * How to handle authentication when creation a connection
@@ -94,13 +94,13 @@ public class WebClient implements AutoCloseable {
             ApisHandler apisHandler,
             String username,
             boolean authenticated,
-            List<PixelAPI> allPixelAPIs
+            List<PixelApi> allPixelApis
     ) {
         this.server = server;
         this.apisHandler = apisHandler;
         this.username = username;
         this.authenticated = authenticated;
-        this.allPixelAPIs = allPixelAPIs;
+        this.allPixelApis = allPixelApis;
 
         if (authenticated) {
             pingScheduler.scheduleAtFixedRate(
@@ -181,7 +181,7 @@ public class WebClient implements AutoCloseable {
     @Override
     public void close() throws Exception {
         synchronized (this) {
-            for (PixelAPI pixelAPI: allPixelAPIs) {
+            for (PixelApi pixelAPI: allPixelApis) {
                 pixelAPI.close();
             }
         }
@@ -234,7 +234,7 @@ public class WebClient implements AutoCloseable {
      * @return the currently selected pixel API. This property may be updated from any thread
      * and may be null
      */
-    public ReadOnlyObjectProperty<PixelAPI> getSelectedPixelAPI() {
+    public ReadOnlyObjectProperty<PixelApi> getSelectedPixelAPI() {
         return selectedPixelAPI;
     }
 
@@ -245,11 +245,11 @@ public class WebClient implements AutoCloseable {
      * @throws IllegalArgumentException when the provided pixel API is not available
      * or not part of the pixel APIs of this client
      */
-    public void setSelectedPixelAPI(PixelAPI pixelAPI) {
+    public void setSelectedPixelAPI(PixelApi pixelAPI) {
         if (!pixelAPI.isAvailable().get()) {
             throw new IllegalArgumentException("The provided pixel API is not available");
         }
-        if (!allPixelAPIs.contains(pixelAPI)) {
+        if (!allPixelApis.contains(pixelAPI)) {
             throw new IllegalArgumentException("The provided pixel API is not part of the pixel APIs of this client");
         }
 
@@ -262,7 +262,7 @@ public class WebClient implements AutoCloseable {
      * @return an immutable observable list of all pixel APIs available for this client.
      * This set may be updated from any thread
      */
-    public ObservableList<PixelAPI> getAvailablePixelAPIs() {
+    public ObservableList<PixelApi> getAvailablePixelAPIs() {
         return availablePixelAPIsImmutable;
     }
 
@@ -275,8 +275,8 @@ public class WebClient implements AutoCloseable {
      * @param <T>  the class of the pixel API to retrieve
      * @throws IllegalArgumentException if the pixel API was not found
      */
-    public synchronized <T extends PixelAPI> T getPixelAPI(Class<T> pixelAPIClass) {
-        return allPixelAPIs.stream()
+    public synchronized <T extends PixelApi> T getPixelAPI(Class<T> pixelAPIClass) {
+        return allPixelApis.stream()
                 .filter(pixelAPIClass::isInstance)
                 .map(pixelAPIClass::cast)
                 .findAny()
@@ -321,33 +321,33 @@ public class WebClient implements AutoCloseable {
     }
 
     private void setUpPixelAPIs() {
-        availablePixelAPIs.setAll(allPixelAPIs.stream()
+        availablePixelApis.setAll(allPixelApis.stream()
                 .filter(pixelAPI -> pixelAPI.isAvailable().get())
                 .toList()
         );
-        for (PixelAPI pixelAPI: allPixelAPIs) {
+        for (PixelApi pixelAPI: allPixelApis) {
             pixelAPI.isAvailable().addListener((p, o, n) -> {
                 synchronized (this) {
-                    if (n && !availablePixelAPIs.contains(pixelAPI)) {
-                        availablePixelAPIs.add(pixelAPI);
+                    if (n && !availablePixelApis.contains(pixelAPI)) {
+                        availablePixelApis.add(pixelAPI);
                     } else {
-                        availablePixelAPIs.remove(pixelAPI);
+                        availablePixelApis.remove(pixelAPI);
                     }
                 }
             });
         }
 
-        selectedPixelAPI.set(availablePixelAPIs.stream()
-                .filter(PixelAPI::canAccessRawPixels)
+        selectedPixelAPI.set(availablePixelApis.stream()
+                .filter(PixelApi::canAccessRawPixels)
                 .findAny()
-                .orElse(availablePixelAPIs.get(0))
+                .orElse(availablePixelApis.get(0))
         );
-        availablePixelAPIs.addListener((ListChangeListener<? super PixelAPI>) change -> {
+        availablePixelApis.addListener((ListChangeListener<? super PixelApi>) change -> {
             synchronized (this) {
-                selectedPixelAPI.set(availablePixelAPIs.stream()
-                        .filter(PixelAPI::canAccessRawPixels)
+                selectedPixelAPI.set(availablePixelApis.stream()
+                        .filter(PixelApi::canAccessRawPixels)
                         .findAny()
-                        .orElse(availablePixelAPIs.get(0)));
+                        .orElse(availablePixelApis.get(0)));
             }
         });
     }
@@ -368,9 +368,9 @@ public class WebClient implements AutoCloseable {
                         server.getConnectedOwner().username(),
                         loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED),
                         List.of(
-                                new WebAPI(apisHandler),
+                                new WebApi(apisHandler),
                                 new IceAPI(apisHandler, loginResponse.getStatus().equals(LoginResponse.Status.AUTHENTICATED), loginResponse.getSessionUuid()),
-                                new MsPixelBufferAPI(apisHandler)
+                                new MsPixelBufferApi(apisHandler)
                         )
                 );
             }

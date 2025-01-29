@@ -10,8 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.pixelapis.ice.IceAPI;
-import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferAPI;
-import qupath.ext.omero.core.pixelapis.web.WebAPI;
+import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
+import qupath.ext.omero.core.pixelapis.web.WebApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.fx.dialogs.Dialogs;
 
@@ -27,8 +27,8 @@ public class Settings extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(Settings.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
-    private final MsPixelBufferAPI msPixelBufferAPI;
-    private final WebAPI webAPI;
+    private final MsPixelBufferApi msPixelBufferAPI;
+    private final WebApi webAPI;
     private final IceAPI iceAPI;
     @FXML
     private TextField msPixelBufferAPIPort;
@@ -47,8 +47,8 @@ public class Settings extends Stage {
      * @throws IOException if an error occurs while creating the window
      */
     public Settings(Stage ownerWindow, WebClient client) throws IOException {
-        this.msPixelBufferAPI = client.getPixelAPI(MsPixelBufferAPI.class);
-        this.webAPI = client.getPixelAPI(WebAPI.class);
+        this.msPixelBufferAPI = client.getPixelAPI(MsPixelBufferApi.class);
+        this.webAPI = client.getPixelAPI(WebApi.class);
         this.iceAPI = client.getPixelAPI(IceAPI.class);
 
         initUI(ownerWindow);

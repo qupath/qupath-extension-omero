@@ -25,7 +25,7 @@ import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchResult;
-import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferAPI;
+import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -838,7 +838,7 @@ public abstract class OmeroServer {
         if (webClient == null) {
             throw new IllegalStateException("Client creation failed");
         } else {
-            webClient.getPixelAPI(MsPixelBufferAPI.class).setPort(getMsPixelBufferApiPort(), true);
+            webClient.getPixelAPI(MsPixelBufferApi.class).setPort(getMsPixelBufferApiPort(), true);
             return webClient;
         }
     }

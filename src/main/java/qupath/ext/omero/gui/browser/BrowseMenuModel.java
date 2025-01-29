@@ -2,7 +2,7 @@ package qupath.ext.omero.gui.browser;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import qupath.ext.omero.core.ClientsPreferencesManager;
+import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.net.URI;
@@ -14,7 +14,7 @@ import java.net.URI;
  * </p>
  * <p>
  *     In effect, this class acts as an intermediate between a browser menu and
- *     {@link ClientsPreferencesManager}.
+ *     {@link PreferencesManager}.
  *     URIs can be updated from any thread but the browse menu can only be accessed from the UI thread,
  *     so this class propagates changes made to these elements from any thread to the UI thread.
  * </p>
@@ -26,7 +26,7 @@ class BrowseMenuModel {
     private static final ObservableList<URI> urisImmutable = FXCollections.unmodifiableObservableList(uris);
 
     static {
-        UiUtilities.bindListInUIThread(uris, ClientsPreferencesManager.getURIs());
+        UiUtilities.bindListInUIThread(uris, PreferencesManager.getURIs());
     }
 
     private BrowseMenuModel() {
@@ -34,7 +34,7 @@ class BrowseMenuModel {
     }
 
     /**
-     * See {@link ClientsPreferencesManager#getURIs()}.
+     * See {@link PreferencesManager#getURIs()}.
      */
     public static ObservableList<URI> getURIs() {
         return urisImmutable;

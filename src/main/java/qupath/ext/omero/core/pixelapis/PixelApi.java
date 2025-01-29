@@ -9,12 +9,12 @@ import java.io.IOException;
 /**
  * <p>
  *     This interface provides information (e.g. types of image supported) on a specific API to access
- *     pixel values of an OMERO image. It can also be used to create a {@link PixelAPIReader}
+ *     pixel values of an OMERO image. It can also be used to create a {@link PixelApiReader}
  *     corresponding to this API.
  * </p>
- * <p>A PixelAPI must be {@link #close() closed} once no longer used.</p>
+ * <p>A PixelApi must be {@link #close() closed} once no longer used.</p>
  */
-public interface PixelAPI extends AutoCloseable {
+public interface PixelApi extends AutoCloseable {
 
     /**
      * @return a human-readable name of this API
@@ -75,12 +75,12 @@ public interface PixelAPI extends AutoCloseable {
 
     /**
      * <p>
-     *     Creates a {@link PixelAPIReader} corresponding to this API that will be
+     *     Creates a {@link PixelApiReader} corresponding to this API that will be
      *     used to read pixel values of an image.
      * </p>
      * <p>
-     *     Note that you should {@link PixelAPIReader#close() close} this reader when it's
-     *     no longer used.
+     *     Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
+     *     no longer used. This pixel API will close them when it itself is closed.
      * </p>
      *
      * @param id the ID of the image to open
@@ -91,7 +91,7 @@ public interface PixelAPI extends AutoCloseable {
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
-    PixelAPIReader createReader(
+    PixelApiReader createReader(
             long id,
             ImageServerMetadata metadata
     ) throws IOException;

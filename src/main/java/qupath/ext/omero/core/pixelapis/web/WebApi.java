@@ -7,38 +7,38 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleFloatProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.ClientsPreferencesManager;
 import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.pixelapis.PixelApi;
+import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.lib.images.servers.ImageServerMetadata;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.images.servers.PixelType;
 
-/**
- * <p>
- *     This API uses the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">OMERO JSON API</a>
- *     to access pixel values of an image. It doesn't have dependencies but can only work with 8-bit RGB images,
- *     and the images are JPEG-compressed.
- * </p>
- */
-public class WebAPI implements PixelAPI {
+import java.util.Arrays;
 
-    static final String NAME = "Web";
+/**
+ * This API uses the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">OMERO JSON API</a>
+ * to access pixel values of an image. It doesn't have dependencies but can only work with 8-bit RGB images, and the
+ * images are JPEG-compressed.</p>
+ */
+public class WebApi implements PixelApi {
+
+    private static final String NAME = "Web";
     private static final float DEFAULT_JPEG_QUALITY = 0.9F;
     private static final String JPEG_QUALITY_PARAMETER = "--jpegQuality";
-    private static final Logger logger = LoggerFactory.getLogger(WebAPI.class);
+    private static final Logger logger = LoggerFactory.getLogger(WebApi.class);
     private final ApisHandler apisHandler;
     private final FloatProperty jpegQuality;
 
     /**
-     * Creates a new WebAPI.
+     * Creates a new WebApi.
      *
      * @param apisHandler the api handler owning this API
      */
-    public WebAPI(ApisHandler apisHandler) {
+    public WebApi(ApisHandler apisHandler) {
         this.apisHandler = apisHandler;
-        jpegQuality = new SimpleFloatProperty(
-                ClientsPreferencesManager.getWebJpegQuality(apisHandler.getWebServerURI()).orElse(DEFAULT_JPEG_QUALITY)
+        this.jpegQuality = new SimpleFloatProperty(
+                PreferencesManager.getWebJpegQuality(apisHandler.getWebServerURI()).orElse(DEFAULT_JPEG_QUALITY)
         );
     }
 
@@ -46,7 +46,7 @@ public class WebAPI implements PixelAPI {
     public boolean equals(Object obj) {
         if (obj == this)
             return true;
-        if (!(obj instanceof WebAPI webAPI))
+        if (!(obj instanceof WebApi webAPI))
             return false;
         return webAPI.apisHandler.equals(apisHandler);
     }
@@ -68,12 +68,14 @@ public class WebAPI implements PixelAPI {
 
     @Override
     public void setParametersFromArgs(String... args) {
+        logger.debug("Setting parameters of web API from {}", Arrays.stream(args).toList());
+
         for (int i=0; i<args.length-1; ++i) {
             if (args[i].equals(JPEG_QUALITY_PARAMETER)) {
                 try {
                     setJpegQuality(Float.parseFloat(args[i+1]));
                 } catch (NumberFormatException e) {
-                    logger.warn(String.format("Can't convert %s to float", args[i+1]), e);
+                    logger.warn("Can't convert {} to float", args[i+1], e);
                 }
             }
         }
@@ -100,7 +102,7 @@ public class WebAPI implements PixelAPI {
     }
 
     @Override
-    public PixelAPIReader createReader(long id, ImageServerMetadata metadata) {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata) {
         if (!isAvailable().get()) {
             throw new IllegalStateException("This API is not available and cannot be used");
         }
@@ -123,7 +125,7 @@ public class WebAPI implements PixelAPI {
     }
 
     @Override
-    public void close() throws Exception {}
+    public void close() {}
 
     /**
      * @return the JPEG quality used by this pixel API.
@@ -142,10 +144,12 @@ public class WebAPI implements PixelAPI {
         if (jpegQuality > 0 && jpegQuality <= 1) {
             this.jpegQuality.set(jpegQuality);
 
-            ClientsPreferencesManager.setWebJpegQuality(
+            PreferencesManager.setWebJpegQuality(
                     apisHandler.getWebServerURI(),
                     jpegQuality
             );
+
+            logger.debug("JPEG quality of web API changed to {}", jpegQuality);
         } else {
             logger.warn("Requested JPEG quality '{}' is invalid, must be between 0 and 1.", jpegQuality);
         }

@@ -4,7 +4,7 @@ import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.ClientsPreferencesManager;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.gui.UiUtilities;
@@ -16,6 +16,7 @@ import java.net.URISyntaxException;
 import java.text.MessageFormat;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.function.Consumer;
 
 /**
  * Command that starts a {@link Browser browser} corresponding to a URI.
@@ -25,6 +26,7 @@ public class BrowserCommand implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(BrowserCommand.class);
     private static final ResourceBundle resources = UiUtilities.getResources();
     private final URI uri;
+    private final Consumer<Client> openClientBrowser;
     private Browser browser;
     private WebClient client;
 
@@ -32,9 +34,11 @@ public class BrowserCommand implements Runnable {
      * Creates a browser command.
      *
      * @param uri the URI of the web client which will be used by the browser to retrieve data from the corresponding OMERO server
+     * @param openClientBrowser a function that will be called to request opening the browser of a client
      */
-    public BrowserCommand(URI uri) {
+    public BrowserCommand(URI uri, Consumer<Client> openClientBrowser) {
         this.uri = uri;
+        this.openClientBrowser = openClientBrowser;
 
         BrowserModel.getClients().addListener((ListChangeListener<? super WebClient>) change -> {
             if (client != null) {
@@ -62,7 +66,7 @@ public class BrowserCommand implements Runnable {
 
             if (existingClient.isPresent()) {
                 try {
-                    browser = new Browser(existingClient.get());
+                    browser = new Browser(existingClient.get(), openClientBrowser);
                     this.client = existingClient.get();
                 } catch (IOException e) {
                     logger.error("Error while creating the browser", e);
@@ -70,7 +74,7 @@ public class BrowserCommand implements Runnable {
             } else {
                 WebClients.createClient(
                         uri.toString(),
-                        ClientsPreferencesManager.getEnableUnauthenticated(uri).orElse(true) ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
+                        PreferencesManager.getEnableUnauthenticated(uri).orElse(true) ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
                 ).exceptionally(error -> {
                     logger.error(String.format("Connection to %s failed", uri), error);
 
@@ -92,7 +96,7 @@ public class BrowserCommand implements Runnable {
                 }).thenAccept(client -> Platform.runLater(() -> {
                     if (client != null) {
                         try {
-                            browser = new Browser(client);
+                            browser = new Browser(client, openClientBrowser);
                             this.client = client;
                         } catch (IOException e) {
                             logger.error("Error while creating the browser", e);
