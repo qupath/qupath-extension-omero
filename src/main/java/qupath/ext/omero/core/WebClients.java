@@ -52,7 +52,7 @@ public class WebClients {
     public static CompletableFuture<WebClient> createClient(String url, WebClient.Authentication authentication, String... args) {
         URI serverURI;
         try {
-            serverURI = WebUtilities.getServerURI(new URI(url));
+            serverURI = Utils.getServerURI(new URI(url));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -97,7 +97,7 @@ public class WebClients {
      * @throws Exception when the client creation fails
      */
     public static WebClient createClientSync(String url, WebClient.Authentication authentication, String... args) throws Exception {
-        URI serverURI = WebUtilities.getServerURI(new URI(url));
+        URI serverURI = Utils.getServerURI(new URI(url));
 
         Optional<WebClient> existingClient = getClientFromURI(serverURI);
         if (existingClient.isPresent()) {

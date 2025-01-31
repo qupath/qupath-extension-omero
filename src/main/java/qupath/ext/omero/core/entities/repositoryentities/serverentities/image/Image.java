@@ -9,8 +9,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
@@ -233,18 +232,18 @@ public class Image extends ServerEntity {
             isSupported = new SimpleBooleanProperty(false);
             unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
 
-            Optional<ReadOnlyObjectProperty<PixelApi>> selectedPixelAPI = WebClients.getClientFromURI(webServerURI)
-                    .map(WebClient::getSelectedPixelAPI);
+            Optional<ReadOnlyObjectProperty<PixelApi>> selectedPixelAPI = Client.getClientFromURI(webServerURI)
+                    .map(Client::getSelectedPixelAPI);
 
             if (selectedPixelAPI.isPresent()) {
                 setSupported(selectedPixelAPI.get());
                 selectedPixelAPI.get().addListener(change -> setSupported(selectedPixelAPI.get()));
             } else {
-                logger.warn(String.format(
-                        "Could not find the web client corresponding to %s. Impossible to determine if this image (%s) is supported.",
+                logger.warn(
+                        "Could not find the web client corresponding to {}. Impossible to determine if this image ({}) is supported.",
                         webServerURI,
                         this
-                ));
+                );
             }
         }
     }

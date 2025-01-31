@@ -1,5 +1,6 @@
 package qupath.ext.omero.gui.connectionsmanager;
 
+import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
@@ -8,27 +9,22 @@ import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.WebClient;
+import qupath.ext.omero.core.preferences.PreferencesManager;
+import qupath.ext.omero.core.preferences.ServerPreference;
 import qupath.ext.omero.gui.UiUtilities;
-import qupath.ext.omero.gui.connectionsmanager.connection.Connection;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
+ * The connection manager provides a window that displays the connections to all servers.
+ * The user can connect, log in, log out, and remove a connection to a server.
  * <p>
- *     The connection manager provides a window that displays the connections to all servers.
- *     The user can connect, log in, log out, and remove a connection to a server.
- * </p>
- * <p>
- *     Each connexion is displayed using the
- *     {@link qupath.ext.omero.gui.connectionsmanager.connection connection} package.
- * </p>
- * <p>
- *     This class uses a {@link ConnectionsManagerModel} to update its state.
- * </p>
+ * Each connexion is displayed using the {@link Connection} pane.
  */
 public class ConnectionsManager extends Stage {
 
@@ -63,25 +59,31 @@ public class ConnectionsManager extends Stage {
     }
 
     private void setUpListeners() {
-        ConnectionsManagerModel.getClients().addListener((ListChangeListener<? super WebClient>) change -> populate());
-        ConnectionsManagerModel.getStoredServersURIs().addListener((ListChangeListener<? super URI>) change -> populate());
+        Client.getClients().addListener((ListChangeListener<? super Client>) change ->
+                Platform.runLater(this::populate)
+        );
+        PreferencesManager.getServerPreferences().addListener((ListChangeListener<? super ServerPreference>) change ->
+                Platform.runLater(this::populate)
+        );
     }
 
     private void populate() {
         container.getChildren().clear();
 
-        for (WebClient webClient: ConnectionsManagerModel.getClients()) {
+        Set<URI> urisAdded = new HashSet<>();
+        for (Client client: Client.getClients()) {
             try {
-                container.getChildren().add(new Connection(webClient, openClientBrowser));
+                container.getChildren().add(new Connection(client, openClientBrowser));
+                urisAdded.add(client.getApisHandler().getWebServerURI());
             } catch (IOException e) {
                 logger.error("Error while creating connection pane", e);
             }
         }
 
-        for (URI serverURI: ConnectionsManagerModel.getStoredServersURIs()) {
-            if (!clientWithURIExists(serverURI)) {
+        for (ServerPreference serverPreference: PreferencesManager.getServerPreferences()) {
+            if (!urisAdded.contains(serverPreference.webServerUri())) {
                 try {
-                    container.getChildren().add(new Connection(serverURI, openClientBrowser));
+                    container.getChildren().add(new Connection(serverPreference.webServerUri(), openClientBrowser));
                 } catch (IOException e) {
                     logger.error("Error while creating connection pane", e);
                 }
@@ -93,9 +95,5 @@ public class ConnectionsManager extends Stage {
         }
 
         sizeToScene();
-    }
-
-    private static boolean clientWithURIExists(URI uri) {
-        return ConnectionsManagerModel.getClients().stream().anyMatch(client -> client.getApisHandler().getWebServerURI().equals(uri));
     }
 }

@@ -58,7 +58,7 @@ public class OmeroExtension implements QuPathExtension {
 	@Override
 	public synchronized void installExtension(QuPathGUI quPath) {
 		if (browseMenu == null) {
-			browseMenu = new BrowseMenu();
+			browseMenu = new BrowseMenu(quPath.getStage());
 
 			MenuTools.addMenuItems(quPath.getMenu("Extensions", false),
 					MenuTools.createMenu("OMERO",

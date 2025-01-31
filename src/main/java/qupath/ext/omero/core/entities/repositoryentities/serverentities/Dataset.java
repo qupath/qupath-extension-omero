@@ -5,7 +5,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
@@ -129,7 +129,7 @@ public class Dataset extends ServerEntity {
                     "The web server URI has not been set on this dataset. See the setWebServerURI(URI) function."
             );
         } else {
-            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
 
                 client.getApisHandler().getImages(getId())
@@ -140,11 +140,11 @@ public class Dataset extends ServerEntity {
                             isPopulating = false;
                             children.addAll(images);
                         });
-            }, () -> logger.warn(String.format(
-                    "Could not find the web client corresponding to %s. Impossible to get the children of this dataset (%s).",
+            }, () -> logger.warn(
+                    "Could not find the web client corresponding to {}. Impossible to get the children of this dataset ({}).",
                     webServerURI,
                     this
-            )));
+            ));
         }
     }
 }

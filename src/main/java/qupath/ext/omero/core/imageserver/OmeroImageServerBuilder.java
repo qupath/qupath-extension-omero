@@ -2,16 +2,21 @@ package qupath.ext.omero.core.imageserver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
+import qupath.ext.omero.gui.UiUtilities;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebUtilities;
+import qupath.ext.omero.core.Utils;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -26,6 +31,33 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
     @Override
     public ImageServer<BufferedImage> buildServer(URI uri, String... args) {
+        Optional<Credentials.UserType> userType = Utils.getCredentialFromArgs("--usertype", args)
+                .flatMap(usertypeFromArgs -> Arrays.stream(Credentials.UserType.values())
+                        .filter(type -> type.name().equals(usertypeFromArgs))
+                        .findAny()
+                );
+        Optional<String> username = Utils.getCredentialFromArgs("--username", args);
+
+        if (userType.isPresent() && username.isPresent()) {
+            Credentials credentials = new Credentials(userType.get(), username.get(), null);
+            Optional<Client> existingClient = Client.getClients().stream()
+                    .filter(client -> client.getApisHandler().getCredentials().equals(credentials))
+                    .findAny();
+            if (existingClient.isPresent()) {
+                return OmeroImageServer.create(uri, existingClient.get(), args).get();
+            }
+        }
+
+        if (UiUtilities.usingGUI()) {
+            //TODO: use LoginForm
+        } else {
+            //TODO: use command line authentication
+        }
+
+
+
+
+
         try {
             WebClient client = getClientAndCheckURIReachable(uri, args);
 
@@ -45,7 +77,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         try {
             WebClient client = getClientAndCheckURIReachable(entityURI, args);
 
-            List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = WebUtilities.getImagesURIFromEntityURI(
+            List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = Utils.getImagesURIFromEntityURI(
                             entityURI,
                             client.getApisHandler()
                     )
@@ -115,7 +147,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             String... args
     ) {
         return client.getApisHandler()
-                .getImageMetadata(WebUtilities
+                .getImageMetadata(Utils
                         .parseEntityId(uri)
                         .orElseThrow(() -> new IllegalArgumentException(String.format(
                                 "ID not found in %s", uri

@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -50,12 +52,12 @@ public class Client implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private static final int PING_DELAY_SECONDS = 60;
-    private static final ObservableList<Client> clients = FXCollections.observableArrayList();
+    private static final ObservableList<Client> clients = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private static final ObservableList<Client> clientsImmutable = FXCollections.unmodifiableObservableList(clients);
-    private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableArrayList();
+    private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final ObservableList<PixelApi> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelApis);
     private final ObjectProperty<PixelApi> selectedPixelAPI = new SimpleObjectProperty<>();
-    private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet();
+    private final ObservableSet<URI> openedImagesURIs = FXCollections.observableSet(new CopyOnWriteArraySet<>());
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
     private final ApisHandler apisHandler;
     private final List<PixelApi> allPixelApis;
@@ -125,7 +127,7 @@ public class Client implements AutoCloseable {
      */
     //TODO: runnable called when client closed?
     public static Client createOrGet(String url, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
-        URI webServerURI = WebUtilities.getServerURI(new URI(url));
+        URI webServerURI = Utils.getServerURI(new URI(url));
 
         synchronized (Client.class) {
             Optional<Client> existingClientWithUrl = clients.stream()
@@ -163,6 +165,7 @@ public class Client implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        //TODO: this is sometimes called in UI but can take some time
         synchronized (Client.class) {
             clients.remove(this);
         }
@@ -211,6 +214,16 @@ public class Client implements AutoCloseable {
      */
     public static ObservableList<Client> getClients() {
         return clientsImmutable;
+    }
+
+    /**
+     * Retrieve the client corresponding to the provided uri.
+     *
+     * @param uri the web server URI of the client to retrieve
+     * @return the client corresponding to the URI, or an empty Optional if not found
+     */
+    public static synchronized Optional<Client> getClientFromURI(URI uri) {
+        return clients.stream().filter(client -> client.getApisHandler().getWebServerURI().equals(uri)).findAny();
     }
 
     /**

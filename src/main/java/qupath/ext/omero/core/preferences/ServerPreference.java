@@ -15,4 +15,11 @@ import java.net.URI;
  * @param msPixelBufferPort the saved port used by the pixel buffer microservice of the OMERO server. Can be 0 to indicate that
  *                          no port was specified
  */
-record ServerPreference(URI webServerUri, Credentials credentials, float webJpegQuality, String iceAddress, int icePort, int msPixelBufferPort) {}
+public record ServerPreference(
+        URI webServerUri,
+        Credentials credentials,
+        float webJpegQuality,
+        String iceAddress,
+        int icePort,
+        int msPixelBufferPort
+) {}

@@ -272,7 +272,7 @@ public class UiUtilities {
     private static void promptToImportOmeroImages(String... validUris) {
         ProjectCommands.promptToImportImages(
                 QuPathGUI.getInstance(),
-                ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream().filter(b -> b instanceof OmeroImageServerBuilder).findFirst().orElse(null),
+                ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream().filter(b -> b instanceof OmeroImageServerBuilder).findAny().orElse(null),
                 validUris
         );
     }

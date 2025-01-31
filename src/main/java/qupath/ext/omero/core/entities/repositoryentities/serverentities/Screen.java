@@ -5,7 +5,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.gui.UiUtilities;
 
@@ -126,7 +126,7 @@ public class Screen extends ServerEntity {
                     "The web server URI has not been set on this screen. See the setWebServerURI(URI) function."
             );
         } else {
-            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
 
                 client.getApisHandler().getPlates(getId())
@@ -138,11 +138,11 @@ public class Screen extends ServerEntity {
                             children.addAll(plates);
                             isPopulating = false;
                         });
-            }, () -> logger.warn(String.format(
-                    "Could not find the web client corresponding to %s. Impossible to get the children of this screen (%s).",
+            }, () -> logger.warn(
+                    "Could not find the web client corresponding to {}. Impossible to get the children of this screen ({}).",
                     webServerURI,
                     this
-            )));
+            ));
         }
     }
 }

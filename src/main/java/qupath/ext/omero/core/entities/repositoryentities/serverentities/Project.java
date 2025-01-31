@@ -5,7 +5,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
@@ -125,17 +125,17 @@ public class Project extends ServerEntity {
                     "The web server URI has not been set on this project. See the setWebServerURI(URI) function."
             );
         } else {
-            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
                 client.getApisHandler().getDatasets(getId()).thenAccept(datasets -> {
                     children.addAll(datasets);
                     isPopulating = false;
                 });
-            }, () -> logger.warn(String.format(
-                    "Could not find the web client corresponding to %s. Impossible to get the children of this project (%s).",
+            }, () -> logger.warn(
+                    "Could not find the web client corresponding to {}. Impossible to get the children of this project ({}).",
                     webServerURI,
                     this
-            )));
+            ));
         }
     }
 }

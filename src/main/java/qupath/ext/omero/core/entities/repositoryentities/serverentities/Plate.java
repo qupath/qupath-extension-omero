@@ -5,7 +5,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.gui.UiUtilities;
 
@@ -135,7 +135,7 @@ public class Plate extends ServerEntity {
                     "The web server URI has not been set on this plate. See the setWebServerURI(URI) function."
             );
         } else {
-            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 client.getApisHandler().getPlateAcquisitions(id)
                         .exceptionally(error -> {
                             logger.error("Error while retrieving plate acquisitions", error);

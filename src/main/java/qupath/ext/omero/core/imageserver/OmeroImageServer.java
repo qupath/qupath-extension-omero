@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebUtilities;
+import qupath.ext.omero.core.Utils;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -83,18 +83,17 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      * @return a CompletableFuture (that may complete exceptionally) with the OmeroImageServer
      */
     static CompletableFuture<OmeroImageServer> create(URI uri, WebClient client, String... args) {
-        OptionalLong id = WebUtilities.parseEntityId(uri);
+        OptionalLong id = Utils.parseEntityId(uri);
         if (id.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(String.format(
                     "Impossible to parse an ID from the provided URI %s", uri
             )));
         }
 
-        List<String> arguments = Arrays.stream(args).toList();
-
         return client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(metadata -> {
-            Optional<PixelApi> pixelAPIFromArgs = getPixelAPIFromArgs(client, arguments);
+            List<String> arguments = Arrays.stream(args).toList();
 
+            Optional<PixelApi> pixelAPIFromArgs = getPixelAPIFromArgs(client, arguments);
             PixelApi pixelApi;
             List<String> newArguments = List.of();
             if (pixelAPIFromArgs.isPresent()) {
@@ -256,10 +255,10 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                     return Optional.of(pixelAPI);
                 }
             }
-            logger.warn(String.format(
-                    "The provided pixel API (%s) was not recognized, or the corresponding OMERO server doesn't support it. Another one will be used.",
+            logger.warn(
+                    "The provided pixel API ({}) was not recognized, or the corresponding OMERO server doesn't support it. Another one will be used.",
                     pixelAPIName
-            ));
+            );
         }
 
         return Optional.empty();
