@@ -2,6 +2,7 @@ package qupath.ext.omero.core.imageserver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.core.WebClient;
 import qupath.ext.omero.core.Utils;
@@ -83,7 +84,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      * @return a CompletableFuture (that may complete exceptionally) with the OmeroImageServer
      */
     static CompletableFuture<OmeroImageServer> create(URI uri, WebClient client, String... args) {
-        OptionalLong id = Utils.parseEntityId(uri);
+        OptionalLong id = ApisHandler.parseEntityId(uri);
         if (id.isEmpty()) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(String.format(
                     "Impossible to parse an ID from the provided URI %s", uri

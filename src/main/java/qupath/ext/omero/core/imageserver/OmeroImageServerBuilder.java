@@ -4,97 +4,90 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
+import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.login.LoginForm;
+import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
-import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.Utils;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * {@link qupath.lib.images.servers.ImageServerBuilder Image server builder} of this extension.
+ * {@link qupath.lib.images.servers.ImageServerBuilder Image server builder} of the OMERO extension.
  * <p>
  * It creates an {@link OmeroImageServer}.
  */
 public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage> {
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServerBuilder.class);
+    private static final String USERTYPE_ARG = "--usertype";
+    private static final String USERNAME_ARG = "--username";
     private static final float SUPPORT_LEVEL = 4;
 
+    /**
+     * Attempt to create a {@link OmeroImageServer} from the specified URL.
+     *
+     * @param uri the link of the image to open
+     * @param args optional arguments. {@link #USERTYPE_ARG} to specify the type of user (see {@link Credentials.UserType}
+     *             and {@link #USERNAME_ARG} to specify the username when connecting to the OMERO server
+     * @return an {@link OmeroImageServer} to open the provided image, or null if the image server creation failed
+     * @throws IOException if a login form cannot be created
+     */
     @Override
-    public ImageServer<BufferedImage> buildServer(URI uri, String... args) {
-        Optional<Credentials.UserType> userType = Utils.getCredentialFromArgs("--usertype", args)
-                .flatMap(usertypeFromArgs -> Arrays.stream(Credentials.UserType.values())
-                        .filter(type -> type.name().equals(usertypeFromArgs))
-                        .findAny()
-                );
-        Optional<String> username = Utils.getCredentialFromArgs("--username", args);
-
-        if (userType.isPresent() && username.isPresent()) {
-            Credentials credentials = new Credentials(userType.get(), username.get(), null);
-            Optional<Client> existingClient = Client.getClients().stream()
-                    .filter(client -> client.getApisHandler().getCredentials().equals(credentials))
-                    .findAny();
-            if (existingClient.isPresent()) {
-                return OmeroImageServer.create(uri, existingClient.get(), args).get();
-            }
-        }
-
-        if (UiUtilities.usingGUI()) {
-            //TODO: use LoginForm
-        } else {
-            //TODO: use command line authentication
-        }
-
-
-
-
-
-        try {
-            WebClient client = getClientAndCheckURIReachable(uri, args);
-
-            if (client == null) {
-                return null;
-            } else {
-                return OmeroImageServer.create(uri, client, args).get();
-            }
-        } catch (Exception e) {
-            logger.debug("Error while creating OMERO image server", e);
-            return null;
-        }
+    public ImageServer<BufferedImage> buildServer(URI uri, String... args) throws IOException {
+        return createOrGetClient(uri, args)
+                .map(client -> OmeroImageServer.create(uri, client, args).join())  //TODO: handle exception
+                .orElse(null);
     }
 
+    /**
+     * Check whether a URI is supported by this builder.
+     *
+     * @param entityURI the link of the image to open
+     * @param args optional arguments. {@link #USERTYPE_ARG} to specify the type of user (see {@link Credentials.UserType}
+     *             and {@link #USERNAME_ARG} to specify the username when connecting to the OMERO server
+     * @return some information about the images that can be opened with an OMERO image server from the provided URI
+     * @throws IOException if a login form cannot be created
+     */
     @Override
-    public ImageServerBuilder.UriImageSupport<BufferedImage> checkImageSupport(URI entityURI, String... args) {
-        try {
-            WebClient client = getClientAndCheckURIReachable(entityURI, args);
+    public ImageServerBuilder.UriImageSupport<BufferedImage> checkImageSupport(URI entityURI, String... args) throws IOException {
+        Optional<Client> client = createOrGetClient(entityURI, args);
 
-            List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = Utils.getImagesURIFromEntityURI(
-                            entityURI,
-                            client.getApisHandler()
-                    )
-                    .join()
-                    .stream()
-                    .map(uri -> createServerBuilder(client, uri, args))
-                    .map(CompletableFuture::join)
-                    .toList();
+        if (client.isPresent()) {
+            try {
+                List<ImageServerBuilder.ServerBuilder<BufferedImage>> builders = client.get().getApisHandler().getImagesURIFromEntityURI(
+                                entityURI
+                        )
+                        .join()
+                        .stream()
+                        .map(uri -> createServerBuilder(client.get(), uri, args))
+                        .map(CompletableFuture::join)
+                        .toList();
 
-            return UriImageSupport.createInstance(
-                    this.getClass(),
-                    builders.isEmpty() ? 0 : SUPPORT_LEVEL,
-                    builders
-            );
-        } catch (Exception e) {
-            logger.debug("Error when checking image support", e);
+                return UriImageSupport.createInstance(
+                        this.getClass(),
+                        builders.isEmpty() ? 0 : SUPPORT_LEVEL,
+                        builders
+                );
+            } catch (Exception e) {
+                logger.debug("Error when getting image URIs", e);
 
+                return UriImageSupport.createInstance(
+                        this.getClass(),
+                        0,
+                        List.of()
+                );
+            }
+        } else {
             return UriImageSupport.createInstance(
                     this.getClass(),
                     0,
@@ -131,23 +124,60 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         return false;
     }
 
-    private static WebClient getClientAndCheckURIReachable(URI uri, String... args) throws Exception {
-        int statusCode = RequestSender.getStatusCodeOfGetRequest(uri, false).get();
+    private static Optional<Client> createOrGetClient(URI uri, String... args) throws IOException {
+        Optional<Credentials.UserType> userType = Utils.getCredentialFromArgs(USERTYPE_ARG, args)
+                .flatMap(usertypeFromArgs -> Arrays.stream(Credentials.UserType.values())
+                        .filter(type -> type.name().equals(usertypeFromArgs))
+                        .findAny()
+                );
+        if (userType.isPresent() && userType.get().equals(Credentials.UserType.PUBLIC_USER)) {
+            try {
+                return Optional.of(Client.createOrGet(uri.toString(), new Credentials()));
+            } catch (Exception e) {
+                logger.debug("Cannot create client of {}", uri, e);
+                return Optional.empty();
+            }
+        }
 
-        return WebClients.createClientSync(
-                uri.toString(),
-                statusCode == 200 ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE,
-                args
-        );
+        Optional<String> username = Utils.getCredentialFromArgs(USERNAME_ARG, args);
+
+        URI webServerUri;
+        try {
+            webServerUri = Utils.getServerURI(uri);
+        } catch (URISyntaxException e) {
+            logger.debug("Cannot get server URI from {}", uri);
+            return Optional.empty();
+        }
+
+        if (UiUtilities.usingGUI()) {
+            LoginForm loginForm = new LoginForm(
+                    QuPathGUI.getInstance().getStage(),
+                    webServerUri,
+                    username.map(user ->
+                            new Credentials(Credentials.UserType.REGULAR_USER, user, null)
+                    ).orElse(null),
+                    client -> {
+
+                    });
+            loginForm.showAndWait();
+            return loginForm.getCreatedClient();
+        } else {
+            try {
+                return Optional.of(Client.createOrGet(uri.toString(), CommandLineAuthenticator.authenticate(webServerUri, username.orElse(null))));
+            } catch (Exception e) {
+                logger.debug("Cannot create client of {}", uri, e);
+                return Optional.empty();
+            }
+        }
     }
 
     private static CompletableFuture<ImageServerBuilder.ServerBuilder<BufferedImage>> createServerBuilder(
-            WebClient client,
+            Client client,
             URI uri,
             String... args
     ) {
         return client.getApisHandler()
-                .getImageMetadata(Utils
+                .getImageMetadata(ApisHandler
                         .parseEntityId(uri)
                         .orElseThrow(() -> new IllegalArgumentException(String.format(
                                 "ID not found in %s", uri

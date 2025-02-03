@@ -39,7 +39,7 @@ class Image extends HBox {
     public Image(ApisHandler apisHandler, URI imageUri) throws IOException {
         UiUtilities.loadFXML(this, Image.class.getResource("image.fxml"));
 
-        var imageID = Utils.parseEntityId(imageUri);
+        var imageID = ApisHandler.parseEntityId(imageUri);
         if (imageID.isPresent()) {
             apisHandler.getImage(imageID.getAsLong())
                     .whenComplete((image, error) -> {

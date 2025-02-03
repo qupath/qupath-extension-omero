@@ -20,6 +20,7 @@ import qupath.ext.omero.gui.UiUtilities;
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,6 +35,7 @@ public class LoginForm extends Stage {
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final String DEFAULT_URL = "https://idr.openmicroscopy.org/";
     private final Consumer<Client> onClientCreated;
+    private Client createdClient;
     @FXML
     private TextField url;
     @FXML
@@ -57,7 +59,7 @@ public class LoginForm extends Stage {
 
 
     /**
-     * Create the form. It will allow tbe user to connect to the provided OMERO server.
+     * Create the form. It will allow the user to connect to the provided OMERO server.
      *
      * @param owner the window this form should be modal to
      * @param webServerUri the URI of the OMERO web server to connect to
@@ -96,6 +98,13 @@ public class LoginForm extends Stage {
         password.disableProperty().bind(publicUser.selectedProperty());
     }
 
+    /**
+     * @return the last client that was created with this form, or an empty Optional if no client was
+     * created yet
+     */
+    public Optional<Client> getCreatedClient() {
+        return Optional.ofNullable(createdClient);
+    }
 
     @FXML
     private void onConnectClicked(ActionEvent ignoredEvent) {
@@ -113,12 +122,14 @@ public class LoginForm extends Stage {
 
         executor.execute(() -> {
             try {
-                onClientCreated.accept(Client.createOrGet(
+                Client client = Client.createOrGet(
                         url.getText(),
                         publicUser.isSelected() ? new Credentials() : new Credentials(username.getText(), getPassword())
-                ));
+                );
+                onClientCreated.accept(client);
 
                 Platform.runLater(() -> {
+                    createdClient = client;
                     waitingWindow.close();
                     close();
                 });
