@@ -142,7 +142,7 @@ public class PlateAcquisition extends ServerEntity {
 
                 int wellSampleIndex = 0;
                 if (wellSampleIndices != null && wellSampleIndices.size() > 1) {
-                    wellSampleIndex = wellSampleIndices.get(0);
+                    wellSampleIndex = wellSampleIndices.getFirst();
                 }
 
                 client.getApisHandler().getWellsFromPlateAcquisition(getId(), wellSampleIndex)
@@ -161,11 +161,11 @@ public class PlateAcquisition extends ServerEntity {
                             children.addAll(wells);
                             isPopulating = false;
                         });
-            }, () -> logger.warn(String.format(
-                    "Could not find the web client corresponding to %s. Impossible to get the children of this plate acquisition (%s).",
+            }, () -> logger.warn(
+                    "Could not find the web client corresponding to {}. Impossible to get the children of this plate acquisition ({}).",
                     webServerURI,
                     this
-            )));
+            ));
         }
     }
 }

@@ -127,7 +127,7 @@ public class Client implements AutoCloseable {
      */
     //TODO: runnable called when client closed?
     public static Client createOrGet(String url, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
-        URI webServerURI = Utils.getServerURI(new URI(url));
+        URI webServerURI = getServerURI(new URI(url));
 
         synchronized (Client.class) {
             Optional<Client> existingClientWithUrl = clients.stream()
@@ -373,5 +373,10 @@ public class Client implements AutoCloseable {
                         .orElse(availablePixelApis.getFirst()));
             }
         });
+    }
+
+    private static URI getServerURI(URI uri) throws URISyntaxException {
+        String scheme = uri.getScheme() == null ? "https" : uri.getScheme();
+        return new URI(String.format("%s://%s", scheme, uri.getAuthority()));
     }
 }

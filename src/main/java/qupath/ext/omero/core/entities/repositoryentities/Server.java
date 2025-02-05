@@ -170,7 +170,7 @@ public class Server implements RepositoryEntity {
     private <T extends RepositoryEntity> void populateChildren(CompletableFuture<List<T>> request, String name) {
         request
                 .exceptionally(error -> {
-                    logger.error(String.format("Error while retrieving %s", name), error);
+                    logger.error("Error while retrieving {}", name, error);
                     return List.of();
                 })
                 .thenAccept(newChildren -> {

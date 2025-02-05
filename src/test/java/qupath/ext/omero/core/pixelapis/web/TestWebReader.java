@@ -2,8 +2,8 @@ package qupath.ext.omero.core.pixelapis.web;
 
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -16,22 +16,23 @@ import qupath.lib.images.servers.TileRequest;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.concurrent.ExecutionException;
+import java.util.Map;
 
 public class TestWebReader extends OmeroServer {
 
     abstract static class GenericImage {
 
-        protected static final UserType userType = UserType.PUBLIC;
+        protected static final Credentials.UserType userType = Credentials.UserType.PUBLIC_USER;
         protected static Image image;
-        protected static WebClient client;
+        protected static Client client;
         protected static TileRequest tileRequest;
         protected static PixelApiReader reader;
 
         @AfterAll
         static void removeClient() throws Exception {
-            reader.close();
-            WebClients.removeClient(client);
+            if (client != null) {
+                client.close();
+            }
         }
 
         @Test
@@ -66,7 +67,7 @@ public class TestWebReader extends OmeroServer {
     class RgbImage extends GenericImage {
 
         @BeforeAll
-        static void createClient() throws ExecutionException, InterruptedException {
+        static void createClient() throws Exception {
             image = OmeroServer.getRGBImage(userType);
             client = OmeroServer.createClient(userType);
 
@@ -74,19 +75,23 @@ public class TestWebReader extends OmeroServer {
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageURI(image),
                     "--pixelAPI", "Web",
-                    "--jpegQuality", "1.0")
-            ) {
+                    "--jpegQuality", "1.0",
+                    "--usertype",
+                    userType.name()
+            )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
-
                 metadata = imageServer.getMetadata();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             }
 
-            reader = client.getPixelAPI(WebApi.class).createReader(
-                    image.getId(),
-                    metadata
-            );
+            if (client.getPixelAPI(WebApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(WebApi.class).createReader(
+                        image.getId(),
+                        metadata,
+                        Map.of()
+                );
+            } else {
+                Assumptions.abort("Aborting tests: Web API not available");
+            }
         }
     }
 
@@ -94,7 +99,7 @@ public class TestWebReader extends OmeroServer {
     class UInt8Image extends GenericImage {
 
         @BeforeAll
-        static void createClient() throws ExecutionException, InterruptedException {
+        static void createClient() throws Exception {
             image = OmeroServer.getUint8Image(userType);
             client = OmeroServer.createClient(userType);
 
@@ -102,19 +107,23 @@ public class TestWebReader extends OmeroServer {
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageURI(image),
                     "--pixelAPI", "Web",
-                    "--jpegQuality", "1.0")
-            ) {
+                    "--jpegQuality", "1.0",
+                    "--usertype",
+                    userType.name()
+            )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
-
                 metadata = imageServer.getMetadata();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             }
 
-            reader = client.getPixelAPI(WebApi.class).createReader(
-                    image.getId(),
-                    metadata
-            );
+            if (client.getPixelAPI(WebApi.class).isAvailable().get()) {
+                reader = client.getPixelAPI(WebApi.class).createReader(
+                        image.getId(),
+                        metadata,
+                        Map.of()
+                );
+            } else {
+                Assumptions.abort("Aborting tests: Web API not available");
+            }
         }
     }
 }

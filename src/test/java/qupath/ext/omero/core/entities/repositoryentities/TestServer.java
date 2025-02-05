@@ -3,8 +3,8 @@ package qupath.ext.omero.core.entities.repositoryentities;
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
@@ -19,13 +19,15 @@ public class TestServer extends OmeroServer {
 
     abstract static class GenericClient {
 
-        protected static UserType userType;
-        protected static WebClient client;
+        protected static Credentials.UserType userType;
+        protected static Client client;
         protected static Server server;
 
         @AfterAll
-        static void removeClient() {
-            WebClients.removeClient(client);
+        static void removeClient() throws Exception {
+            if (client != null) {
+                client.close();
+            }
         }
 
         @Test
@@ -99,9 +101,9 @@ public class TestServer extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            userType = UserType.PUBLIC;
+            userType = Credentials.UserType.PUBLIC_USER;
             client = OmeroServer.createClient(userType);
-            server = client.getServer();
+            server = client.getServer().get();
         }
     }
 
@@ -110,9 +112,9 @@ public class TestServer extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            userType = UserType.USER;
+            userType = Credentials.UserType.REGULAR_USER;
             client = OmeroServer.createClient(userType);
-            server = client.getServer();
+            server = client.getServer().get();
         }
     }
 }

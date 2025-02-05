@@ -40,7 +40,7 @@ public class TestPolyline {
 
         List<Shape> shapes = Shape.createFromPathObject(pathObject);
 
-        Assertions.assertTrue(shapes.get(0) instanceof Polyline);
+        Assertions.assertInstanceOf(Polyline.class, shapes.getFirst());
     }
 
     private Shape createPolylineFromJSON() {
@@ -62,6 +62,6 @@ public class TestPolyline {
                 new Point2(0, 0),
                 new Point2(50, 0),
                 new Point2(0, 50)
-        ), null))).get(0);
+        ), null))).getFirst();
     }
 }

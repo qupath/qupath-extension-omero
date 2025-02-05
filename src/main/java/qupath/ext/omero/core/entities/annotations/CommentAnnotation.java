@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import com.google.gson.annotations.SerializedName;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.Objects;
@@ -13,11 +12,11 @@ import java.util.ResourceBundle;
 public class CommentAnnotation extends Annotation {
 
     private static final ResourceBundle resources = UiUtilities.getResources();
-    @SerializedName(value = "textValue") private String value;
+    private String textValue;
 
     @Override
     public String toString() {
-        return String.format("%s. Value: %s", super.toString(), value);
+        return String.format("%s. Value: %s", super.toString(), textValue);
     }
 
     @Override
@@ -26,12 +25,12 @@ public class CommentAnnotation extends Annotation {
             return true;
         if (!(obj instanceof CommentAnnotation commentAnnotation))
             return false;
-        return Objects.equals(commentAnnotation.value, value);
+        return Objects.equals(commentAnnotation.textValue, textValue);
     }
 
     @Override
     public int hashCode() {
-        return (value == null ? "" : value).hashCode();
+        return (textValue == null ? "" : textValue).hashCode();
     }
 
     /**
@@ -55,6 +54,6 @@ public class CommentAnnotation extends Annotation {
      * @return the actual comment of the annotation
      */
     public Optional<String> getValue() {
-        return Optional.ofNullable(value);
+        return Optional.ofNullable(textValue);
     }
 }

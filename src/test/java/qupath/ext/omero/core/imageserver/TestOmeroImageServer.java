@@ -3,8 +3,8 @@ package qupath.ext.omero.core.imageserver;
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -21,18 +21,18 @@ import java.util.concurrent.ExecutionException;
 
 public class TestOmeroImageServer extends OmeroServer {
 
-    private static final UserType userType = UserType.USER;
+    private static final Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
     private static final Image image = OmeroServer.getRGBImage(userType);
-    private static WebClient client;
+    private static Client client;
     private static OmeroImageServer imageServer;
 
     @BeforeAll
-    static void createImageServer() throws ExecutionException, InterruptedException {
+    static void createImageServer() throws ExecutionException, InterruptedException, IOException {
         client = OmeroServer.createClient(userType);
-        imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
+        imageServer = new OmeroImageServer(
                 OmeroServer.getImageURI(image),
-                "--pixelAPI",
-                "Web"
+                client,
+                List.of("--pixelAPI", "Web")
         );
     }
 
@@ -41,7 +41,9 @@ public class TestOmeroImageServer extends OmeroServer {
         if (imageServer != null) {
             imageServer.close();
         }
-        WebClients.removeClient(client);
+        if (client != null) {
+            client.close();
+        }
     }
 
     @Test

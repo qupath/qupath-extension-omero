@@ -13,16 +13,16 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.stage.Stage?>
 
-<fx:root type="Stage" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root minWidth="600.0" type="Stage" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
     <scene>
         <Scene>
             <VBox alignment="TOP_CENTER" prefWidth="400.0" spacing="20.0">
             <children>
                <Label text="%Login.LoginForm.createConnection" />
-               <GridPane>
+               <GridPane hgap="10.0">
                  <columnConstraints>
-                   <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                   <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                   <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+                   <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" />
                  </columnConstraints>
                  <rowConstraints>
                      <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />

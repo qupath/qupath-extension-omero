@@ -81,8 +81,8 @@ class IceReader implements PixelApiReader {
                 reader -> {
                     try {
                         reader.close();
-                    } catch (ServerError e) {
-                        logger.error("Error when closing reader", e);
+                    } catch (Exception e) {
+                        logger.warn("Error when closing reader", e);
                     }
                 }
         );
@@ -189,15 +189,15 @@ class IceReader implements PixelApiReader {
                     logger.debug(
                             "Cannot get image {} from group {}. Trying group {}...",
                             imageID,
-                            groups.get(i).getId(),
-                            groups.get(i+1).getId(),
+                            groups.get(i).getId().getValue(),
+                            groups.get(i+1).getId().getValue(),
                             e
                     );
                 } else {
                     logger.error(
                             "Cannot get image {} from group {}. No more groups available",
                             imageID,
-                            groups.get(i).getId(),
+                            groups.get(i).getId().getValue(),
                             e
                     );
                     throw e;

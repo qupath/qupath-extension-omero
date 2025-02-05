@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import com.google.gson.annotations.SerializedName;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.ResourceBundle;
@@ -12,11 +11,11 @@ public class RatingAnnotation extends Annotation {
 
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final short MAX_VALUE = 5;
-    @SerializedName(value = "longValue") private short value;
+    private short longValue;
 
     @Override
     public String toString() {
-        return String.format("%s. Value: %d", super.toString(), value);
+        return String.format("%s. Value: %d", super.toString(), longValue);
     }
 
     @Override
@@ -25,12 +24,12 @@ public class RatingAnnotation extends Annotation {
             return true;
         if (!(obj instanceof RatingAnnotation ratingAnnotation))
             return false;
-        return ratingAnnotation.value == value;
+        return ratingAnnotation.longValue == longValue;
     }
 
     @Override
     public int hashCode() {
-        return Short.hashCode(value);
+        return Short.hashCode(longValue);
     }
 
     /**
@@ -62,6 +61,6 @@ public class RatingAnnotation extends Annotation {
      * or 0 if the value is missing from the annotation
      */
     public short getValue() {
-        return value > MAX_VALUE ? MAX_VALUE : value;
+        return longValue > MAX_VALUE ? MAX_VALUE : longValue;
     }
 }

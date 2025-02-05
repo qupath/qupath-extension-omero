@@ -2,12 +2,16 @@ package qupath.ext.omero.core.apis;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import javafx.collections.ObservableList;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.AfterAll;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
@@ -17,7 +21,13 @@ import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
@@ -41,13 +51,15 @@ public class TestApisHandler extends OmeroServer {
 
     abstract static class GenericClient {
 
-        protected static WebClient client;
+        protected static Client client;
         protected static ApisHandler apisHandler;
-        protected static UserType userType;
+        protected static Credentials.UserType userType;
 
         @AfterAll
-        static void removeClient() {
-            WebClients.removeClient(client);
+        static void removeClient() throws Exception {
+            if (client != null) {
+                client.close();
+            }
         }
 
         @Test
@@ -139,6 +151,15 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
+        void Check_Credentials() {
+            Credentials expectedCredentials = OmeroServer.getCredentials(userType);
+
+            Credentials credentials = apisHandler.getCredentials();
+
+            Assertions.assertEquals(expectedCredentials, credentials);
+        }
+
+        @Test
         void Check_Server_URI() {
             String expectedServerURI = OmeroServer.getServerURI();
 
@@ -157,17 +178,133 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Can_Skip_Authentication() {
-            boolean canSkipAuthentication = apisHandler.canSkipAuthentication();
+        void Check_User_Id() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getConnectedOwner(userType).id();
 
-            Assertions.assertTrue(canSkipAuthentication);
+            long id = apisHandler.getUserId().get();
+
+            Assertions.assertEquals(expectedId, id);
         }
+
+        @Test
+        abstract void Check_Default_Group();
+
+        @Test
+        abstract void Check_Session_Uuid();
 
         @Test
         void Check_Base_URL_Reachable() {
             URI serverURI = URI.create(OmeroServer.getWebServerURI());
 
             Assertions.assertDoesNotThrow(() -> apisHandler.isLinkReachable(serverURI, RequestSender.RequestType.GET).get());
+        }
+
+        @Test
+        void Check_OMERO_Id_On_Project() {
+            long expectedID = 201;
+            URI uri = URI.create(String.format(
+                    "http://localhost:4080/webclient/?show=project-%d",
+                    expectedID
+            ));
+
+            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+
+            Assertions.assertEquals(expectedID, id);
+        }
+
+        @Test
+        void Check_OMERO_Id_On_Dataset() {
+            long expectedID = 1157;
+            URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=dataset-%d", expectedID));
+
+            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+
+            Assertions.assertEquals(expectedID, id);
+        }
+
+        @Test
+        void Check_OMERO_Id_On_Webclient_Image() {
+            long expectedID = 12546;
+            URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=image-%d", expectedID));
+
+            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+
+            Assertions.assertEquals(expectedID, id);
+        }
+
+        @Test
+        void Check_OMERO_Id_On_Webclient_Image_Alternate() {
+            long expectedID = 12546;
+            URI uri = URI.create(String.format("http://localhost:4080/webclient/img_detail/%d/?dataset=1157", expectedID));
+
+            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+
+            Assertions.assertEquals(expectedID, id);
+        }
+
+        @Test
+        void Check_OMERO_Id_On_WebGateway_Image() {
+            long expectedID = 12546;
+            URI uri = URI.create(String.format("http://localhost:4080/webgateway/img_detail/%d/?dataset=1157", expectedID));
+
+            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+
+            Assertions.assertEquals(expectedID, id);
+        }
+
+        @Test
+        void Check_OMERO_Id_On_IViewer_Image() {
+            long expectedID = 12546;
+            URI uri = URI.create(String.format("http://localhost:4080/iviewer/?images=%d&dataset=1157", expectedID));
+
+            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+
+            Assertions.assertEquals(expectedID, id);
+        }
+
+        @Test
+        void Check_Image_URIs_From_Dataset_URI() throws ExecutionException, InterruptedException {
+            Dataset dataset = OmeroServer.getDatasets(userType).getLast();
+            URI datasetUri = OmeroServer.getDatasetURI(dataset);
+            List<URI> expectedImageUris = OmeroServer.getImagesInDataset(dataset).stream()
+                    .map(OmeroServer::getImageURI)
+                    .toList();
+
+            List<URI> imageUris = apisHandler.getImagesURIFromEntityURI(datasetUri).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
+        }
+
+        @Test
+        void Check_Image_URIs_From_Project_URI() throws ExecutionException, InterruptedException {
+            Project project = OmeroServer.getProjects(userType).getLast();
+            URI projectUri = OmeroServer.getProjectURI(project);
+            List<URI> expectedImageUris = OmeroServer.getDatasetsInProject(project).stream()
+                    .map(OmeroServer::getImagesInDataset)
+                    .flatMap(List::stream)
+                    .map(OmeroServer::getImageURI)
+                    .toList();
+
+            List<URI> imageUris = apisHandler.getImagesURIFromEntityURI(projectUri).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
+        }
+
+        @Test
+        void Check_Image_URIs_From_Image_URI() throws ExecutionException, InterruptedException {
+            URI imageUri = OmeroServer.getImageURI(OmeroServer.getRGBImage(userType));
+            List<URI> expectedImageUris = List.of(imageUri);
+
+            List<URI> imageUris = apisHandler.getImagesURIFromEntityURI(imageUri).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
+        }
+
+        @Test
+        void Check_Image_URIs_From_Web_Server_URI() {
+            URI serverUri = URI.create(OmeroServer.getWebServerURI());
+
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.getImagesURIFromEntityURI(serverUri).get());
         }
 
         @Test
@@ -637,10 +774,25 @@ public class TestApisHandler extends OmeroServer {
         // so all write functions will fail
 
         @BeforeAll
-        static void createClient() throws ExecutionException, InterruptedException {
-            userType = UserType.PUBLIC;
+        static void createClient() {
+            userType = Credentials.UserType.PUBLIC_USER;
             client = OmeroServer.createClient(userType);
             apisHandler = client.getApisHandler();
+        }
+
+        @Override
+        void Check_Default_Group() {
+            Group defaultGroup = apisHandler.getDefaultGroup();
+
+            Assertions.assertNull(defaultGroup);
+        }
+
+        @Test
+        @Override
+        void Check_Session_Uuid() {
+            String sessionUuid = apisHandler.getSessionUuid();
+
+            Assertions.assertNull(sessionUuid);
         }
 
         @Test
@@ -787,10 +939,27 @@ public class TestApisHandler extends OmeroServer {
     class AuthenticatedClient extends GenericClient {
 
         @BeforeAll
-        static void createClient() throws ExecutionException, InterruptedException {
-            userType = UserType.USER;
+        static void createClient() {
+            userType = Credentials.UserType.REGULAR_USER;
             client = OmeroServer.createClient(userType);
             apisHandler = client.getApisHandler();
+        }
+
+        @Override
+        void Check_Default_Group() {
+            Group expectedDefaultGroup = OmeroServer.getDefaultGroup(userType);
+
+            Group defaultGroup = apisHandler.getDefaultGroup();
+
+            Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
+        }
+
+        @Test
+        @Override
+        void Check_Session_Uuid() {
+            String sessionUuid = apisHandler.getSessionUuid();
+
+            Assertions.assertNotNull(sessionUuid);
         }
 
         @Test
@@ -982,7 +1151,7 @@ public class TestApisHandler extends OmeroServer {
             // Reset channel names
             apisHandler.changeChannelNames(
                     image.getId(),
-                    OmeroServer.getModifiableImageChannelSettings().stream().map(ChannelSettings::getName).toList()
+                    OmeroServer.getModifiableImageChannelSettings().stream().map(ChannelSettings::name).toList()
             ).get();
         }
 
@@ -997,14 +1166,14 @@ public class TestApisHandler extends OmeroServer {
             List<String> newChannelNames = apisHandler.getImageSettings(image.getId()).get()
                     .getChannelSettings()
                     .stream()
-                    .map(ChannelSettings::getName)
+                    .map(ChannelSettings::name)
                     .toList();
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedNewChannelNames, newChannelNames);
 
             // Reset channel names
             apisHandler.changeChannelNames(
                     image.getId(),
-                    OmeroServer.getModifiableImageChannelSettings().stream().map(ChannelSettings::getName).toList()
+                    OmeroServer.getModifiableImageChannelSettings().stream().map(ChannelSettings::name).toList()
             ).get();
         }
 
@@ -1020,7 +1189,7 @@ public class TestApisHandler extends OmeroServer {
 
             // Reset channel colors
             apisHandler.changeChannelColors(image.getId(), OmeroServer.getModifiableImageChannelSettings().stream()
-                    .map(ChannelSettings::getRgbColor)
+                    .map(ChannelSettings::rgbColor)
                     .toList()
             ).get();
         }
@@ -1038,13 +1207,13 @@ public class TestApisHandler extends OmeroServer {
             List<Integer> channelColors = apisHandler.getImageSettings(image.getId()).get()
                     .getChannelSettings()
                     .stream()
-                    .map(ChannelSettings::getRgbColor)
+                    .map(ChannelSettings::rgbColor)
                     .toList();
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChannelColors, channelColors);
 
             // Reset channel colors
             apisHandler.changeChannelColors(image.getId(), OmeroServer.getModifiableImageChannelSettings().stream()
-                    .map(ChannelSettings::getRgbColor)
+                    .map(ChannelSettings::rgbColor)
                     .toList()
             ).get();
         }
@@ -1069,10 +1238,10 @@ public class TestApisHandler extends OmeroServer {
             Image image = OmeroServer.getModifiableImage(userType);
             List<ChannelSettings> expectedChannelSettings = List.of(
                     new ChannelSettings(
-                            OmeroServer.getModifiableImageChannelSettings().get(0).getName(),
+                            OmeroServer.getModifiableImageChannelSettings().getFirst().name(),
                             0.45,
                             100.654,
-                            OmeroServer.getModifiableImageChannelSettings().get(0).getRgbColor()
+                            OmeroServer.getModifiableImageChannelSettings().getFirst().rgbColor()
                     )
             );
 

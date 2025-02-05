@@ -5,7 +5,7 @@
 <?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.layout.HBox?>
 
-<fx:root alignment="CENTER_LEFT" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" spacing="20.0" stylesheets="@../../styles.css" type="HBox" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root alignment="CENTER_LEFT" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" spacing="20.0" stylesheets="@../styles.css" type="HBox" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
    <children>
       <Canvas fx:id="thumbnail" height="75.0" width="75.0" />
       <Label fx:id="name" contentDisplay="RIGHT">

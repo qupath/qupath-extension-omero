@@ -1,7 +1,8 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import com.google.gson.*;
-import com.google.gson.annotations.SerializedName;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
@@ -13,17 +14,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * <p>
- *     An OMERO annotation is <b>not</b> similar to a QuPath annotation.
- *     It represents metadata attached to OMERO entities.
- * </p>
+ * An OMERO annotation is <b>not</b> similar to a QuPath annotation.
+ * It represents metadata attached to OMERO entities.
  */
 public abstract class Annotation {
 
     private static final Logger logger = LoggerFactory.getLogger(Annotation.class);
-    @SerializedName(value = "id") private int id;
-    @SerializedName(value = "owner") private Owner owner;
-    @SerializedName(value = "link") private Link link;
+    private int id;
+    private Owner owner;
+    private Link link;
 
     @Override
     public String toString() {
@@ -38,16 +37,13 @@ public abstract class Annotation {
     }
 
     /**
+     * Update information about the adder and the creator of this annotation
+     * based on the provided list of experimenters. If the list of
+     * experimenters doesn't contain an experimenter corresponding to
+     * the current adder/owner, the adder/owner is not updated.
      * <p>
-     *     Update information about the adder and the creator of this annotation
-     *     based on the provided list of experimenters. If the list of
-     *     experimenters doesn't contain an experimenter corresponding to
-     *     the current adder/owner, the adder/owner is not updated.
-     * </p>
-     * <p>
-     *     This function is useful when the JSON creating this annotation lacks information
-     *     on the adder and the owner.
-     * </p>
+     * This function is useful when the JSON creating this annotation lacks information
+     * on the adder and the owner.
      *
      * @param experimenters the list of experimenters having information on
      *                      the adder and the owner of this annotation

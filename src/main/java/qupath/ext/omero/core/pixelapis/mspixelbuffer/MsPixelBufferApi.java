@@ -18,7 +18,7 @@ import qupath.lib.images.servers.PixelType;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -40,7 +40,8 @@ public class MsPixelBufferApi implements PixelApi {
     private String host;
 
     /**
-     * Creates a new MsPixelBufferApi.
+     * Creates a new MsPixelBufferApi. This may take a few seconds as it will send a request
+     * to check the API availability.
      *
      * @param apisHandler the apis handler owning this API
      */
@@ -51,7 +52,7 @@ public class MsPixelBufferApi implements PixelApi {
         );
 
         setHost();
-        setAvailable(true);
+        setAvailable(false);
     }
 
     @Override
@@ -60,23 +61,8 @@ public class MsPixelBufferApi implements PixelApi {
     }
 
     @Override
-    public String[] getArgs() {
-        return new String[] {PORT_PARAMETER, String.valueOf(port.get())};
-    }
-
-    @Override
-    public void setParametersFromArgs(String... args) {
-        logger.debug("Setting parameters of ms pixel buffer API from {}", Arrays.stream(args).toList());
-
-        for (int i=0; i<args.length-1; ++i) {
-            if (args[i].equals(PORT_PARAMETER)) {
-                try {
-                    setPort(Integer.parseInt(args[i+1]), true);
-                } catch (NumberFormatException e) {
-                    logger.warn(String.format("Can't convert %s to integer", args[i+1]), e);
-                }
-            }
-        }
+    public Map<String, String> getArgs() {
+        return Map.of(PORT_PARAMETER, String.valueOf(port.get()));
     }
 
     @Override
@@ -99,13 +85,38 @@ public class MsPixelBufferApi implements PixelApi {
         return true;
     }
 
+    /**
+     * Creates a {@link MsPixelBufferReader} that will be used to read pixel values of an image.
+     * <p>
+     * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
+     * no longer used. This pixel API will close them when it itself is closed.
+     *
+     * @param id the ID of the image to open
+     * @param metadata the metadata of the image to open
+     * @param args additional arguments containing label to parameter values to change the reader
+     *             creation: {@link #PORT_PARAMETER} to an integer greater than 0 to change the
+     *             port this microservice uses on the OMERO server
+     * @return a new mx pixel buffer reader corresponding to this API
+     * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})
+     * @throws IllegalArgumentException when the provided image cannot be read by this API
+     * (see {@link #canReadImage(PixelType, int)})
+     */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata) {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) {
         if (!isAvailable().get()) {
             throw new IllegalStateException("This API is not available and cannot be used");
         }
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
+        }
+
+        if (args.containsKey(PORT_PARAMETER)) {
+            String port = args.get(PORT_PARAMETER);
+            try {
+                setPort(Integer.parseInt(port), true);
+            } catch (NumberFormatException e) {
+                logger.warn("Can't convert {} to integer", port, e);
+            }
         }
 
         return new MsPixelBufferReader(
@@ -182,11 +193,12 @@ public class MsPixelBufferApi implements PixelApi {
     }
 
     private void setAvailable(boolean performInBackground) {
+        String url = String.format("%s/tile", host);
         URI uri;
         try {
-            uri = new URI(String.format("%s/tile", host));
+            uri = new URI(url);
         } catch (URISyntaxException e) {
-            logger.error(String.format("Cannot create URI from %s", String.format("%s/tile", host)), e);
+            logger.error("Cannot create URI from {}", url, e);
             synchronized (this) {
                 isAvailable.set(false);
             }
@@ -199,7 +211,7 @@ public class MsPixelBufferApi implements PixelApi {
                     isAvailable.set(true);
                 }
             } else {
-                logger.debug(String.format("Connexion to %s failed", uri), error);
+                logger.debug("Connexion to {} failed", uri, error);
                 synchronized (this) {
                     isAvailable.set(false);
                 }
@@ -213,7 +225,7 @@ public class MsPixelBufferApi implements PixelApi {
             try {
                 request.get();
             } catch (ExecutionException | InterruptedException e) {
-                logger.debug(String.format("Connexion to %s failed", uri), e);
+                logger.debug("Connexion to {} failed", uri, e);
             }
         }
     }

@@ -14,7 +14,7 @@ import java.util.Objects;
  */
 public class Label extends Shape {
 
-    private static final Logger logger = LoggerFactory.getLogger(Shape.class);
+    private static final Logger logger = LoggerFactory.getLogger(Label.class);
     public static final String TYPE = TYPE_URL + "Label";
     @SerializedName(value = "X", alternate = "x") private double x;
     @SerializedName(value = "Y", alternate = "y") private double y;

@@ -22,7 +22,6 @@ import qupath.lib.images.servers.PixelType;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,29 +82,11 @@ public class IceApi implements PixelApi {
     }
 
     @Override
-    public String[] getArgs() {
-        return new String[] {
+    public Map<String, String> getArgs() {
+        return Map.of(
                 ADDRESS_PARAMETER, serverAddress.get(),
                 PORT_PARAMETER, String.valueOf(serverPort.get())
-        };
-    }
-
-    @Override
-    public void setParametersFromArgs(String... args) {
-        logger.debug("Setting parameters of ICE API from {}", Arrays.stream(args).toList());
-
-        for (int i=0; i<args.length-1; ++i) {
-            if (args[i].equals(ADDRESS_PARAMETER)) {
-                setServerAddress(args[i+1]);
-            }
-            if (args[i].equals(PORT_PARAMETER)) {
-                try {
-                    setServerPort(Integer.parseInt(args[i + 1]));
-                } catch (NumberFormatException e) {
-                    logger.warn("Can't convert {} to integer", args[i + 1], e);
-                }
-            }
-        }
+        );
     }
 
     @Override
@@ -128,14 +109,43 @@ public class IceApi implements PixelApi {
         return true;
     }
 
+    /**
+     * Creates an {@link IceReader} that will be used to read pixel values of an image.
+     * <p>
+     * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
+     * no longer used. This pixel API will close them when it itself is closed.
+     *
+     * @param id the ID of the image to open
+     * @param metadata the metadata of the image to open
+     * @param args additional arguments containing label to parameter values to change the reader
+     *             creation: {@link #ADDRESS_PARAMETER} to a string to set the address used to
+     *             communicate with the OMERO server and {@link #PORT_PARAMETER} to an integer
+     *             greater than 0 to change the port this microservice uses on the OMERO server
+     * @return a new web reader corresponding to this API
+     * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})
+     * @throws IllegalArgumentException when the provided image cannot be read by this API
+     * (see {@link #canReadImage(PixelType, int)})
+     */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata) throws IOException {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) throws IOException {
         String sessionUuid = apisHandler.getSessionUuid();
         if (!isAvailable().get() || sessionUuid == null) {
             throw new IllegalStateException("This API is not available and cannot be used");
         }
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
+        }
+
+        if (args.containsKey(ADDRESS_PARAMETER)) {
+            setServerAddress(args.get(ADDRESS_PARAMETER));
+        }
+        if (args.containsKey(PORT_PARAMETER)) {
+            String port = args.get(PORT_PARAMETER);
+            try {
+                setServerPort(Integer.parseInt(port));
+            } catch (NumberFormatException e) {
+                logger.warn("Can't convert {} to integer", port, e);
+            }
         }
 
         synchronized (this) {

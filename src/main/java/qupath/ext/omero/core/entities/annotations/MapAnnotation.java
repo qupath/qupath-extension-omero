@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import com.google.gson.annotations.SerializedName;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.List;
@@ -15,7 +14,7 @@ import java.util.stream.Collectors;
 public class MapAnnotation extends Annotation {
 
     private static final ResourceBundle resources = UiUtilities.getResources();
-    @SerializedName(value = "values") private Map<String, String> values;
+    private Map<String, String> values;
 
     @Override
     public String toString() {

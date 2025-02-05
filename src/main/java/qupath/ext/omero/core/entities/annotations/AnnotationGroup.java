@@ -86,7 +86,7 @@ public class AnnotationGroup {
                 try {
                     annotation = gson.fromJson(jsonAnnotation, Annotation.class);
                 } catch (JsonSyntaxException e) {
-                    logger.warn("Error when reading " + jsonAnnotation, e);
+                    logger.warn("Error when reading {}", jsonAnnotation, e);
                 }
 
                 if (annotation != null) {
@@ -120,7 +120,7 @@ public class AnnotationGroup {
                 try {
                     experimenter = gson.fromJson(jsonExperimenter, Experimenter.class);
                 } catch (JsonSyntaxException e) {
-                    logger.warn("Error when reading " + jsonExperimenter, e);
+                    logger.warn("Error when reading {}", jsonExperimenter, e);
                 }
 
                 if (experimenter != null) {

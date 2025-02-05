@@ -5,14 +5,14 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
+ * This interface provides information (e.g. types of image supported) on a specific API to access
+ * pixel values of an OMERO image. It can also be used to create a {@link PixelApiReader}
+ * corresponding to this API.
  * <p>
- *     This interface provides information (e.g. types of image supported) on a specific API to access
- *     pixel values of an OMERO image. It can also be used to create a {@link PixelApiReader}
- *     corresponding to this API.
- * </p>
- * <p>A PixelApi must be {@link #close() closed} once no longer used.</p>
+ * A PixelApi must be {@link #close() closed} once no longer used.
  */
 public interface PixelApi extends AutoCloseable {
 
@@ -22,18 +22,9 @@ public interface PixelApi extends AutoCloseable {
     String getName();
 
     /**
-     * @return arguments used internally by this pixel API
+     * @return arguments currently used internally by this pixel API
      */
-    default String[] getArgs() {
-        return new String[0];
-    }
-
-    /**
-     * Change parameters of this API based on the provided arguments.
-     *
-     * @param args the arguments containing parameters
-     */
-    default void setParametersFromArgs(String... args) {}
+    Map<String, String> getArgs();
 
     /**
      * @return whether this API can be used. This property may be updated from any thread
@@ -74,17 +65,16 @@ public interface PixelApi extends AutoCloseable {
     boolean canReadImage(int numberOfChannels);
 
     /**
+     * Creates a {@link PixelApiReader} corresponding to this API that will be used to read
+     * pixel values of an image.
      * <p>
-     *     Creates a {@link PixelApiReader} corresponding to this API that will be
-     *     used to read pixel values of an image.
-     * </p>
-     * <p>
-     *     Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
-     *     no longer used. This pixel API will close them when it itself is closed.
-     * </p>
+     * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
+     * no longer used. This pixel API will close them when it itself is closed.
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
+     * @param args additional arguments containing label to parameter values to change the reader
+     *             creation. See the description of the pixel API implementation for more details
      * @return a new reader corresponding to this API
      * @throws IOException when the reader creation fails
      * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})
@@ -93,6 +83,7 @@ public interface PixelApi extends AutoCloseable {
      */
     PixelApiReader createReader(
             long id,
-            ImageServerMetadata metadata
+            ImageServerMetadata metadata,
+            Map<String, String> args
     ) throws IOException;
 }

@@ -24,13 +24,12 @@ class CommandLineAuthenticator {
      *                     to give credentials for
      * @param username an optional username. If null, this function will ask for both a username and a password. If not
      *                 null, this function will only ask for a password
-     * @return the credentials given by the user, or a {@link Credentials#Credentials()} if the console
-     * is inaccessible
+     * @return the credentials given by the user
+     * @throws IllegalStateException if the console is inaccessible
      */
     public static Credentials authenticate(URI webServerUri, String username) {
         if (System.console() == null) {
-            logger.error("Can't prompt user for credentials because the console is inaccessible");
-            return new Credentials();
+            throw new IllegalStateException("Can't prompt user for credentials because the console is inaccessible");
         }
 
         System.out.printf("Please provide the credentials to connect to %s%n", webServerUri);

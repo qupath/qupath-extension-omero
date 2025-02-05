@@ -1,20 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.Scene?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.stage.Stage?>
 
-<fx:root title="%ConnectionsManager.ConnectionManager.webClients" type="Stage" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root title="%ConnectionsManager.ConnectionManager.webClients" type="Stage" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
     <scene>
-        <Scene stylesheets="@../../styles.css">
+        <Scene stylesheets="@../styles.css">
             <ScrollPane fitToHeight="true" fitToWidth="true">
                 <content>
                     <VBox fx:id="container" alignment="CENTER" spacing="10.0">
                         <children>
-                            <Label text="%ConnectionsManager.ConnectionManager.noClients" />
+                            <Label text="%ConnectionsManager.ConnectionManager.noClients">
+                        <VBox.margin>
+                           <Insets />
+                        </VBox.margin></Label>
                         </children>
+                  <padding>
+                     <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                  </padding>
                     </VBox>
                 </content>
             </ScrollPane>

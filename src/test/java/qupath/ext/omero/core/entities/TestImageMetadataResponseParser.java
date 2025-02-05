@@ -1,4 +1,4 @@
-package qupath.ext.omero.core.entities.imagemetadata;
+package qupath.ext.omero.core.entities;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;

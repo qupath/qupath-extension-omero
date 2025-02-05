@@ -136,7 +136,7 @@ public class TestAnnotation {
                     "link": %s
                 }
                 """, new Gson().toJson(owner), link);
-        Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer()).setLenient().create();
+        Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer()).create();
         return gson.fromJson(json, AnnotationImplementation.class);
     }
 

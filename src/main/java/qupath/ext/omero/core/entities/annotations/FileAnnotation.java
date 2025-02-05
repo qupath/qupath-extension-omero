@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.gui.UiUtilities;
@@ -17,11 +16,11 @@ public class FileAnnotation extends Annotation {
 
     private static final ResourceBundle resources = UiUtilities.getResources();
     private static final Logger logger = LoggerFactory.getLogger(FileAnnotation.class);
-    @SerializedName(value = "file") private Map<String, String> map;
+    private Map<String, String> file;
 
     @Override
     public String toString() {
-        return String.format("%s. Map: %s", super.toString(), map);
+        return String.format("%s. Map: %s", super.toString(), file);
     }
 
     @Override
@@ -30,12 +29,12 @@ public class FileAnnotation extends Annotation {
             return true;
         if (!(obj instanceof FileAnnotation fileAnnotation))
             return false;
-        return Objects.equals(fileAnnotation.map, map);
+        return Objects.equals(fileAnnotation.file, file);
     }
 
     @Override
     public int hashCode() {
-        return (map == null ? "" : map).hashCode();
+        return (file == null ? "" : file).hashCode();
     }
 
     /**
@@ -59,10 +58,10 @@ public class FileAnnotation extends Annotation {
      * @return the name of the attached file, or an empty Optional if it was not found
      */
     public Optional<String> getFilename() {
-        if (map == null) {
+        if (file == null) {
             return Optional.empty();
         } else {
-            return Optional.ofNullable(map.get("name"));
+            return Optional.ofNullable(file.get("name"));
         }
     }
 
@@ -70,10 +69,10 @@ public class FileAnnotation extends Annotation {
      * @return the MIME type of the attached file, or an empty Optional if it was not found
      */
     public Optional<String> getMimeType() {
-        if (map == null) {
+        if (file == null) {
             return Optional.empty();
         } else {
-            return Optional.ofNullable(map.get("mimetype"));
+            return Optional.ofNullable(file.get("mimetype"));
         }
     }
 
@@ -81,14 +80,14 @@ public class FileAnnotation extends Annotation {
      * @return the size of the attached file in bytes, or an empty Optional if it was not found
      */
     public Optional<Long> getFileSize() {
-        if (map == null || map.get("size") == null) {
+        if (file == null || file.get("size") == null) {
             return Optional.empty();
         } else {
-            String size = map.get("size");
+            String size = file.get("size");
             try {
                 return Optional.of(Long.parseLong(size));
             } catch (NumberFormatException e) {
-                logger.warn("Cannot convert " + size + " to a number in file annotation", e);
+                logger.warn("Cannot convert {} to a number in file annotation", size, e);
                 return Optional.empty();
             }
         }

@@ -9,14 +9,11 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 
 /**
+ * A wrapper around an Ice {@link Gateway}. This is needed because if a {@link Gateway} is
+ * directly used in the {@link IceApi} class when the Ice dependencies are not available,
+ * the program will crash.
  * <p>
- *     A wrapper around an Ice {@link Gateway}.
- *     This is needed because if a {@link Gateway} is directly used in the {@link IceApi}
- *     class when the Ice dependencies are not available, the program will crash.
- * </p>
- * <p>
- *     This class needs to be {@link #close() closed} once no longer used.
- * </p>
+ * An instance of this class needs to be {@link #close() closed} once no longer used.
  */
 class GatewayWrapper implements AutoCloseable {
 
@@ -38,8 +35,8 @@ class GatewayWrapper implements AutoCloseable {
                 ExperimenterData experimenterData = gateway.connect(loginCredentials.get(i));
                 if (experimenterData != null) {
                     logger.info(
-                            "Connected to the OMERO.server instance at {} with user {}",
-                            loginCredentials.get(i).getServer(),
+                            "Connected to the OMERO.server instance at {} with user '{}'",
+                            loginCredentials.get(i).getServer().getHost(),
                             experimenterData.getUserName()
                     );
                     return;

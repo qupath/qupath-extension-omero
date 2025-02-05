@@ -66,7 +66,7 @@ public abstract class Shape {
                 logger.warn("Unsupported type {}", type);
                 return null;
             } catch (Exception e) {
-                logger.error("Could not deserialize " + json, e);
+                logger.error("Could not deserialize {}", json, e);
                 return null;
             }
         }
@@ -102,7 +102,7 @@ public abstract class Shape {
                     .toList()
             );
         } else {
-            logger.warn(String.format("Unsupported type: %s", roi.getRoiName()));
+            logger.warn("Unsupported type: {}", roi.getRoiName());
             return List.of();
         }
     }

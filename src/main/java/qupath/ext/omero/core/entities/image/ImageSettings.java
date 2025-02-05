@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.image;
 
-import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,8 +14,8 @@ public class ImageSettings {
     private static final Logger logger = LoggerFactory.getLogger(ImageSettings.class);
     private transient String name;
     private transient List<ChannelSettings> channelSettings;
-    @SerializedName(value = "meta") private Meta meta;
-    @SerializedName(value = "channels") private List<Channel> channels;
+    private Meta meta;
+    private List<Channel> channels;
 
     /**
      * Create an image settings.
@@ -54,7 +53,7 @@ public class ImageSettings {
      */
     public String getName() {
         if (name == null) {
-            name = meta == null || meta.name == null ? "" : meta.name;
+            name = meta == null || meta.imageName == null ? "" : meta.imageName;
         }
         return name;
     }
@@ -73,11 +72,11 @@ public class ImageSettings {
                             try {
                                 channelColor = Integer.parseInt(channel.color, 16);
                             } catch (NumberFormatException e) {
-                                logger.warn(String.format("Could not convert channel color %s to Integer", channel.color), e);
+                                logger.warn("Could not convert channel color {} to Integer", channel.color, e);
                             }
 
                             return new ChannelSettings(
-                                    channel.name == null ? "" : channel.name,
+                                    channel.label == null ? "" : channel.label,
                                     channel.window == null ? 0 : channel.window.start,
                                     channel.window == null ? 0 : channel.window.end,
                                     channel.color == null ? 0 : channelColor
@@ -90,18 +89,18 @@ public class ImageSettings {
     }
 
     private static class Meta {
-        @SerializedName(value = "imageName") private String name;
+        private String imageName;
     }
 
     private static class Channel {
-        @SerializedName(value = "label") private String name;
-        @SerializedName(value = "color") private String color;
-        @SerializedName(value = "window") private Window window;
+        private String label;
+        private String color;
+        private Window window;
 
         private static class Window {
 
-            @SerializedName(value = "start") private double start;
-            @SerializedName(value = "end") private double end;
+            private double start;
+            private double end;
         }
     }
 }

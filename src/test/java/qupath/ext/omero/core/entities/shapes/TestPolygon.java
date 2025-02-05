@@ -65,6 +65,6 @@ public class TestPolygon {
                         new Point2(50, 0),
                         new Point2(0, 50)
                 ), null
-        ))).get(0);
+        ))).getFirst();
     }
 }

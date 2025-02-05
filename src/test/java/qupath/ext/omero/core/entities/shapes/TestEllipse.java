@@ -61,6 +61,6 @@ public class TestEllipse {
     private Shape createEllipseFromPathObject() {
         return Shape.createFromPathObject(PathObjects.createAnnotationObject(
                 ROIs.createEllipseROI(40, 80, 20, 40, null)
-        )).get(0);
+        )).getFirst();
     }
 }

@@ -19,11 +19,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * <p>The result of a search query.</p>
+ * The result of a search query.
  * <p>
- *     This class can create usable results from an HTML search query response
- *     (usually from {@code https://omero-server/webclient/load_searching/form}).
- * </p>
+ * This class can create usable results from an HTML search query response
+ * (usually from {@code https://omero-server/webclient/load_searching/form}).
  */
 public class SearchResult {
 

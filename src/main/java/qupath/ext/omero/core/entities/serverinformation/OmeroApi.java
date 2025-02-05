@@ -25,7 +25,7 @@ public class OmeroApi {
         if (versions == null || versions.isEmpty()) {
             return Optional.empty();
         } else {
-            return versions.get(versions.size() - 1).getVersionURL();
+            return versions.getLast().getVersionURL();
         }
     }
 

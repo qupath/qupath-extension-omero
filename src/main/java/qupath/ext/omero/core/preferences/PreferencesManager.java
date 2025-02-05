@@ -49,14 +49,6 @@ public class PreferencesManager {
     }
 
     /**
-     * Clear all saved preferences.
-     */
-    public static void clear() {
-        serverPreferences.clear();
-        preference.set("");
-    }
-
-    /**
      * Save a new server. If a preference with the same {@link ServerPreference#webServerUri()} is already stored,
      * its credentials will be modified.
      *
@@ -122,7 +114,8 @@ public class PreferencesManager {
     }
 
     /**
-     * Set the saved JPEG quality used by the web pixel API of the provided web server.
+     * Set the saved JPEG quality used by the web pixel API of the provided web server. This will only
+     * happen if {@link #getServerPreferences()} contains an entry with the specified web server URI.
      *
      * @param webServerUri the URI of the OMERO web server to whose JPEG quality should be set
      * @param webJpegQuality the JPEG quality to set
@@ -157,7 +150,8 @@ public class PreferencesManager {
     }
 
     /**
-     * Set the saved address of the OMERO ICE server corresponding to the provided web server.
+     * Set the saved address of the OMERO ICE server corresponding to the provided web server. This will only
+     * happen if {@link #getServerPreferences()} contains an entry with the specified web server URI.
      *
      * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server address should be set
      * @param iceAddress the OMERO ICE server address to set
@@ -192,7 +186,8 @@ public class PreferencesManager {
     }
 
     /**
-     * Set the saved port of the OMERO ICE server corresponding to the provided web server.
+     * Set the saved port of the OMERO ICE server corresponding to the provided web server. This will only
+     * happen if {@link #getServerPreferences()} contains an entry with the specified web server URI.
      *
      * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server port should be set
      * @param icePort the OMERO ICE server port to set
@@ -227,7 +222,8 @@ public class PreferencesManager {
     }
 
     /**
-     * Set the saved port used by the pixel buffer microservice of the provided OMERO server.
+     * Set the saved port used by the pixel buffer microservice of the provided OMERO server. This will only
+     * happen if {@link #getServerPreferences()} contains an entry with the specified web server URI.
      *
      * @param webServerUri the URI of the OMERO web server to whose pixel buffer microservice port should be set
      * @param msPixelBufferPort the pixel buffer microservice port to set

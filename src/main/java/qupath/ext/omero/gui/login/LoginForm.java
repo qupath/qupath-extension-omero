@@ -36,6 +36,7 @@ public class LoginForm extends Stage {
     private static final String DEFAULT_URL = "https://idr.openmicroscopy.org/";
     private final Consumer<Client> onClientCreated;
     private Client createdClient;
+    private Credentials usedCredentials;
     @FXML
     private TextField url;
     @FXML
@@ -106,6 +107,14 @@ public class LoginForm extends Stage {
         return Optional.ofNullable(createdClient);
     }
 
+    /**
+     * @return the last credentials filled in this form, or an empty Optional if no credentials were
+     * filled yet
+     */
+    public Optional<Credentials> getUsedCredentials() {
+        return Optional.ofNullable(usedCredentials);
+    }
+
     @FXML
     private void onConnectClicked(ActionEvent ignoredEvent) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -122,14 +131,13 @@ public class LoginForm extends Stage {
 
         executor.execute(() -> {
             try {
-                Client client = Client.createOrGet(
-                        url.getText(),
-                        publicUser.isSelected() ? new Credentials() : new Credentials(username.getText(), getPassword())
-                );
+                Credentials credentials = publicUser.isSelected() ? new Credentials() : new Credentials(username.getText(), getPassword());
+                Client client = Client.createOrGet(url.getText(), credentials);
                 onClientCreated.accept(client);
 
                 Platform.runLater(() -> {
                     createdClient = client;
+                    usedCredentials = credentials;
                     waitingWindow.close();
                     close();
                 });

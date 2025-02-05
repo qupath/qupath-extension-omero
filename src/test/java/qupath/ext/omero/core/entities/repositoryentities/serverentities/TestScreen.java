@@ -7,9 +7,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.Server;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -20,13 +21,15 @@ public class TestScreen extends OmeroServer {
 
     abstract static class GenericClient {
 
-        protected static UserType userType;
-        protected static WebClient client;
+        protected static Credentials.UserType userType;
+        protected static Client client;
         protected static Screen screen;
 
         @AfterAll
-        static void removeClient() {
-            WebClients.removeClient(client);
+        static void removeClient() throws Exception {
+            if (client != null) {
+                client.close();
+            }
         }
 
         @Test
@@ -68,13 +71,14 @@ public class TestScreen extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            userType = UserType.PUBLIC;
+            userType = Credentials.UserType.PUBLIC_USER;
             client = OmeroServer.createClient(userType);
+            Server server = client.getServer().get();
 
-            while (client.getServer().isPopulatingChildren()) {
+            while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            screen = client.getServer().getChildren().stream()
+            screen = server.getChildren().stream()
                     .filter(child -> child instanceof Screen)
                     .map(s -> (Screen) s)
                     .findAny()
@@ -87,13 +91,14 @@ public class TestScreen extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            userType = UserType.USER;
+            userType = Credentials.UserType.REGULAR_USER;
             client = OmeroServer.createClient(userType);
+            Server server = client.getServer().get();
 
-            while (client.getServer().isPopulatingChildren()) {
+            while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            screen = client.getServer().getChildren().stream()
+            screen = server.getChildren().stream()
                     .filter(child -> child instanceof Screen)
                     .map(s -> (Screen) s)
                     .findAny()

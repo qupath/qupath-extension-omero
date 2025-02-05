@@ -1,4 +1,4 @@
-package qupath.ext.omero.core.entities.imagemetadata;
+package qupath.ext.omero.core.entities;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -81,16 +81,16 @@ public class ImageMetadataResponseParser {
                         pixelSize.getAsJsonPrimitive("y").getAsNumber()
                 );
             } else {
-                logger.debug(String.format("'x' or 'y' number not found in %s", pixelSize));
+                logger.debug("'x' or 'y' number not found in {}", pixelSize);
             }
 
             if (pixelSize.has("z") && pixelSize.get("z").isJsonPrimitive() && pixelSize.getAsJsonPrimitive("z").isNumber()) {
                 metadataBuilder.zSpacingMicrons(pixelSize.getAsJsonPrimitive("z").getAsNumber());
             } else {
-                logger.debug(String.format("'z' number not found in %s", pixelSize));
+                logger.debug("'z' number not found in {}", pixelSize);
             }
         } else {
-            logger.debug(String.format("'pixel_size' JSON object not found in %s", metadataResponse));
+            logger.debug("'pixel_size' JSON object not found in {}", metadataResponse);
         }
     }
 
@@ -113,7 +113,7 @@ public class ImageMetadataResponseParser {
                     if (channel.has("label") && channel.get("label").isJsonPrimitive()) {
                         channelName = channel.get("label").getAsString();
                     } else {
-                        logger.debug(String.format("'label' string not found in %s", channel));
+                        logger.debug("'label' string not found in {}", channel);
                         channelName = String.format("Channel %d", i);
                     }
 
@@ -128,11 +128,11 @@ public class ImageMetadataResponseParser {
                                     Integer.valueOf(colorText.substring(4, 6), 16)
                             );
                         } catch (IndexOutOfBoundsException |  NumberFormatException e) {
-                            logger.debug(String.format("Could not parse a color from %s", colorText), e);
+                            logger.debug("Could not parse a color from {}", colorText, e);
                             color = ImageChannel.getDefaultChannelColor(i);
                         }
                     } else {
-                        logger.debug(String.format("'color' string not found in %s", channel));
+                        logger.debug("'color' string not found in {}", channel);
                         color = ImageChannel.getDefaultChannelColor(i);
                     }
 
@@ -156,7 +156,7 @@ public class ImageMetadataResponseParser {
         if (meta.has("imageName") && meta.get("imageName").isJsonPrimitive()) {
             metadataBuilder.name(meta.get("imageName").getAsString());
         } else {
-            logger.debug(String.format("'imageName' string not found in %s", meta));
+            logger.debug("'imageName' string not found in {}", meta);
         }
 
         if (!meta.has("pixelsType") || !meta.get("pixelsType").isJsonPrimitive()) {
@@ -184,7 +184,7 @@ public class ImageMetadataResponseParser {
                 metadataBuilder.preferredTileSize(tileWidth.get().intValue(), tileHeight.get().intValue());
             }
         } else {
-            logger.debug(String.format("'tile_size' JSON object not found in %s", metadataResponse));
+            logger.debug("'tile_size' JSON object not found in {}", metadataResponse);
         }
     }
 
@@ -202,7 +202,7 @@ public class ImageMetadataResponseParser {
                         .toArray()
                 );
             } else {
-                logger.debug(String.format("'zoomLevelScaling' JSON object not found in %s", metadataResponse));
+                logger.debug("'zoomLevelScaling' JSON object not found in {}", metadataResponse);
             }
         }
     }

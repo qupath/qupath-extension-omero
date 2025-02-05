@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.annotations.annotationsentities;
 
-import com.google.gson.annotations.SerializedName;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
 import java.util.Objects;
@@ -11,7 +10,7 @@ import java.util.Optional;
  */
 public class Link {
 
-    @SerializedName(value = "owner") private Owner owner;
+    private final Owner owner;
 
     public Link(Owner owner) {
         this.owner = owner;

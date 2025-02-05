@@ -13,7 +13,7 @@ import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.entities.login.LoginResponse;
+import qupath.ext.omero.core.entities.LoginResponse;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
@@ -120,9 +120,9 @@ class JsonApi {
         this.token = tokenRequest.get();
         if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
             LoginResponse loginResponse = login(this.requestSender, credentials, this.urls, serverInformation.getServerId().getAsInt(), token);
-            this.defaultGroup = loginResponse.getGroup();
-            this.userId = loginResponse.getUserId();
-            this.sessionUuid = loginResponse.getSessionUuid();
+            this.defaultGroup = loginResponse.group();
+            this.userId = loginResponse.userId();
+            this.sessionUuid = loginResponse.sessionUuid();
         } else {
             this.defaultGroup = null;
             this.userId = -1;
@@ -622,7 +622,7 @@ class JsonApi {
                     Arrays.fill(body, (byte) 0);    // clear password
                 })
                 .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
-                .thenApply(LoginResponse::createAuthenticatedLoginResponse).get();
+                .thenApply(LoginResponse::parseServerAuthenticationResponse).get();
     }
 
     private CompletableFuture<List<ServerEntity>> getChildren(String url) {

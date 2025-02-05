@@ -27,37 +27,29 @@ import static java.lang.Long.max;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
 /**
+ * A class that sends web request and can convert HTTP responses
+ * to an understandable format (like JSON for example).
  * <p>
- *     A class that sends web request and can convert HTTP responses
- *     to an understandable format (like JSON for example).
- * </p>
+ * Unless stated otherwise, all requests follow HTTP redirections
+ * and use session cookies (one cookie handler per instance of this
+ * class).
  * <p>
- *     Unless stated otherwise, all requests follow HTTP redirections
- *     and use session cookies (one cookie handler per instance of this
- *     class).
- * </p>
+ * Each request is performed asynchronously with CompletableFutures.
  * <p>
- *     Each request is performed asynchronously with CompletableFutures.
- * </p>
- * <p>
- *     A request sender must be {@link #close() closed} once no longer used.
- * </p>
+ * A request sender must be {@link #close() closed} once no longer used.
  */
 public class RequestSender implements AutoCloseable {
 
     private static final int REQUEST_TIMEOUT = 20;
     private final java.net.CookieHandler cookieHandler = new CookieManager();
     /**
+     * The redirection policy is specified to allow the HTTP client to automatically
+     * follow HTTP redirections (from http:// to https:// for example).
+     * This is needed for icons requests for example.
      * <p>
-     *     The redirection policy is specified to allow the HTTP client to automatically
-     *     follow HTTP redirections (from http:// to https:// for example).
-     *     This is needed for icons requests for example.
-     * </p>
-     * <p>
-     *     The cookie policy is specified because some APIs use a
-     *     <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>.
-     *     This token is stored in a session cookie, so we need to store this session cookie.
-     * </p>
+     * The cookie policy is specified because some APIs use a
+     * <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>.
+     *  This token is stored in a session cookie, so we need to store this session cookie.
      */
     private final HttpClient httpClient = HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.ALWAYS)
@@ -171,17 +163,13 @@ public class RequestSender implements AutoCloseable {
     }
 
     /**
+     * Performs a GET request to the specified URI when the response is expected to be paginated
+     * and convert the response to JSON objects.
      * <p>
-     *     Performs a GET request to the specified URI when the response is expected to be paginated
-     *     and convert the response to JSON objects.
-     * </p>
+     * If there are more results than the size of each page, subsequent requests are carried to obtain all results.
      * <p>
-     *     If there are more results than the size of each page, subsequent requests are carried to obtain all results.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @param uri the link of the request
      * @return a CompletableFuture (that may complete exceptionally) with a list of JSON elements
@@ -217,13 +205,10 @@ public class RequestSender implements AutoCloseable {
     }
 
     /**
+     * Performs a GET request to the specified URI and convert the response to an image.
      * <p>
-     *     Performs a GET request to the specified URI and convert the response to an image.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @param uri the link of the request
      * @return a CompletableFuture (that may complete exceptionally) with the HTTP response converted to an image
@@ -247,14 +232,11 @@ public class RequestSender implements AutoCloseable {
     }
 
     /**
+     * Performs a GET request to the specified URI and convert the response to a list of JSON elements
+     * using the provided member of the response.
      * <p>
-     *     Performs a GET request to the specified URI and convert the response to a list of JSON elements
-     *     using the provided member of the response.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @param uri the link of the request
      * @param memberName the member of the response that should contain the list to convert
@@ -271,12 +253,12 @@ public class RequestSender implements AutoCloseable {
     }
 
     /**
-     * <p>Performs a POST request to the specified URI.</p>
-     * <p>The body of the request uses the application/x-www-form-urlencoded content type.</p>
+     * Performs a POST request to the specified URI.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * The body of the request uses the application/x-www-form-urlencoded content type.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param uri the link of the request
      * @param body the keys and values of the request body, encoded to a byte array with the UTF 8 format.
@@ -300,12 +282,12 @@ public class RequestSender implements AutoCloseable {
     }
 
     /**
-     * <p>Performs a POST request to the specified URI.</p>
-     * <p>The body of the request uses the application/json content type.</p>
+     * Performs a POST request to the specified URI.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * The body of the request uses the application/json content type.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param uri the link of the request
      * @param body the keys and values of the request body with the JSON format.
@@ -329,12 +311,12 @@ public class RequestSender implements AutoCloseable {
     }
 
     /**
-     * <p>Send a file through a POST request to the specified URI.</p>
-     * <p>The body of the request uses the multipart/form-data content type.</p>
+     * Send a file through a POST request to the specified URI.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * The body of the request uses the multipart/form-data content type.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param uri the link of the request
      * @param fileName the name of the file to send

@@ -156,7 +156,7 @@ public class TestRequestSender extends OmeroServer {
     }
 
     private static class ApiResponseVersion {
-        @SerializedName("version") private String version;
+        private String version;
         @SerializedName("url:base") private String url;
 
         public ApiResponseVersion(String baseAddress) {

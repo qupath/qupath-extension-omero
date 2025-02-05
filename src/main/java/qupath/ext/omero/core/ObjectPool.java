@@ -14,15 +14,11 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
+ * A pool of objects of fixed size. Objects are created on demand.
  * <p>
- *     A pool of objects of fixed size. Objects are created on demand.
- * </p>
+ * Once no longer used, this pool must be {@link #close() closed}.
  * <p>
- *     Once no longer used, this pool must be {@link #close() closed}.
- * </p>
- * <p>
- *     This class is thread-safe.
- * </p>
+ * This class is thread-safe.
  *
  * @param <E>  the type of object to store
  */
@@ -64,15 +60,12 @@ public class ObjectPool<E> implements AutoCloseable {
     }
 
     /**
+     * Close this pool. If some objects are being created, this function will wait
+     * for their creation to end.
      * <p>
-     *     Close this pool. If some objects are being created, this function will wait
-     *     for their creation to end.
-     * </p>
-     * <p>
-     *     If defined, the objectCloser parameter of {@link #ObjectPool(int,Supplier,Consumer)} will be
-     *     called on each object currently present in the pool, but not on objects taken from the pool
-     *     and not given back yet.
-     * </p>
+     * If defined, the objectCloser parameter of {@link #ObjectPool(int,Supplier,Consumer)} will be
+     * called on each object currently present in the pool, but not on objects taken from the pool
+     * and not given back yet.
      *
      * @throws Exception when an error occurs while waiting for the object creation to end
      */
@@ -87,28 +80,25 @@ public class ObjectPool<E> implements AutoCloseable {
     }
 
     /**
+     * Attempt to retrieve an object from this pool.
+     * <ul>
+     *     <li>
+     *         If an object is available in the pool, it will be directly returned.
+     *     </li>
+     *     <li>
+     *         If no object is available in the pool and the pool capacity allows to create a new
+     *         object, a new object is created and returned. If for some reason the object creation
+     *         fails (or return null), an empty Optional is returned.
+     *     </li>
+     *     <li>
+     *         If no object is available in the pool and the pool capacity doesn't allow creating
+     *         a new object, this function blocks until an object becomes available in the pool.
+     *     </li>
+     * </ul>
      * <p>
-     *     Attempt to retrieve an object from this pool.
-     *     <ul>
-     *         <li>
-     *             If an object is available in the pool, it will be directly returned.
-     *         </li>
-     *         <li>
-     *             If no object is available in the pool and the pool capacity allows to create a new
-     *             object, a new object is created and returned. If for some reason the object creation
-     *             fails (or return null), an empty Optional is returned.
-     *         </li>
-     *         <li>
-     *             If no object is available in the pool and the pool capacity doesn't allow creating
-     *             a new object, this function blocks until an object becomes available in the pool.
-     *         </li>
-     *     </ul>
-     * </p>
-     * <p>
-     *     The caller of this function will have a full control on the returned object. As soon as the
-     *     object is not used anymore, it must be given back to this pool using the {@link #giveBack(Object)}
-     *     function.
-     * </p>
+     * The caller of this function will have a full control on the returned object. As soon as the
+     * object is not used anymore, it must be given back to this pool using the {@link #giveBack(Object)}
+     * function.
      *
      * @return an object from this pool, or an empty Optional if the creation failed
      * @throws InterruptedException  when creating an object or waiting for an object to become available is interrupted

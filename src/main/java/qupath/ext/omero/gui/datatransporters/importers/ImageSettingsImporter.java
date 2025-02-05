@@ -183,7 +183,7 @@ public class ImageSettingsImporter implements DataTransporter {
 
     private static boolean changeChannelNames(OmeroImageServer omeroImageServer, QuPathViewer viewer, List<ChannelSettings> channelSettings) {
         List<ImageChannel> channels = omeroImageServer.getMetadata().getChannels();
-        List<String> newChannelNames = channelSettings.stream().map(ChannelSettings::getName).toList();
+        List<String> newChannelNames = channelSettings.stream().map(ChannelSettings::name).toList();
 
         if (channels.size() == newChannelNames.size()) {
             viewer.getImageData().updateServerMetadata(new ImageServerMetadata.Builder(omeroImageServer.getMetadata())
@@ -202,7 +202,7 @@ public class ImageSettingsImporter implements DataTransporter {
     private static boolean changeChannelColors(OmeroImageServer omeroImageServer, QuPathViewer viewer, List<ChannelSettings> channelSettings) {
         List<ImageChannel> channels = omeroImageServer.getMetadata().getChannels();
         List<Integer> newChannelColors = channelSettings.stream()
-                .map(ChannelSettings::getRgbColor)
+                .map(ChannelSettings::rgbColor)
                 .toList();
 
         if (channels.size() == newChannelColors.size()) {
@@ -227,8 +227,8 @@ public class ImageSettingsImporter implements DataTransporter {
             for (int i=0; i<channels.size(); i++) {
                 display.setMinMaxDisplay(
                         channels.get(i),
-                        (float) channelSettings.get(i).getMinDisplayRange(),
-                        (float) channelSettings.get(i).getMaxDisplayRange()
+                        (float) channelSettings.get(i).minDisplayRange(),
+                        (float) channelSettings.get(i).maxDisplayRange()
                 );
             }
             return true;

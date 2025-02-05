@@ -2,10 +2,9 @@ package qupath.ext.omero.core.imageserver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.Utils;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -19,18 +18,16 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * {@link qupath.lib.images.servers.ImageServer Image server} of the extension.
@@ -41,92 +38,58 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServer.class);
     private static final String PIXEL_API_ARGUMENT = "--pixelAPI";
-    private final URI uri;
-    private final WebClient client;
-    private final PixelApiReader pixelAPIReader;
-    private final String apiName;
+    private final URI imageUri;
+    private final Client client;
     private final long id;
     private final ImageServerMetadata originalMetadata;
-    private final String[] args;
-
-    private OmeroImageServer(
-            URI uri,
-            WebClient client,
-            PixelApiReader pixelAPIReader,
-            String apiName,
-            long id,
-            ImageServerMetadata originalMetadata,
-            String... args
-    ) {
-        this.uri = uri;
-        this.client = client;
-        this.pixelAPIReader = pixelAPIReader;
-        this.apiName = apiName;
-        this.id = id;
-        this.originalMetadata = originalMetadata;
-        this.args = args;
-
-        this.client.addOpenedImage(uri);
-    }
+    private final PixelApiReader pixelAPIReader;
+    private final String apiName;
+    private final List<String> args;
 
     /**
-     * <p>
-     *     Attempt to create an OmeroImageServer.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if a request failed for example).
-     * </p>
+     * Create an OmeroImageServer. This may take a few seconds as it will send a request to retrieve
+     * the image metadata.
      *
-     * @param uri the image URI
-     * @param client the corresponding WebClient
-     * @param args optional arguments used to open the image
-     * @return a CompletableFuture (that may complete exceptionally) with the OmeroImageServer
+     * @param imageUri a link to the image to open
+     * @param client the client that will be used to get image information
+     * @param args a list of arguments specifying how to open the image: {@link #PIXEL_API_ARGUMENT} to define the
+     *             pixel API to use, and additional arguments specified in the chosen pixel API of
+     *             {@link qupath.ext.omero.core.pixelapis}.
+     * @throws ExecutionException if an error occurred while retrieving the image metadata
+     * @throws InterruptedException if retrieving the image metadata was interrupted
+     * @throws IOException if a {@link PixelApiReader} cannot be created
+     * @throws IllegalStateException if no pixel API was found in the arguments and the client doesn't currently have a
+     * selected pixel API (see {@link Client#getSelectedPixelAPI()})
+     * @throws IllegalArgumentException if the image ID cannot be parsed from the provided URI
      */
-    static CompletableFuture<OmeroImageServer> create(URI uri, WebClient client, String... args) {
-        OptionalLong id = ApisHandler.parseEntityId(uri);
-        if (id.isEmpty()) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException(String.format(
-                    "Impossible to parse an ID from the provided URI %s", uri
-            )));
+    public OmeroImageServer(URI imageUri, Client client, List<String> args) throws ExecutionException, InterruptedException, IOException {
+        PixelApi pixelApi = getPixelAPIFromArgs(client, args).orElse(client.getSelectedPixelAPI().get());
+        if (pixelApi == null) {
+            throw new IllegalStateException("No supplied pixel API and no selected pixel API");
         }
 
-        return client.getApisHandler().getImageMetadata(id.getAsLong()).thenApply(metadata -> {
-            List<String> arguments = Arrays.stream(args).toList();
+        this.imageUri = imageUri;
+        this.client = client;
+        this.id = ApisHandler.parseEntityId(imageUri).orElseThrow(() -> new IllegalArgumentException(String.format(
+                "Impossible to parse an ID from the provided URI %s", imageUri
+        )));
+        this.originalMetadata = client.getApisHandler().getImageMetadata(id).get();
+        this.pixelAPIReader = pixelApi.createReader(
+                id,
+                originalMetadata,
+                IntStream.range(0, args.size() / 2)
+                        .boxed()
+                        .collect(Collectors.toMap(
+                                i -> args.get(i * 2),
+                                i -> args.get(i * 2 + 1),
+                                (a, b) -> b,
+                                HashMap::new
+                        ))
+        );//TODO: lazy initialize ?
+        this.apiName = pixelApi.getName();
+        this.args = ArgsUtils.replaceArgs(args, pixelApi.getArgs());
 
-            Optional<PixelApi> pixelAPIFromArgs = getPixelAPIFromArgs(client, arguments);
-            PixelApi pixelApi;
-            List<String> newArguments = List.of();
-            if (pixelAPIFromArgs.isPresent()) {
-                pixelApi = pixelAPIFromArgs.get();
-            } else {
-                pixelApi = client.getSelectedPixelAPI().get();
-                if (pixelApi == null) {
-                    throw new IllegalStateException("No supplied pixel API and no selected pixel API");
-                }
-
-                newArguments = getPixelAPIArgs(pixelApi);
-            }
-            String[] newArgs = Stream.concat(
-                    arguments.stream(),
-                    newArguments.stream()
-            ).toArray(String[]::new);
-            pixelApi.setParametersFromArgs(newArgs);
-
-            try {
-                return new OmeroImageServer(
-                        uri,
-                        client,
-                        pixelApi.createReader(id.getAsLong(), metadata),
-                        pixelApi.getName(),
-                        id.getAsLong(),
-                        metadata,
-                        newArgs
-                );
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        this.client.addOpenedImage(imageUri);
     }
 
     @Override
@@ -155,19 +118,19 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         return ImageServerBuilder.DefaultImageServerBuilder.createInstance(
                 OmeroImageServerBuilder.class,
                 getMetadata(),
-                uri,
-                args
+                imageUri,
+                args.toArray(new String[0])
         );
     }
 
     @Override
     protected String createID() {
-        return getClass().getName() + ": " + uri.toString() + " args=" + Arrays.toString(args);
+        return getClass().getName() + ": " + imageUri.toString() + " args=" + args;
     }
 
     @Override
     public Collection<URI> getURIs() {
-        return Collections.singletonList(uri);
+        return Collections.singletonList(imageUri);
     }
 
     @Override
@@ -218,18 +181,13 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     @Override
     public String toString() {
-        return String.format("OMERO image server of %s", uri);
-    }
-
-    @Override
-    public void close() throws Exception {
-        pixelAPIReader.close();
+        return String.format("OMERO image server of %s", imageUri);
     }
 
     /**
      * @return the client owning this image server
      */
-    public WebClient getClient() {
+    public Client getClient() {
         return client;
     }
 
@@ -240,7 +198,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         return id;
     }
 
-    private static Optional<PixelApi> getPixelAPIFromArgs(WebClient client, List<String> args) {
+    private static Optional<PixelApi> getPixelAPIFromArgs(Client client, List<String> args) {
         String pixelAPIName = null;
         int i = 0;
         while (i < args.size()-1) {
@@ -257,18 +215,12 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                 }
             }
             logger.warn(
-                    "The provided pixel API ({}) was not recognized, or the corresponding OMERO server doesn't support it. Another one will be used.",
-                    pixelAPIName
+                    "The provided pixel API ({}) was not recognized among the available pixel APIs ({}). Another one will be used.",
+                    pixelAPIName,
+                    client.getAvailablePixelAPIs()
             );
         }
 
         return Optional.empty();
-    }
-
-    private static List<String> getPixelAPIArgs(PixelApi pixelAPI) {
-        return Stream.concat(
-                Stream.of(PIXEL_API_ARGUMENT, pixelAPI.getName()),
-                Arrays.stream(pixelAPI.getArgs())
-        ).toList();
     }
 }

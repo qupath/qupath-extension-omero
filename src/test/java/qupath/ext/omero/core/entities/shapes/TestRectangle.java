@@ -61,6 +61,6 @@ public class TestRectangle {
     private Shape createRectangleFromPathObject() {
         return Shape.createFromPathObject(PathObjects.createAnnotationObject(
                 ROIs.createRectangleROI(50, 100, 10, 20, null)
-        )).get(0);
+        )).getFirst();
     }
 }

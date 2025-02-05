@@ -156,7 +156,7 @@ public abstract class ServerEntity implements RepositoryEntity {
 
                 return serverEntity;
             } catch (Exception e) {
-                logger.error("Could not deserialize " + json, e);
+                logger.error("Could not deserialize {}", json, e);
                 return null;
             }
         }

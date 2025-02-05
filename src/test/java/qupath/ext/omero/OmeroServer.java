@@ -8,15 +8,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.Container;
+import org.testcontainers.containers.ExecConfig;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
@@ -38,7 +39,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -72,7 +73,7 @@ import java.util.function.Function;
 public abstract class OmeroServer {
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroServer.class);
-    private static final boolean IS_LOCAL_OMERO_SERVER_RUNNING = false;
+    private static final boolean IS_LOCAL_OMERO_SERVER_RUNNING = true;
     private static final int CLIENT_CREATION_ATTEMPTS = 3;
     private static final String OMERO_PASSWORD = "password";
     private static final int OMERO_SERVER_PORT = 4064;
@@ -84,10 +85,6 @@ public abstract class OmeroServer {
     private static final GenericContainer<?> omeroServer;
     private static final GenericContainer<?> omeroWeb;
     private static final String analysisFileId;
-    protected enum UserType {
-        USER,
-        PUBLIC
-    }
     private enum ImageType {
         RGB,
         UINT8,
@@ -105,7 +102,7 @@ public abstract class OmeroServer {
             redis = null;
             omeroServer = null;
             omeroWeb = null;
-            analysisFileId = "85";
+            analysisFileId = "64";
         } else {
             // See https://hub.docker.com/r/openmicroscopy/omero-server
             postgres = new GenericContainer<>(DockerImageName.parse("postgres"))
@@ -113,7 +110,7 @@ public abstract class OmeroServer {
                     .withNetworkAliases("postgres")
                     .withEnv("POSTGRES_PASSWORD", "postgres")
                     .withLogConsumer(frame ->
-                            logger.debug(String.format("Postgres container: %s", frame.getUtf8String()))
+                            logger.debug("Postgres container: {}", frame.getUtf8String())
                     );
 
             omeroServer = new GenericContainer<>(DockerImageName.parse("openmicroscopy/omero-server"))
@@ -155,7 +152,7 @@ public abstract class OmeroServer {
                     )
                     .dependsOn(postgres)
                     .withLogConsumer(frame ->
-                            logger.debug(String.format("OMERO server container: %s", frame.getUtf8String()))
+                            logger.debug("OMERO server container: {}", frame.getUtf8String())
                     );
 
             // See https://github.com/glencoesoftware/omero-ms-pixel-buffer:
@@ -189,7 +186,7 @@ public abstract class OmeroServer {
                     )
                     .dependsOn(redis)
                     .withLogConsumer(frame ->
-                            logger.debug(String.format("OMERO web container: %s", frame.getUtf8String()))
+                            logger.debug("OMERO web container: {}", frame.getUtf8String())
                     );
 
             omeroWeb.start();
@@ -205,7 +202,7 @@ public abstract class OmeroServer {
 
                     serverNotReady = rootConnectionResult.getStderr().contains("Exception");
                     if (serverNotReady) {
-                        logger.debug(String.format("Connection to OMERO failed: %s\nWaiting 1 second and retrying...", rootConnectionResult.getStderr()));
+                        logger.debug("Connection to OMERO failed: {}\nWaiting 1 second and retrying...", rootConnectionResult.getStderr());
                         TimeUnit.SECONDS.sleep(1);
                     }
                 }
@@ -224,16 +221,20 @@ public abstract class OmeroServer {
                 omeroWeb.copyFileToContainer(MountableFile.forHostPath(omeroFolderPath, 0777), "/tmp/OMERO.tar.gz");
 
                 // Set up the OMERO web container (by installing the pixel buffer microservice)
-                Container.ExecResult omeroWebInstallPixelMsResult = omeroWeb.execInContainerWithUser(
-                        "root",
-                        "/resources/installPixelBufferMs.sh"
+                Container.ExecResult omeroWebInstallPixelMsResult = omeroWeb.execInContainer(
+                        ExecConfig.builder()
+                                .user("root")
+                                .command(new String[] {"/resources/installPixelBufferMs.sh"})
+                                .build()
                 );
                 logCommandResult(omeroWebInstallPixelMsResult);
 
                 // Set up the OMERO web container (by starting the pixel buffer microservice)
-                Container.ExecResult omeroWebRunPixelMsResult = omeroWeb.execInContainerWithUser(
-                        "root",
-                        "/resources/runPixelBufferMs.sh"
+                Container.ExecResult omeroWebRunPixelMsResult = omeroWeb.execInContainer(
+                        ExecConfig.builder()
+                                .user("root")
+                                .command(new String[] {"/resources/runPixelBufferMs.sh"})
+                                .build()
                 );
                 logCommandResult(omeroWebRunPixelMsResult);
             } catch (InterruptedException | IOException e) {
@@ -253,6 +254,16 @@ public abstract class OmeroServer {
                 "http://" + omeroWeb.getHost() + ":" + omeroWeb.getMappedPort(OMERO_WEB_PORT);
     }
 
+    protected static Credentials getCredentials(Credentials.UserType userType) {
+        return switch (userType) {
+            case PUBLIC_USER -> new Credentials();
+            case REGULAR_USER -> new Credentials(
+                    getUsername(Credentials.UserType.REGULAR_USER),
+                    getPassword(Credentials.UserType.REGULAR_USER).toCharArray()
+            );
+        };
+    }
+
     protected static String getServerURI() {
         return "omero-server";
     }
@@ -261,74 +272,82 @@ public abstract class OmeroServer {
         return OMERO_SERVER_PORT;
     }
 
-    protected static WebClient createClient(UserType userType) throws ExecutionException, InterruptedException {
-        return switch (userType) {
-            case USER -> createValidClient(
-                    WebClient.Authentication.ENFORCE,
-                    "-u",
-                    getUsername(userType),
-                    "-p",
-                    getPassword(userType)
-            );
-            case PUBLIC -> createValidClient(WebClient.Authentication.SKIP);
-        };
+    protected static Client createClient(Credentials.UserType userType) {
+        Credentials credentials = getCredentials(userType);
+        Client client = null;
+        int attempt = 0;
+
+        do {
+            try {
+                client = Client.createOrGet(getWebServerURI(), credentials);
+            } catch (Exception e) {
+                logger.debug("Client creation attempt {} of {} failed", attempt, CLIENT_CREATION_ATTEMPTS - 1, e);
+            }
+        } while (client != null && ++attempt < CLIENT_CREATION_ATTEMPTS);
+
+        if (client == null) {
+            throw new IllegalStateException("Client creation failed");
+        } else {
+            client.getPixelAPI(MsPixelBufferApi.class).setPort(getMsPixelBufferApiPort(), true);
+            return client;
+        }
     }
 
-    protected static String getUsername(UserType userType) {
+    protected static String getUsername(Credentials.UserType userType) {
         return getConnectedOwner(userType).username();
     }
 
-    protected static String getPassword(UserType userType) {
+    protected static String getPassword(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> "password_user";
-            case PUBLIC -> "password_public";
+            case REGULAR_USER -> "password_user";
+            case PUBLIC_USER -> "password_public";
         };
     }
 
-    protected static List<Group> getGroups(UserType userType) {
+    protected static List<Group> getGroups(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(
+            case REGULAR_USER -> List.of(
                     getGroup1(),
                     getGroup2(),
                     getGroup3()
             );
-            case PUBLIC -> List.of(
+            case PUBLIC_USER -> List.of(
                     getPublicGroup()
             );
         };
     }
 
-    protected static Group getDefaultGroup(UserType userType) {
+    protected static Group getDefaultGroup(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> getGroup1();
-            case PUBLIC -> getPublicGroup();
+            case REGULAR_USER -> getGroup1();
+            case PUBLIC_USER -> getPublicGroup();
         };
     }
 
-    protected static List<Owner> getOwners(UserType userType) {
+    protected static List<Owner> getOwners(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(
+            case REGULAR_USER -> List.of(
                     getUser1(),
                     getUser2(),
                     getUser()
             );
-            case PUBLIC -> List.of(
+            case PUBLIC_USER -> List.of(
                     getPublicUser()
             );
         };
     }
 
-    protected static Owner getConnectedOwner(UserType userType) {
+    protected static Owner getConnectedOwner(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> getUser();
-            case PUBLIC -> getPublicUser();
+            case REGULAR_USER -> getUser();
+            case PUBLIC_USER -> getPublicUser();
         };
     }
 
-    protected static List<Project> getProjects(UserType userType) {
+    protected static List<Project> getProjects(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(new Project(2));
-            case PUBLIC -> List.of(new Project(1));
+            case REGULAR_USER -> List.of(new Project(2));
+            case PUBLIC_USER -> List.of(new Project(1));
         };
     }
 
@@ -341,8 +360,8 @@ public abstract class OmeroServer {
                 "project",
                 String.valueOf(project.getId()),
                 "-",
-                getOwnerOfEntity(project).getFullName(),
-                getGroupOfEntity(project).getName(),
+                Objects.requireNonNull(getOwnerOfEntity(project)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(project)).getName(),
                 switch ((int) project.getId()) {
                     case 1 -> "1";
                     case 2 -> "2";
@@ -351,10 +370,10 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static List<Dataset> getDatasets(UserType userType) {
+    protected static List<Dataset> getDatasets(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(new Dataset(3), new Dataset(4));
-            case PUBLIC -> List.of(new Dataset(1));
+            case REGULAR_USER -> List.of(new Dataset(3), new Dataset(4));
+            case PUBLIC_USER -> List.of(new Dataset(1));
         };
     }
 
@@ -379,8 +398,8 @@ public abstract class OmeroServer {
                 },
                 String.valueOf(dataset.getId()),
                 "-",
-                getOwnerOfEntity(dataset).getFullName(),
-                getGroupOfEntity(dataset).getName(),
+                Objects.requireNonNull(getOwnerOfEntity(dataset)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(dataset)).getName(),
                 switch ((int) dataset.getId()) {
                     case 1 -> "7";
                     case 4 -> "2";
@@ -389,10 +408,10 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static List<Dataset> getOrphanedDatasets(UserType userType) {
+    protected static List<Dataset> getOrphanedDatasets(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(new Dataset(5), new Dataset(6));
-            case PUBLIC -> List.of(new Dataset(2));
+            case REGULAR_USER -> List.of(new Dataset(5), new Dataset(6));
+            case PUBLIC_USER -> List.of(new Dataset(2));
         };
     }
 
@@ -400,45 +419,45 @@ public abstract class OmeroServer {
         return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + dataset.getId());
     }
 
-    protected static Image getRGBImage(UserType userType) {
+    protected static Image getRGBImage(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> new Image(19);
-            case PUBLIC -> new Image(1);
+            case REGULAR_USER -> new Image(19);
+            case PUBLIC_USER -> new Image(1);
         };
     }
 
-    protected static Image getUint8Image(UserType userType) {
+    protected static Image getUint8Image(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> new Image(41);
-            case PUBLIC -> new Image(2);
+            case REGULAR_USER -> new Image(41);
+            case PUBLIC_USER -> new Image(2);
         };
     }
 
-    protected static Image getUint16Image(UserType userType) {
+    protected static Image getUint16Image(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> new Image(42);
-            case PUBLIC -> new Image(3);
+            case REGULAR_USER -> new Image(42);
+            case PUBLIC_USER -> new Image(3);
         };
     }
 
-    protected static Image getInt16Image(UserType userType) {
+    protected static Image getInt16Image(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> new Image(43);
-            case PUBLIC -> new Image(4);
+            case REGULAR_USER -> new Image(43);
+            case PUBLIC_USER -> new Image(4);
         };
     }
 
-    protected static Image getInt32Image(UserType userType) {
+    protected static Image getInt32Image(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> new Image(44);
-            case PUBLIC -> new Image(5);
+            case REGULAR_USER -> new Image(44);
+            case PUBLIC_USER -> new Image(5);
         };
     }
 
-    protected static Image getFloat32Image(UserType userType) {
+    protected static Image getFloat32Image(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> new Image(20);
-            case PUBLIC -> new Image(6);
+            case REGULAR_USER -> new Image(20);
+            case PUBLIC_USER -> new Image(6);
         };
     }
 
@@ -454,17 +473,17 @@ public abstract class OmeroServer {
         return new ImageSettings("float32.tiff", getFloat32ChannelSettings());
     }
 
-    protected static Image getFloat64Image(UserType userType) {
+    protected static Image getFloat64Image(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> new Image(45);
-            case PUBLIC -> new Image(7);
+            case REGULAR_USER -> new Image(45);
+            case PUBLIC_USER -> new Image(7);
         };
     }
 
-    protected static Image getComplexImage(UserType userType) {
+    protected static Image getComplexImage(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> new Image(46);
-            case PUBLIC -> new Image(8);
+            case REGULAR_USER -> new Image(46);
+            case PUBLIC_USER -> new Image(8);
         };
     }
 
@@ -504,8 +523,8 @@ public abstract class OmeroServer {
         return List.of(
                 metadata.getName(),
                 String.valueOf(image.getId()),
-                getOwnerOfEntity(image).getFullName(),
-                getGroupOfEntity(image).getName(),
+                Objects.requireNonNull(getOwnerOfEntity(image)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(image)).getName(),
                 "-",
                 metadata.getWidth() + " px",
                 metadata.getHeight() + " px",
@@ -533,9 +552,9 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static List<Image> getOrphanedImages(UserType userType) {
+    protected static List<Image> getOrphanedImages(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(
+            case REGULAR_USER -> List.of(
                     getComplexImage(userType),
                     getFloat64Image(userType),
                     getInt16Image(userType),
@@ -543,24 +562,24 @@ public abstract class OmeroServer {
                     getUint16Image(userType),
                     getUint8Image(userType)
             );
-            case PUBLIC -> List.of(getComplexImage(userType));
+            case PUBLIC_USER -> List.of(getComplexImage(userType));
         };
     }
 
     protected static List<Image> getImagesInDataset(Dataset dataset) {
         return switch ((int) dataset.getId()) {
             case 1 -> List.of(
-                    getFloat32Image(UserType.PUBLIC),
-                    getFloat64Image(UserType.PUBLIC),
-                    getInt16Image(UserType.PUBLIC),
-                    getInt32Image(UserType.PUBLIC),
-                    getRGBImage(UserType.PUBLIC),
-                    getUint16Image(UserType.PUBLIC),
-                    getUint8Image(UserType.PUBLIC)
+                    getFloat32Image(Credentials.UserType.PUBLIC_USER),
+                    getFloat64Image(Credentials.UserType.PUBLIC_USER),
+                    getInt16Image(Credentials.UserType.PUBLIC_USER),
+                    getInt32Image(Credentials.UserType.PUBLIC_USER),
+                    getRGBImage(Credentials.UserType.PUBLIC_USER),
+                    getUint16Image(Credentials.UserType.PUBLIC_USER),
+                    getUint8Image(Credentials.UserType.PUBLIC_USER)
             );
             case 4 -> List.of(
-                    getFloat32Image(UserType.USER),
-                    getRGBImage(UserType.USER)
+                    getFloat32Image(Credentials.UserType.REGULAR_USER),
+                    getRGBImage(Credentials.UserType.REGULAR_USER)
             );
             default -> List.of();
         };
@@ -588,11 +607,11 @@ public abstract class OmeroServer {
         }
     }
 
-    protected static Image getAnnotableImage(UserType userType) {
+    protected static Image getAnnotableImage(Credentials.UserType userType) {
         return getRGBImage(userType);
     }
 
-    protected static Image getModifiableImage(UserType userType) {
+    protected static Image getModifiableImage(Credentials.UserType userType) {
         return getComplexImage(userType);
     }
 
@@ -632,10 +651,10 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<Screen> getScreens(UserType userType) {
+    protected static List<Screen> getScreens(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(new Screen(2), new Screen(3));
-            case PUBLIC -> List.of(new Screen(1));
+            case REGULAR_USER -> List.of(new Screen(2), new Screen(3));
+            case PUBLIC_USER -> List.of(new Screen(1));
         };
     }
 
@@ -649,16 +668,16 @@ public abstract class OmeroServer {
                 },
                 String.valueOf(screen.getId()),
                 "-",
-                getOwnerOfEntity(screen).getFullName(),
-                getGroupOfEntity(screen).getName(),
+                Objects.requireNonNull(getOwnerOfEntity(screen)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(screen)).getName(),
                 "1"
         );
     }
 
-    protected static List<Plate> getOrphanedPlates(UserType userType) {
+    protected static List<Plate> getOrphanedPlates(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(new Plate(5), new Plate(6));
-            case PUBLIC -> List.of(new Plate(2));
+            case REGULAR_USER -> List.of(new Plate(5), new Plate(6));
+            case PUBLIC_USER -> List.of(new Plate(2));
         };
     }
 
@@ -679,8 +698,8 @@ public abstract class OmeroServer {
         return List.of(
                 "plate",
                 String.valueOf(plate.getId()),
-                getOwnerOfEntity(plate).getFullName(),
-                getGroupOfEntity(plate).getName(),
+                Objects.requireNonNull(getOwnerOfEntity(plate)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(plate)).getName(),
                 "3",
                 "3"
         );
@@ -750,14 +769,14 @@ public abstract class OmeroServer {
         }
     }
 
-    protected static List<SearchResult> getSearchResultsOnDataset(UserType userType) {
+    protected static List<SearchResult> getSearchResultsOnDataset(Credentials.UserType userType) {
         return switch (userType) {
-            case USER -> List.of(
+            case REGULAR_USER -> List.of(
                     new SearchResult(
                             "dataset",
                             3,
                             "dataset1",
-                            getGroupOfEntity(new Dataset(3)).getName(),
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(3))).getName(),
                             "/webclient/?show=dataset-3",
                             null,
                             null
@@ -766,7 +785,7 @@ public abstract class OmeroServer {
                             "dataset",
                             4,
                             "dataset2",
-                            getGroupOfEntity(new Dataset(4)).getName(),
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(4))).getName(),
                             "/webclient/?show=dataset-4",
                             null,
                             null
@@ -775,7 +794,7 @@ public abstract class OmeroServer {
                             "dataset",
                             5,
                             "orphaned_dataset1",
-                            getGroupOfEntity(new Dataset(5)).getName(),
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(5))).getName(),
                             "/webclient/?show=dataset-5",
                             null,
                             null
@@ -784,18 +803,18 @@ public abstract class OmeroServer {
                             "dataset",
                             6,
                             "orphaned_dataset2",
-                            getGroupOfEntity(new Dataset(6)).getName(),
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(6))).getName(),
                             "/webclient/?show=dataset-6",
                             null,
                             null
                     )
             );
-            case PUBLIC -> List.of(
+            case PUBLIC_USER -> List.of(
                     new SearchResult(
                             "dataset",
                             1,
                             "dataset",
-                            getGroupOfEntity(new Dataset(1)).getName(),
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(1))).getName(),
                             "/webclient/?show=dataset-1",
                             null,
                             null
@@ -804,7 +823,7 @@ public abstract class OmeroServer {
                             "dataset",
                             2,
                             "orphaned_dataset",
-                            getGroupOfEntity(new Dataset(2)).getName(),
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(2))).getName(),
                             "/webclient/?show=dataset-2",
                             null,
                             null
@@ -815,31 +834,31 @@ public abstract class OmeroServer {
 
     private static void logCommandResult(Container.ExecResult result) {
         if (!result.getStdout().isBlank()) {
-            logger.debug(String.format("Setting up OMERO server: %s", result.getStdout()));
+            logger.debug("Setting up OMERO server: {}", result.getStdout());
         }
 
         if (!result.getStderr().isBlank()) {
-            logger.warn(String.format("Setting up OMERO server: %s", result.getStderr()));
+            logger.warn("Setting up OMERO server: {}", result.getStderr());
         }
     }
 
-    private static WebClient createValidClient(WebClient.Authentication authentication, String... args) {
-        WebClient webClient = null;
+    private static Client createValidClient(Credentials credentials) {
+        Client client = null;
         int attempt = 0;
 
         do {
             try {
-                webClient = WebClients.createClient(getWebServerURI(), authentication, args).get();
-            } catch (ExecutionException | InterruptedException e) {
-                logger.debug(String.format("Client creation attempt %d of %d failed", attempt, CLIENT_CREATION_ATTEMPTS-1), e);
+                client = Client.createOrGet(getWebServerURI(), credentials);
+            } catch (Exception e) {
+                logger.debug("Client creation attempt {} of {} failed", attempt, CLIENT_CREATION_ATTEMPTS - 1, e);
             }
-        } while (webClient != null && ++attempt < CLIENT_CREATION_ATTEMPTS);
+        } while (client != null && ++attempt < CLIENT_CREATION_ATTEMPTS);
 
-        if (webClient == null) {
+        if (client == null) {
             throw new IllegalStateException("Client creation failed");
         } else {
-            webClient.getPixelAPI(MsPixelBufferApi.class).setPort(getMsPixelBufferApiPort(), true);
-            return webClient;
+            client.getPixelAPI(MsPixelBufferApi.class).setPort(getMsPixelBufferApiPort(), true);
+            return client;
         }
     }
 
@@ -941,7 +960,7 @@ public abstract class OmeroServer {
     }
 
     private static ImageType getImageType(Image image) {
-        Map<Function<UserType, Image>, ImageType> imageToType = Map.of(
+        Map<Function<Credentials.UserType, Image>, ImageType> imageToType = Map.of(
                 OmeroServer::getRGBImage, ImageType.RGB,
                 OmeroServer::getUint8Image, ImageType.UINT8,
                 OmeroServer::getUint16Image, ImageType.UINT16,
@@ -953,9 +972,9 @@ public abstract class OmeroServer {
         );
 
         for (var entry: imageToType.entrySet()) {
-            if (Arrays.stream(UserType.values())
+            if (Arrays.stream(Credentials.UserType.values())
                     .map(entry.getKey())
-                    .anyMatch(i -> i.equals(image))) {
+                    .anyMatch(image::equals)) {
                 return entry.getValue();
             }
         }

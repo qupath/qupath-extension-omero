@@ -9,7 +9,6 @@ import javafx.scene.layout.HBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.gui.UiUtilities;
 

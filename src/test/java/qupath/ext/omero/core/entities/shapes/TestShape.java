@@ -18,7 +18,7 @@ import java.util.UUID;
 public class TestShape {
 
     public static Shape createShapeFromJSON(String json) {
-        Gson gson = new GsonBuilder().registerTypeAdapter(Shape.class, new Shape.GsonShapeDeserializer()).setLenient().create();
+        Gson gson = new GsonBuilder().registerTypeAdapter(Shape.class, new Shape.GsonShapeDeserializer()).create();
         JsonElement jsonElement = JsonParser.parseString(json);
         if (jsonElement.isJsonArray()) {
             return gson.fromJson(JsonParser.parseString(json).getAsJsonArray().get(0), Shape.class);

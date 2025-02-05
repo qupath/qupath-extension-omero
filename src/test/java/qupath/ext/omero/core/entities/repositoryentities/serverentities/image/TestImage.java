@@ -3,8 +3,8 @@ package qupath.ext.omero.core.entities.repositoryentities.serverentities.image;
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
 import java.util.List;
@@ -16,13 +16,15 @@ public class TestImage extends OmeroServer {
 
     abstract static class GenericImage {
 
-        protected static final UserType userType = UserType.PUBLIC;
-        protected static WebClient client;
+        protected static final Credentials.UserType userType = Credentials.UserType.PUBLIC_USER;
+        protected static Client client;
         protected static Image image;
 
         @AfterAll
-        static void removeClient() {
-            WebClients.removeClient(client);
+        static void removeClient() throws Exception {
+            if (client != null) {
+                client.close();
+            }
         }
 
         @Test
@@ -54,9 +56,6 @@ public class TestImage extends OmeroServer {
             List<String> attributesValues = IntStream.range(0, numberOfValues)
                     .mapToObj(i -> image.getAttributeValue(i))
                     .toList();
-
-            System.err.println(expectedAttributeValues);
-            System.err.println(attributesValues);
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedAttributeValues, attributesValues);
         }

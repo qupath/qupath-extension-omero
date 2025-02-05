@@ -5,7 +5,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
-import qupath.ext.omero.core.entities.imagemetadata.ImageMetadataResponseParser;
+import qupath.ext.omero.core.entities.ImageMetadataResponseParser;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
@@ -233,8 +233,8 @@ class WebGatewayApi {
                 imageID,
                 IntStream.range(0, existingChannelSettings.size())
                         .mapToObj(i -> new ChannelSettings(
-                                existingChannelSettings.get(i).getMinDisplayRange(),
-                                existingChannelSettings.get(i).getMaxDisplayRange(),
+                                existingChannelSettings.get(i).minDisplayRange(),
+                                existingChannelSettings.get(i).maxDisplayRange(),
                                 newChannelColors.get(i)
                         ))
                         .toList()
@@ -271,9 +271,9 @@ class WebGatewayApi {
                 imageID,
                 IntStream.range(0, existingChannelSettings.size())
                         .mapToObj(i -> new ChannelSettings(
-                                newChannelSettings.get(i).getMinDisplayRange(),
-                                newChannelSettings.get(i).getMaxDisplayRange(),
-                                existingChannelSettings.get(i).getRgbColor()
+                                newChannelSettings.get(i).minDisplayRange(),
+                                newChannelSettings.get(i).maxDisplayRange(),
+                                existingChannelSettings.get(i).rgbColor()
                         ))
                         .toList()
         );
@@ -292,13 +292,13 @@ class WebGatewayApi {
                                     .mapToObj(i -> String.format(
                                             "%d|%f:%f$%s",
                                             i + 1,
-                                            channelSettings.get(i).getMinDisplayRange(),
-                                            channelSettings.get(i).getMaxDisplayRange(),
+                                            channelSettings.get(i).minDisplayRange(),
+                                            channelSettings.get(i).maxDisplayRange(),
                                             String.format(
                                                     "%02X%02X%02X",
-                                                    ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[0],
-                                                    ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[1],
-                                                    ColorTools.unpackRGB(channelSettings.get(i).getRgbColor())[2]
+                                                    ColorTools.unpackRGB(channelSettings.get(i).rgbColor())[0],
+                                                    ColorTools.unpackRGB(channelSettings.get(i).rgbColor())[1],
+                                                    ColorTools.unpackRGB(channelSettings.get(i).rgbColor())[2]
                                             )
                                     ))
                                     .collect(Collectors.joining(",")),

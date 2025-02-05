@@ -22,17 +22,22 @@ dependencies {
 
     testImplementation(libs.bundles.qupath)
     testImplementation(libs.junit)
+    testImplementation(libs.qupath.ext.bioformats)
+    testImplementation("org.openjfx:javafx-base:${libs.versions.javafx.get()}")
     testImplementation("org.openmicroscopy:omero-gateway:5.10.0")
     testImplementation("org.testcontainers:testcontainers:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
 }
 
-
-
 repositories {
     maven {
         name = "ome.maven"
         url = uri("https://artifacts.openmicroscopy.org/artifactory/maven")
+    }
+
+    maven {
+        name = "unidata.releases<"
+        url = uri("https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases")
     }
 }
 

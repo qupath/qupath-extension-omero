@@ -217,14 +217,14 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getDefaultGroup()} ()}.
+     * See {@link JsonApi#getDefaultGroup()}.
      */
     public Group getDefaultGroup() {
         return jsonApi.getDefaultGroup();
     }
 
     /**
-     * See {@link JsonApi#getSessionUuid()} ()} ()}.
+     * See {@link JsonApi#getSessionUuid()}.
      */
     public String getSessionUuid() {
         return jsonApi.getSessionUuid();
@@ -316,11 +316,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * <p>Returns a list of image URIs contained in the dataset identified by the provided ID.</p>
+     * Returns a list of image URIs contained in the dataset identified by the provided ID.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param datasetID the ID of the dataset the returned images must belong to
      * @return a CompletableFuture (that may complete exceptionally) with a list of URIs of images contained in the dataset
@@ -562,36 +561,17 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#sendAttachment(long, Class, String, String)}.
-     */
-    public CompletableFuture<Void> sendAttachment(
-            long entityId,
-            Class<? extends RepositoryEntity> entityClass,
-            String attachmentName,
-            String attachmentContent
-    ) {
-        return webclientApi.sendAttachment(entityId, entityClass, attachmentName, attachmentContent);
-    }
-
-    /**
-     * See {@link WebclientApi#deleteAttachments(long, Class)}.
-     */
-    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
-        return webclientApi.deleteAttachments(entityId, entityClass);
-    }
-
-    /**
-     * <p>Attempt to retrieve the icon of an OMERO entity.</p>
-     * <p>Icons for orphaned folders, projects, datasets, images, screens, plates, and plate acquisitions can be retrieved.</p>
-     * <p>Icons are cached.</p>
+     * Attempt to retrieve the icon of an OMERO entity.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Icons for orphaned folders, projects, datasets, images, screens, plates, and plate acquisitions can be retrieved.
+     * <p>
+     * Icons are cached.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param type the class of the entity whose icon is to be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the icon
-     * @throws com.google.common.util.concurrent.UncheckedExecutionException if the provided type is not part of the list described above
      */
     public CompletableFuture<BufferedImage> getOmeroIcon(Class<? extends RepositoryEntity> type) {
         CompletableFuture<BufferedImage> request;
@@ -735,5 +715,24 @@ public class ApisHandler implements AutoCloseable {
      */
     public CompletableFuture<ImageSettings> getImageSettings(long imageId) {
         return iViewerApi.getImageSettings(imageId);
+    }
+
+    /**
+     * See {@link WebclientApi#sendAttachment(long, Class, String, String)}.
+     */
+    public CompletableFuture<Void> sendAttachment(
+            long entityId,
+            Class<? extends RepositoryEntity> entityClass,
+            String attachmentName,
+            String attachmentContent
+    ) {
+        return webclientApi.sendAttachment(entityId, entityClass, attachmentName, attachmentContent);
+    }
+
+    /**
+     * See {@link WebclientApi#deleteAttachments(long, Class)}.
+     */
+    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
+        return webclientApi.deleteAttachments(entityId, entityClass);
     }
 }

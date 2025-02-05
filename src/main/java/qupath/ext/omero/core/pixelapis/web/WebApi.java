@@ -14,12 +14,12 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.images.servers.PixelType;
 
-import java.util.Arrays;
+import java.util.Map;
 
 /**
  * This API uses the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">OMERO JSON API</a>
  * to access pixel values of an image. It doesn't have dependencies but can only work with 8-bit RGB images, and the
- * images are JPEG-compressed.</p>
+ * images are JPEG-compressed.
  */
 public class WebApi implements PixelApi {
 
@@ -62,23 +62,8 @@ public class WebApi implements PixelApi {
     }
 
     @Override
-    public String[] getArgs() {
-        return new String[] {JPEG_QUALITY_PARAMETER, String.valueOf(jpegQuality.get())};
-    }
-
-    @Override
-    public void setParametersFromArgs(String... args) {
-        logger.debug("Setting parameters of web API from {}", Arrays.stream(args).toList());
-
-        for (int i=0; i<args.length-1; ++i) {
-            if (args[i].equals(JPEG_QUALITY_PARAMETER)) {
-                try {
-                    setJpegQuality(Float.parseFloat(args[i+1]));
-                } catch (NumberFormatException e) {
-                    logger.warn("Can't convert {} to float", args[i+1], e);
-                }
-            }
-        }
+    public Map<String, String> getArgs() {
+        return Map.of(JPEG_QUALITY_PARAMETER, String.valueOf(jpegQuality.get()));
     }
 
     @Override
@@ -101,13 +86,38 @@ public class WebApi implements PixelApi {
         return numberOfChannels == 3;
     }
 
+    /**
+     * Creates a {@link WebReader} that will be used to read pixel values of an image.
+     * <p>
+     * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
+     * no longer used. This pixel API will close them when it itself is closed.
+     *
+     * @param id the ID of the image to open
+     * @param metadata the metadata of the image to open
+     * @param args additional arguments containing label to parameter values to change the reader
+     *             creation: {@link #JPEG_QUALITY_PARAMETER} to a float between 0 and 1 to change
+     *             the JPEG quality of the returned images
+     * @return a new web reader corresponding to this API
+     * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})
+     * @throws IllegalArgumentException when the provided image cannot be read by this API
+     * (see {@link #canReadImage(PixelType, int)})
+     */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata) {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) {
         if (!isAvailable().get()) {
             throw new IllegalStateException("This API is not available and cannot be used");
         }
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
+        }
+
+        if (args.containsKey(JPEG_QUALITY_PARAMETER)) {
+            String quality = args.get(JPEG_QUALITY_PARAMETER);
+            try {
+                setJpegQuality(Float.parseFloat(quality));
+            } catch (NumberFormatException e) {
+                logger.warn("Can't convert {} to float", quality, e);
+            }
         }
 
         return new WebReader(
@@ -138,7 +148,7 @@ public class WebApi implements PixelApi {
     /**
      * Set the JPEG quality used by this pixel API.
      *
-     * @param jpegQuality  the JPEG quality (number between 0 and 1)
+     * @param jpegQuality the JPEG quality (number between 0 and 1)
      */
     public void setJpegQuality(float jpegQuality) {
         if (jpegQuality > 0 && jpegQuality <= 1) {
