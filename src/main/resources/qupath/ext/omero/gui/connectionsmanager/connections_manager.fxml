@@ -11,19 +11,16 @@
     <scene>
         <Scene stylesheets="@../styles.css">
             <ScrollPane fitToHeight="true" fitToWidth="true">
-                <content>
-                    <VBox fx:id="container" alignment="CENTER" spacing="10.0">
-                        <children>
-                            <Label text="%ConnectionsManager.ConnectionManager.noClients">
+                <VBox fx:id="container" alignment="CENTER" spacing="10.0">
+                    <padding>
+                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0"/>
+                    </padding>
+                    <Label text="%ConnectionsManager.ConnectionManager.noClients">
                         <VBox.margin>
-                           <Insets />
-                        </VBox.margin></Label>
-                        </children>
-                  <padding>
-                     <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                  </padding>
-                    </VBox>
-                </content>
+                            <Insets/>
+                        </VBox.margin>
+                    </Label>
+                </VBox>
             </ScrollPane>
         </Scene>
     </scene>

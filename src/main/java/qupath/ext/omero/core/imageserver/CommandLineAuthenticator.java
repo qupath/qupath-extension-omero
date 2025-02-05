@@ -1,7 +1,5 @@
 package qupath.ext.omero.core.imageserver;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
 
 import java.net.URI;
@@ -10,8 +8,6 @@ import java.net.URI;
  * A static class to prompt for credentials using the command line.
  */
 class CommandLineAuthenticator {
-
-    private static final Logger logger = LoggerFactory.getLogger(CommandLineAuthenticator.class);
 
     private CommandLineAuthenticator() {
         throw new AssertionError("This class is not instantiable.");
