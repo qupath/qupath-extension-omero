@@ -18,7 +18,6 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.WritableImage;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
-import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.fx.dialogs.Dialogs;
@@ -252,21 +251,6 @@ public class UiUtilities {
                 });
             }
         }));
-    }
-
-    /**
-     * Show a window. The focus is also set to it.
-     *
-     * @param window the window to show
-     */
-    public static void showWindow(Stage window) {
-        window.show();
-        window.requestFocus();
-
-        // This is necessary to avoid a bug on Linux
-        // that resets the window size
-        window.setWidth(window.getWidth() + 1);
-        window.setHeight(window.getHeight() + 1);
     }
 
     private static void promptToImportOmeroImages(String... validUris) {

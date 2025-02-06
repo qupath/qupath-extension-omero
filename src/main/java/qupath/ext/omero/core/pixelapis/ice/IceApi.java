@@ -114,6 +114,9 @@ public class IceApi implements PixelApi {
      * <p>
      * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
      * no longer used. This pixel API will close them when it itself is closed.
+     * <p>
+     * Note that if this API is not available (see {@link #isAvailable()}), calling this function
+     * will result in undefined behavior.
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
@@ -122,16 +125,11 @@ public class IceApi implements PixelApi {
      *             communicate with the OMERO server and {@link #PORT_PARAMETER} to an integer
      *             greater than 0 to change the port this microservice uses on the OMERO server
      * @return a new web reader corresponding to this API
-     * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
     public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) throws IOException {
-        String sessionUuid = apisHandler.getSessionUuid();
-        if (!isAvailable().get() || sessionUuid == null) {
-            throw new IllegalStateException("This API is not available and cannot be used");
-        }
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
@@ -153,6 +151,8 @@ public class IceApi implements PixelApi {
                 logger.debug("Gateway null. Creating one...");
 
                 try {
+                    String sessionUuid = apisHandler.getSessionUuid();
+
                     List<LoginCredentials> credentials = new ArrayList<>();
                     if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
                         credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));

@@ -40,8 +40,9 @@ public class MsPixelBufferApi implements PixelApi {
     private String host;
 
     /**
-     * Creates a new MsPixelBufferApi. This may take a few seconds as it will send a request
-     * to check the API availability.
+     * Creates a new MsPixelBufferApi. Note that {@link #isAvailable()} may take a few seconds to
+     * be accurate (it will be false by default and true if a request succeeds, which may take some
+     * time).
      *
      * @param apisHandler the apis handler owning this API
      */
@@ -52,7 +53,7 @@ public class MsPixelBufferApi implements PixelApi {
         );
 
         setHost();
-        setAvailable(false);
+        setAvailable(true);
     }
 
     @Override
@@ -90,6 +91,9 @@ public class MsPixelBufferApi implements PixelApi {
      * <p>
      * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
      * no longer used. This pixel API will close them when it itself is closed.
+     * <p>
+     * Note that if this API is not available (see {@link #isAvailable()}), calling this function
+     * will result in undefined behavior.
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
@@ -103,9 +107,6 @@ public class MsPixelBufferApi implements PixelApi {
      */
     @Override
     public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) {
-        if (!isAvailable().get()) {
-            throw new IllegalStateException("This API is not available and cannot be used");
-        }
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
@@ -217,7 +218,7 @@ public class MsPixelBufferApi implements PixelApi {
                 }
             }
 
-            logger.debug("Ms pixel buffer availability changed to {}", isAvailable);
+            logger.debug("Ms pixel buffer availability changed to {}", isAvailable.get());
             return null;
         });
 

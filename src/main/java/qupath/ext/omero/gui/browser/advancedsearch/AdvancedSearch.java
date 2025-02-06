@@ -195,6 +195,17 @@ public class AdvancedSearch extends Stage {
         group.getItems().setAll(server.getGroups());
         group.getItems().add(Group.getAllGroupsGroup());
         group.getSelectionModel().select(server.getDefaultGroup());
+        group.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Group object) {
+                return object == null ? "" : object.getName();
+            }
+
+            @Override
+            public Group fromString(String string) {
+                return null;
+            }
+        });
 
         results.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 

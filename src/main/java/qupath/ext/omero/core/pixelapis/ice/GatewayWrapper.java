@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A wrapper around an Ice {@link Gateway}. This is needed because if a {@link Gateway} is
@@ -28,7 +29,16 @@ class GatewayWrapper implements AutoCloseable {
      * @throws Exception if the connection failed with all provided credentials
      */
     public GatewayWrapper(List<LoginCredentials> loginCredentials) throws Exception {
-        logger.debug("Attempting to create gateway with the following credentials: {}", loginCredentials);
+        logger.debug(
+                "Attempting to create gateway with the following credentials: {}",
+                loginCredentials.stream()
+                        .map(loginCredential -> String.format(
+                                "Server '%s' with user '%s'",
+                                loginCredential.getServer().getHost(),
+                                loginCredential.getUser().getUsername()
+                        ))
+                        .collect(Collectors.joining(", "))
+        );
 
         for (int i=0; i<loginCredentials.size(); i++) {
             try {

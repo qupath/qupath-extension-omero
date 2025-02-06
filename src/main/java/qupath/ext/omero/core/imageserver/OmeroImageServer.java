@@ -60,7 +60,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      * @throws IOException if a {@link PixelApiReader} cannot be created
      * @throws IllegalStateException if no pixel API was found in the arguments and the client doesn't currently have a
      * selected pixel API (see {@link Client#getSelectedPixelAPI()})
-     * @throws IllegalArgumentException if the image ID cannot be parsed from the provided URI
+     * @throws IllegalArgumentException if the image ID cannot be parsed from the provided URI or if the image cannot be read
      */
     public OmeroImageServer(URI imageUri, Client client, List<String> args) throws ExecutionException, InterruptedException, IOException {
         PixelApi pixelApi = getPixelAPIFromArgs(client, args).orElse(client.getSelectedPixelAPI().get());
@@ -209,15 +209,21 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         }
 
         if (pixelAPIName != null) {
-            for (PixelApi pixelAPI: client.getAvailablePixelAPIs()) {
+            for (PixelApi pixelAPI: client.getAllPixelApis()) {
                 if (pixelAPI.getName().equalsIgnoreCase(pixelAPIName)) {
+                    if (!pixelAPI.isAvailable().get()) {
+                        logger.warn(
+                                "The provided pixel API ({}) was found but is not available at the moment. This may cause issue when using it",
+                                pixelAPIName
+                        );
+                    }
                     return Optional.of(pixelAPI);
                 }
             }
             logger.warn(
-                    "The provided pixel API ({}) was not recognized among the available pixel APIs ({}). Another one will be used.",
+                    "The provided pixel API ({}) was not recognized among the pixel APIs of this client ({}). Another one will be used.",
                     pixelAPIName,
-                    client.getAvailablePixelAPIs()
+                    client.getAllPixelApis()
             );
         }
 

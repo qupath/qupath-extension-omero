@@ -66,7 +66,8 @@ class BrowserCommand implements Runnable {
     @Override
     public void run() {
         if (browser != null) {
-            UiUtilities.showWindow(browser);
+            browser.show();
+            browser.requestFocus();
             return;
         }
 

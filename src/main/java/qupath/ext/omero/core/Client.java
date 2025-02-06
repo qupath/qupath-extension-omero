@@ -290,6 +290,13 @@ public class Client implements AutoCloseable {
     }
 
     /**
+     * @return an immutable list of all pixel APIs of this client. Some of them might be unavailable
+     */
+    public List<PixelApi> getAllPixelApis() {
+        return allPixelApis;
+    }
+
+    /**
      * Return the pixel API corresponding to the class passed in parameter.
      * This pixel API is not guaranteed to be available.
      *

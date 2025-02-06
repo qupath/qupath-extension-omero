@@ -74,7 +74,9 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
         opacityProperty.set(1);
 
         if (!empty && repositoryEntity != null) {
-            setIcon(repositoryEntity.getClass());
+            Canvas iconCanvas = new Canvas(15, 15);
+            setGraphic(iconCanvas);
+            setIcon(repositoryEntity.getClass(), iconCanvas);
 
             Tooltip tooltip = new Tooltip();
 
@@ -95,7 +97,7 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
         }
     }
 
-    private void setIcon(Class<? extends RepositoryEntity> type) {
+    private void setIcon(Class<? extends RepositoryEntity> type, Canvas iconCanvas) {
         if (ACCEPTED_ICONS_TYPES.contains(type)) {
             apisHandler.getOmeroIcon(type)
                     .exceptionally(error -> {
@@ -104,9 +106,7 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
                     })
                     .thenAccept(icon -> Platform.runLater(() -> {
                         if (icon != null) {
-                            Canvas iconCanvas = new Canvas(15, 15);
                             UiUtilities.paintBufferedImageOnCanvas(icon, iconCanvas);
-                            setGraphic(iconCanvas);
                         }
                     }));
         }

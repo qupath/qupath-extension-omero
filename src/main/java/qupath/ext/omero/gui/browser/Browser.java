@@ -197,7 +197,8 @@ class Browser extends Stage {
                 logger.error("Error while creating the settings window", e);
             }
         } else {
-            UiUtilities.showWindow(settings);
+            settings.show();
+            settings.requestFocus();
         }
     }
 
@@ -300,7 +301,8 @@ class Browser extends Stage {
                 logger.error("Error while creating the settings window", e);
             }
         } else {
-            UiUtilities.showWindow(advancedSearch);
+            advancedSearch.show();
+            advancedSearch.requestFocus();
         }
     }
 
@@ -336,14 +338,6 @@ class Browser extends Stage {
             case PUBLIC_USER -> logout;
             case REGULAR_USER -> login;
         });
-
-        if (browserModel.getSelectedPixelAPI().get() != null && browserModel.getSelectedPixelAPI().get().canAccessRawPixels()) {
-            rawPixelAccess.setText(resources.getString("Browser.ServerBrowser.accessRawPixels"));
-            rawPixelAccess.setGraphic(UiUtilities.createStateNode(true));
-        } else {
-            rawPixelAccess.setText(resources.getString("Browser.ServerBrowser.noAccessRawPixels"));
-            rawPixelAccess.setGraphic(UiUtilities.createStateNode(false));
-        }
 
         pixelAPI.setItems(browserModel.getAvailablePixelAPIs());
         pixelAPI.setConverter(new StringConverter<>() {
@@ -442,17 +436,19 @@ class Browser extends Stage {
     private void setUpListeners() {
         numberOpenImages.textProperty().bind(Bindings.size(browserModel.getOpenedImagesURIs()).asString());
 
-        browserModel.getSelectedPixelAPI().addListener(change -> {
-            if (browserModel.getSelectedPixelAPI().get() != null && browserModel.getSelectedPixelAPI().get().canAccessRawPixels()) {
-                rawPixelAccess.setText(resources.getString("Browser.ServerBrowser.accessRawPixels"));
-                rawPixelAccess.setGraphic(UiUtilities.createStateNode(true));
-            } else {
-                rawPixelAccess.setText(resources.getString("Browser.ServerBrowser.noAccessRawPixels"));
-                rawPixelAccess.setGraphic(UiUtilities.createStateNode(false));
-            }
-
-            pixelAPI.getSelectionModel().select(browserModel.getSelectedPixelAPI().get());
-        });
+        BooleanBinding rawPixelBindings = Bindings.createBooleanBinding(
+                () -> browserModel.getSelectedPixelAPI().get() != null && browserModel.getSelectedPixelAPI().get().canAccessRawPixels(),
+                browserModel.getSelectedPixelAPI()
+        );
+        rawPixelAccess.textProperty().bind(Bindings
+                .when(rawPixelBindings)
+                .then(resources.getString("Browser.ServerBrowser.accessRawPixels"))
+                .otherwise(resources.getString("Browser.ServerBrowser.noAccessRawPixels"))
+        );
+        rawPixelAccess.graphicProperty().bind(Bindings
+                .when(rawPixelBindings)
+                .then(UiUtilities.createStateNode(true))
+                .otherwise(UiUtilities.createStateNode(false)));
 
         pixelAPI.valueProperty().addListener((p, o, n) -> {
             if (pixelAPI.getValue() != null) {

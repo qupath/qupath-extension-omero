@@ -117,6 +117,10 @@ public class LoginForm extends Stage {
 
     @FXML
     private void onConnectClicked(ActionEvent ignoredEvent) {
+        if (!publicUser.isSelected() && (username.getText().isBlank() || password.getText().isBlank())) {
+            return;
+        }
+
         ExecutorService executor = Executors.newSingleThreadExecutor();
         WaitingWindow waitingWindow;
         try {

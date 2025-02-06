@@ -76,6 +76,8 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         Optional<ClientArgsWrapper> clientArgsWrapper = createOrGetClient(entityURI, Arrays.stream(args).toList());
 
         if (clientArgsWrapper.isPresent()) {
+            logger.debug("Client retrieved for {}. Getting images URIs...", entityURI);
+
             try {
                 List<ServerBuilder<BufferedImage>> builders = clientArgsWrapper.get().client().getApisHandler().getImagesURIFromEntityURI(
                                 entityURI
@@ -101,6 +103,8 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 );
             }
         } else {
+            logger.debug("Cannot create client for {}. Assuming OMERO doesn't support it", entityURI);
+
             return UriImageSupport.createInstance(
                     this.getClass(),
                     0,

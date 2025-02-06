@@ -71,7 +71,7 @@ class IceReader implements PixelApiReader {
                         RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
                         reader.setPixelsId(pixelsData.getId(), false);
 
-                        logger.debug("Reader for image with ID {} created", imageID);
+                        logger.debug("RawPixelsStorePrx for image with ID {} created", imageID);
                         return reader;
                     } catch (DSOutOfServiceException | ServerError e) {
                         logger.error("Error when creating RawPixelsStorePrx", e);
@@ -82,7 +82,7 @@ class IceReader implements PixelApiReader {
                     try {
                         reader.close();
                     } catch (Exception e) {
-                        logger.warn("Error when closing reader", e);
+                        logger.warn("Error when closing RawPixelsStorePrx", e);
                     }
                 }
         );
@@ -160,7 +160,7 @@ class IceReader implements PixelApiReader {
 
     @Override
     public String toString() {
-        return String.format("Ice reader for %s", context.getServerInformation());
+        return String.format("Ice reader for %s", context.getServerInformation().getHost());
     }
 
     private static ImageContextWrapper getImageAndContext(Gateway gateway, long imageID, long userGroupId) throws Exception {

@@ -70,6 +70,9 @@ public interface PixelApi extends AutoCloseable {
      * <p>
      * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
      * no longer used. This pixel API will close them when it itself is closed.
+     * <p>
+     * Note that if this API is not available (see {@link #isAvailable()}), calling this function
+     * will result in undefined behavior.
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
@@ -77,7 +80,6 @@ public interface PixelApi extends AutoCloseable {
      *             creation. See the description of the pixel API implementation for more details
      * @return a new reader corresponding to this API
      * @throws IOException when the reader creation fails
-     * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */

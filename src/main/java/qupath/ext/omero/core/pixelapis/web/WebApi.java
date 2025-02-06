@@ -91,6 +91,9 @@ public class WebApi implements PixelApi {
      * <p>
      * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
      * no longer used. This pixel API will close them when it itself is closed.
+     * <p>
+     * Note that if this API is not available (see {@link #isAvailable()}), calling this function
+     * will result in undefined behavior.
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
@@ -98,15 +101,11 @@ public class WebApi implements PixelApi {
      *             creation: {@link #JPEG_QUALITY_PARAMETER} to a float between 0 and 1 to change
      *             the JPEG quality of the returned images
      * @return a new web reader corresponding to this API
-     * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
     public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) {
-        if (!isAvailable().get()) {
-            throw new IllegalStateException("This API is not available and cannot be used");
-        }
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
