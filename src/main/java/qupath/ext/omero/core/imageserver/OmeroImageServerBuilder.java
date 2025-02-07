@@ -14,7 +14,6 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -47,10 +46,9 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
      *             {@link qupath.ext.omero.core.pixelapis}. These arguments will be updated with the new values provided
      *             by the user before being sent to the image server
      * @return an {@link OmeroImageServer} to open the provided image, or null if the image server creation failed
-     * @throws IOException if a login form cannot be created
      */
     @Override
-    public ImageServer<BufferedImage> buildServer(URI imageUri, String... args) throws IOException {
+    public ImageServer<BufferedImage> buildServer(URI imageUri, String... args) {
         return createOrGetClient(imageUri, Arrays.stream(args).toList())
                 .map(clientPixelApiArgsWrapper -> {
                     try {
@@ -79,10 +77,9 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
      * @param args optional arguments. {@link #USERTYPE_ARG} to specify the type of user (see {@link Credentials.UserType}
      *             and {@link #USERNAME_ARG} to specify the username when connecting to the OMERO server
      * @return some information about the images that can be opened with an OMERO image server from the provided URI
-     * @throws IOException if a login form cannot be created
      */
     @Override
-    public UriImageSupport<BufferedImage> checkImageSupport(URI entityURI, String... args) throws IOException {
+    public UriImageSupport<BufferedImage> checkImageSupport(URI entityURI, String... args) {
         Optional<ClientPixelApiArgsWrapper> clientArgsWrapper = createOrGetClient(entityURI, Arrays.stream(args).toList());
 
         if (clientArgsWrapper.isPresent()) {
@@ -151,7 +148,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         return false;
     }
 
-    private static Optional<ClientPixelApiArgsWrapper> createOrGetClient(URI uri, List<String> args) throws IOException {
+    private static Optional<ClientPixelApiArgsWrapper> createOrGetClient(URI uri, List<String> args) {
         Optional<Credentials.UserType> userType = ArgsUtils.findArgInList(USERTYPE_ARG, args)
                 .flatMap(usertypeFromArgs -> Arrays.stream(Credentials.UserType.values())
                         .filter(type -> type.name().equals(usertypeFromArgs))
