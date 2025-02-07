@@ -7,6 +7,8 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.GridPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -27,7 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 
 /**
- * A modal form to connect to an OMERO server.
+ * A modal form to connect to an OMERO server. It can be closed by pressing the ESCAPE key.
  */
 public class LoginForm extends Stage {
 
@@ -36,11 +38,12 @@ public class LoginForm extends Stage {
     private static final String DEFAULT_URL = "https://idr.openmicroscopy.org/";
     private final Consumer<Client> onClientCreated;
     private Client createdClient;
-    private Credentials usedCredentials;
     @FXML
     private TextField url;
     @FXML
     private CheckBox publicUser;
+    @FXML
+    private GridPane usernamePassword;
     @FXML
     private TextField username;
     @FXML
@@ -95,8 +98,23 @@ public class LoginForm extends Stage {
             }
         }
 
-        username.disableProperty().bind(publicUser.selectedProperty());
-        password.disableProperty().bind(publicUser.selectedProperty());
+        usernamePassword.visibleProperty().bind(publicUser.selectedProperty().not());
+        usernamePassword.managedProperty().bind(usernamePassword.visibleProperty());
+        usernamePassword.visibleProperty().addListener((p, o, n) -> sizeToScene());
+
+        getScene().addEventFilter(
+                KeyEvent.KEY_PRESSED,
+                keyEvent -> {
+                    switch (keyEvent.getCode()) {
+                        case ENTER:
+                            onConnectClicked(null);
+                            break;
+                        case ESCAPE:
+                            close();
+                            break;
+                    }
+                }
+        );
     }
 
     /**
@@ -105,14 +123,6 @@ public class LoginForm extends Stage {
      */
     public Optional<Client> getCreatedClient() {
         return Optional.ofNullable(createdClient);
-    }
-
-    /**
-     * @return the last credentials filled in this form, or an empty Optional if no credentials were
-     * filled yet
-     */
-    public Optional<Credentials> getUsedCredentials() {
-        return Optional.ofNullable(usedCredentials);
     }
 
     @FXML
@@ -141,7 +151,6 @@ public class LoginForm extends Stage {
 
                 Platform.runLater(() -> {
                     createdClient = client;
-                    usedCredentials = credentials;
                     waitingWindow.close();
                     close();
                 });

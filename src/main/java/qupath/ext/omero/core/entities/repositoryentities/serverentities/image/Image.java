@@ -233,7 +233,7 @@ public class Image extends ServerEntity {
             unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
 
             Optional<ReadOnlyObjectProperty<PixelApi>> selectedPixelAPI = Client.getClientFromURI(webServerURI)
-                    .map(Client::getSelectedPixelAPI);
+                    .map(Client::getSelectedPixelApi);
 
             if (selectedPixelAPI.isPresent()) {
                 setSupported(selectedPixelAPI.get());

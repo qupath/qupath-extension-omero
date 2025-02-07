@@ -257,7 +257,7 @@ public class Client implements AutoCloseable {
      * @return the currently selected pixel API. This property may be updated from any thread
      * and may be null
      */
-    public ReadOnlyObjectProperty<PixelApi> getSelectedPixelAPI() {
+    public ReadOnlyObjectProperty<PixelApi> getSelectedPixelApi() {
         return selectedPixelAPI;
     }
 
@@ -383,7 +383,6 @@ public class Client implements AutoCloseable {
     }
 
     private static URI getServerURI(URI uri) throws URISyntaxException {
-        String scheme = uri.getScheme() == null ? "https" : uri.getScheme();
-        return new URI(String.format("%s://%s", scheme, uri.getAuthority()));
+        return new URI(String.format("%s://%s", uri.getScheme(), uri.getAuthority()));
     }
 }

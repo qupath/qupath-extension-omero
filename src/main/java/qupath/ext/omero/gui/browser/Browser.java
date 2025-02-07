@@ -59,25 +59,16 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
+ * Window allowing the user to browse an OMERO server, get information about OMERO entities
+ * and open OMERO images.
  * <p>
- *     Window allowing the user to browse an OMERO server,
- *     get information about OMERO entities and open OMERO images.
- * </p>
+ * It displays a hierarchy of OMERO entities using classes of {@link qupath.ext.omero.gui.browser.hierarchy hierarchy}.
  * <p>
- *     It displays a hierarchy of OMERO entities using classes of
- *     {@link qupath.ext.omero.gui.browser.hierarchy hierarchy}.
- * </p>
+ * It can launch a window showing details on an OMERO entity, described in {@link qupath.ext.omero.gui.browser.advancedinformation advanced_information}.
  * <p>
- *     It can launch a window showing details on an OMERO entity, described in
- *     {@link qupath.ext.omero.gui.browser.advancedinformation advanced_information}.
- * </p>
+ * It can launch a window that performs a search on OMERO entities, described in {@link qupath.ext.omero.gui.browser.advancedsearch advanced_search}.
  * <p>
- *     It can launch a window that performs a search on OMERO entities, described in
- *     {@link qupath.ext.omero.gui.browser.advancedsearch advanced_search}.
- * </p>
- * <p>
- *     It uses a {@link BrowserModel} to update its state.
- * </p>
+ * It uses a {@link BrowserModel} to update its state.
  */
 class Browser extends Stage {
 
@@ -162,6 +153,14 @@ class Browser extends Stage {
 
     @FXML
     private void onLoginClicked(ActionEvent ignoredEvent) {
+        if (!client.canBeClosed()) {
+            Dialogs.showMessageDialog(
+                    resources.getString("Browser.ServerBrowser.login"),
+                    resources.getString("Browser.ServerBrowser.closeImages")
+            );
+            return;
+        }
+
         try {
             new LoginForm(
                     this,
@@ -176,6 +175,14 @@ class Browser extends Stage {
 
     @FXML
     private void onLogoutClicked(ActionEvent ignoredEvent) {
+        if (!client.canBeClosed()) {
+            Dialogs.showMessageDialog(
+                    resources.getString("Browser.ServerBrowser.logout"),
+                    resources.getString("Browser.ServerBrowser.closeImages")
+            );
+            return;
+        }
+
         try {
             new LoginForm(
                     this,
@@ -450,6 +457,7 @@ class Browser extends Stage {
                 .then(UiUtilities.createStateNode(true))
                 .otherwise(UiUtilities.createStateNode(false)));
 
+        browserModel.getSelectedPixelAPI().addListener((p, o, n) -> pixelAPI.getSelectionModel().select(n));
         pixelAPI.valueProperty().addListener((p, o, n) -> {
             if (pixelAPI.getValue() != null) {
                 client.setSelectedPixelAPI(pixelAPI.getValue());

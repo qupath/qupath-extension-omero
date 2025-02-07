@@ -15,6 +15,8 @@ import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
 
 /**
@@ -56,10 +58,13 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
             if (n && !computed) {
                 computed = true;
 
-                children.setAll(getValue().getChildren().stream().map(object -> new HierarchyItem(object, ownerBinding, groupBinding, labelPredicate)).toList());
-                getValue().getChildren().addListener((ListChangeListener<? super RepositoryEntity>) change -> Platform.runLater(() ->
-                        children.setAll(change.getList().stream().map(object -> new HierarchyItem(object, ownerBinding, groupBinding, labelPredicate)).toList())
-                ));
+                children.setAll(getValue().getChildren().stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
+                getValue().getChildren().addListener((ListChangeListener<? super RepositoryEntity>) change -> Platform.runLater(() -> {
+                    // Make a copy of the children to make sure no one is added while iterating
+                    List<? extends RepositoryEntity> newChildren = new ArrayList<>(getValue().getChildren());
+
+                    children.setAll(newChildren.stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
+                }));
 
                 filteredChildren.predicateProperty().bind(Bindings.createObjectBinding(
                         () -> (Predicate<TreeItem<RepositoryEntity>>) item -> {

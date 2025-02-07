@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -37,7 +36,6 @@ import java.util.stream.IntStream;
 public class OmeroImageServer extends AbstractTileableImageServer implements PathObjectReader  {
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServer.class);
-    private static final String PIXEL_API_ARGUMENT = "--pixelAPI";
     private final URI imageUri;
     private final Client client;
     private final long id;
@@ -52,22 +50,15 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      *
      * @param imageUri a link to the image to open
      * @param client the client that will be used to get image information
-     * @param args a list of arguments specifying how to open the image: {@link #PIXEL_API_ARGUMENT} to define the
-     *             pixel API to use, and additional arguments specified in the chosen pixel API of
-     *             {@link qupath.ext.omero.core.pixelapis}.
+     * @param pixelApi the pixel API to use when reading the image
+     * @param args a list of arguments specifying how to open the image with the provided pixel API. They are specified in
+     *             {@link qupath.ext.omero.core.pixelapis}
      * @throws ExecutionException if an error occurred while retrieving the image metadata
      * @throws InterruptedException if retrieving the image metadata was interrupted
      * @throws IOException if a {@link PixelApiReader} cannot be created
-     * @throws IllegalStateException if no pixel API was found in the arguments and the client doesn't currently have a
-     * selected pixel API (see {@link Client#getSelectedPixelAPI()})
      * @throws IllegalArgumentException if the image ID cannot be parsed from the provided URI or if the image cannot be read
      */
-    public OmeroImageServer(URI imageUri, Client client, List<String> args) throws ExecutionException, InterruptedException, IOException {
-        PixelApi pixelApi = getPixelAPIFromArgs(client, args).orElse(client.getSelectedPixelAPI().get());
-        if (pixelApi == null) {
-            throw new IllegalStateException("No supplied pixel API and no selected pixel API");
-        }
-
+    public OmeroImageServer(URI imageUri, Client client, PixelApi pixelApi, List<String> args) throws ExecutionException, InterruptedException, IOException {
         this.imageUri = imageUri;
         this.client = client;
         this.id = ApisHandler.parseEntityId(imageUri).orElseThrow(() -> new IllegalArgumentException(String.format(
@@ -77,7 +68,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         this.pixelAPIReader = pixelApi.createReader(
                 id,
                 originalMetadata,
-                IntStream.range(0, args.size() / 2)
+                IntStream.range(0, args.size() / 2)        //TODO: chelou
                         .boxed()
                         .collect(Collectors.toMap(
                                 i -> args.get(i * 2),
@@ -87,7 +78,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                         ))
         );//TODO: lazy initialize ?
         this.apiName = pixelApi.getName();
-        this.args = ArgsUtils.replaceArgs(args, pixelApi.getArgs());
+        this.args = args;
 
         this.client.addOpenedImage(imageUri);
     }
@@ -196,37 +187,5 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      */
     public long getId() {
         return id;
-    }
-
-    private static Optional<PixelApi> getPixelAPIFromArgs(Client client, List<String> args) {
-        String pixelAPIName = null;
-        int i = 0;
-        while (i < args.size()-1) {
-            String parameter = args.get(i++);
-            if (PIXEL_API_ARGUMENT.equalsIgnoreCase(parameter.trim())) {
-                pixelAPIName = args.get(i++).trim();
-            }
-        }
-
-        if (pixelAPIName != null) {
-            for (PixelApi pixelAPI: client.getAllPixelApis()) {
-                if (pixelAPI.getName().equalsIgnoreCase(pixelAPIName)) {
-                    if (!pixelAPI.isAvailable().get()) {
-                        logger.warn(
-                                "The provided pixel API ({}) was found but is not available at the moment. This may cause issue when using it",
-                                pixelAPIName
-                        );
-                    }
-                    return Optional.of(pixelAPI);
-                }
-            }
-            logger.warn(
-                    "The provided pixel API ({}) was not recognized among the pixel APIs of this client ({}). Another one will be used.",
-                    pixelAPIName,
-                    client.getAllPixelApis()
-            );
-        }
-
-        return Optional.empty();
     }
 }

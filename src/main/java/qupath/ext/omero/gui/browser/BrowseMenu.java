@@ -22,7 +22,7 @@ import java.util.ResourceBundle;
 
 /**
  * Menu allowing to create a connection with a new server using a {@link LoginForm}, or to browse an already
- * connected server (see the {@link qupath.ext.omero.gui.browser.serverbrowser browse server} package).
+ * connected server (see {@link BrowserCommand}).
  */
 public class BrowseMenu extends Menu {
 

@@ -106,8 +106,14 @@ class Connection extends VBox {
                     serverURI,
                     PreferencesManager.getCredentials(serverURI).orElse(null),
                     client -> Platform.runLater(() -> Dialogs.showInfoNotification(
-                            resources.getString("ConnectionsManager.Connection.webServer"),
-                            MessageFormat.format(resources.getString("ConnectionsManager.Connection.connectedTo"), serverURI.toString())
+                            resources.getString("ConnectionsManager.Connection.omeroServer"),
+                            MessageFormat.format(
+                                    resources.getString("ConnectionsManager.Connection.connectedTo"),
+                                    serverURI.toString(),
+                                    client.getApisHandler().getCredentials().username() == null ?
+                                            resources.getString("ConnectionsManager.Connection.publicUser") :
+                                            client.getApisHandler().getCredentials().username()
+                            )
                     ))
             ).show();
         } catch (IOException e) {
@@ -117,17 +123,27 @@ class Connection extends VBox {
 
     @FXML
     private void onLoginClicked(ActionEvent ignoredEvent) {
+        if (client != null && !client.canBeClosed()) {
+            Dialogs.showMessageDialog(
+                    resources.getString("ConnectionsManager.Connection.login"),
+                    resources.getString("ConnectionsManager.Connection.closeImages")
+            );
+            return;
+        }
+
         try {
             new LoginForm(
                     getScene().getWindow(),
                     serverURI,
                     null,
                     client -> Platform.runLater(() -> Dialogs.showInfoNotification(
-                            resources.getString("ConnectionsManager.Connection.login"),
+                            resources.getString("ConnectionsManager.Connection.omeroServer"),
                             MessageFormat.format(
-                                    resources.getString("ConnectionsManager.Connection.loginSuccessful"),
-                                    client.getApisHandler().getWebServerURI(),
-                                    client.getApisHandler().getCredentials().username()
+                                    resources.getString("ConnectionsManager.Connection.connectedTo"),
+                                    serverURI.toString(),
+                                    client.getApisHandler().getCredentials().username() == null ?
+                                            resources.getString("ConnectionsManager.Connection.publicUser") :
+                                            client.getApisHandler().getCredentials().username()
                             )
                     ))
             ).show();
@@ -138,46 +154,57 @@ class Connection extends VBox {
 
     @FXML
     private void onDisconnectClicked(ActionEvent ignoredEvent) {
-        if (client != null) {
-            if (client.canBeClosed()) {
-                boolean deletionConfirmed = Dialogs.showConfirmDialog(
-                        resources.getString("ConnectionsManager.Connection.disconnectClient"),
-                        resources.getString("ConnectionsManager.Connection.disconnectClientConfirmation")
-                );
+        if (client == null) {
+            return;
+        }
 
-                if (deletionConfirmed) {
-                    try {
-                        client.close();
-                    } catch (Exception e) {
-                        logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
-                    }
-                }
-            } else {
-                Dialogs.showMessageDialog(
-                        resources.getString("ConnectionsManager.Connection.removeClient"),
-                        resources.getString("ConnectionsManager.Connection.closeImages")
-                );
-            }
+        if (!client.canBeClosed()) {
+            Dialogs.showMessageDialog(
+                    resources.getString("ConnectionsManager.Connection.removeClient"),
+                    resources.getString("ConnectionsManager.Connection.closeImages")
+            );
+            return;
+        }
+
+        if (!Dialogs.showConfirmDialog(
+                resources.getString("ConnectionsManager.Connection.disconnectClient"),
+                resources.getString("ConnectionsManager.Connection.disconnectClientConfirmation")
+        )) {
+            return;
+        }
+
+        try {
+            client.close();
+        } catch (Exception e) {
+            logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
         }
     }
 
     @FXML
     private void onRemoveClicked(ActionEvent ignoredEvent) {
-        boolean deletionConfirmed = Dialogs.showConfirmDialog(
+        if (client != null && !client.canBeClosed()) {
+            Dialogs.showMessageDialog(
+                    resources.getString("ConnectionsManager.Connection.removeClient"),
+                    resources.getString("ConnectionsManager.Connection.closeImages")
+            );
+            return;
+        }
+
+        if (!Dialogs.showConfirmDialog(
                 resources.getString("ConnectionsManager.Connection.removeClient"),
                 resources.getString("ConnectionsManager.Connection.removeClientConfirmation")
-        );
-
-        if (deletionConfirmed) {
-            if (client != null) {
-                try {
-                    client.close();
-                } catch (Exception e) {
-                    logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
-                }
-            }
-            PreferencesManager.removeServer(serverURI);
+        )) {
+            return;
         }
+
+        if (client != null) {
+            try {
+                client.close();
+            } catch (Exception e) {
+                logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
+            }
+        }
+        PreferencesManager.removeServer(serverURI);
     }
 
     private void initUI() throws IOException {

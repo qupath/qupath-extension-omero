@@ -65,7 +65,7 @@ class BrowserModel {
         UiUtilities.bindPropertyInUIThread(areOrphanedImagesLoading, client.getApisHandler().areOrphanedImagesLoading());
         UiUtilities.bindPropertyInUIThread(numberOfOrphanedImagesLoaded, client.getApisHandler().getNumberOfOrphanedImagesLoaded());
         UiUtilities.bindPropertyInUIThread(numberOfThumbnailsLoading, client.getApisHandler().getNumberOfThumbnailsLoading());
-        UiUtilities.bindPropertyInUIThread(selectedPixelAPI, client.getSelectedPixelAPI());
+        UiUtilities.bindPropertyInUIThread(selectedPixelAPI, client.getSelectedPixelApi());
 
         UiUtilities.bindListInUIThread(availablePixelApis, client.getAvailablePixelAPIs());
 
@@ -123,7 +123,7 @@ class BrowserModel {
     }
 
     /**
-     * See {@link Client#getSelectedPixelAPI()}.
+     * See {@link Client#getSelectedPixelApi()}.
      */
     public ReadOnlyObjectProperty<PixelApi> getSelectedPixelAPI() {
         return selectedPixelAPI;

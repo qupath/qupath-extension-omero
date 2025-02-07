@@ -5,8 +5,10 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.login.LoginForm;
+import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
@@ -31,25 +33,33 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServerBuilder.class);
     private static final String USERTYPE_ARG = "--usertype";
     private static final String USERNAME_ARG = "--username";
+    private static final String PIXEL_API_ARG = "--pixelAPI";
     private static final float SUPPORT_LEVEL = 4;
-    private record ClientArgsWrapper(Client client, List<String> args) {}
+    private record ClientPixelApiArgsWrapper(Client client, PixelApi pixelApi, List<String> args) {}
 
     /**
      * Attempt to create a {@link OmeroImageServer} from the specified URL.
      *
      * @param imageUri the link of the image to open
-     * @param args optional arguments. {@link #USERTYPE_ARG} to specify the type of user (see {@link Credentials.UserType})
-     *             and {@link #USERNAME_ARG} to specify the username when connecting to the OMERO server. These arguments
-     *             will be updated with the new values provided by the user before being sent to the image server
+     * @param args optional arguments. {@link #USERTYPE_ARG} to specify the type of user (see {@link Credentials.UserType}),
+     *             {@link #USERNAME_ARG} to specify the username when connecting to the OMERO server, {@link #PIXEL_API_ARG}
+     *             to define the pixel API to use, and additional arguments specified in the chosen pixel API of
+     *             {@link qupath.ext.omero.core.pixelapis}. These arguments will be updated with the new values provided
+     *             by the user before being sent to the image server
      * @return an {@link OmeroImageServer} to open the provided image, or null if the image server creation failed
      * @throws IOException if a login form cannot be created
      */
     @Override
     public ImageServer<BufferedImage> buildServer(URI imageUri, String... args) throws IOException {
         return createOrGetClient(imageUri, Arrays.stream(args).toList())
-                .map(clientArgsWrapper -> {
+                .map(clientPixelApiArgsWrapper -> {
                     try {
-                        return new OmeroImageServer(imageUri, clientArgsWrapper.client(), clientArgsWrapper.args());
+                        return new OmeroImageServer(
+                                imageUri,
+                                clientPixelApiArgsWrapper.client(),
+                                clientPixelApiArgsWrapper.pixelApi(),
+                                clientPixelApiArgsWrapper.args()
+                        );
                     } catch (Exception e) {
                         if (e instanceof InterruptedException) {
                             Thread.currentThread().interrupt();
@@ -73,7 +83,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
      */
     @Override
     public UriImageSupport<BufferedImage> checkImageSupport(URI entityURI, String... args) throws IOException {
-        Optional<ClientArgsWrapper> clientArgsWrapper = createOrGetClient(entityURI, Arrays.stream(args).toList());
+        Optional<ClientPixelApiArgsWrapper> clientArgsWrapper = createOrGetClient(entityURI, Arrays.stream(args).toList());
 
         if (clientArgsWrapper.isPresent()) {
             logger.debug("Client retrieved for {}. Getting images URIs...", entityURI);
@@ -141,7 +151,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         return false;
     }
 
-    private static Optional<ClientArgsWrapper> createOrGetClient(URI uri, List<String> args) throws IOException {
+    private static Optional<ClientPixelApiArgsWrapper> createOrGetClient(URI uri, List<String> args) throws IOException {
         Optional<Credentials.UserType> userType = ArgsUtils.findArgInList(USERTYPE_ARG, args)
                 .flatMap(usertypeFromArgs -> Arrays.stream(Credentials.UserType.values())
                         .filter(type -> type.name().equals(usertypeFromArgs))
@@ -151,6 +161,8 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
         Client client = null;
         if (userType.isPresent()) {
+            logger.debug("User type {} found in arguments", userType.get());
+
             switch (userType.get()) {
                 case PUBLIC_USER -> {
                     try {
@@ -161,35 +173,66 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 }
                 case REGULAR_USER -> {
                     if (username.isPresent()) {
+                        logger.debug("Username {} found in arguments", username.get());
+
                         Optional<Client> existingClient = Client.getClients().stream()
+                                .filter(c -> c.getApisHandler().getWebServerURI().getHost().equals(uri.getHost()))
                                 .filter(c -> c.getApisHandler().getCredentials().equals(
                                         new Credentials(username.get(), null)
                                 ))
                                 .findAny();
                         if (existingClient.isPresent()) {
+                            logger.debug("Existing client of {} with username {} found. Using it", uri, username.get());
                             client = existingClient.get();
                         } else {
+                            logger.debug("No client of {} with username {} was found. Prompting credentials...", uri, username.get());
                             client = getClientFromUserPrompt(uri, username.get());
                         }
                     } else {
+                        logger.debug("Username not found in arguments. Prompting credentials...");
                         client = getClientFromUserPrompt(uri, null);
                     }
                 }
             }
         } else {
-            client = getClientFromUserPrompt(uri, null);
+            logger.debug("User type not found in arguments");
+
+            Optional<Client> existingClient = Client.getClients().stream()
+                    .filter(c -> c.getApisHandler().getWebServerURI().getHost().equals(uri.getHost()))
+                    .findAny();
+            if (existingClient.isPresent()) {
+                logger.debug("Existing client of {} found. Using it", uri);
+                client = existingClient.get();
+            } else {
+                logger.debug("No client of {} was found. Prompting credentials...", uri);
+                client = getClientFromUserPrompt(uri, null);
+            }
         }
 
         if (client == null) {
             return Optional.empty();
         } else {
+            PixelApi pixelApi = getPixelAPIFromArgs(client, args).orElse(null);
+            if (pixelApi == null) {
+                pixelApi = client.getSelectedPixelApi().get();
+
+                if (pixelApi == null) {
+                    logger.debug("No supplied pixel API and no selected pixel API");
+                    return Optional.empty();
+                } else {
+                    logger.debug("No pixel API was found in the arguments, so {} was selected to read {}", pixelApi.getName(), uri);
+                }
+            }
+
             Map<String, String> argumentsToReplace = new HashMap<>();
             argumentsToReplace.put(USERTYPE_ARG, client.getApisHandler().getCredentials().userType().name());
             if (client.getApisHandler().getCredentials().username() != null) {
                 argumentsToReplace.put(USERNAME_ARG, client.getApisHandler().getCredentials().username());
             }
+            argumentsToReplace.put(PIXEL_API_ARG, pixelApi.getName());
+            argumentsToReplace.putAll(pixelApi.getArgs());
 
-            return Optional.of(new ClientArgsWrapper(client, ArgsUtils.replaceArgs(args, argumentsToReplace)));
+            return Optional.of(new ClientPixelApiArgsWrapper(client, pixelApi, ArgsUtils.replaceArgs(args, argumentsToReplace)));
         }
     }
 
@@ -213,18 +256,24 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 ));
     }
 
-    private static Client getClientFromUserPrompt(URI uri, String username) throws IOException {
+    private static Client getClientFromUserPrompt(URI uri, String username) {
         if (UiUtilities.usingGUI()) {
-            LoginForm loginForm = new LoginForm(
-                    QuPathGUI.getInstance().getStage(),
-                    uri,
-                    username == null ? null : new Credentials(username, null),
-                    c -> {}
-            );
+            logger.debug("Prompting credentials from GUI");
 
-            loginForm.showAndWait();
-            return loginForm.getCreatedClient().orElse(null);
+            return FXUtils.callOnApplicationThread(() -> {
+                LoginForm loginForm = new LoginForm(
+                        QuPathGUI.getInstance().getStage(),
+                        uri,
+                        username == null ? null : new Credentials(username, null),
+                        c -> {}
+                );
+
+                loginForm.showAndWait();
+                return loginForm.getCreatedClient().orElse(null);
+            });
         } else {
+            logger.debug("Prompting credentials from command line");
+
             try {
                 return Client.createOrGet(
                         uri.toString(),
@@ -235,5 +284,42 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 return null;
             }
         }
+    }
+
+    private static Optional<PixelApi> getPixelAPIFromArgs(Client client, List<String> args) {
+        String pixelAPIName = null;
+        int i = 0;
+        while (i < args.size()-1) {
+            String parameter = args.get(i++);
+            if (PIXEL_API_ARG.equalsIgnoreCase(parameter.trim())) {
+                pixelAPIName = args.get(i++).trim();
+            }
+        }
+
+        if (pixelAPIName == null) {
+            logger.debug("Pixel API not found in arguments");
+        } else {
+            for (PixelApi pixelAPI: client.getAllPixelApis()) {
+                if (pixelAPI.getName().equalsIgnoreCase(pixelAPIName)) {
+                    if (pixelAPI.isAvailable().get()) {
+                        logger.debug("Pixel API '{}' found from arguments", pixelAPIName);
+                    } else {
+                        logger.warn(
+                                "The provided pixel API ({}) was found but is not available at the moment. This may cause issues when using it",
+                                pixelAPIName
+                        );
+                    }
+
+                    return Optional.of(pixelAPI);
+                }
+            }
+            logger.warn(
+                    "The provided pixel API ({}) was not recognized among the pixel APIs of this client ({}). Another one will be used.",
+                    pixelAPIName,
+                    client.getAllPixelApis()
+            );
+        }
+
+        return Optional.empty();
     }
 }
