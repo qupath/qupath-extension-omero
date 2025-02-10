@@ -37,6 +37,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     private static final String PASSWORD_ARG = "--password";
     private static final String PIXEL_API_ARG = "--pixelAPI";
     private static final float SUPPORT_LEVEL = 4;
+    private static final List<String> ACCEPTED_SCHEMES = List.of("http", "https");
     private record ClientPixelApiArgsWrapper(Client client, PixelApi pixelApi, List<String> args) {}
 
     /**
@@ -91,34 +92,33 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
         Optional<ClientPixelApiArgsWrapper> clientArgsWrapper = getClientAndPixelApi(entityURI, Arrays.stream(args).toList());
 
-        if (clientArgsWrapper.isPresent()) {
-            logger.debug("Client retrieved for {}. Getting images URIs...", entityURI);
+        if (clientArgsWrapper.isEmpty()) {
+            return UriImageSupport.createInstance(
+                    this.getClass(),
+                    0,
+                    List.of()
+            );
+        }
 
-            try {
-                List<ServerBuilder<BufferedImage>> builders = clientArgsWrapper.get().client().getApisHandler().getImagesURIFromEntityURI(
-                                entityURI
-                        )
-                        .join()
-                        .stream()
-                        .map(uri -> createServerBuilder(clientArgsWrapper.get().client(), uri, clientArgsWrapper.get().args()))
-                        .map(CompletableFuture::join)
-                        .toList();
+        logger.debug("Client retrieved for {}. Getting images URIs...", entityURI);
+        try {
+            List<ServerBuilder<BufferedImage>> builders = clientArgsWrapper.get().client().getApisHandler().getImagesURIFromEntityURI(
+                            entityURI
+                    )
+                    .join()
+                    .stream()
+                    .map(uri -> createServerBuilder(clientArgsWrapper.get().client(), uri, clientArgsWrapper.get().args()))
+                    .map(CompletableFuture::join)
+                    .toList();
 
-                return UriImageSupport.createInstance(
-                        this.getClass(),
-                        builders.isEmpty() ? 0 : SUPPORT_LEVEL,
-                        builders
-                );
-            } catch (Exception e) {
-                logger.debug("Error when getting image URIs", e);
+            return UriImageSupport.createInstance(
+                    this.getClass(),
+                    builders.isEmpty() ? 0 : SUPPORT_LEVEL,
+                    builders
+            );
+        } catch (Exception e) {
+            logger.debug("Error when getting image URIs", e);
 
-                return UriImageSupport.createInstance(
-                        this.getClass(),
-                        0,
-                        List.of()
-                );
-            }
-        } else {
             return UriImageSupport.createInstance(
                     this.getClass(),
                     0,
@@ -156,6 +156,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<ClientPixelApiArgsWrapper> getClientAndPixelApi(URI uri, List<String> args) {
+        if (!ACCEPTED_SCHEMES.contains(uri.getScheme())) {
+            logger.debug("{} doesn't contain one of the required schemes: {}", uri, ACCEPTED_SCHEMES);
+            return Optional.empty();
+        }
+
         try {
             return getClient(uri, args).map(client -> {
                 PixelApi pixelApi = getPixelAPIFromArgs(client, args).orElse(null);
