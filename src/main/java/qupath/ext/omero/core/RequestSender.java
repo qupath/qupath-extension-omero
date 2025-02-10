@@ -3,6 +3,8 @@ package qupath.ext.omero.core;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.io.GsonTools;
 
 import javax.imageio.ImageIO;
@@ -40,6 +42,7 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  */
 public class RequestSender implements AutoCloseable {
 
+    private static final Logger logger = LoggerFactory.getLogger(RequestSender.class);
     private static final int REQUEST_TIMEOUT = 20;
     private final java.net.CookieHandler cookieHandler = new CookieManager();
     /**
@@ -105,6 +108,8 @@ public class RequestSender implements AutoCloseable {
                 .followRedirects(followRedirection ? HttpClient.Redirect.ALWAYS : HttpClient.Redirect.NEVER)
                 .build();
 
+        logger.debug("Sending GET request to {}...", uri);
+
         return httpClient
                 .sendAsync(getRequest(uri, RequestType.GET), HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::statusCode)
@@ -119,6 +124,8 @@ public class RequestSender implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the raw HTTP response in text format
      */
     public CompletableFuture<String> get(URI uri) {
+        logger.debug("Sending GET request to {}...", uri);
+
         return httpClient
                 .sendAsync(
                         getRequest(uri, RequestType.GET),
@@ -214,6 +221,8 @@ public class RequestSender implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the HTTP response converted to an image
      */
     public CompletableFuture<BufferedImage> getImage(URI uri) {
+        logger.debug("Sending GET request to {}...", uri);
+
         return httpClient
                 .sendAsync(getRequest(uri, RequestType.GET), HttpResponse.BodyHandlers.ofByteArray())
                 .thenApplyAsync(response -> {
@@ -372,6 +381,8 @@ public class RequestSender implements AutoCloseable {
         }
         HttpClient httpClient = builder.build();
 
+        logger.debug("Sending {} request to {}...", httpRequest.method(), httpRequest.uri());
+
         return httpClient
                 .sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
                 .thenAccept(response -> {
@@ -429,6 +440,8 @@ public class RequestSender implements AutoCloseable {
     }
 
     private CompletableFuture<String> post(HttpRequest request) {
+        logger.debug("Sending POST request to {}...", request.uri());
+
         return httpClient
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString())
                 .thenApply(HttpResponse::body);
