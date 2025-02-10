@@ -21,42 +21,42 @@ class IceLogger implements omero.log.Logger {
 
     @Override
     public void info(Object o, String s) {
-        logger.info(s, o);
+        logger.debug(s, o);
     }
 
     @Override
     public void info(Object o, LogMessage logMessage) {
-        logger.info(logMessage.toString(), o);
+        logger.debug(logMessage.toString(), o);
     }
 
     @Override
     public void warn(Object o, String s) {
-        logger.warn(s, o);
+        logger.debug(s, o);
     }
 
     @Override
     public void warn(Object o, LogMessage logMessage) {
-        logger.warn(logMessage.toString(), o);
+        logger.debug(logMessage.toString(), o);
     }
 
     @Override
     public void error(Object o, String s) {
-        logger.error(s, o);
+        logger.debug(s, o);
     }
 
     @Override
     public void error(Object o, LogMessage logMessage) {
-        logger.error(logMessage.toString(), o);
+        logger.debug(logMessage.toString(), o);
     }
 
     @Override
     public void fatal(Object o, String s) {
-        logger.error(s, o);
+        logger.debug(s, o);
     }
 
     @Override
     public void fatal(Object o, LogMessage logMessage) {
-        logger.error(logMessage.toString(), o);
+        logger.debug(logMessage.toString(), o);
     }
 
     @Override
