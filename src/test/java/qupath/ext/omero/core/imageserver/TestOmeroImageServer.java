@@ -7,6 +7,7 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.pixelapis.web.WebApi;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.objects.PathObject;
@@ -32,7 +33,8 @@ public class TestOmeroImageServer extends OmeroServer {
         imageServer = new OmeroImageServer(
                 OmeroServer.getImageURI(image),
                 client,
-                List.of("--pixelAPI", "Web")
+                client.getPixelAPI(WebApi.class),
+                List.of()
         );
     }
 

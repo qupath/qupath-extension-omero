@@ -1,4 +1,5 @@
 import qupath.ext.omero.core.imageserver.*
+import qupath.ext.omero.core.entities.shapes.Shape
 
 /*
  * This script send all annotations of the current image to the OMERO server.
@@ -21,12 +22,13 @@ def annotations = getAnnotationObjects()
 
 // Send annotation to OMERO
 def removeExistingAnnotations = true
-def status = omeroServer.sendPathObjects(annotations, removeExistingAnnotations)
-if (status) {
-    println "Annotations sent"
-} else {
-    println "Annotations not sent. Check the logs"
-}
+omeroServer.getClient().getApisHandler().writeROIs(
+        omeroServer.getId(),
+        annotations.stream()
+                .map(Shape::createFromPathObject)
+                .flatMap(List::stream)
+                .toList(),
+        removeExistingAnnotations
+).get()
 
-// Close server
-omeroServer.close()
+println "Annotations sent"

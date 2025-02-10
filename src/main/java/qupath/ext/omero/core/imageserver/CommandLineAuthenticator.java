@@ -38,12 +38,12 @@ class CommandLineAuthenticator {
         }
 
         char[] password = null;
-        if (username != null) {
+        if (username != null && !username.isBlank()) {
             System.out.print("Password: ");
             password = System.console().readPassword();
         }
 
-        if (username != null && password != null) {
+        if (username != null && !username.isBlank() && password != null) {
             return new Credentials(username, password);
         } else {
             return new Credentials();

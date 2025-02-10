@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.TestUtilities;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,6 +46,17 @@ public class TestArgsUtils {
         String label = "some_label";
         String expectedArg = "some_value";
         List<String> args = List.of(label, expectedArg);
+
+        String arg = ArgsUtils.findArgInList(label, args).orElse(null);
+
+        Assertions.assertEquals(expectedArg, arg);
+    }
+
+    @Test
+    void Check_Argument_Found_And_Trimmed_In_List() {
+        String label = "some_label";
+        String expectedArg = "some_value";
+        List<String> args = List.of("   some_label   ", "   some_value  ");
 
         String arg = ArgsUtils.findArgInList(label, args).orElse(null);
 
@@ -97,6 +109,29 @@ public class TestArgsUtils {
     @Test
     void Check_Replaced_Args() {
         List<String> args = List.of("some_label", "some_value");
+        Map<String, String> labelsToValues = Map.of("some_label", "some_new_value");
+        List<String> expectedReplacedArgs = List.of("some_label", "some_new_value");
+
+        List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
+
+        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+    }
+
+    @Test
+    void Check_Filtered_Args() {
+        List<String> args = List.of("some_label", "some_value");
+        Map<String, String> labelsToValues = new HashMap<>();
+        labelsToValues.put("some_label", null);
+        List<String> expectedReplacedArgs = List.of();
+
+        List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
+
+        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+    }
+
+    @Test
+    void Check_Replaced_Args_With_Spaces() {
+        List<String> args = List.of("   some_label  ", "some_value");
         Map<String, String> labelsToValues = Map.of("some_label", "some_new_value");
         List<String> expectedReplacedArgs = List.of("some_label", "some_new_value");
 

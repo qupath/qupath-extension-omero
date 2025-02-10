@@ -47,13 +47,9 @@ if (sendImageName) {
     def imageName = omeroServer.getMetadata().getName()
 
     // Send image name
-    def status = omeroServer.getClient().getApisHandler().changeImageName(omeroServer.getId(), imageName).get()
+    omeroServer.getClient().getApisHandler().changeImageName(omeroServer.getId(), imageName).get()
 
-    if (status) {
-        println "Image name sent"
-    } else {
-        println "Could not send image name. Do you have sufficient rights on your OMERO account?"
-    }
+    println "Image name sent"
 }
 
 if (sendChannelNames) {
@@ -61,13 +57,9 @@ if (sendChannelNames) {
     def channelNames = omeroServer.getMetadata().getChannels().stream().map(ImageChannel::getName).toList()
 
     // Send channel names
-    def status = omeroServer.getClient().getApisHandler().changeChannelNames(omeroServer.getId(), channelNames).get()
+    omeroServer.getClient().getApisHandler().changeChannelNames(omeroServer.getId(), channelNames).get()
 
-    if (status) {
-        println "Channel names sent"
-    } else {
-        println "Could not send channel names. Do you have sufficient rights on your OMERO account?"
-    }
+    println "Channel names sent"
 }
 
 if (sendChannelColors) {
@@ -75,13 +67,9 @@ if (sendChannelColors) {
     def channelColors = omeroServer.getMetadata().getChannels().stream().map(ImageChannel::getColor).toList()
 
     // Send channel colors
-    def status = omeroServer.getClient().getApisHandler().changeChannelColors(omeroServer.getId(), channelColors).get()
+    omeroServer.getClient().getApisHandler().changeChannelColors(omeroServer.getId(), channelColors).get()
 
-    if (status) {
-        println "Channel colors sent"
-    } else {
-        println "Could not send channel colors. Do you have sufficient rights on your OMERO account?"
-    }
+    println "Channel colors sent"
 }
 
 if (sendChannelDisplayRanges) {
@@ -91,14 +79,7 @@ if (sendChannelDisplayRanges) {
             .toList()
 
     // Send channel display ranges
-    def status = omeroServer.getClient().getApisHandler().changeChannelDisplayRanges(omeroServer.getId(), displayRanges).get()
+    omeroServer.getClient().getApisHandler().changeChannelDisplayRanges(omeroServer.getId(), displayRanges).get()
 
-    if (status) {
-        println "Channel display ranges sent"
-    } else {
-        println "Could not send channel display ranges. Do you have sufficient rights on your OMERO account?"
-    }
+    println "Channel display ranges sent"
 }
-
-// Close server
-omeroServer.close()

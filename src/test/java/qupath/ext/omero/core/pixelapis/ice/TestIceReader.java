@@ -85,8 +85,6 @@ public class TestIceReader extends OmeroServer {
                     OmeroServer.getImageURI(image),
                     "--pixelAPI",
                     "Ice",
-                    "--usertype",
-                    userType.name(),
                     "--username",
                     OmeroServer.getUsername(userType)
             )) {
@@ -119,8 +117,6 @@ public class TestIceReader extends OmeroServer {
                     OmeroServer.getImageURI(image),
                     "--pixelAPI",
                     "Ice",
-                    "--usertype",
-                    userType.name(),
                     "--username",
                     OmeroServer.getUsername(userType)
             )) {
@@ -153,8 +149,6 @@ public class TestIceReader extends OmeroServer {
                     OmeroServer.getImageURI(image),
                     "--pixelAPI",
                     "Ice",
-                    "--usertype",
-                    userType.name(),
                     "--username",
                     OmeroServer.getUsername(userType)
             )) {
@@ -187,8 +181,6 @@ public class TestIceReader extends OmeroServer {
                     OmeroServer.getImageURI(image),
                     "--pixelAPI",
                     "Ice",
-                    "--usertype",
-                    userType.name(),
                     "--username",
                     OmeroServer.getUsername(userType)
             )) {
@@ -221,8 +213,6 @@ public class TestIceReader extends OmeroServer {
                     OmeroServer.getImageURI(image),
                     "--pixelAPI",
                     "Ice",
-                    "--usertype",
-                    userType.name(),
                     "--username",
                     OmeroServer.getUsername(userType)
             )) {
@@ -255,8 +245,6 @@ public class TestIceReader extends OmeroServer {
                     OmeroServer.getImageURI(image),
                     "--pixelAPI",
                     "Ice",
-                    "--usertype",
-                    userType.name(),
                     "--username",
                     OmeroServer.getUsername(userType)
             )) {
@@ -289,8 +277,6 @@ public class TestIceReader extends OmeroServer {
                     OmeroServer.getImageURI(image),
                     "--pixelAPI",
                     "Ice",
-                    "--usertype",
-                    userType.name(),
                     "--username",
                     OmeroServer.getUsername(userType)
             )) {

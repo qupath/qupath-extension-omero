@@ -1,5 +1,4 @@
 import qupath.ext.omero.core.imageserver.*
-import qupath.ext.omero.core.entities.image.*
 
 /*
  * This script imports the image settings (image name, channel names, channel colors, channel display ranges)
@@ -44,49 +43,46 @@ if ((importChannelNames || importChannelColors || importChannelDisplayRanges) &&
 // Retrieve image settings from OMERO
 def imageSettings = omeroServer.getClient().getApisHandler().getImageSettings(omeroServer.getId()).get()
 
-if (imageSettings.isPresent()) {
-    // Retrieve image name and channel settings from the response
-    def imageName = imageSettings.get().getName()
-    def channelSettings = imageSettings.get().getChannelSettings()
+// Retrieve image name and channel settings from the response
+def imageName = imageSettings.getName()
+def channelSettings = imageSettings.getChannelSettings()
 
-    if (importImageName) {
-        getProject().getEntry(imageData).setImageName(imageName)
-        println "Image name imported"
-    }
-
-    if (importChannelNames) {
-        // Get the channel names from the image settings
-        def channelNames = channelSettings.stream().map(ChannelSettings::getName).toArray(String[]::new)
-
-        setChannelNames(channelNames)
-        println "Channel names imported"
-    }
-
-    if (importChannelColors) {
-        // Get the channel colors from the image settings
-        def channelColors = channelSettings.stream().map(ChannelSettings::getRgbColor).toArray(Integer[]::new)
-
-        setChannelColors(channelColors)
-        println "Channel colors imported"
-    }
-
-    if (importChannelDisplayRanges) {
-        // Get the the display and the channels of the current QuPath viewer
-        def display = getCurrentViewer().getImageDisplay();
-        def channels = display.availableChannels();
-
-        for (int i=0; i<channels.size(); i++) {
-            display.setMinMaxDisplay(
-                    channels.get(i),
-                    (float) channelSettings.get(i).getMinDisplayRange(),
-                    (float) channelSettings.get(i).getMaxDisplayRange()
-            )
-        }
-        println "Channel display ranges imported"
-    }
-} else {
-    println "Error when retrieving image settings"
+if (importImageName) {
+    getProject().getEntry(imageData).setImageName(imageName)
+    println "Image name imported"
 }
 
-// Close server
-omeroServer.close()
+if (importChannelNames) {
+    // Get the channel names from the image settings
+    def channelNames = channelSettings.collect { channelSetting ->
+        channelSetting.name()
+    } as String[]
+
+    setChannelNames(channelNames)
+    println "Channel names imported"
+}
+
+if (importChannelColors) {
+    // Get the channel colors from the image settings
+    def channelColors = channelSettings.collect { channelSetting ->
+        channelSetting.rgbColor()
+    } as int[]
+
+    setChannelColors(channelColors)
+    println "Channel colors imported"
+}
+
+if (importChannelDisplayRanges) {
+    // Get the the display and the channels of the current QuPath viewer
+    def display = getCurrentViewer().getImageDisplay()
+    def channels = display.availableChannels()
+
+    for (int i=0; i<channels.size(); i++) {
+        display.setMinMaxDisplay(
+                channels.get(i),
+                channelSettings.get(i).minDisplayRange() as float,
+                channelSettings.get(i).maxDisplayRange() as float
+        )
+    }
+    println "Channel display ranges imported"
+}

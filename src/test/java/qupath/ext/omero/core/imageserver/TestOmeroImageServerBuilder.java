@@ -11,7 +11,6 @@ import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.net.URI;
 
 public class TestOmeroImageServerBuilder extends OmeroServer {
@@ -38,7 +37,7 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
         }
 
         @Test
-        void Check_Image_Support() throws IOException {
+        void Check_Image_Support() {
             URI imageURI = OmeroServer.getImageURI(image);
 
             ImageServerBuilder.UriImageSupport<BufferedImage> imageSupport = new OmeroImageServerBuilder().checkImageSupport(
