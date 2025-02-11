@@ -96,12 +96,12 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                         id,
                         Math.max(originalMetadata.getLevel(0).getWidth(), originalMetadata.getLevel(0).getHeight())
                 ).get();
-            } catch (InterruptedException | ExecutionException e) {
-                throw new IOException(e);
+            } catch (Exception e) {
+                logger.debug("Cannot get thumbnail. Using default thumbnail instead", e);
             }
-        } else {
-            return super.getDefaultThumbnail(z, t);
         }
+
+        return super.getDefaultThumbnail(z, t);
     }
 
     @Override
