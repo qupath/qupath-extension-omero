@@ -17,16 +17,14 @@ import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
+ * Send image settings from the currently opened image to an OMERO server.
  * <p>
- *     Send image settings from the currently opened image to an OMERO server.
- * </p>
- * <p>
- *     This class uses an {@link ImageSettingsForm} to prompt the user for parameters.
- * </p>
+ * This class uses an {@link ImageSettingsForm} to prompt the user for parameters.
  */
 public class ImageSettingsSender implements DataTransporter {
 
@@ -95,10 +93,23 @@ public class ImageSettingsSender implements DataTransporter {
                 viewer
         );
 
-        CompletableFuture.supplyAsync(() -> requests.entrySet().stream().collect(Collectors.toMap(
-                Map.Entry::getKey,
-                entry -> entry.getValue().handle((v, error) -> error).join()
-        ))).thenAccept(errors -> Platform.runLater(() -> {
+        CompletableFuture.supplyAsync(() -> {
+            Map<ImageSettingsForm.Choice, Throwable> requestToErrors = new HashMap<>();
+            for (var entry: requests.entrySet()) {
+                try {
+                    requestToErrors.put(
+                            entry.getKey(),
+                            entry.getValue().handle((v, error) -> error).get()
+                    );
+                } catch (ExecutionException | InterruptedException e) {
+                    requestToErrors.put(entry.getKey(), e);
+                }
+            }
+            return requestToErrors;
+        }).exceptionally(error -> {
+            logger.error("Unexpected error while sending image settings", error);
+            return Map.of();
+        }).thenAccept(errors -> Platform.runLater(() -> {
             logErrors(errors);
 
             String successMessage = createMessageFromResponses(errors, true);
@@ -154,15 +165,15 @@ public class ImageSettingsSender implements DataTransporter {
     private static void logErrors(Map<ImageSettingsForm.Choice, Throwable> errors) {
         for (Map.Entry<ImageSettingsForm.Choice, Throwable> error: errors.entrySet()) {
             if (error.getValue() != null) {
-                logger.error(String.format(
-                        "Error while sending %s",
-                        switch (error.getKey()) {
+                logger.error(
+                        "Error while sending {}", switch (error.getKey()) {
                             case IMAGE_NAME -> "image name";
                             case CHANNEL_NAMES -> "channel names";
                             case CHANNEL_COLORS -> "channel colors";
                             case CHANNEL_DISPLAY_RANGES -> "channel display ranges";
-                        }
-                ), error.getValue());
+                            },
+                        error.getValue()
+                );
             }
         }
     }

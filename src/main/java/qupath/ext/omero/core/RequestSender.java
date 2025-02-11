@@ -93,30 +93,6 @@ public class RequestSender implements AutoCloseable {
     }
 
     /**
-     * Performs a GET request to the specified URI and returns its HTTP status code. The request will
-     * not use any session cookie. Note that exception handling is left to the caller (the returned
-     * CompletableFuture may complete exceptionally if the request failed).
-     *
-     * @param uri the link of the request
-     * @param followRedirection whether to use URL redirections
-     * @return a CompletableFuture (that may complete exceptionally) with the HTTP response status code as described
-     * <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status">here</a>
-     */
-    public static CompletableFuture<Integer> getStatusCodeOfGetRequest(URI uri, boolean followRedirection) {
-        HttpClient httpClient = HttpClient
-                .newBuilder()
-                .followRedirects(followRedirection ? HttpClient.Redirect.ALWAYS : HttpClient.Redirect.NEVER)
-                .build();
-
-        logger.debug("Sending GET request to {}...", uri);
-
-        return httpClient
-                .sendAsync(getRequest(uri, RequestType.GET), HttpResponse.BodyHandlers.ofString())
-                .thenApply(HttpResponse::statusCode)
-                .whenComplete((i, e) -> httpClient.close());
-    }
-
-    /**
      * Performs a GET request to the specified URI. Note that exception handling is left to the caller
      * (the returned CompletableFuture may complete exceptionally if the request failed).
      *
@@ -130,8 +106,9 @@ public class RequestSender implements AutoCloseable {
                 .sendAsync(
                         getRequest(uri, RequestType.GET),
                         HttpResponse.BodyHandlers.ofString()
-                )
-                .thenApply(response -> {
+                ).whenComplete((response, error) ->
+                        logResponse(uri, response, error)
+                ).thenApply(response -> {
                     if (response.statusCode() != 200) {
                         throw new RuntimeException(String.format("The request to %s failed with status code %d", uri, response.statusCode()));
                     } else {
@@ -221,10 +198,11 @@ public class RequestSender implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the HTTP response converted to an image
      */
     public CompletableFuture<BufferedImage> getImage(URI uri) {
-        logger.debug("Sending GET request to {}...", uri);
+        logger.debug("Sending GET request to get image of {}...", uri);
 
         return httpClient
                 .sendAsync(getRequest(uri, RequestType.GET), HttpResponse.BodyHandlers.ofByteArray())
+                .whenComplete((response, error) -> logResponse(uri, response, error))
                 .thenApplyAsync(response -> {
                     try (InputStream targetStream = new ByteArrayInputStream(response.body())) {
                         BufferedImage image = ImageIO.read(targetStream);
@@ -385,6 +363,7 @@ public class RequestSender implements AutoCloseable {
 
         return httpClient
                 .sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
+                .whenComplete((response, error) -> logResponse(httpRequest.uri(), response, error))
                 .thenAccept(response -> {
                     if (response.statusCode() != 200) {
                         throw new RuntimeException(String.format(
@@ -408,6 +387,14 @@ public class RequestSender implements AutoCloseable {
                 .version(HttpClient.Version.HTTP_1_1)
                 .timeout(Duration.of(REQUEST_TIMEOUT, SECONDS))
                 .build();
+    }
+
+    private static void logResponse(URI uri, HttpResponse<?> response, Throwable error) {
+        if (response == null) {
+            logger.trace("No response received from {}", uri);
+        } else {
+            logger.trace("Got response from {}: {}", uri, response.body());
+        }
     }
 
     private List<JsonElement> readFollowingPages(String uri, int limit, int totalCount) {
@@ -444,6 +431,7 @@ public class RequestSender implements AutoCloseable {
 
         return httpClient
                 .sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .whenComplete((response, error) -> logResponse(request.uri(), response, error))
                 .thenApply(HttpResponse::body);
     }
 

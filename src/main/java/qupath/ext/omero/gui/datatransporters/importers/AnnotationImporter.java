@@ -18,16 +18,12 @@ import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 /**
+ * Import QuPath annotations from an OMERO server to the currently opened image.
  * <p>
- *     Import QuPath annotations from an OMERO server to the currently opened image.
- * </p>
+ * Here, an annotation refers to a QuPath annotation (a path object) and <b>not</b>
+ * an OMERO annotation (some metadata attached to images for example).
  * <p>
- *     Here, an annotation refers to a QuPath annotation (a path object)
- *     and <b>not</b> an OMERO annotation (some metadata attached to images for example).
- * </p>
- * <p>
- *     This class uses an {@link ImportAnnotationForm} to prompt the user for parameters.
- * </p>
+ * This class uses an {@link ImportAnnotationForm} to prompt the user for parameters.
  */
 public class AnnotationImporter implements DataTransporter {
 
@@ -86,48 +82,48 @@ public class AnnotationImporter implements DataTransporter {
             return;
         }
 
-        CompletableFuture.supplyAsync(omeroImageServer::readPathObjects)
-                .thenAccept(pathObjects -> Platform.runLater(() -> {
-                    if (pathObjects.isEmpty()) {
-                        Dialogs.showErrorMessage(
-                                resources.getString("DataTransporters.AnnotationsImporter.noAnnotations"),
-                                resources.getString("DataTransporters.AnnotationsImporter.noAnnotationsFound")
-                        );
-                    } else {
-                        PathObjectHierarchy hierarchy = viewer.getImageData().getHierarchy();
-                        StringBuilder message = new StringBuilder();
+        CompletableFuture.supplyAsync(omeroImageServer::readPathObjects).thenAccept(pathObjects -> Platform.runLater(() -> {
+            if (pathObjects.isEmpty()) {
+                Dialogs.showErrorMessage(
+                        resources.getString("DataTransporters.AnnotationsImporter.noAnnotations"),
+                        resources.getString("DataTransporters.AnnotationsImporter.noAnnotationsFound")
+                );
+                return;
+            }
 
-                        if (annotationForm.deleteCurrentAnnotations()) {
-                            hierarchy.removeObjects(hierarchy.getAnnotationObjects(),true);
-                            message
-                                    .append(resources.getString("DataTransporters.AnnotationsImporter.currentAnnotationsDeleted"))
-                                    .append("\n");
-                        }
+            PathObjectHierarchy hierarchy = viewer.getImageData().getHierarchy();
+            StringBuilder message = new StringBuilder();
 
-                        if (annotationForm.deleteCurrentDetections()) {
-                            hierarchy.removeObjects(hierarchy.getDetectionObjects(), false);
-                            message
-                                    .append(resources.getString("DataTransporters.AnnotationsImporter.currentDetectionsDeleted"))
-                                    .append("\n");
-                        }
+            if (annotationForm.deleteCurrentAnnotations()) {
+                hierarchy.removeObjects(hierarchy.getAnnotationObjects(),true);
+                message
+                        .append(resources.getString("DataTransporters.AnnotationsImporter.currentAnnotationsDeleted"))
+                        .append("\n");
+            }
 
-                        hierarchy.addObjects(pathObjects);
-                        hierarchy.resolveHierarchy();
+            if (annotationForm.deleteCurrentDetections()) {
+                hierarchy.removeObjects(hierarchy.getDetectionObjects(), false);
+                message
+                        .append(resources.getString("DataTransporters.AnnotationsImporter.currentDetectionsDeleted"))
+                        .append("\n");
+            }
 
-                        String title;
-                        if (pathObjects.size() == 1) {
-                            title = resources.getString("DataTransporters.AnnotationsImporter.1WrittenSuccessfully");
-                            message.append(resources.getString("DataTransporters.AnnotationsImporter.1AnnotationImported"));
-                        } else {
-                            title = resources.getString("DataTransporters.AnnotationsImporter.1WrittenSuccessfully");
-                            message.append(MessageFormat.format(resources.getString("DataTransporters.AnnotationsImporter.XAnnotationImported"), pathObjects.size()));
-                        }
+            hierarchy.addObjects(pathObjects);
+            hierarchy.resolveHierarchy();
 
-                        Dialogs.showInfoNotification(
-                                title,
-                                message.toString()
-                        );
-                    }
-                }));
+            String title;
+            if (pathObjects.size() == 1) {
+                title = resources.getString("DataTransporters.AnnotationsImporter.1WrittenSuccessfully");
+                message.append(resources.getString("DataTransporters.AnnotationsImporter.1AnnotationImported"));
+            } else {
+                title = resources.getString("DataTransporters.AnnotationsImporter.1WrittenSuccessfully");
+                message.append(MessageFormat.format(resources.getString("DataTransporters.AnnotationsImporter.XAnnotationImported"), pathObjects.size()));
+            }
+
+            Dialogs.showInfoNotification(
+                    title,
+                    message.toString()
+            );
+        }));
     }
 }

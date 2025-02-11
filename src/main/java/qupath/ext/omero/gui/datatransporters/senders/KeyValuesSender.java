@@ -17,15 +17,11 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 /**
+ * Send key value pairs from the currently opened image to an OMERO server.
  * <p>
- *     Send key value pairs from the currently opened image to an OMERO server.
- * </p>
+ * Since key value pairs are only defined in projects, a project must be opened.
  * <p>
- *     Since key value pairs are only defined in projects, a project must be opened.
- * </p>
- * <p>
- *     This class uses a {@link KeyValuesForm} to prompt the user for parameters.
- * </p>
+ * This class uses a {@link KeyValuesForm} to prompt the user for parameters.
  */
 public class KeyValuesSender implements DataTransporter {
 

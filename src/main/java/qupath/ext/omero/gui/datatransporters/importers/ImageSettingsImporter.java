@@ -25,12 +25,9 @@ import java.util.ResourceBundle;
 import java.util.stream.IntStream;
 
 /**
+ * Import image settings from an OMERO server to the currently opened image.
  * <p>
- *     Import image settings from an OMERO server to the currently opened image.
- * </p>
- * <p>
- *     This class uses an {@link ImageSettingsForm} to prompt the user for parameters.
- * </p>
+ * This class uses an {@link ImageSettingsForm} to prompt the user for parameters.
  */
 public class ImageSettingsImporter implements DataTransporter {
 
@@ -61,113 +58,115 @@ public class ImageSettingsImporter implements DataTransporter {
     public void transportData() {
         QuPathViewer viewer = quPath.getViewer();
 
-        if (viewer.getServer() instanceof OmeroImageServer omeroImageServer) {
-            ImageSettingsForm imageSettingsForm;
-            try {
-                imageSettingsForm = new ImageSettingsForm(
-                        quPath.getProject() == null,
-                        omeroImageServer.getMetadata().isRGB()
-                );
-            } catch (IOException e) {
-                logger.error("Error when creating the image settings form", e);
-                Dialogs.showErrorMessage(
-                        resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
-                        e.getLocalizedMessage()
-                );
-                return;
-            }
-
-            boolean confirmed = Dialogs.showConfirmDialog(
-                    resources.getString("DataTransporters.ImageSettingsImporter.dataToSend"),
-                    imageSettingsForm
-            );
-            List<ImageSettingsForm.Choice> selectedChoices = imageSettingsForm.getSelectedChoices();
-
-            if (confirmed && !selectedChoices.isEmpty()) {
-                omeroImageServer.getClient().getApisHandler().getImageSettings(omeroImageServer.getId())
-                                .exceptionally(error -> {
-                                    logger.error("Error while retrieving image settings", error);
-                                    return null;
-                                }).thenAccept(imageSettings -> Platform.runLater(() -> {
-                                    if (imageSettings != null) {
-                                        StringBuilder successMessage = new StringBuilder();
-                                        StringBuilder errorMessage = new StringBuilder();
-
-                                        if (selectedChoices.contains(ImageSettingsForm.Choice.IMAGE_NAME)) {
-                                            if (changeImageName(quPath, viewer.getImageData(), imageSettings.getName())) {
-                                                successMessage
-                                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.imageNameUpdated"))
-                                                        .append("\n");
-                                            } else {
-                                                errorMessage
-                                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.imageNameNotUpdated"))
-                                                        .append("\n");
-                                            }
-                                        }
-
-                                        if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_NAMES)) {
-                                            if (changeChannelNames(omeroImageServer, viewer, imageSettings.getChannelSettings())) {
-                                                successMessage
-                                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelNamesUpdated"))
-                                                        .append("\n");
-                                            } else {
-                                                errorMessage
-                                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelNamesNotUpdated"))
-                                                        .append("\n");
-                                            }
-                                        }
-
-                                        if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_COLORS)) {
-                                            if (changeChannelColors(omeroImageServer, viewer, imageSettings.getChannelSettings())) {
-                                                successMessage
-                                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelColorsUpdated"))
-                                                        .append("\n");
-                                            } else {
-                                                errorMessage
-                                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelColorsNotUpdated"))
-                                                        .append("\n");
-                                            }
-                                        }
-
-                                        if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_DISPLAY_RANGES)) {
-                                            if (changeChannelDisplayRanges(viewer, imageSettings.getChannelSettings())) {
-                                                successMessage
-                                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelDisplayRangesUpdated"))
-                                                        .append("\n");
-                                            } else {
-                                                errorMessage
-                                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelDisplayRangesNotUpdated"))
-                                                        .append("\n");
-                                            }
-                                        }
-
-                                        if (!errorMessage.isEmpty()) {
-                                            Dialogs.showErrorMessage(
-                                                    resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
-                                                    errorMessage.toString()
-                                            );
-                                        }
-
-                                        if (!successMessage.isEmpty()) {
-                                            Dialogs.showInfoNotification(
-                                                    resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
-                                                    successMessage.toString()
-                                            );
-                                        }
-                                    } else {
-                                        Dialogs.showErrorMessage(
-                                                resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
-                                                resources.getString("DataTransporters.ImageSettingsImporter.couldNotGetImage")
-                                        );
-                                    }
-                                }));
-            }
-        } else {
+        if (!(viewer.getServer() instanceof OmeroImageServer omeroImageServer)) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
                     resources.getString("DataTransporters.ImageSettingsImporter.notFromOMERO")
             );
+            return;
         }
+
+        ImageSettingsForm imageSettingsForm;
+        try {
+            imageSettingsForm = new ImageSettingsForm(
+                    quPath.getProject() == null,
+                    omeroImageServer.getMetadata().isRGB()
+            );
+        } catch (IOException e) {
+            logger.error("Error when creating the image settings form", e);
+            Dialogs.showErrorMessage(
+                    resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
+                    e.getLocalizedMessage()
+            );
+            return;
+        }
+
+        boolean confirmed = Dialogs.showConfirmDialog(
+                resources.getString("DataTransporters.ImageSettingsImporter.dataToSend"),
+                imageSettingsForm
+        );
+        List<ImageSettingsForm.Choice> selectedChoices = imageSettingsForm.getSelectedChoices();
+        if (!confirmed || selectedChoices.isEmpty()) {
+            return;
+        }
+
+        omeroImageServer.getClient().getApisHandler().getImageSettings(omeroImageServer.getId())
+                .exceptionally(error -> {
+                    logger.error("Error while retrieving image settings", error);
+                    return null;
+                }).thenAccept(imageSettings -> Platform.runLater(() -> {
+                    if (imageSettings != null) {
+                        StringBuilder successMessage = new StringBuilder();
+                        StringBuilder errorMessage = new StringBuilder();
+
+                        if (selectedChoices.contains(ImageSettingsForm.Choice.IMAGE_NAME)) {
+                            if (changeImageName(quPath, viewer.getImageData(), imageSettings.getName())) {
+                                successMessage
+                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.imageNameUpdated"))
+                                        .append("\n");
+                            } else {
+                                errorMessage
+                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.imageNameNotUpdated"))
+                                        .append("\n");
+                            }
+                        }
+
+                        if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_NAMES)) {
+                            if (changeChannelNames(omeroImageServer, viewer, imageSettings.getChannelSettings())) {
+                                successMessage
+                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelNamesUpdated"))
+                                        .append("\n");
+                            } else {
+                                errorMessage
+                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelNamesNotUpdated"))
+                                        .append("\n");
+                            }
+                        }
+
+                        if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_COLORS)) {
+                            if (changeChannelColors(omeroImageServer, viewer, imageSettings.getChannelSettings())) {
+                                successMessage
+                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelColorsUpdated"))
+                                        .append("\n");
+                            } else {
+                                errorMessage
+                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelColorsNotUpdated"))
+                                        .append("\n");
+                            }
+                        }
+
+                        if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_DISPLAY_RANGES)) {
+                            if (changeChannelDisplayRanges(viewer, imageSettings.getChannelSettings())) {
+                                successMessage
+                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelDisplayRangesUpdated"))
+                                        .append("\n");
+                            } else {
+                                errorMessage
+                                        .append(resources.getString("DataTransporters.ImageSettingsImporter.channelDisplayRangesNotUpdated"))
+                                        .append("\n");
+                            }
+                        }
+
+                        if (!errorMessage.isEmpty()) {
+                            Dialogs.showErrorMessage(
+                                    resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
+                                    errorMessage.toString()
+                            );
+                        }
+
+                        if (!successMessage.isEmpty()) {
+                            Dialogs.showInfoNotification(
+                                    resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
+                                    successMessage.toString()
+                            );
+                        }
+                    } else {
+                        Dialogs.showErrorMessage(
+                                resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
+                                resources.getString("DataTransporters.ImageSettingsImporter.couldNotGetImage")
+                        );
+                    }
+                }));
     }
 
     private static boolean changeImageName(QuPathGUI quPath, ImageData<BufferedImage> imageData, String imageName) {

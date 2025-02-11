@@ -48,16 +48,6 @@ public class TestRequestSender extends OmeroServer {
     }
 
     @Test
-    void Check_Status_Code() throws ExecutionException, InterruptedException {
-        int expectedCode = 200;
-        URI reachableLink = URI.create(OmeroServer.getWebServerURI());
-
-        int code = RequestSender.getStatusCodeOfGetRequest(reachableLink, true).get();
-
-        Assertions.assertEquals(expectedCode, code);
-    }
-
-    @Test
     void Check_Get_Request() {
         URI reachableLink = URI.create(OmeroServer.getWebServerURI());
 

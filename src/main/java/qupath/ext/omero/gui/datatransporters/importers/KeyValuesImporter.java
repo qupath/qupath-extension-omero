@@ -19,15 +19,11 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 /**
+ * Import key value pairs from an OMERO server to the currently opened image.
  * <p>
- *     Import key value pairs from an OMERO server to the currently opened image.
- * </p>
+ * Since key value pairs are only defined in projects, a project must be opened.
  * <p>
- *     Since key value pairs are only defined in projects, a project must be opened.
- * </p>
- * <p>
- *     This class uses a {@link KeyValuesForm} to prompt the user for parameters.
- * </p>
+ * This class uses a {@link KeyValuesForm} to prompt the user for parameters.
  */
 public class KeyValuesImporter implements DataTransporter {
 
@@ -103,27 +99,29 @@ public class KeyValuesImporter implements DataTransporter {
                     return null;
                 })
                 .thenAccept(annotationGroup -> Platform.runLater(() -> {
-                    if (annotationGroup != null) {
-                        Map<String,String> keyValues = MapAnnotation.getCombinedValues(
-                                annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
-                        );
-
-                        ProjectImageEntry<BufferedImage> projectEntry = quPath.getProject().getEntry(quPath.getImageData());
-
-                        if (keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)) {
-                            projectEntry.getMetadata().clear();
-                        }
-                        for (Map.Entry<String, String> entry : keyValues.entrySet()) {
-                            if (!keyValuesForm.getChoice().equals(KeyValuesForm.Choice.KEEP_EXISTING) || !projectEntry.getMetadata().containsKey(entry.getKey())) {
-                                projectEntry.getMetadata().put(entry.getKey(), entry.getValue());
-                            }
-                        }
-
-                        Dialogs.showInfoNotification(
-                                resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
-                                resources.getString("DataTransporters.KeyValuesImporter.keyValuesImported")
-                        );
+                    if (annotationGroup == null) {
+                        return;
                     }
+
+                    Map<String,String> keyValues = MapAnnotation.getCombinedValues(
+                            annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
+                    );
+
+                    ProjectImageEntry<BufferedImage> projectEntry = quPath.getProject().getEntry(quPath.getImageData());
+
+                    if (keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)) {
+                        projectEntry.getMetadata().clear();
+                    }
+                    for (Map.Entry<String, String> entry : keyValues.entrySet()) {
+                        if (!keyValuesForm.getChoice().equals(KeyValuesForm.Choice.KEEP_EXISTING) || !projectEntry.getMetadata().containsKey(entry.getKey())) {
+                            projectEntry.getMetadata().put(entry.getKey(), entry.getValue());
+                        }
+                    }
+
+                    Dialogs.showInfoNotification(
+                            resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
+                            resources.getString("DataTransporters.KeyValuesImporter.keyValuesImported")
+                    );
                 }));
     }
 }

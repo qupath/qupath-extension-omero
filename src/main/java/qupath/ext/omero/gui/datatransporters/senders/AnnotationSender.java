@@ -27,19 +27,16 @@ import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
+ * Send QuPath annotations from the currently opened image to an OMERO server.
  * <p>
- *     Send QuPath annotations from the currently opened image to an OMERO server.
- * </p>
+ * Here, an annotation refers to a QuPath annotation (a path object) and <b>not</b>
+ * an OMERO annotation (some metadata attached to images for example).
  * <p>
- *     Here, an annotation refers to a QuPath annotation (a path object)
- *     and <b>not</b> an OMERO annotation (some metadata attached to images for example).
- * </p>
- * <p>
- *     This class uses an {@link SendAnnotationForm} to prompt the user for parameters.
- * </p>
+ * This class uses an {@link SendAnnotationForm} to prompt the user for parameters.
  */
 public class AnnotationSender implements DataTransporter {
 
@@ -138,10 +135,21 @@ public class AnnotationSender implements DataTransporter {
                 );
             }
 
-            return requests.entrySet().stream().collect(Collectors.toMap(
-                    Map.Entry::getKey,
-                    entry -> entry.getValue().handle((vRequests, errorRequests) -> errorRequests).join()
-            ));
+            Map<Request, Throwable> requestToErrors = new HashMap<>();
+            for (var entry: requests.entrySet()) {
+                try {
+                    requestToErrors.put(
+                            entry.getKey(),
+                            entry.getValue().handle((vRequests, errorRequests) -> errorRequests).get()
+                    );
+                } catch (InterruptedException | ExecutionException e) {
+                    requestToErrors.put(entry.getKey(), e);
+                }
+            }
+            return requestToErrors;
+        }).exceptionally(error -> {
+            logger.error("Unexpected error while sending annotations", error);
+            return Map.of();
         }).thenAccept(errors -> Platform.runLater(() -> {
             logErrors(errors);
 
@@ -226,7 +234,10 @@ public class AnnotationSender implements DataTransporter {
             QuPathViewer viewer = quPath.getViewer();
             ProjectImageEntry<BufferedImage> entry = project.getEntry(viewer.getImageData());
 
-            if (entry.readHierarchy().getObjects(List.of(entry.readHierarchy().getRootObject()), exportType).isEmpty()) {
+            List<PathObject> pathObjects = new ArrayList<>();
+            pathObjects.add(entry.readHierarchy().getRootObject());     // List.of() cannot be used because getObjects()
+                                                                        // below expects a mutable list
+            if (entry.readHierarchy().getObjects(pathObjects, exportType).isEmpty()) {
                 return CompletableFuture.failedFuture(new IllegalStateException(
                         String.format("There is no objects of type %s to export", exportType)
                 ));
@@ -254,7 +265,7 @@ public class AnnotationSender implements DataTransporter {
                     title,
                     outputStream.toString()
             );
-        } catch (IOException e) {
+        } catch (Exception e) {
             return CompletableFuture.failedFuture(e);
         }
     }
@@ -262,15 +273,16 @@ public class AnnotationSender implements DataTransporter {
     private static void logErrors(Map<Request, Throwable> errors) {
         for (Map.Entry<Request, Throwable> error: errors.entrySet()) {
             if (error.getValue() != null) {
-                logger.error(String.format(
-                        "Error while %s",
+                logger.error(
+                        "Error while {}",
                         switch (error.getKey()) {
                             case SEND_ANNOTATIONS -> "sending annotations";
                             case DELETE_EXISTING_MEASUREMENTS -> "deleting existing measurements";
                             case SEND_ANNOTATION_MEASUREMENTS -> "sending annotations measurements";
                             case SEND_DETECTION_MEASUREMENTS -> "sending detection measurements";
-                        }
-                ), error.getValue());
+                            },
+                        error.getValue()
+                );
             }
         }
     }

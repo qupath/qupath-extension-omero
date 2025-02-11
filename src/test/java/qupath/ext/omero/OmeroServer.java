@@ -73,7 +73,7 @@ import java.util.function.Function;
 public abstract class OmeroServer {
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroServer.class);
-    private static final boolean IS_LOCAL_OMERO_SERVER_RUNNING = true;
+    private static final boolean IS_LOCAL_OMERO_SERVER_RUNNING = false;
     private static final int CLIENT_CREATION_ATTEMPTS = 3;
     private static final String OMERO_PASSWORD = "password";
     private static final int OMERO_SERVER_PORT = 4064;
@@ -126,22 +126,31 @@ public abstract class OmeroServer {
                     .waitingFor(new AbstractWaitStrategy() {
                         @Override
                         protected void waitUntilReady() {
-                            while (true) {
-                                logger.info("Attempting to connect to the OMERO server");
+                            try (RequestSender requestSender = new RequestSender()) {
+                                while (true) {
+                                    logger.info("Attempting to connect to the OMERO server");
 
-                                try {
-                                    if (RequestSender.getStatusCodeOfGetRequest(URI.create(getWebServerURI()), true).get() == 200) {
+                                    try {
+                                        requestSender.isLinkReachable(
+                                                URI.create(getWebServerURI()),
+                                                RequestSender.RequestType.GET,
+                                                false,
+                                                true
+                                        ).get();
                                         logger.info("Connection to the OMERO server succeeded");
                                         return;
+                                    } catch (Exception e) {
+                                        logger.info("Connection to the OMERO server failed. Retrying in five seconds.", e);
                                     }
-                                } catch (Exception ignored) {}
-                                logger.info("Connection to the OMERO server failed. Retrying in five seconds.");
 
-                                try {
-                                    TimeUnit.SECONDS.sleep(5);
-                                } catch (InterruptedException e) {
-                                    throw new RuntimeException(e);
+                                    try {
+                                        TimeUnit.SECONDS.sleep(5);
+                                    } catch (InterruptedException e) {
+                                        throw new RuntimeException(e);
+                                    }
                                 }
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
                             }
                         }
                     })
