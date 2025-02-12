@@ -34,12 +34,13 @@ public class Point extends Shape {
      * Create a list of points corresponding to a path object.
      *
      * @param pathObject the path object corresponding to this shape
+     * @param fillColor whether to fill the points with colors
      * @return a list of points corresponding to the path object
      */
-    public static List<Point> create(PathObject pathObject) {
+    public static List<Point> create(PathObject pathObject, boolean fillColor) {
         return pathObject.getROI().getAllPoints().stream()
                 .map(point2 -> new Point(point2.getX(), point2.getY()))
-                .peek(point -> point.linkWithPathObject(pathObject))
+                .peek(point -> point.linkWithPathObject(pathObject, fillColor))
                 .toList();
     }
 

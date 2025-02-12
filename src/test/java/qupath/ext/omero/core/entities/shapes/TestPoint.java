@@ -57,8 +57,11 @@ public class TestPoint {
     }
 
     private Shape createPointFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(
-                ROIs.createPointsROI(10, 20, null)
-        )).getFirst();
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(
+                        ROIs.createPointsROI(10, 20, null)
+                ),
+                true
+        ).getFirst();
     }
 }

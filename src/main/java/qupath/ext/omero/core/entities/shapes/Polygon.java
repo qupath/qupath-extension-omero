@@ -33,11 +33,12 @@ public class Polygon extends Shape {
      *
      * @param pathObject the path object corresponding to this shape
      * @param roi the roi describing the polygon
+     * @param fillColor whether to fill the polygon with colors
      */
-    public Polygon(PathObject pathObject, ROI roi) {
+    public Polygon(PathObject pathObject, ROI roi, boolean fillColor) {
         this(roi.getAllPoints());
 
-        linkWithPathObject(pathObject);
+        linkWithPathObject(pathObject, fillColor);
     }
 
     @Override

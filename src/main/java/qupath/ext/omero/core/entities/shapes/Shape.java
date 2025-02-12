@@ -4,6 +4,7 @@ import com.google.gson.*;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.objects.PathObject;
@@ -13,8 +14,10 @@ import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.*;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.awt.*;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -76,29 +79,30 @@ public abstract class Shape {
      * Create a list of shapes from a path object.
      *
      * @param pathObject  the path object that represents one or more shapes
+     * @param fillColor whether to fill the shapes with colors
      * @return a list of shapes corresponding to this path object
      */
-    public static List<Shape> createFromPathObject(PathObject pathObject) {
+    public static List<Shape> createFromPathObject(PathObject pathObject, boolean fillColor) {
         ROI roi = pathObject.getROI();
 
         if (roi instanceof RectangleROI) {
-            return List.of(new Rectangle(pathObject));
+            return List.of(new Rectangle(pathObject, fillColor));
         } else if (roi instanceof EllipseROI) {
-            return List.of(new Ellipse(pathObject));
+            return List.of(new Ellipse(pathObject, fillColor));
         } else if (roi instanceof LineROI lineRoi) {
-            return List.of(new Line(pathObject, lineRoi));
+            return List.of(new Line(pathObject, lineRoi, fillColor));
         } else if (roi instanceof PolylineROI) {
-            return List.of(new Polyline(pathObject));
+            return List.of(new Polyline(pathObject, fillColor));
         } else if (roi instanceof PolygonROI) {
-            return List.of(new Polygon(pathObject, pathObject.getROI()));
+            return List.of(new Polygon(pathObject, pathObject.getROI(), fillColor));
         } else if (roi instanceof PointsROI) {
-            return new ArrayList<>(Point.create(pathObject));
+            return new ArrayList<>(Point.create(pathObject, fillColor));
         } else if (roi instanceof GeometryROI) {
             logger.info("OMERO shapes do not support holes.");
             logger.warn("MultiPolygon will be split for OMERO compatibility.");
 
             return new ArrayList<>(RoiTools.splitROI(RoiTools.fillHoles(roi)).stream()
-                    .map(r -> new Polygon(pathObject, r))
+                    .map(r -> new Polygon(pathObject, r, fillColor))
                     .toList()
             );
         } else {
@@ -162,14 +166,11 @@ public abstract class Shape {
     }
 
     /**
+     * Set the {@code oldId} field of this shape.
      * <p>
-     *     Set the {@code oldId} field of this shape.
-     * </p>
-     * <p>
-     *     This corresponds to "roiID:shapeID" (see
-     *     <a href="https://docs.openmicroscopy.org/omero/latest/developers/json-api.html#rois-and-shapes">here</a>
-     *     for the difference between ROI ID and shape ID).
-     * </p>
+     * This corresponds to "roiID:shapeID" (see
+     * <a href="https://docs.openmicroscopy.org/omero/latest/developers/json-api.html#rois-and-shapes">here</a>
+     * for the difference between ROI ID and shape ID).
      *
      * @param roiID the ROI ID (as explained above)
      */
@@ -190,18 +191,16 @@ public abstract class Shape {
     protected abstract ROI createROI();
 
     /**
+     * Link this shape with a path object.
      * <p>
-     *     Link this shape with a path object.
-     * </p>
-     * <p>
-     *     Its text will be formatted as {@code Type:Class1&Class2:ObjectID:ParentID},
-     *     for example {@code Annotation:NoClass:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:NoParent}
-     *     or {@code Detection:Stroma:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:205037ff-7dd7-4549-89d8-a4e3cbf61294}
-     * </p>
+     * Its text will be formatted as {@code Type:Class1&Class2:ObjectID:ParentID},
+     * for example {@code Annotation:NoClass:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:NoParent}
+     * or {@code Detection:Stroma:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:205037ff-7dd7-4549-89d8-a4e3cbf61294}.
      *
      * @param pathObject the path object that should correspond to this shape
+     * @param fillColor whether to fill the shape with colors
      */
-    protected void linkWithPathObject(PathObject pathObject) {
+    protected void linkWithPathObject(PathObject pathObject, boolean fillColor) {
         this.text = String.format(
                 "%s:%s:%s:%s",
                 pathObject.isDetection() ? "Detection" : "Annotation",
@@ -210,13 +209,9 @@ public abstract class Shape {
                 pathObject.getParent() == null ? "NoParent" : pathObject.getParent().getID().toString()
         );
 
-        if (pathObject.getPathClass() != null) {
-            fillColor = -256;	// Transparent
-            strokeColor = ARGBToRGBA(pathObject.getPathClass().getColor());
-        } else {
-            fillColor = -256;	// Transparent
-            strokeColor = ARGBToRGBA(PathPrefs.colorDefaultObjectsProperty().get());
-        }
+        int color = pathObject.getPathClass() == null ? PathPrefs.colorDefaultObjectsProperty().get() : pathObject.getPathClass().getColor();
+        this.strokeColor = ARGBToRGBA(color);
+        this.fillColor = colorToRGBA(fillColor ? ColorToolsAwt.getMoreTranslucentColor(new Color(color)) : new Color(0, 0, 0, 0));
     }
 
     /**
@@ -283,5 +278,9 @@ public abstract class Shape {
         int g =  (argb >> 8) & 0xff;
         int b =  argb & 0xff;
         return (r<<24) + (g<<16) + (b<<8) + a;
+    }
+
+    private static int colorToRGBA(Color color) {
+        return (color.getRed()<<24) + (color.getGreen()<<16) + (color.getBlue()<<8) + color.getAlpha();
     }
 }

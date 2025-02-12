@@ -59,12 +59,16 @@ public class TestPolygon {
     }
 
     private Shape createPolygonFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(ROIs.createPolygonROI(
-                List.of(
-                        new Point2(0, 0),
-                        new Point2(50, 0),
-                        new Point2(0, 50)
-                ), null
-        ))).getFirst();
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(ROIs.createPolygonROI(
+                        List.of(
+                                new Point2(0, 0),
+                                new Point2(50, 0),
+                                new Point2(0, 50)
+                        ),
+                        null
+                )),
+                true
+        ).getFirst();
     }
 }

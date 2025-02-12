@@ -39,8 +39,9 @@ public class Ellipse extends Shape {
      * Creates an ellipse corresponding to a path object.
      *
      * @param pathObject the path object corresponding to this shape
+     * @param fillColor whether to fill the ellipse with colors
      */
-    public Ellipse(PathObject pathObject) {
+    public Ellipse(PathObject pathObject, boolean fillColor) {
         this(
                 pathObject.getROI().getCentroidX(),
                 pathObject.getROI().getCentroidY(),
@@ -48,7 +49,7 @@ public class Ellipse extends Shape {
                 pathObject.getROI().getBoundsHeight()/2
         );
 
-        linkWithPathObject(pathObject);
+        linkWithPathObject(pathObject, fillColor);
     }
 
     @Override

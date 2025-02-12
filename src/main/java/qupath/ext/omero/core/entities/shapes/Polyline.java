@@ -32,11 +32,12 @@ public class Polyline extends Shape {
      * Creates a polyline corresponding to a path object.
      *
      * @param pathObject the path object corresponding to this shape
+     * @param fillColor whether to fill the polyline with colors
      */
-    public Polyline(PathObject pathObject) {
+    public Polyline(PathObject pathObject, boolean fillColor) {
         this(pathObject.getROI().getAllPoints());
 
-        linkWithPathObject(pathObject);
+        linkWithPathObject(pathObject, fillColor);
     }
 
     @Override

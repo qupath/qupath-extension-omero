@@ -59,8 +59,11 @@ public class TestRectangle {
     }
 
     private Shape createRectangleFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(
-                ROIs.createRectangleROI(50, 100, 10, 20, null)
-        )).getFirst();
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(
+                        ROIs.createRectangleROI(50, 100, 10, 20, null)
+                ),
+                true
+        ).getFirst();
     }
 }

@@ -59,8 +59,11 @@ public class TestLine {
     }
 
     private Shape createLineFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(
-                ROIs.createLineROI(10, 20, 50, 100, null)
-        )).get(0);
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(
+                        ROIs.createLineROI(10, 20, 50, 100, null)
+                ),
+                true
+        ).get(0);
     }
 }

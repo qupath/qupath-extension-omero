@@ -44,8 +44,9 @@ public class Rectangle extends Shape {
      * Creates a rectangle corresponding to a path object.
      *
      * @param pathObject the path object corresponding to this shape
+     * @param fillColor whether to fill the rectangle with colors
      */
-    public Rectangle(PathObject pathObject) {
+    public Rectangle(PathObject pathObject, boolean fillColor) {
         this(
                 pathObject.getROI().getBoundsX(),
                 pathObject.getROI().getBoundsY(),
@@ -53,7 +54,7 @@ public class Rectangle extends Shape {
                 pathObject.getROI().getBoundsHeight()
         );
 
-        linkWithPathObject(pathObject);
+        linkWithPathObject(pathObject, fillColor);
     }
 
     @Override

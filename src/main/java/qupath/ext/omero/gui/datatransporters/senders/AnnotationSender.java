@@ -220,7 +220,7 @@ public class AnnotationSender implements DataTransporter {
                 omeroImageServer.getClient().getApisHandler().addShapes(
                         omeroImageServer.getId(),
                         annotations.stream()
-                                .map(Shape::createFromPathObject)
+                                .map(pathObject -> Shape.createFromPathObject(pathObject, quPath.getOverlayOptions().getFillAnnotations()))
                                 .flatMap(List::stream)
                                 .toList()
                 )

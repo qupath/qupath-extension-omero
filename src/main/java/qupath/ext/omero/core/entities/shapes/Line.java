@@ -41,8 +41,9 @@ public class Line extends Shape {
      *
      * @param pathObject the path object corresponding to this shape
      * @param lineRoi the ROI describing this line
+     * @param fillColor whether to fill the line with colors
      */
-    public Line(PathObject pathObject, LineROI lineRoi) {
+    public Line(PathObject pathObject, LineROI lineRoi, boolean fillColor) {
         this(
                 lineRoi.getX1(),
                 lineRoi.getY1(),
@@ -50,7 +51,7 @@ public class Line extends Shape {
                 lineRoi.getY2()
         );
 
-        linkWithPathObject(pathObject);
+        linkWithPathObject(pathObject, fillColor);
     }
 
     @Override

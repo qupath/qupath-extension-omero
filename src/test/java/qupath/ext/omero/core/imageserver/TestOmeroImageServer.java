@@ -82,7 +82,7 @@ public class TestOmeroImageServer extends OmeroServer {
         imageServer.getClient().getApisHandler().addShapes(
                 imageServer.getId(),
                 expectedPathObject.stream()
-                        .map(Shape::createFromPathObject)
+                        .map(pathObject -> Shape.createFromPathObject(pathObject, true))
                         .flatMap(List::stream)
                         .toList()
         ).get();
