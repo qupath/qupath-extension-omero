@@ -130,8 +130,8 @@ public class AnnotationSender implements DataTransporter {
         }
 
         CompletableFuture.supplyAsync(() -> {
-            Map<Request, Throwable> requestToErrors = new HashMap<>();
-
+            Map<Request, Throwable> requestToErrors = new HashMap<>();      // a HashMap is manually created because using
+                                                                            // streams doesn't allow for null values
             for (var entry: deletionRequests.entrySet()) {
                 try {
                     requestToErrors.put(
@@ -144,13 +144,7 @@ public class AnnotationSender implements DataTransporter {
             }
             return requestToErrors;
         }).thenApply(deletionRequestToErrors -> {
-            Map<Request, CompletableFuture<Void>> requests = createRequests(
-                    quPath,
-                    omeroImageServer,
-                    annotations,
-                    annotationForm.sendAnnotationMeasurements(),
-                    annotationForm.sendDetectionMeasurements()
-            );
+            Map<Request, CompletableFuture<Void>> requests = new LinkedHashMap<>();  // LinkedHashMap to keep inserting order
             for (var entry: deletionRequestToErrors.entrySet()) {
                 requests.put(
                         entry.getKey(),
@@ -159,8 +153,15 @@ public class AnnotationSender implements DataTransporter {
                                 CompletableFuture.failedFuture(entry.getValue())
                 );
             }
+            requests.putAll(createRequests(
+                    quPath,
+                    omeroImageServer,
+                    annotations,
+                    annotationForm.sendAnnotationMeasurements(),
+                    annotationForm.sendDetectionMeasurements()
+            ));
 
-            Map<Request, Throwable> requestToErrors = new HashMap<>();
+            Map<Request, Throwable> requestToErrors = new LinkedHashMap<>();
             for (var entry: requests.entrySet()) {
                 try {
                     requestToErrors.put(
