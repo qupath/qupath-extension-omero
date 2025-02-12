@@ -2,6 +2,7 @@ package qupath.ext.omero.core.pixelapis.ice;
 
 import omero.ServerError;
 import omero.api.RawPixelsStorePrx;
+import omero.api.ResolutionDescription;
 import omero.gateway.Gateway;
 import omero.gateway.SecurityContext;
 import omero.gateway.exception.DSOutOfServiceException;
@@ -14,7 +15,9 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ObjectPool;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
 import qupath.lib.images.servers.bioformats.OMEPixelParser;
@@ -43,6 +46,7 @@ class IceReader implements PixelApiReader {
     private final PixelType pixelType;
     private final ColorModel colorModel;
     private final SecurityContext context;
+    private final ImageData imageData;
     private record ImageContextWrapper(ImageData image, SecurityContext context) {}
 
     /**
@@ -62,7 +66,8 @@ class IceReader implements PixelApiReader {
                 gatewayWrapper.getGateway().getLoggedInUser().getGroupId()
         );
         context = imageAndContext.context;
-        PixelsData pixelsData = imageAndContext.image.getDefaultPixels();
+        imageData = imageAndContext.image;
+        PixelsData pixelsData = imageData.getDefaultPixels();
 
         readerPool = new ObjectPool<>(
                 NUMBER_OF_READERS,
@@ -151,6 +156,50 @@ class IceReader implements PixelApiReader {
                 .effectiveNChannels(effectiveNChannels)
                 .build()
                 .parse(bytes, tileRequest.getTileWidth(), tileRequest.getTileHeight(), nChannels, colorModel);
+    }
+
+    @Override
+    public ImageServerMetadata updateMetadata(ImageServerMetadata originalMetadata) {
+        logger.debug("Updating metadata from ICE reader");
+
+        if (!imageData.getFormat().equals("CellSens")) {
+            logger.debug("Image format {} different from CellSens. Returning original metadata", imageData.getFormat());
+            return originalMetadata;
+        }
+
+        try {
+            RawPixelsStorePrx reader = readerPool.get().orElseThrow();
+
+            var resolutionBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(originalMetadata.getWidth(), originalMetadata.getHeight());
+            ResolutionDescription[] levelDescriptions = reader.getResolutionDescriptions();
+
+            for (int i=0; i<levelDescriptions.length; i++) {
+                double downsampleX = (double) originalMetadata.getWidth() / levelDescriptions[i].sizeX;
+                double downsampleY = (double) originalMetadata.getHeight() / levelDescriptions[i].sizeY;
+                double downsample = Math.pow(2, i);
+
+                if (GeneralTools.almostTheSame(downsampleX, downsampleY, 0.01)) {
+                    resolutionBuilder.addLevel(levelDescriptions[i].sizeX, levelDescriptions[i].sizeY);
+                } else {
+                    logger.warn("Non-matching downsamples calculated for level {} ({} and {}); will use {} instead", i, downsampleX, downsampleY, downsample);
+                    resolutionBuilder.addLevel(downsample, levelDescriptions[i].sizeX, levelDescriptions[i].sizeY);
+                }
+            }
+
+            List<ImageServerMetadata.ImageResolutionLevel> levels = resolutionBuilder.build();
+            logger.debug("Original metadata levels updated from {} to {}", originalMetadata.getLevels(), levels);
+
+            return new ImageServerMetadata.Builder(originalMetadata)
+                    .levels(levels)
+                    .build();
+        } catch (Exception e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+
+            logger.debug("Cannot update metadata. Returning original one", e);
+            return originalMetadata;
+        }
     }
 
     @Override

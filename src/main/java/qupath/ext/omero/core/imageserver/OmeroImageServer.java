@@ -64,10 +64,10 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         this.id = ApisHandler.parseEntityId(imageUri).orElseThrow(() -> new IllegalArgumentException(String.format(
                 "Impossible to parse an ID from the provided URI %s", imageUri
         )));
-        this.originalMetadata = client.getApisHandler().getImageMetadata(id).get();
+        ImageServerMetadata metadata = client.getApisHandler().getImageMetadata(id).get();
         this.pixelAPIReader = pixelApi.createReader(
                 id,
-                originalMetadata,
+                metadata,
                 IntStream.range(0, args.size() / 2)        //TODO: chelou
                         .boxed()
                         .collect(Collectors.toMap(
@@ -77,9 +77,10 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                                 HashMap::new
                         ))
         );//TODO: lazy initialize ?
+        this.originalMetadata = this.pixelAPIReader.updateMetadata(metadata);
+
         this.apiName = pixelApi.getName();
         this.args = args;
-
         this.client.addOpenedImage(imageUri);
     }
 
@@ -94,7 +95,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
             try {
                 return client.getApisHandler().getThumbnail(
                         id,
-                        Math.max(originalMetadata.getLevel(0).getWidth(), originalMetadata.getLevel(0).getHeight())
+                        Math.max(getMetadata().getLevel(0).getWidth(), getMetadata().getLevel(0).getHeight())
                 ).get();
             } catch (Exception e) {
                 logger.debug("Cannot get thumbnail. Using default thumbnail instead", e);

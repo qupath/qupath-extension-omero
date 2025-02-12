@@ -107,7 +107,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     )
                     .join()
                     .stream()
-                    .map(uri -> createServerBuilder(clientArgsWrapper.get().client(), uri, clientArgsWrapper.get().args()))
+                    .map(uri -> createServerBuilder(uri, clientArgsWrapper.get()))
                     .map(CompletableFuture::join)
                     .toList();
 
@@ -192,23 +192,19 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         }
     }
 
-    private static CompletableFuture<ServerBuilder<BufferedImage>> createServerBuilder(
-            Client client,
-            URI uri,
-            List<String> args
-    ) {
-        return client.getApisHandler()
+    private static CompletableFuture<ServerBuilder<BufferedImage>> createServerBuilder(URI uri, ClientPixelApiArgsWrapper clientPixelApiArgsWrapper) {
+        return clientPixelApiArgsWrapper.client.getApisHandler()
                 .getImageMetadata(ApisHandler
                         .parseEntityId(uri)
                         .orElseThrow(() -> new IllegalArgumentException(String.format(
                                 "ID not found in %s", uri
                         )))
-                )
+                )//TODO: update metadata here with pixel API. Probably should put it in dedicated function to avoid duplication
                 .thenApply(metadata -> DefaultImageServerBuilder.createInstance(
                         OmeroImageServerBuilder.class,
                         metadata,
                         uri,
-                        args.toArray(new String[0])
+                        clientPixelApiArgsWrapper.args.toArray(new String[0])
                 ));
     }
 
