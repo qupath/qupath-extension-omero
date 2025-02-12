@@ -45,6 +45,7 @@ public class AnnotationSender implements DataTransporter {
     private final QuPathGUI quPath;
     private enum Request {
         SEND_ANNOTATIONS,
+        DELETE_EXISTING_ANNOTATIONS,
         DELETE_EXISTING_MEASUREMENTS,
         SEND_ANNOTATION_MEASUREMENTS,
         SEND_DETECTION_MEASUREMENTS
@@ -113,25 +114,49 @@ public class AnnotationSender implements DataTransporter {
             return;
         }
 
-        // The potential deletion of existing measurements must happen before other requests
-        CompletableFuture<Void> deleteExistingMeasurementsRequest = annotationForm.deleteExistingMeasurements() ?
-                omeroImageServer.getClient().getApisHandler().deleteAttachments(omeroImageServer.getId(), Image.class) :
-                CompletableFuture.completedFuture(null);
+        // The potential deletion of existing measurements and annotations must happen before other requests
+        Map<Request, CompletableFuture<Void>> deletionRequests = new HashMap<>();
+        if (annotationForm.deleteExistingAnnotations()) {
+            deletionRequests.put(
+                    Request.DELETE_EXISTING_ANNOTATIONS,
+                    omeroImageServer.getClient().getApisHandler().deleteShapes(omeroImageServer.getId())
+            );
+        }
+        if (annotationForm.deleteExistingMeasurements()) {
+            deletionRequests.put(
+                    Request.DELETE_EXISTING_MEASUREMENTS,
+                    omeroImageServer.getClient().getApisHandler().deleteAttachments(omeroImageServer.getId(), Image.class)
+            );
+        }
 
-        deleteExistingMeasurementsRequest.handle((v, error) -> {
+        CompletableFuture.supplyAsync(() -> {
+            Map<Request, Throwable> requestToErrors = new HashMap<>();
+
+            for (var entry: deletionRequests.entrySet()) {
+                try {
+                    requestToErrors.put(
+                            entry.getKey(),
+                            entry.getValue().handle((v, error) -> error).get()
+                    );
+                } catch (InterruptedException | ExecutionException e) {
+                    requestToErrors.put(entry.getKey(), e);
+                }
+            }
+            return requestToErrors;
+        }).thenApply(deletionRequestToErrors -> {
             Map<Request, CompletableFuture<Void>> requests = createRequests(
                     quPath,
                     omeroImageServer,
                     annotations,
-                    annotationForm.deleteExistingAnnotations(),
                     annotationForm.sendAnnotationMeasurements(),
                     annotationForm.sendDetectionMeasurements()
             );
-
-            if (annotationForm.deleteExistingMeasurements()) {
+            for (var entry: deletionRequestToErrors.entrySet()) {
                 requests.put(
-                        Request.DELETE_EXISTING_MEASUREMENTS,
-                        error == null ? CompletableFuture.completedFuture(null) : CompletableFuture.failedFuture(error)
+                        entry.getKey(),
+                        entry.getValue() == null ?
+                                CompletableFuture.completedFuture(null) :
+                                CompletableFuture.failedFuture(entry.getValue())
                 );
             }
 
@@ -140,7 +165,7 @@ public class AnnotationSender implements DataTransporter {
                 try {
                     requestToErrors.put(
                             entry.getKey(),
-                            entry.getValue().handle((vRequests, errorRequests) -> errorRequests).get()
+                            entry.getValue().handle((v, error) -> error).get()
                     );
                 } catch (InterruptedException | ExecutionException e) {
                     requestToErrors.put(entry.getKey(), e);
@@ -185,7 +210,6 @@ public class AnnotationSender implements DataTransporter {
             QuPathGUI quPath,
             OmeroImageServer omeroImageServer,
             Collection<PathObject> annotations,
-            boolean deleteExistingAnnotations,
             boolean sendAnnotationMeasurements,
             boolean sendDetectionMeasurements
     ) {
@@ -193,13 +217,12 @@ public class AnnotationSender implements DataTransporter {
 
         requests.put(
                 Request.SEND_ANNOTATIONS,
-                omeroImageServer.getClient().getApisHandler().writeROIs(
+                omeroImageServer.getClient().getApisHandler().addShapes(
                         omeroImageServer.getId(),
                         annotations.stream()
                                 .map(Shape::createFromPathObject)
                                 .flatMap(List::stream)
-                                .toList(),
-                        deleteExistingAnnotations
+                                .toList()
                 )
         );
 
@@ -277,6 +300,7 @@ public class AnnotationSender implements DataTransporter {
                         "Error while {}",
                         switch (error.getKey()) {
                             case SEND_ANNOTATIONS -> "sending annotations";
+                            case DELETE_EXISTING_ANNOTATIONS -> "deleting existing annotations";
                             case DELETE_EXISTING_MEASUREMENTS -> "deleting existing measurements";
                             case SEND_ANNOTATION_MEASUREMENTS -> "sending annotations measurements";
                             case SEND_DETECTION_MEASUREMENTS -> "sending detection measurements";
@@ -303,6 +327,7 @@ public class AnnotationSender implements DataTransporter {
                         ),
                         resources.getString(switch (entry.getKey()) {
                             case SEND_ANNOTATIONS -> "DataTransporters.AnnotationsSender.sendAnnotations";
+                            case DELETE_EXISTING_ANNOTATIONS -> "DataTransporters.AnnotationsSender.deleteExistingAnnotations";
                             case DELETE_EXISTING_MEASUREMENTS -> "DataTransporters.AnnotationsSender.deleteExistingMeasurements";
                             case SEND_ANNOTATION_MEASUREMENTS -> "DataTransporters.AnnotationsSender.sendAnnotationMeasurements";
                             case SEND_DETECTION_MEASUREMENTS -> "DataTransporters.AnnotationsSender.sendDetectionMeasurements";

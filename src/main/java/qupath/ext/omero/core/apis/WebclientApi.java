@@ -3,6 +3,8 @@ package qupath.ext.omero.core.apis;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.FileAnnotation;
@@ -35,15 +37,16 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
- * <p>API to communicate with a OMERO.web server.</p>
+ * API to communicate with a OMERO.web server.
  * <p>
- *     This API is mainly used to keep a connection alive, log out, perform a search
- *     and get OMERO annotations.
- * </p>
- * <p>An instance of this class must be {@link #close() closed} once no longer used.</p>
+ * This API is mainly used to keep a connection alive, log out, perform a search
+ * and get OMERO annotations.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
 class WebclientApi implements AutoCloseable {
 
+    private static final Logger logger = LoggerFactory.getLogger(WebclientApi.class);
     private static final String PING_URL = "%s/webclient/keepalive_ping/";
     private static final String ITEM_URL = "%s/webclient/?show=%s-%d";
     private static final String LOGOUT_URL = "%s/webclient/logout/";
@@ -104,6 +107,8 @@ class WebclientApi implements AutoCloseable {
      */
     @Override
     public void close() throws URISyntaxException, ExecutionException, InterruptedException {
+        logger.debug("Sending login out request");
+
         URI uri = new URI(String.format(LOGOUT_URL, host));
 
         requestSender.post(
@@ -146,31 +151,31 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
+     * Attempt to send a ping to the server. This is needed to keep the connection alive between the client
+     * and the server.
      * <p>
-     *     Attempt to send a ping to the server. This is needed to keep the connection alive between the client
-     *     and the server.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @return a void CompletableFuture (that completes exceptionally if the ping fails)
      */
     public CompletableFuture<Void> ping() {
+        logger.debug("Sending ping");
+
         return requestSender.isLinkReachable(pingUri, RequestSender.RequestType.GET, true, false);
     }
 
     /**
-     * <p>Attempt to get the image IDs of all orphaned images of the server.</p>
+     * Attempt to get the image IDs of all orphaned images of the server visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with a list containing the ID of all orphaned images
      */
     public CompletableFuture<List<Long>> getOrphanedImagesIds() {
+        logger.debug("Getting the IDs of all orphaned images of the current user");
+
         URI uri;
         try {
             uri = new URI(String.format(ORPHANED_IMAGES_URL, host));
@@ -194,18 +199,17 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
+     * Attempt to get the ID of the public user of the server.
+     * This only works if there is no active authenticated connection with the server.
      * <p>
-     *     Attempt to get the ID of the public user of the server.
-     *     This only works if there is no active authenticated connection with the server.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the public user ID
      */
     public CompletableFuture<Long> getPublicUserId() {
+        logger.debug("Getting ID of the public user of the server");
+
         URI uri;
         try {
             uri = new URI(String.format(WEBCLIENT_URL, host));
@@ -225,15 +229,12 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
+     * Attempt to retrieve OMERO annotations of an OMERO entity.
+     * An OMERO annotation is <b>not</b> similar to a QuPath annotation, it refers to some metadata
+     * attached to an entity.
      * <p>
-     *     Attempt to retrieve OMERO annotations of an OMERO entity .
-     *     An OMERO annotation is <b>not</b> similar to a QuPath annotation, it refers to some metadata
-     *     attached to an entity.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param entityId the ID of the entity
      * @param entityClass the class of the entity whose annotation should be retrieved.
@@ -247,6 +248,8 @@ class WebclientApi implements AutoCloseable {
             long entityId,
             Class<? extends RepositoryEntity> entityClass
     ) {
+        logger.debug("Getting OMERO annotations of the {} with ID {}", entityClass, entityId);
+
         if (!TYPE_TO_URI_LABEL.containsKey(entityClass)) {
             throw new IllegalArgumentException(String.format(
                     "The provided item (%d) is not an image, dataset, project, screen, plate, or plate acquisition.",
@@ -266,16 +269,17 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * <p>Attempt to perform a search on the server.</p>
+     * Attempt to perform a search on the server.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param searchQuery the parameters used in the search
      * @return a CompletableFuture (that may complete exceptionally) with a list of search results, or an empty list if an error occurred
      */
     public CompletableFuture<List<SearchResult>> getSearchResults(SearchQuery searchQuery) {
+        logger.debug("Searching with query {}", searchQuery);
+
         StringBuilder fields = new StringBuilder();
         if (searchQuery.searchOnName()) {
             fields.append("&field=name");
@@ -323,13 +327,10 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
+     * Send key value pairs associated with an image to the OMERO server.
      * <p>
-     *     Send key value pairs associated with an image to the OMERO server.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param imageId the id of the image to associate the key value pairs
      * @param keyValues the key value pairs to send
@@ -343,6 +344,8 @@ class WebclientApi implements AutoCloseable {
             boolean replaceExisting,
             boolean deleteExisting
     ) {
+        logger.debug("Sending key value pairs {} to image with ID {}", keyValues, imageId);
+
         URI uri;
         try {
             uri = new URI(String.format(WRITE_KEY_VALUES_URL, host));
@@ -389,19 +392,18 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
+     * Change the name of an image on OMERO.
      * <p>
-     *     Change the name of an image on OMERO.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param imageId the id of the image whose name should be changed
      * @param imageName the new name of the image
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
     public CompletableFuture<Void> changeImageName(long imageId, String imageName) {
+        logger.debug("Changing image name of image with ID {} to {}", imageId, imageName);
+
         URI uri;
         try {
             uri = new URI(String.format(WRITE_NAME_URL, host, imageId));
@@ -427,19 +429,18 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
+     * Change the names of the channels of an image on OMERO.
      * <p>
-     *     Change the names of the channels of an image on OMERO.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param imageId the id of the image whose channels name should be changed
      * @param channelsName the new names of the channels
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
     public CompletableFuture<Void> changeChannelNames(long imageId, List<String> channelsName) {
+        logger.debug("Changing channel names of image with ID {} to {}", imageId, channelsName);
+
         URI uri;
         try {
             uri = new URI(String.format(WRITE_CHANNEL_NAMES_URL, host, imageId));
@@ -467,11 +468,10 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * <p>Send a file to be attached to a server entity.</p>
+     * Send a file to be attached to a server entity.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param entityId the ID of the entity
      * @param entityClass the class of the entity.
@@ -490,6 +490,8 @@ class WebclientApi implements AutoCloseable {
             String attachmentName,
             String attachmentContent
     ) {
+        logger.debug("Sending file {} to the {} with ID {}", attachmentName, entityClass, entityId);
+
         if (!TYPE_TO_URI_LABEL.containsKey(entityClass)) {
             throw new IllegalArgumentException(String.format(
                     "The provided item (%s) is not an image, dataset, project, screen, plate, or plate acquisition.",
@@ -524,11 +526,10 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * <p>Delete all attachments added from QuPath of an OMERO entity.</p>
+     * Delete all attachments added from QuPath of an OMERO entity.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param entityId the ID of the entity whose attachments should be deleted
      * @param entityClass the class of the entity whose attachments should be deleted.
@@ -539,6 +540,8 @@ class WebclientApi implements AutoCloseable {
      * screen, plate, or plate acquisition
      */
     public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
+        logger.debug("Deleting all attachments added from QuPath to the {} with ID {}", entityClass, entityId);
+
         return getAnnotations(entityId, entityClass).thenApply(annotationGroup ->
                 annotationGroup.getAnnotationsOfClass(FileAnnotation.class).stream()
                         .filter(annotation -> annotation.getFilename().isPresent() && annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER))
@@ -562,15 +565,16 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO image icon.</p>
+     * Attempt to retrieve the OMERO image icon.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getImageIcon() {
+        logger.debug("Getting OMERO image icon");
+
         try {
             return requestSender.getImage(new URI(String.format(IMAGE_ICON_URL, host)));
         } catch (URISyntaxException e) {
@@ -579,15 +583,16 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO screen icon.</p>
+     * Attempt to retrieve the OMERO screen icon.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getScreenIcon() {
+        logger.debug("Getting OMERO screen icon");
+
         try {
             return requestSender.getImage(new URI(String.format(SCREEN_ICON_URL, host)));
         } catch (URISyntaxException e) {
@@ -596,15 +601,16 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO plate icon.</p>
+     * Attempt to retrieve the OMERO plate icon.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getPlateIcon() {
+        logger.debug("Getting OMERO plate icon");
+
         try {
             return requestSender.getImage(new URI(String.format(PLATE_ICON_URL, host)));
         } catch (URISyntaxException e) {
@@ -613,15 +619,16 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO plate acquisition icon.</p>
+     * Attempt to retrieve the OMERO plate acquisition icon.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getPlateAcquisitionIcon() {
+        logger.debug("Getting OMERO plate acquisition icon");
+
         try {
             return requestSender.getImage(new URI(String.format(PLATE_ACQUISITION_ICON_URL, host)));
         } catch (URISyntaxException e) {

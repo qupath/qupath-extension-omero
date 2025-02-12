@@ -11,6 +11,8 @@ import com.google.gson.reflect.TypeToken;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.entities.LoginResponse;
@@ -48,6 +50,7 @@ import java.util.concurrent.ExecutionException;
  */
 class JsonApi {
 
+    private static final Logger logger = LoggerFactory.getLogger(JsonApi.class);
     private static final String OWNERS_URL_KEY = "url:experimenters";
     private static final String PROJECTS_URL_KEY = "url:projects";
     private static final String DATASETS_URL_KEY = "url:datasets";
@@ -76,7 +79,7 @@ class JsonApi {
     private final URI webServerUri;
     private final RequestSender requestSender;
     private final Map<String, String> urls;
-    private final String serverURI;
+    private final String serverUri;
     private final int port;
     private final String token;
     private final Group defaultGroup;
@@ -108,8 +111,10 @@ class JsonApi {
         if (serverInformation.getServerHost().isPresent() &&
                 serverInformation.getServerId().isPresent() &&
                 serverInformation.getServerPort().isPresent()) {
-            this.serverURI = serverInformation.getServerHost().get();
+            this.serverUri = serverInformation.getServerHost().get();
             this.port = serverInformation.getServerPort().getAsInt();
+
+            logger.debug("OMERO.server information set: {}:{}", this.serverUri, this.port);
         } else {
             throw new IllegalArgumentException(String.format(
                     "The retrieved server information %s does not have all the required information (host, id, and port)",
@@ -123,10 +128,14 @@ class JsonApi {
             this.defaultGroup = loginResponse.group();
             this.userId = loginResponse.userId();
             this.sessionUuid = loginResponse.sessionUuid();
+
+            logger.debug("Created JSON API with authenticated user of ID {} and default group {}", userId, defaultGroup);
         } else {
             this.defaultGroup = null;
             this.userId = -1;
             sessionUuid = null;
+
+            logger.debug("Created JSON API with unauthenticated user");
         }
     }
 
@@ -143,23 +152,19 @@ class JsonApi {
     }
 
     /**
+     * Get the server URI of this server. This is the <b>OMERO server</b>
+     * URI and may be different from the <b>OMERO web</b> URI.
      * <p>
-     *     Get the server URI of this server. This is the <b>OMERO server</b>
-     *     URI and may be different from the <b>OMERO web</b> URI.
-     * </p>
-     * <p>
-     *     The returned address is the address used by OMERO web to communicate
-     *     with an OMERO server. If these two entities are running on the same server,
-     *     the returned value of this function may be {@code localhost} or any local IP.
-     *     Therefore, if you can't communicate with the returned value of this function,
-     *     you should be able to communicate with the address of OMERO web (returned by
-     *     {@link ApisHandler#getWebServerURI()}.
-     * </p>
+     * The returned address is the address used by OMERO web to communicate
+     * the returned value of this function may be {@code localhost} or any local IP.
+     * Therefore, if you can't communicate with the returned value of this function,
+     * you should be able to communicate with the address of OMERO web (returned by
+     * {@link ApisHandler#getWebServerURI()}.
      *
      * @return the server host
      */
-    public String getServerURI() {
-        return serverURI;
+    public String getServerUri() {
+        return serverUri;
     }
 
     /**
@@ -200,18 +205,17 @@ class JsonApi {
     }
 
     /**
+     * Attempt to retrieve all groups of a user. This doesn't include the system and user groups.
      * <p>
-     *     Attempt to retrieve all groups of a user. This doesn't include the system and user groups.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if a request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if a request failed for example).
      *
      * @param userId the ID of the user that belong to the returned groups
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all groups of the provided user
      */
     public CompletableFuture<List<Group>> getGroups(long userId) {
+        logger.debug("Getting groups of user with ID {}", userId);
+
         URI uri;
         try {
             uri = new URI(String.format(GROUPS_OF_USER_URL, urls.get(OWNERS_URL_KEY), userId));
@@ -241,81 +245,86 @@ class JsonApi {
     }
 
     /**
-     * <p>Attempt to retrieve all projects visible by the current user.</p>
+     * Attempt to retrieve all projects visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all projects of this server
      */
     public CompletableFuture<List<Project>> getProjects() {
+        logger.debug("Getting all projects visible by the current user");
+
         return getChildren(String.format(PROJECTS_URL, urls.get(PROJECTS_URL_KEY))).thenApply(
                 children -> children.stream().map(child -> (Project) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all orphaned datasets visible by the current user.</p>
+     * Attempt to retrieve all orphaned datasets visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all orphaned datasets of this server
      */
     public CompletableFuture<List<Dataset>> getOrphanedDatasets() {
+        logger.debug("Getting all orphaned datasets visible by the current user");
+
         return getChildren(String.format(ORPHANED_DATASETS_URL, urls.get(DATASETS_URL_KEY))).thenApply(
                 children -> children.stream().map(child -> (Dataset) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all datasets visible by the current user.</p>
+     * Attempt to retrieve all datasets of the provided project.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param projectID the project ID whose datasets should be retrieved
+     * @param projectId the project ID whose datasets should be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all datasets of the project
      */
-    public CompletableFuture<List<Dataset>> getDatasets(long projectID) {
-        return getChildren(String.format(DATASETS_URL, urls.get(PROJECTS_URL_KEY), projectID)).thenApply(
+    public CompletableFuture<List<Dataset>> getDatasets(long projectId) {
+        logger.debug("Getting all datasets of project with ID {}", projectId);
+
+        return getChildren(String.format(DATASETS_URL, urls.get(PROJECTS_URL_KEY), projectId)).thenApply(
                 children -> children.stream().map(child -> (Dataset) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all images of a dataset visible by the current user.</p>
+     * Attempt to retrieve all images of a dataset visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param datasetID the dataset ID whose images should be retrieved
+     * @param datasetId the dataset ID whose images should be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all images of the dataset
      */
-    public CompletableFuture<List<Image>> getImages(long datasetID) {
-        return getChildren(String.format(IMAGES_URL, urls.get(DATASETS_URL_KEY), datasetID)).thenApply(
+    public CompletableFuture<List<Image>> getImages(long datasetId) {
+        logger.debug("Getting all images of dataset with ID {}", datasetId);
+
+        return getChildren(String.format(IMAGES_URL, urls.get(DATASETS_URL_KEY), datasetId)).thenApply(
                 children -> children.stream().map(child -> (Image) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to create an Image entity from an image ID.</p>
+     * Attempt to create an Image entity from an image ID.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param imageID the ID of the image
+     * @param imageId the ID of the image
      * @return a CompletableFuture (that may complete exceptionally) with the image
      */
-    public CompletableFuture<Image> getImage(long imageID) {
+    public CompletableFuture<Image> getImage(long imageId) {
+        logger.debug("Getting information on image with ID {}", imageId);
+
         URI uri;
         try {
-            uri = new URI(urls.get(IMAGES_URL_KEY) + imageID);
+            uri = new URI(urls.get(IMAGES_URL_KEY) + imageId);
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -345,16 +354,15 @@ class JsonApi {
     }
 
     /**
+     * Populate the orphaned images with the provided IDs to the list specified in parameter.
+     * This function populates and doesn't return a list because the number of images can
+     * be large, so this operation can take tens of seconds and should be run in a background thread.
      * <p>
-     *     Populate all orphaned images visible by the current user to the list specified in parameter.
-     *     This function populates and doesn't return a list because the number of images can
-     *     be large, so this operation can take tens of seconds and should be run in a background thread.
-     * </p>
-     * <p>The list can be updated from any thread.</p>
+     * The list can be updated from any thread.
      *
      * @param children the list which should be populated by the orphaned images. It should
      *                 be possible to add elements to this list
-     * @param orphanedImagesIds the Ids of all orphaned images of the server
+     * @param orphanedImagesIds the IDs of all orphaned images that should be added to the list
      * @throws IllegalArgumentException when an orphaned image ID is invalid
      * @throws CancellationException when the computation is cancelled
      * @throws CompletionException when a request fails
@@ -362,6 +370,8 @@ class JsonApi {
      * @throws ClassCastException when a conversion from JSON to image fails
      */
     public void populateOrphanedImagesIntoList(List<Image> children, List<Long> orphanedImagesIds) {
+        logger.debug("Populating orphaned images with IDs {}", orphanedImagesIds);
+
         synchronized (this) {
             numberOfOrphanedImagesLoaded.set(0);
         }
@@ -397,117 +407,122 @@ class JsonApi {
     }
 
     /**
-     * <p>Attempt to retrieve all screens visible by the current user.</p>
+     * Attempt to retrieve all screens visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with a list containing all screen of this server
      */
     public CompletableFuture<List<Screen>> getScreens() {
+        logger.debug("Getting all screens visible by the current user");
+
         return getChildren(String.format(SCREENS_URL, urls.get(SCREENS_URL_KEY))).thenApply(
                 children -> children.stream().map(child -> (Screen) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all orphaned (e.g. not in any screen) plates visible by the current user.</p>
+     * Attempt to retrieve all orphaned (e.g. not in any screen) plates visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all orphaned plates of this server
      */
     public CompletableFuture<List<Plate>> getOrphanedPlates() {
+        logger.debug("Getting all orphaned plates visible by the current user");
+
         return getChildren(String.format(ORPHANED_PLATES_URL, urls.get(PLATES_URL_KEY))).thenApply(
                 children -> children.stream().map(child -> (Plate) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all plates visible by the current user.</p>
+     * Attempt to retrieve all plates visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param screenID the screen ID whose plates should be retrieved
+     * @param screenId the screen ID whose plates should be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all plates of the screen
      */
-    public CompletableFuture<List<Plate>> getPlates(long screenID) {
-        return getChildren(String.format(PLATES_URL, urls.get(SCREENS_URL_KEY), screenID)).thenApply(
+    public CompletableFuture<List<Plate>> getPlates(long screenId) {
+        logger.debug("Getting all plates of screen with ID {}", screenId);
+
+        return getChildren(String.format(PLATES_URL, urls.get(SCREENS_URL_KEY), screenId)).thenApply(
                 children -> children.stream().map(child -> (Plate) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all plate acquisitions of a plate visible by the current user.</p>
+     * Attempt to retrieve all plate acquisitions of a plate visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param plateID the plate ID whose plate acquisitions should be retrieved
+     * @param plateId the plate ID whose plate acquisitions should be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all plate acquisitions of the plate
      */
-    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateID) {
-        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webServerUri, plateID)).thenApply(
+    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId) {
+        logger.debug("Getting all plate acquisitions of plate with ID {}", plateId);
+
+        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webServerUri, plateId)).thenApply(
                 children -> children.stream().map(child -> (PlateAcquisition) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all wells of a plate visible by the current user.</p>
+     * Attempt to retrieve all wells of a plate visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param plateID the plate acquisition ID whose wells should be retrieved
+     * @param plateId the plate acquisition ID whose wells should be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all wells of the plate
      */
-    public CompletableFuture<List<Well>> getWellsFromPlate(long plateID) {
-        return getChildren(String.format(PLATE_WELLS_URL, webServerUri, plateID)).thenApply(
+    public CompletableFuture<List<Well>> getWellsFromPlate(long plateId) {
+        logger.debug("Getting all wells of plate with ID {}", plateId);
+
+        return getChildren(String.format(PLATE_WELLS_URL, webServerUri, plateId)).thenApply(
                 children -> children.stream().map(child -> (Well) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all wells of a plate acquisition visible by the current user.</p>
+     * Attempt to retrieve all wells of a plate acquisition visible by the current user.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param plateAcquisitionID the plate acquisition ID whose wells should be retrieved
+     * @param plateAcquisitionId the plate acquisition ID whose wells should be retrieved
      * @param wellSampleIndex the index of the well sample
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all wells of the plate acquisition
      */
-    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionID, int wellSampleIndex) {
-        return getChildren(String.format(WELLS_URL, webServerUri, plateAcquisitionID, wellSampleIndex)).thenApply(
+    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, int wellSampleIndex) {
+        logger.debug("Getting all wells of plate acquisition with ID {} and well sample of ID {}", plateAcquisitionId, wellSampleIndex);
+
+        return getChildren(String.format(WELLS_URL, webServerUri, plateAcquisitionId, wellSampleIndex)).thenApply(
                 children -> children.stream().map(child -> (Well) child).toList()
         );
     }
 
     /**
+     * Attempt to retrieve shapes of an image.
      * <p>
-     *     Attempt to retrieve ROIs of an image.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
-     * @param id the OMERO image ID
+     * @param imageId the OMERO image ID
      * @return a CompletableFuture (that may complete exceptionally) with the list of ROIs, or an empty list if no ROIs
      * was found with the provided ID
      */
-    public CompletableFuture<List<Shape>> getROIs(long id) {
+    public CompletableFuture<List<Shape>> getShapes(long imageId) {
+        logger.debug("Getting shapes of image with ID {}", imageId);
+
         URI uri;
         try {
-            uri = new URI(String.format(ROIS_URL, webServerUri, id));
+            uri = new URI(String.format(ROIS_URL, webServerUri, imageId));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }

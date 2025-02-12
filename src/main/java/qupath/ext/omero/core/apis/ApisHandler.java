@@ -36,12 +36,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
@@ -189,10 +187,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getServerURI()}.
+     * See {@link JsonApi#getServerUri()}.
      */
     public String getServerURI() {
-        return jsonApi.getServerURI();
+        return jsonApi.getServerUri();
     }
 
     /**
@@ -249,17 +247,27 @@ public class ApisHandler implements AutoCloseable {
      * @param uri the URI that is supposed to contain the ID. It can be URL encoded
      * @return the entity ID, or an empty Optional if it was not found
      */
-    public static OptionalLong parseEntityId(URI uri) {
+    public static Optional<Long> parseEntityId(URI uri) {
+        logger.debug("Finding entity ID in {}...", uri);
+
         for (Pattern pattern : allPatterns) {
             var matcher = pattern.matcher(URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8));
 
             if (matcher.find()) {
+                String idValue = matcher.group(1);
                 try {
-                    return OptionalLong.of(Long.parseLong(matcher.group(1)));
-                } catch (Exception ignored) {}
+                    long id = Long.parseLong(matcher.group(1));
+                    logger.debug("Found ID {} in {}", id, uri);
+
+                    return Optional.of(id);
+                } catch (Exception e) {
+                    logger.debug("Found entity ID {} but it is not an integer", idValue);
+                }
             }
         }
-        return OptionalLong.empty();
+
+        logger.debug("No ID was found in {}", uri);
+        return Optional.empty();
     }
 
     /**
@@ -277,31 +285,33 @@ public class ApisHandler implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the list described above
      */
     public CompletableFuture<List<URI>> getImagesURIFromEntityURI(URI entityURI) {
+        logger.debug("Find image URIs indicated by {}", entityURI);
+
         String entityURL = URLDecoder.decode(entityURI.toString(), StandardCharsets.UTF_8);
 
         if (projectPattern.matcher(entityURL).find()) {
-            var projectID = parseEntityId(entityURI);
+            logger.debug("{} refers to a project", entityURI);
 
-            if (projectID.isPresent()) {
-                return getImagesURIOfProject(projectID.getAsLong());
-            } else {
-                return CompletableFuture.failedFuture(new IllegalArgumentException(
-                        String.format("The provided URI %s was detected as a project but no ID was found", entityURL)
-                ));
-            }
+            return parseEntityId(entityURI)
+                    .map(this::getImagesURIOfProject)
+                    .orElse(CompletableFuture.failedFuture(new IllegalArgumentException(
+                            String.format("The provided URI %s was detected as a project but no ID was found", entityURL)
+                    )));
         } else if (datasetPattern.matcher(entityURL).find()) {
-            var datasetID = parseEntityId(entityURI);
+            logger.debug("{} refers to a dataset", entityURI);
 
-            if (datasetID.isPresent()) {
-                return getImagesURIOfDataset(datasetID.getAsLong());
-            } else {
-                return CompletableFuture.failedFuture(new IllegalArgumentException(
-                        String.format("The provided URI %s was detected as a dataset but no ID was found", entityURL)
-                ));
-            }
+            return parseEntityId(entityURI)
+                    .map(this::getImagesURIOfDataset)
+                    .orElse(CompletableFuture.failedFuture(new IllegalArgumentException(
+                            String.format("The provided URI %s was detected as a dataset but no ID was found", entityURL)
+                    )));
         } else if (imagePatterns.stream().anyMatch(pattern -> pattern.matcher(entityURL).find())) {
+            logger.debug("{} refers to an image", entityURI);
+
             return CompletableFuture.completedFuture(List.of(entityURI));
         } else {
+            logger.debug("{} doesn't refer to a project, dataset, or image", entityURI);
+
             return CompletableFuture.failedFuture(new IllegalArgumentException(
                     String.format("The provided URI %s does not represent a project, dataset, or image", entityURL)
             ));
@@ -333,11 +343,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * <p>Returns a list of image URIs contained in the project identified by the provided ID.</p>
+     * Returns a list of image URIs contained in the project identified by the provided ID.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @param projectID the ID of the project the returned images must belong to
      * @return a CompletableFuture (that may complete exceptionally) with a list of URIs of images contained in the project
@@ -432,12 +441,11 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
+     * Populate all orphaned images of this server to the list specified in parameter.
+     * This function populates and doesn't return a list because the number of images can
+     * be large, so this operation can take tens of seconds.
      * <p>
-     *     Populate all orphaned images of this server to the list specified in parameter.
-     *     This function populates and doesn't return a list because the number of images can
-     *     be large, so this operation can take tens of seconds.
-     * </p>
-     * <p>The list can be updated from any thread.</p>
+     * The list can be updated from any thread.
      *
      * @param children the list which should be populated by the orphaned images. It should
      *                 be possible to add elements to this list
@@ -448,7 +456,7 @@ public class ApisHandler implements AutoCloseable {
         }
 
         getOrphanedImagesIds()
-                .thenAcceptAsync(orphanedImageIds -> jsonApi.populateOrphanedImagesIntoList(children, orphanedImageIds))
+                .thenAccept(orphanedImageIds -> jsonApi.populateOrphanedImagesIntoList(children, orphanedImageIds))
                 .whenComplete((v, error) -> {
                     synchronized (this) {
                         areOrphanedImagesLoading.set(false);
@@ -695,19 +703,30 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getROIs(long)}.
+     * See {@link JsonApi#getShapes(long)}.
      */
-    public CompletableFuture<List<Shape>> getROIs(long id) {
-        return jsonApi.getROIs(id);
+    public CompletableFuture<List<Shape>> getShapes(long id) {
+        return jsonApi.getShapes(id);
     }
 
     /**
-     * See {@link IViewerApi#writeROIs(long, Collection, Collection, String)}.
+     * Delete all shapes of the provided image.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param imageId the ID of the image containing the shapes to delete
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Void> writeROIs(long id, Collection<Shape> shapes, boolean removeExistingROIs) {
-        CompletableFuture<List<Shape>> roisToRemoveFuture = removeExistingROIs ? getROIs(id) : CompletableFuture.completedFuture(List.of());
+    public CompletableFuture<Void> deleteShapes(long imageId) {
+        return getShapes(imageId).thenCompose(shapesToRemove -> iViewerApi.deleteShapes(imageId, shapesToRemove, jsonApi.getToken()));
+    }
 
-        return roisToRemoveFuture.thenCompose(roisToRemove -> iViewerApi.writeROIs(id, shapes, roisToRemove, jsonApi.getToken()));
+    /**
+     * See {@link IViewerApi#addShapes(long, List, String)}.
+     */
+    public CompletableFuture<Void> addShapes(long imageId, List<Shape> shapesToAdd) {
+        return iViewerApi.addShapes(imageId, shapesToAdd, jsonApi.getToken());
     }
 
     /**

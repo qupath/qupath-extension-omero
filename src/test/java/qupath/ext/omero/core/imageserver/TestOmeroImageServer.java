@@ -79,13 +79,12 @@ public class TestOmeroImageServer extends OmeroServer {
                 PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100, null)),
                 PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50, null))
         );
-        imageServer.getClient().getApisHandler().writeROIs(
+        imageServer.getClient().getApisHandler().addShapes(
                 imageServer.getId(),
                 expectedPathObject.stream()
                         .map(Shape::createFromPathObject)
                         .flatMap(List::stream)
-                        .toList(),
-                true
+                        .toList()
         ).get();
 
         Collection<PathObject> pathObjects = imageServer.readPathObjects();

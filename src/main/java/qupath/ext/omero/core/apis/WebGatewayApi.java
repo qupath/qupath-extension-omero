@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.ImageMetadataResponseParser;
 import qupath.lib.common.ColorTools;
@@ -22,14 +24,14 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * <p>API to communicate with a OMERO.gateway server.</p>
+ * API to communicate with a OMERO.gateway server.
  * <p>
- *     This API is used to retrieve several icons, image thumbnails and
- *     provides access to the pixels of JPEG-compressed RGB encoded images.
- * </p>
+ * This API is used to retrieve several icons, image thumbnails and
+ * provides access to the pixels of JPEG-compressed RGB encoded images.
  */
 class WebGatewayApi {
 
+    private static final Logger logger = LoggerFactory.getLogger(WebGatewayApi.class);
     private static final String ICON_URL = "%s/static/webgateway/img/%s";
     private static final String PROJECT_ICON_NAME = "folder16.png";
     private static final String DATASET_ICON_NAME = "folder_image16.png";
@@ -76,15 +78,16 @@ class WebGatewayApi {
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO project icon.</p>
+     * Attempt to retrieve the OMERO project icon.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the project icon
      */
     public CompletableFuture<BufferedImage> getProjectIcon() {
+        logger.debug("Getting OMERO project icon");
+
         try {
             return requestSender.getImage(new URI(String.format(ICON_URL, host, PROJECT_ICON_NAME)));
         } catch (URISyntaxException e) {
@@ -93,15 +96,16 @@ class WebGatewayApi {
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO dataset icon.</p>
+     * Attempt to retrieve the OMERO dataset icon.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the dataset icon
      */
     public CompletableFuture<BufferedImage> getDatasetIcon() {
+        logger.debug("Getting OMERO dataset icon");
+
         try {
             return requestSender.getImage(new URI(String.format(ICON_URL, host, DATASET_ICON_NAME)));
         } catch (URISyntaxException e) {
@@ -110,15 +114,16 @@ class WebGatewayApi {
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO orphaned folder icon.</p>
+     * Attempt to retrieve the OMERO orphaned folder icon.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
      * @return a CompletableFuture (that may complete exceptionally) with the orphaned folder icon
      */
     public CompletableFuture<BufferedImage> getOrphanedFolderIcon() {
+        logger.debug("Getting OMERO orphaned folder icon");
+
         try {
             return requestSender.getImage(new URI(String.format(ICON_URL, host, ORPHANED_FOLDER_ICON_NAME)));
         } catch (URISyntaxException e) {
@@ -127,23 +132,24 @@ class WebGatewayApi {
     }
 
     /**
-     * <p>Attempt to retrieve the thumbnail of an image.</p>
+     * Attempt to retrieve the thumbnail of an image.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param id the OMERO image ID
+     * @param imageId the OMERO image ID
      * @param size the max width and max height the thumbnail should have
      * @return a CompletableFuture (that may complete exceptionally) with the thumbnail
      */
-    public CompletableFuture<BufferedImage> getThumbnail(long id, int size) {
+    public CompletableFuture<BufferedImage> getThumbnail(long imageId, int size) {
+        logger.debug("Getting thumbnail of image with ID {} and with size {}", imageId, size);
+
         synchronized (this) {
             numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() + 1);
         }
 
         try {
-            return requestSender.getImage(new URI(String.format(THUMBNAIL_URL, host, id, size)))
+            return requestSender.getImage(new URI(String.format(THUMBNAIL_URL, host, imageId, size)))
                     .whenComplete((thumbnail, error) -> {
                         synchronized (this) {
                             numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() - 1);
@@ -155,19 +161,20 @@ class WebGatewayApi {
     }
 
     /**
-     * <p>Attempt to retrieve the metadata of an image.</p>
+     * Attempt to retrieve the metadata of an image.
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param id the OMERO image ID
+     * @param imageId the OMERO image ID
      * @return a CompletableFuture (that may complete exceptionally) with the metadata
      */
-    public CompletableFuture<ImageServerMetadata> getImageMetadata(long id) {
+    public CompletableFuture<ImageServerMetadata> getImageMetadata(long imageId) {
+        logger.debug("Getting metadata of image with ID {}", imageId);
+
         URI uri;
         try {
-            uri = new URI(String.format(IMAGE_DATA_URL, host, id));
+            uri = new URI(String.format(IMAGE_DATA_URL, host, imageId));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -177,23 +184,24 @@ class WebGatewayApi {
     }
 
     /**
-     * <p>Attempt to read a tile (portion of image).</p>
+     * Attempt to read a tile (portion of image).
      * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
-     * @param id the OMERO image ID
+     * @param imageId the OMERO image ID
      * @param tileRequest the tile request (usually coming from the {@link qupath.lib.images.servers.AbstractTileableImageServer AbstractTileableImageServer})
      * @param preferredTileWidth the preferred tile width in pixels
      * @param preferredTileHeight the preferred tile height in pixels
      * @param quality the JPEG quality, from 0 to 1
      * @return a CompletableFuture (that may complete exceptionally) with the tile
      */
-    public CompletableFuture<BufferedImage> readTile(long id, TileRequest tileRequest, int preferredTileWidth, int preferredTileHeight, double quality) {
+    public CompletableFuture<BufferedImage> readTile(long imageId, TileRequest tileRequest, int preferredTileWidth, int preferredTileHeight, double quality) {
+        logger.debug("Reading tile {} of image with ID {} and JPEG quality {}", tileRequest, imageId, quality);
+
         try {
             return requestSender.getImage(new URI(String.format(TILE_URL,
-                    host, id, tileRequest.getZ(), tileRequest.getT(),
+                    host, imageId, tileRequest.getZ(), tileRequest.getT(),
                     tileRequest.getLevel(), tileRequest.getTileX() / preferredTileWidth, tileRequest.getTileY() / preferredTileHeight,
                     preferredTileWidth, preferredTileHeight,
                     TILE_CHANNEL_PARAMETER,
@@ -205,13 +213,10 @@ class WebGatewayApi {
     }
 
     /**
+     * Attempt to change the channel colors of an image.
      * <p>
-     *     Attempt to change the channel colors of an image.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @param imageID the ID of the image to change the channel settings
      * @param newChannelColors the new channel colors, with the packed RGB format
@@ -221,6 +226,8 @@ class WebGatewayApi {
      * don't have the same number of elements
      */
     public CompletableFuture<Void> changeChannelColors(long imageID, List<Integer> newChannelColors, List<ChannelSettings> existingChannelSettings) {
+        logger.debug("Changing channel colors of image with ID {} to {}", imageID, newChannelColors);
+
         if (newChannelColors.size() != existingChannelSettings.size()) {
             throw new IllegalArgumentException(String.format(
                     "The provided number of new channel colors (%d) doesn't match with the provided existing number of channels (%d)",
@@ -242,13 +249,10 @@ class WebGatewayApi {
     }
 
     /**
+     * Attempt to change the channel display ranges of an image.
      * <p>
-     *     Attempt to change the channel display ranges of an image.
-     * </p>
-     * <p>
-     *     Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     *     if the request or the conversion failed for example).
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
      * @param imageID the ID of the image to change the channel settings
      * @param newChannelSettings the new channel display ranges (other fields of {@link ChannelSettings}
@@ -259,6 +263,8 @@ class WebGatewayApi {
      * don't have the same number of elements
      */
     public CompletableFuture<Void> changeChannelDisplayRanges(long imageID, List<ChannelSettings> newChannelSettings, List<ChannelSettings> existingChannelSettings) {
+        logger.debug("Changing channel display ranges of image with ID {} to {}", imageID, newChannelSettings);
+
         if (newChannelSettings.size() != existingChannelSettings.size()) {
             throw new IllegalArgumentException(String.format(
                     "The provided number of new channel settings (%d) doesn't match with the provided existing number of channels (%d)",

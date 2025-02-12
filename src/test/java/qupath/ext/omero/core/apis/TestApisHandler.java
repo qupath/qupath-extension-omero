@@ -207,7 +207,7 @@ public class TestApisHandler extends OmeroServer {
                     expectedID
             ));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
 
             Assertions.assertEquals(expectedID, id);
         }
@@ -217,7 +217,7 @@ public class TestApisHandler extends OmeroServer {
             long expectedID = 1157;
             URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=dataset-%d", expectedID));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
 
             Assertions.assertEquals(expectedID, id);
         }
@@ -227,7 +227,7 @@ public class TestApisHandler extends OmeroServer {
             long expectedID = 12546;
             URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=image-%d", expectedID));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
 
             Assertions.assertEquals(expectedID, id);
         }
@@ -237,7 +237,7 @@ public class TestApisHandler extends OmeroServer {
             long expectedID = 12546;
             URI uri = URI.create(String.format("http://localhost:4080/webclient/img_detail/%d/?dataset=1157", expectedID));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
 
             Assertions.assertEquals(expectedID, id);
         }
@@ -247,7 +247,7 @@ public class TestApisHandler extends OmeroServer {
             long expectedID = 12546;
             URI uri = URI.create(String.format("http://localhost:4080/webgateway/img_detail/%d/?dataset=1157", expectedID));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
 
             Assertions.assertEquals(expectedID, id);
         }
@@ -257,7 +257,7 @@ public class TestApisHandler extends OmeroServer {
             long expectedID = 12546;
             URI uri = URI.create(String.format("http://localhost:4080/iviewer/?images=%d&dataset=1157", expectedID));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1);
+            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
 
             Assertions.assertEquals(expectedID, id);
         }
@@ -739,17 +739,20 @@ public class TestApisHandler extends OmeroServer {
         abstract void Check_Channel_Display_Ranges_Changed() throws ExecutionException, InterruptedException;
 
         @Test
-        void Check_Get_ROIs_With_Invalid_Image_ID() throws ExecutionException, InterruptedException {
+        void Check_Get_Shapes_With_Invalid_Image_ID() throws ExecutionException, InterruptedException {
             long invalidImageID = -1;
             List<Shape> expectedShapes = List.of();
 
-            List<Shape> shapes = apisHandler.getROIs(invalidImageID).get();
+            List<Shape> shapes = apisHandler.getShapes(invalidImageID).get();
 
             Assertions.assertEquals(expectedShapes, shapes);
         }
 
         @Test
-        abstract void Check_Write_ROIs() throws ExecutionException, InterruptedException;
+        abstract void Check_Shapes_Deleted() throws ExecutionException, InterruptedException;
+
+        @Test
+        abstract void Check_Shapes_Added() throws ExecutionException, InterruptedException;
 
         @Test
         void Check_Image_Settings() throws ExecutionException, InterruptedException {
@@ -903,11 +906,19 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         @Override
-        void Check_Write_ROIs() {
+        void Check_Shapes_Deleted() {
+            long imageId = OmeroServer.getAnnotableImage(userType).getId();
+
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId).get());
+        }
+
+        @Test
+        @Override
+        void Check_Shapes_Added() {
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
             List<Shape> rois = List.of(new Rectangle(10, 10, 100, 100), new Line(20, 20, 50, 50));
 
-            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.writeROIs(imageId, rois, true).get());
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.addShapes(imageId, rois).get());
         }
 
         @Test
@@ -1254,13 +1265,27 @@ public class TestApisHandler extends OmeroServer {
             apisHandler.changeChannelDisplayRanges(image.getId(), OmeroServer.getModifiableImageChannelSettings()).get();
         }
 
-        @Test
         @Override
-        void Check_Write_ROIs() {
+        void Check_Shapes_Deleted() throws ExecutionException, InterruptedException {
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
-            List<Shape> rois = List.of(new Rectangle(10, 10, 100, 100), new Line(20, 20, 50, 50));
+            List<Shape> shapes = List.of(new Rectangle(10, 10, 100, 100), new Line(20, 20, 50, 50));
+            apisHandler.addShapes(imageId, shapes).get();
 
-            Assertions.assertDoesNotThrow(() -> apisHandler.writeROIs(imageId, rois, true).get());
+            apisHandler.deleteShapes(imageId);
+
+            Assertions.assertTrue(apisHandler.getShapes(imageId).get().isEmpty());
+        }
+
+        @Override
+        void Check_Shapes_Added() throws ExecutionException, InterruptedException {
+            long imageId = OmeroServer.getAnnotableImage(userType).getId();
+            List<Shape> expectedShapes = List.of(new Rectangle(10, 10, 100, 100), new Line(20, 20, 50, 50));
+
+            apisHandler.addShapes(imageId, expectedShapes).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, apisHandler.getShapes(imageId).get());
+
+            apisHandler.deleteShapes(imageId);
         }
 
         @Test

@@ -40,16 +40,16 @@ class Image extends HBox {
 
         var imageID = ApisHandler.parseEntityId(imageUri);
         if (imageID.isPresent()) {
-            apisHandler.getImage(imageID.getAsLong())
+            apisHandler.getImage(imageID.get())
                     .whenComplete((image, error) -> {
                         if (image == null) {
-                            logger.error("Error when retrieving image of ID {}", imageID.getAsLong(), error);
+                            logger.error("Error when retrieving image of ID {}", imageID.get(), error);
                         } else {
                             Platform.runLater(() -> name.setText(image.getLabel()));
                         }
                     });
 
-            apisHandler.getThumbnail(imageID.getAsLong(), (int) thumbnail.getWidth())
+            apisHandler.getThumbnail(imageID.get(), (int) thumbnail.getWidth())
                     .whenComplete((thumbnail, error) -> {
                         if (thumbnail == null) {
                             logger.error("Error when retrieving thumbnail", error);

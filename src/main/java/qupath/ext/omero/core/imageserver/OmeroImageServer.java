@@ -144,7 +144,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     public Collection<PathObject> readPathObjects() {
         List<Shape> shapes;
         try {
-            shapes = client.getApisHandler().getROIs(id).get();
+            shapes = client.getApisHandler().getShapes(id).get();
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error reading path objects", e);
             return List.of();
