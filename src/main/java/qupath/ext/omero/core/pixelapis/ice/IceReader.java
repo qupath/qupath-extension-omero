@@ -162,44 +162,7 @@ class IceReader implements PixelApiReader {
     public ImageServerMetadata updateMetadata(ImageServerMetadata originalMetadata) {
         logger.debug("Updating metadata from ICE reader");
 
-        if (!imageData.getFormat().equals("CellSens")) {
-            logger.debug("Image format {} different from CellSens. Returning original metadata", imageData.getFormat());
-            return originalMetadata;
-        }
-
-        try {
-            RawPixelsStorePrx reader = readerPool.get().orElseThrow();
-
-            var resolutionBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(originalMetadata.getWidth(), originalMetadata.getHeight());
-            ResolutionDescription[] levelDescriptions = reader.getResolutionDescriptions();
-
-            for (int i=0; i<levelDescriptions.length; i++) {
-                double downsampleX = (double) originalMetadata.getWidth() / levelDescriptions[i].sizeX;
-                double downsampleY = (double) originalMetadata.getHeight() / levelDescriptions[i].sizeY;
-                double downsample = Math.pow(2, i);
-
-                if (GeneralTools.almostTheSame(downsampleX, downsampleY, 0.01)) {
-                    resolutionBuilder.addLevel(levelDescriptions[i].sizeX, levelDescriptions[i].sizeY);
-                } else {
-                    logger.warn("Non-matching downsamples calculated for level {} ({} and {}); will use {} instead", i, downsampleX, downsampleY, downsample);
-                    resolutionBuilder.addLevel(downsample, levelDescriptions[i].sizeX, levelDescriptions[i].sizeY);
-                }
-            }
-
-            List<ImageServerMetadata.ImageResolutionLevel> levels = resolutionBuilder.build();
-            logger.debug("Original metadata levels updated from {} to {}", originalMetadata.getLevels(), levels);
-
-            return new ImageServerMetadata.Builder(originalMetadata)
-                    .levels(levels)
-                    .build();
-        } catch (Exception e) {
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-
-            logger.debug("Cannot update metadata. Returning original one", e);
-            return originalMetadata;
-        }
+        return vsiResolutionSizeFix(originalMetadata);
     }
 
     @Override
@@ -255,5 +218,54 @@ class IceReader implements PixelApiReader {
         }
 
         throw new IllegalStateException(String.format("Cannot get image %d. No groups available", imageID));
+    }
+
+    /**
+     * In some VSI images, the calculated downsamples for width & height can be wildly discordant
+     * (see <a href="https://forum.image.sc/t/qupath-omero-weird-pyramid-levels/65484">this issue</a>).
+     * This function fixes that by computing new downsamples.
+     *
+     * @param originalMetadata the original metadata of the image
+     * @return a modified (or not) version of the provided metadata with the VSI fix
+     */
+    private ImageServerMetadata vsiResolutionSizeFix(ImageServerMetadata originalMetadata) {
+        if (!imageData.getFormat().equals("CellSens")) {
+            logger.debug("Image format {} different from CellSens. No VSI resolution fix needed", imageData.getFormat());
+            return originalMetadata;
+        }
+
+        try {
+            RawPixelsStorePrx reader = readerPool.get().orElseThrow();
+
+            var resolutionBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(originalMetadata.getWidth(), originalMetadata.getHeight());
+            ResolutionDescription[] levelDescriptions = reader.getResolutionDescriptions();
+
+            for (int i=0; i<levelDescriptions.length; i++) {
+                double downsampleX = (double) originalMetadata.getWidth() / levelDescriptions[i].sizeX;
+                double downsampleY = (double) originalMetadata.getHeight() / levelDescriptions[i].sizeY;
+                double downsample = Math.pow(2, i);
+
+                if (GeneralTools.almostTheSame(downsampleX, downsampleY, 0.01)) {
+                    resolutionBuilder.addLevel(levelDescriptions[i].sizeX, levelDescriptions[i].sizeY);
+                } else {
+                    logger.warn("Non-matching downsamples calculated for level {} ({} and {}); will use {} instead", i, downsampleX, downsampleY, downsample);
+                    resolutionBuilder.addLevel(downsample, levelDescriptions[i].sizeX, levelDescriptions[i].sizeY);
+                }
+            }
+
+            List<ImageServerMetadata.ImageResolutionLevel> levels = resolutionBuilder.build();
+            logger.debug("VSI resolution fix: original metadata levels updated from {} to {}", originalMetadata.getLevels(), levels);
+
+            return new ImageServerMetadata.Builder(originalMetadata)
+                    .levels(levels)
+                    .build();
+        } catch (Exception e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+
+            logger.debug("Cannot apply VSI resolution fix. Returning original metadata", e);
+            return originalMetadata;
+        }
     }
 }
