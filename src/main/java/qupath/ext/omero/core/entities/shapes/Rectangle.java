@@ -58,7 +58,7 @@ public class Rectangle extends Shape {
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createRectangleROI(x, y, width, height, getPlane());
     }
 

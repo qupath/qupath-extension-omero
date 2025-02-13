@@ -45,7 +45,7 @@ public class Point extends Shape {
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createPointsROI(x, y, getPlane());
     }
 

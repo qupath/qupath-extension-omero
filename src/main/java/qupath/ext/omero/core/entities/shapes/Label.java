@@ -24,7 +24,7 @@ public class Label extends Shape {
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         logger.warn("Creating point (requested label shape is unsupported)");
         return ROIs.createPointsROI(x, y, getPlane());
     }

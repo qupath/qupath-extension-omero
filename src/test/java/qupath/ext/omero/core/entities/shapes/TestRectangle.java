@@ -36,7 +36,7 @@ public class TestRectangle {
     void Check_ROI() {
         Shape rectangle = createRectangleFromJSON();
 
-        Class<? extends ROI> roiClass = rectangle.createROI().getClass();
+        Class<? extends ROI> roiClass = rectangle.createRoi().getClass();
 
         Assertions.assertEquals(RectangleROI.class, roiClass);
     }

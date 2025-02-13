@@ -39,7 +39,7 @@ public class TestPolygon {
     void Check_ROI() {
         Shape polygon = createPolygonFromJSON();
 
-        Class<? extends ROI> roiClass = polygon.createROI().getClass();
+        Class<? extends ROI> roiClass = polygon.createRoi().getClass();
 
         Assertions.assertEquals(PolygonROI.class, roiClass);
     }

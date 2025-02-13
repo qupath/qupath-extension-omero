@@ -41,7 +41,7 @@ public class Polyline extends Shape {
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createPolylineROI(parseStringPoints(pointString == null ? "" : pointString), getPlane());
     }
 

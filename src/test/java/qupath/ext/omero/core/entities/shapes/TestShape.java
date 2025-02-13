@@ -158,7 +158,7 @@ public class TestShape {
         }
 
         @Override
-        protected ROI createROI() {
+        protected ROI createRoi() {
             return ROIs.createEmptyROI();
         }
     }

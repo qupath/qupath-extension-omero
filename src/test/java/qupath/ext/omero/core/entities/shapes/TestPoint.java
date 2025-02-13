@@ -36,7 +36,7 @@ public class TestPoint {
     void Check_ROI() {
         Shape point = createPointFromJSON();
 
-        Class<? extends ROI> roiClass = point.createROI().getClass();
+        Class<? extends ROI> roiClass = point.createRoi().getClass();
 
         Assertions.assertEquals(PointsROI.class, roiClass);
     }

@@ -36,7 +36,7 @@ public class TestEllipse {
     void Check_ROI() {
         Shape ellipse = createEllipseFromJSON();
 
-        Class<? extends ROI> roiClass = ellipse.createROI().getClass();
+        Class<? extends ROI> roiClass = ellipse.createRoi().getClass();
 
         Assertions.assertEquals(EllipseROI.class, roiClass);
     }

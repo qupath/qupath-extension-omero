@@ -55,7 +55,7 @@ public class Line extends Shape {
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createLineROI(x1, y1, x2, y2, getPlane());
     }
 

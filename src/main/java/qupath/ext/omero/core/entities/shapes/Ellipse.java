@@ -53,7 +53,7 @@ public class Ellipse extends Shape {
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createEllipseROI(x-radiusX, y-radiusY, radiusX*2, radiusY*2, getPlane());
     }
 

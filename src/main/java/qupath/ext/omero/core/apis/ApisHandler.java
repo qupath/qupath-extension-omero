@@ -725,7 +725,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link IViewerApi#addShapes(long, List, String)}.
      */
-    public CompletableFuture<Void> addShapes(long imageId, List<Shape> shapesToAdd) {
+    public CompletableFuture<Void> addShapes(long imageId, List<? extends Shape> shapesToAdd) {
         return iViewerApi.addShapes(imageId, shapesToAdd, jsonApi.getToken());
     }
 

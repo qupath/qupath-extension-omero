@@ -36,7 +36,7 @@ public class TestLine {
     void Check_ROI() {
         Shape line = createLineFromJSON();
 
-        Class<? extends ROI> roiClass = line.createROI().getClass();
+        Class<? extends ROI> roiClass = line.createRoi().getClass();
 
         Assertions.assertEquals(LineROI.class, roiClass);
     }

@@ -17,13 +17,9 @@ import qupath.lib.objects.PathObjectReader;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -134,32 +130,14 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      */
     @Override
     public Collection<PathObject> readPathObjects() {
-        List<Shape> shapes;
+        logger.debug("Reading path objects");
+
         try {
-            shapes = client.getApisHandler().getShapes(id).get();
+            return Shape.createPathObjects(client.getApisHandler().getShapes(id).get());
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error reading path objects", e);
             return List.of();
         }
-
-        Map<UUID, UUID> idToParentId = new HashMap<>();
-        Map<UUID, PathObject> idToPathObject = new HashMap<>();
-        for (Shape shape: shapes) {
-            UUID id = shape.getQuPathId();
-            idToPathObject.put(id, shape.createPathObject());
-            idToParentId.put(id, shape.getQuPathParentId().orElse(null));
-        }
-
-        List<PathObject> pathObjects = new ArrayList<>();
-        for (Map.Entry<UUID, UUID> entry: idToParentId.entrySet()) {
-            if (idToPathObject.containsKey(entry.getValue())) {
-                idToPathObject.get(entry.getValue()).addChildObject(idToPathObject.get(entry.getKey()));
-            } else {
-                pathObjects.add(idToPathObject.get(entry.getKey()));
-            }
-        }
-
-        return pathObjects;
     }
 
     @Override

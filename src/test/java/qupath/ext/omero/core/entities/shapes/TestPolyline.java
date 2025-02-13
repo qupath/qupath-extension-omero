@@ -38,7 +38,7 @@ public class TestPolyline {
     void Check_Polyline_Created_From_Path_Object() {
         PathObject pathObject = PathObjects.createAnnotationObject(ROIs.createPolylineROI(10, 10, null));
 
-        List<Shape> shapes = Shape.createFromPathObject(pathObject, true);
+        List<? extends Shape> shapes = Shape.createFromPathObject(pathObject, true);
 
         Assertions.assertInstanceOf(Polyline.class, shapes.getFirst());
     }

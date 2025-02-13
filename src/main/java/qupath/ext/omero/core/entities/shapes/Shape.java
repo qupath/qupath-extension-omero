@@ -1,6 +1,8 @@
 package qupath.ext.omero.core.entities.shapes;
 
-import com.google.gson.*;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,13 +13,26 @@ import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
-import qupath.lib.roi.*;
+import qupath.lib.roi.EllipseROI;
+import qupath.lib.roi.GeometryROI;
+import qupath.lib.roi.LineROI;
+import qupath.lib.roi.PointsROI;
+import qupath.lib.roi.PolygonROI;
+import qupath.lib.roi.PolylineROI;
+import qupath.lib.roi.RectangleROI;
+import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
-import java.awt.*;
+import java.awt.Color;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -82,7 +97,7 @@ public abstract class Shape {
      * @param fillColor whether to fill the shapes with colors
      * @return a list of shapes corresponding to this path object
      */
-    public static List<Shape> createFromPathObject(PathObject pathObject, boolean fillColor) {
+    public static List<? extends Shape> createFromPathObject(PathObject pathObject, boolean fillColor) {
         ROI roi = pathObject.getROI();
 
         if (roi instanceof RectangleROI) {
@@ -96,15 +111,13 @@ public abstract class Shape {
         } else if (roi instanceof PolygonROI) {
             return List.of(new Polygon(pathObject, pathObject.getROI(), fillColor));
         } else if (roi instanceof PointsROI) {
-            return new ArrayList<>(Point.create(pathObject, fillColor));
+            return Point.create(pathObject, fillColor);
         } else if (roi instanceof GeometryROI) {
-            logger.info("OMERO shapes do not support holes.");
-            logger.warn("MultiPolygon will be split for OMERO compatibility.");
+            logger.warn("OMERO shapes do not support holes. MultiPolygon will be split for OMERO compatibility.");
 
-            return new ArrayList<>(RoiTools.splitROI(RoiTools.fillHoles(roi)).stream()
+            return RoiTools.splitROI(RoiTools.fillHoles(roi)).stream()
                     .map(r -> new Polygon(pathObject, r, fillColor))
-                    .toList()
-            );
+                    .toList();
         } else {
             logger.warn("Unsupported type: {}", roi.getRoiName());
             return List.of();
@@ -112,57 +125,44 @@ public abstract class Shape {
     }
 
     /**
-     * @return a path object built from this shape
+     * Create a list of PathObjects corresponding to the provided shapes.
+     *
+     * @param shapes the shapes to convert to path objects
+     * @return a list of PathObjects corresponding to the provided shapes
      */
-    public PathObject createPathObject() {
-        String[] parsedComment = parseComment();
-        PathClass classes = PathClass.fromCollection(Arrays.stream(parsedComment[1].split("&")).toList());
+    public static List<PathObject> createPathObjects(List<Shape> shapes) {
+        List<UUID> uuids = shapes.stream()
+                .map(Shape::getQuPathId)
+                .distinct()
+                .toList();
 
-        PathObject pathObject;
-        if (parsedComment[0].equals("Detection")) {
-            pathObject = PathObjects.createDetectionObject(createROI(), classes);
-        } else {
-            pathObject = PathObjects.createAnnotationObject(createROI(), classes);
+        Map<UUID, PathObject> idToPathObject = new HashMap<>();
+        Map<UUID, UUID> idToParentId = new HashMap<>();
+        for (UUID uuid: uuids) {
+            List<Shape> shapesWithUuid = shapes.stream()
+                    .filter(shape -> uuid.equals(shape.getQuPathId()))
+                    .toList();
+            List<UUID> parentUuid = shapesWithUuid.stream()
+                    .map(Shape::getQuPathParentId)
+                    .flatMap(Optional::stream)
+                    .distinct()
+                    .toList();
+            warnIfDuplicateAttribute(shapesWithUuid, parentUuid, "parent UUID");
+
+            idToPathObject.put(uuid, createPathObject(shapesWithUuid));
+            idToParentId.put(uuid, parentUuid.isEmpty() ? null : parentUuid.getFirst());
         }
 
-        pathObject.setID(getQuPathId());
-
-        if (strokeColor != null)
-            pathObject.setColor(strokeColor >> 8);
-
-        if (locked != null)
-            pathObject.setLocked(locked);
-
-        return pathObject;
-    }
-
-    /**
-     * @return the ID of the QuPath annotation corresponding to this shape
-     */
-    public UUID getQuPathId() {
-        String[] parsedComment = parseComment();
-        try {
-            return UUID.fromString(parsedComment[2]);
-        } catch (IllegalArgumentException e) {
-            UUID uuid = UUID.randomUUID();
-
-            parsedComment[2] = uuid.toString();
-            text = String.join(":", parsedComment);
-
-            return uuid;
+        List<PathObject> pathObjects = new ArrayList<>();
+        for (Map.Entry<UUID, UUID> entry: idToParentId.entrySet()) {
+            if (idToPathObject.containsKey(entry.getValue())) {
+                idToPathObject.get(entry.getValue()).addChildObject(idToPathObject.get(entry.getKey()));
+            } else {
+                pathObjects.add(idToPathObject.get(entry.getKey()));
+            }
         }
-    }
 
-    /**
-     * @return the ID of the QuPath annotation corresponding to the parent of this shape,
-     * or an empty optional if this shape has no parent
-     */
-    public Optional<UUID> getQuPathParentId() {
-        try {
-            return Optional.of(UUID.fromString(parseComment()[3]));
-        } catch (IllegalArgumentException e) {
-            return Optional.empty();
-        }
+        return pathObjects;
     }
 
     /**
@@ -188,7 +188,7 @@ public abstract class Shape {
     /**
      * @return the ROI that corresponds to this shape
      */
-    protected abstract ROI createROI();
+    protected abstract ROI createRoi();
 
     /**
      * Link this shape with a path object.
@@ -242,26 +242,6 @@ public abstract class Shape {
         return c == null ? ImagePlane.getPlane(z, t) : ImagePlane.getPlaneWithChannel(c, z, t);
     }
 
-    private String[] parseComment() {
-        String[] parsedComment = {
-                "Annotation",
-                "NoClass",
-                "",
-                "NoParent"
-        };
-        if (text != null) {
-            String[] tokens = text.split(":");
-
-            for (int i=0; i<4; ++i) {
-                if (tokens.length > i && !tokens[i].isEmpty()) {
-                    parsedComment[i] = tokens[i];
-                }
-            }
-        }
-
-        return parsedComment;
-    }
-
     /**
      * Converts the specified list of {@code Point2}s into an OMERO-friendly string
      * @return string of points
@@ -270,6 +250,71 @@ public abstract class Shape {
         return points.stream()
                 .map(point -> point.getX() + "," + point.getY())
                 .collect(Collectors.joining (" "));
+    }
+
+    private UUID getQuPathId() {
+        if (text != null && text.split(":").length > 2) {
+            String uuid = text.split(":")[2];
+            try {
+                return UUID.fromString(uuid);
+            } catch (IllegalArgumentException e) {
+                logger.debug("Cannot create UUID from {}. Generating one", uuid);
+            }
+        }
+        return UUID.randomUUID();
+    }
+
+    private Optional<UUID> getQuPathParentId() {
+        if (text != null && text.split(":").length > 3) {
+            String uuid = text.split(":")[3];
+            try {
+                return Optional.of(UUID.fromString(uuid));
+            } catch (IllegalArgumentException e) {
+                logger.debug("Cannot create UUID from {}", uuid);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static void warnIfDuplicateAttribute(List<Shape> shapes, List<?> attributes, String type) {
+        if (attributes.size() > 1) {
+            logger.warn("The shapes {} have a different {}. Only the first one will considered", shapes, type);
+        }
+    }
+
+    private static PathObject createPathObject(List<Shape> shapes) {
+        if (shapes.isEmpty()) {
+            return null;
+        }
+
+        List<PathClass> pathClasses = shapes.stream().map(Shape::getPathClass).toList();
+        List<String> types = shapes.stream().map(Shape::getType).toList();
+        List<UUID> uuids = shapes.stream().map(Shape::getQuPathId).toList();
+        List<Integer> strokeColors = shapes.stream().map(shape -> shape.strokeColor).toList();
+        List<Boolean> locked = shapes.stream().map(shape -> shape.locked).toList();
+
+        warnIfDuplicateAttribute(shapes, pathClasses, "class");
+        warnIfDuplicateAttribute(shapes, types, "type (annotation/detection)");
+        warnIfDuplicateAttribute(shapes, uuids, "UUID");
+        warnIfDuplicateAttribute(shapes, strokeColors, "color");
+        warnIfDuplicateAttribute(shapes, locked, "locked");
+
+        PathObject pathObject;
+        if (types.getFirst().equals("Detection")) {
+            pathObject = PathObjects.createDetectionObject(createRoi(shapes), pathClasses.getFirst());
+        } else {
+            pathObject = PathObjects.createAnnotationObject(createRoi(shapes), pathClasses.getFirst());
+        }
+
+        pathObject.setID(uuids.getFirst());
+
+        if (strokeColors.getFirst() != null)
+            pathObject.setColor(strokeColors.getFirst() >> 8);
+
+        if (locked.getFirst() != null)
+            pathObject.setLocked(locked.getFirst());
+
+        return pathObject;
     }
 
     private static int ARGBToRGBA(int argb) {
@@ -282,5 +327,38 @@ public abstract class Shape {
 
     private static int colorToRGBA(Color color) {
         return (color.getRed()<<24) + (color.getGreen()<<16) + (color.getBlue()<<8) + color.getAlpha();
+    }
+
+    private PathClass getPathClass() {
+        if (text != null && text.split(":").length > 1 && !text.split(":")[1].isBlank()) {
+            return PathClass.fromCollection(Arrays.stream(text.split(":")[1].split("&")).toList());
+        } else {
+            logger.debug("Path class not found in {}. Returning NoClass", text);
+
+            return PathClass.fromString("NoClass");
+        }
+    }
+
+    private String getType() {
+        if (text != null && text.split(":").length > 0 && !text.split(":")[0].isBlank()) {
+            return text.split(":")[0];
+        } else {
+            logger.debug("Type not found in {}. Returning Annotation", text);
+
+            return "Annotation";
+        }
+    }
+
+    private static ROI createRoi(List<Shape> shapes) {
+        if (shapes.isEmpty()) {
+            return null;
+        }
+
+        List<ROI> rois = shapes.stream().map(Shape::createRoi).toList();
+        ROI roi = rois.getFirst();
+        for (int i=1; i<rois.size(); i++) {
+            roi = RoiTools.combineROIs(roi, rois.get(i), RoiTools.CombineOp.ADD);
+        }
+        return roi;
     }
 }

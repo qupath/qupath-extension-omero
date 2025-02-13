@@ -42,7 +42,7 @@ public class Polygon extends Shape {
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createPolygonROI(parseStringPoints(pointString == null ? "" : pointString), getPlane());
     }
 

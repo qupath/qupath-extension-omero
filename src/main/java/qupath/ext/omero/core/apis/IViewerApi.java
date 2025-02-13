@@ -108,7 +108,7 @@ class IViewerApi {
      * @param token the OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Void> addShapes(long imageId, List<Shape> shapesToAdd, String token) {
+    public CompletableFuture<Void> addShapes(long imageId, List<? extends Shape> shapesToAdd, String token) {
         logger.debug("Adding shapes {} to image with ID {}", shapesToAdd, imageId);
 
         URI uri;
