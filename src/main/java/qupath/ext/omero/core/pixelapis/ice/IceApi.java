@@ -12,6 +12,7 @@ import javafx.beans.value.ObservableBooleanValue;
 import omero.gateway.LoginCredentials;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelApi;
@@ -120,31 +121,30 @@ public class IceApi implements PixelApi {
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
-     * @param args additional arguments containing label to parameter values to change the reader
-     *             creation: {@link #ADDRESS_PARAMETER} to a string to set the address used to
-     *             communicate with the OMERO server and {@link #PORT_PARAMETER} to an integer
-     *             greater than 0 to change the port this microservice uses on the OMERO server
+     * @param args additional arguments to change the reader creation: {@link #ADDRESS_PARAMETER}
+     *             to a string to set the address used to communicate with the OMERO server and
+     *             {@link #PORT_PARAMETER} to an integer greater than 0 to change the port this
+     *             microservice uses on the OMERO server
      * @return a new web reader corresponding to this API
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) throws IOException {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata, List<String> args) throws IOException {
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        if (args.containsKey(ADDRESS_PARAMETER)) {
-            setServerAddress(args.get(ADDRESS_PARAMETER));
-        }
-        if (args.containsKey(PORT_PARAMETER)) {
-            String port = args.get(PORT_PARAMETER);
-            try {
-                setServerPort(Integer.parseInt(port));
-            } catch (NumberFormatException e) {
-                logger.warn("Can't convert {} to integer", port, e);
-            }
-        }
+        ArgsUtils.findArgInList(ADDRESS_PARAMETER, args)
+                .ifPresent(this::setServerAddress);
+        ArgsUtils.findArgInList(PORT_PARAMETER, args)
+                .ifPresent(port -> {
+                    try {
+                        setServerPort(Integer.parseInt(port));
+                    } catch (NumberFormatException e) {
+                        logger.warn("Can't convert {} to integer", port, e);
+                    }
+                });
 
         synchronized (this) {
             if (gatewayWrapper == null) {

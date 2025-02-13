@@ -1,4 +1,4 @@
-package qupath.ext.omero.core.imageserver;
+package qupath.ext.omero.core;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * Utility methods for working with arguments (e.g. --someParameter someValue).
  */
-class ArgsUtils {
+public class ArgsUtils {
 
     private ArgsUtils() {
         throw new AssertionError("This class is not instantiable.");

@@ -7,6 +7,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleFloatProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.preferences.PreferencesManager;
@@ -14,6 +15,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.images.servers.PixelType;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -97,27 +99,26 @@ public class WebApi implements PixelApi {
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
-     * @param args additional arguments containing label to parameter values to change the reader
-     *             creation: {@link #JPEG_QUALITY_PARAMETER} to a float between 0 and 1 to change
-     *             the JPEG quality of the returned images
+     * @param args additional arguments to change the reader creation: {@link #JPEG_QUALITY_PARAMETER}
+     *             to a float between 0 and 1 to change the JPEG quality of the returned images
      * @return a new web reader corresponding to this API
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata, List<String> args) {
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        if (args.containsKey(JPEG_QUALITY_PARAMETER)) {
-            String quality = args.get(JPEG_QUALITY_PARAMETER);
-            try {
-                setJpegQuality(Float.parseFloat(quality));
-            } catch (NumberFormatException e) {
-                logger.warn("Can't convert {} to float", quality, e);
-            }
-        }
+        ArgsUtils.findArgInList(JPEG_QUALITY_PARAMETER, args)
+                .ifPresent(quality -> {
+                    try {
+                        setJpegQuality(Float.parseFloat(quality));
+                    } catch (NumberFormatException e) {
+                        logger.warn("Can't convert {} to float", quality, e);
+                    }
+                });
 
         return new WebReader(
                 apisHandler,

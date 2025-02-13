@@ -1,4 +1,4 @@
-package qupath.ext.omero.core.imageserver;
+package qupath.ext.omero.core;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

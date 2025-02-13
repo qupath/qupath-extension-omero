@@ -8,6 +8,7 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelApi;
@@ -18,6 +19,7 @@ import qupath.lib.images.servers.PixelType;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -97,28 +99,27 @@ public class MsPixelBufferApi implements PixelApi {
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
-     * @param args additional arguments containing label to parameter values to change the reader
-     *             creation: {@link #PORT_PARAMETER} to an integer greater than 0 to change the
-     *             port this microservice uses on the OMERO server
+     * @param args additional arguments to change the reader creation: {@link #PORT_PARAMETER} to
+     *             an integer greater than 0 to change the port this microservice uses on the OMERO server
      * @return a new mx pixel buffer reader corresponding to this API
      * @throws IllegalStateException when this API is not available (see {@link #isAvailable()})
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata, Map<String, String> args) {
+    public PixelApiReader createReader(long id, ImageServerMetadata metadata, List<String> args) {
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        if (args.containsKey(PORT_PARAMETER)) {
-            String port = args.get(PORT_PARAMETER);
-            try {
-                setPort(Integer.parseInt(port), true);
-            } catch (NumberFormatException e) {
-                logger.warn("Can't convert {} to integer", port, e);
-            }
-        }
+        ArgsUtils.findArgInList(PORT_PARAMETER, args)
+                .ifPresent(port -> {
+                    try {
+                        setPort(Integer.parseInt(port), true);
+                    } catch (NumberFormatException e) {
+                        logger.warn("Can't convert {} to integer", port, e);
+                    }
+                });
 
         return new MsPixelBufferReader(
                 host,

@@ -5,6 +5,7 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -76,8 +77,8 @@ public interface PixelApi extends AutoCloseable {
      *
      * @param id the ID of the image to open
      * @param metadata the metadata of the image to open
-     * @param args additional arguments containing label to parameter values to change the reader
-     *             creation. See the description of the pixel API implementation for more details
+     * @param args additional arguments to change the reader creation. See the description of the
+     *             pixel API implementation for more details
      * @return a new reader corresponding to this API
      * @throws IOException when the reader creation fails
      * @throws IllegalArgumentException when the provided image cannot be read by this API
@@ -86,6 +87,6 @@ public interface PixelApi extends AutoCloseable {
     PixelApiReader createReader(
             long id,
             ImageServerMetadata metadata,
-            Map<String, String> args
+            List<String> args
     ) throws IOException;
 }

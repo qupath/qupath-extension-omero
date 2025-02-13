@@ -2,9 +2,9 @@ package qupath.ext.omero.core.imageserver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
-import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.login.LoginForm;
@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -108,7 +107,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     .join()
                     .stream()
                     .map(uri -> createServerBuilder(uri, clientArgsWrapper.get()))
-                    .map(CompletableFuture::join)
+                    .flatMap(Optional::stream)
                     .toList();
 
             return UriImageSupport.createInstance(
@@ -192,20 +191,23 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         }
     }
 
-    private static CompletableFuture<ServerBuilder<BufferedImage>> createServerBuilder(URI uri, ClientPixelApiArgsWrapper clientPixelApiArgsWrapper) {
-        return clientPixelApiArgsWrapper.client.getApisHandler()
-                .getImageMetadata(ApisHandler
-                        .parseEntityId(uri)
-                        .orElseThrow(() -> new IllegalArgumentException(String.format(
-                                "ID not found in %s", uri
-                        )))
-                )//TODO: update metadata here with pixel API. Probably should put it in dedicated function to avoid duplication
-                .thenApply(metadata -> DefaultImageServerBuilder.createInstance(
-                        OmeroImageServerBuilder.class,
-                        metadata,
-                        uri,
-                        clientPixelApiArgsWrapper.args.toArray(new String[0])
-                ));
+    private static Optional<ServerBuilder<BufferedImage>> createServerBuilder(URI uri, ClientPixelApiArgsWrapper clientPixelApiArgsWrapper) {
+        try (OmeroImageServer imageServer = new OmeroImageServer(
+                uri,
+                clientPixelApiArgsWrapper.client,
+                clientPixelApiArgsWrapper.pixelApi,
+                clientPixelApiArgsWrapper.args
+        )) {
+            return Optional.of(DefaultImageServerBuilder.createInstance(
+                    OmeroImageServerBuilder.class,
+                    imageServer.getMetadata(),
+                    uri,
+                    clientPixelApiArgsWrapper.args.toArray(new String[0])
+            ));
+        } catch (Exception e) {
+            logger.debug("Cannot create image server for {}", uri, e);
+            return Optional.empty();
+        }
     }
 
     private static Optional<Client> getClient(URI uri, List<String> args) throws URISyntaxException, ExecutionException, InterruptedException {

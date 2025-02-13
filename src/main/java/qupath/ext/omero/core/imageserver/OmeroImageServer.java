@@ -25,8 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * {@link qupath.lib.images.servers.ImageServer Image server} of the extension.
@@ -68,14 +66,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         this.pixelAPIReader = pixelApi.createReader(
                 id,
                 metadata,
-                IntStream.range(0, args.size() / 2)        //TODO: chelou
-                        .boxed()
-                        .collect(Collectors.toMap(
-                                i -> args.get(i * 2),
-                                i -> args.get(i * 2 + 1),
-                                (a, b) -> b,
-                                HashMap::new
-                        ))
+                args
         );//TODO: lazy initialize ?
         this.originalMetadata = this.pixelAPIReader.updateMetadata(metadata);
 
