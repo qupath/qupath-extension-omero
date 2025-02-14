@@ -115,7 +115,7 @@ class BrowserCommand implements Runnable {
         waitingWindow.show();
         client.getServer()
                 .exceptionally(error -> {
-                    logger.error("Cannot get server information on the {}", uri, error);
+                    logger.error("Cannot get server information on {}", uri, error);
                     return null;
                 })
                 .thenAccept(server -> Platform.runLater(() -> {

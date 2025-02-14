@@ -703,10 +703,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getShapes(long)}.
+     * See {@link JsonApi#getShapes(long, long)}.
      */
-    public CompletableFuture<List<Shape>> getShapes(long id) {
-        return jsonApi.getShapes(id);
+    public CompletableFuture<List<Shape>> getShapes(long id, long userId) {
+        return jsonApi.getShapes(id, userId);
     }
 
     /**
@@ -716,10 +716,12 @@ public class ApisHandler implements AutoCloseable {
      * if the request failed for example).
      *
      * @param imageId the ID of the image containing the shapes to delete
+     * @param userId the ID of the user that should own the shapes to delete. Can be negative or equal to 0 to delete
+     *               all shapes of the image
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Void> deleteShapes(long imageId) {
-        return getShapes(imageId).thenCompose(shapesToRemove -> iViewerApi.deleteShapes(imageId, shapesToRemove, jsonApi.getToken()));
+    public CompletableFuture<Void> deleteShapes(long imageId, long userId) {
+        return getShapes(imageId, userId).thenCompose(shapesToRemove -> iViewerApi.deleteShapes(imageId, shapesToRemove, jsonApi.getToken()));
     }
 
     /**

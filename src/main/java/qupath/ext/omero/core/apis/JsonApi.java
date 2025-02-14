@@ -72,7 +72,7 @@ class JsonApi {
     private static final String PLATE_ACQUISITIONS_URL = "%s/api/v0/m/plates/%d/plateacquisitions/";
     private static final String PLATE_WELLS_URL = "%s/api/v0/m/plates/%d/wells/";
     private static final String WELLS_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
-    private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%s";
+    private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%d%s";
     private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
@@ -508,21 +508,27 @@ class JsonApi {
     }
 
     /**
-     * Attempt to retrieve shapes of an image.
+     * Attempt to retrieve shapes of an image optionally belonging to a user.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request or the conversion failed for example).
      *
      * @param imageId the OMERO image ID
+     * @param userId the ID of the user that should own the shapes to retrieve. Can be negative or equal to 0 to get
+     *               all shapes of the image
      * @return a CompletableFuture (that may complete exceptionally) with the list of ROIs, or an empty list if no ROIs
      * was found with the provided ID
      */
-    public CompletableFuture<List<Shape>> getShapes(long imageId) {
+    public CompletableFuture<List<Shape>> getShapes(long imageId, long userId) {
         logger.debug("Getting shapes of image with ID {}", imageId);
 
         URI uri;
         try {
-            uri = new URI(String.format(ROIS_URL, webServerUri, imageId));
+            if (userId > 0) {
+                uri = new URI(String.format(ROIS_URL, webServerUri, imageId, "&owner=" + userId));
+            } else {
+                uri = new URI(String.format(ROIS_URL, webServerUri, imageId, ""));
+            }
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }

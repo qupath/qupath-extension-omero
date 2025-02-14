@@ -12,7 +12,11 @@
       <Label text="%DataTransporters.Forms.SendAnnotations.send" />
       <ChoiceBox fx:id="selectedAnnotationChoice" />
    </HBox>
-   <CheckBox fx:id="deleteExistingAnnotations" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendAnnotations.deleteExistingAnnotations" />
+   <HBox alignment="CENTER_LEFT" spacing="10.0">
+      <CheckBox fx:id="deleteExistingAnnotations" mnemonicParsing="false" selected="true"
+                text="%DataTransporters.Forms.SendAnnotations.deleteExistingAnnotations"/>
+      <ChoiceBox fx:id="owner" prefWidth="150.0"/>
+   </HBox>
    <Pane prefHeight="20.0" />
    <CheckBox fx:id="deleteExistingMeasurements" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendAnnotations.deleteExistingMeasurements" />
    <Label text="%DataTransporters.Forms.SendAnnotations.send" />

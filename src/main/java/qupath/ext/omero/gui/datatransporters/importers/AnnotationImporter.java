@@ -3,19 +3,23 @@ package qupath.ext.omero.gui.datatransporters.importers;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportAnnotationForm;
+import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.util.List;
 import java.util.ResourceBundle;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Import QuPath annotations from an OMERO server to the currently opened image.
@@ -62,9 +66,44 @@ public class AnnotationImporter implements DataTransporter {
             return;
         }
 
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.AnnotationsImporter.retrievingServer")
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
+
+        omeroImageServer.getClient().getServer()
+                .exceptionally(error -> {
+                    logger.error("Cannot get server information on {}", omeroImageServer.getURIs(), error);
+                    return null;
+                })
+                .thenAccept(server -> Platform.runLater(() -> {
+                    waitingWindow.close();
+
+                    if (server == null) {
+                        Dialogs.showErrorMessage(
+                                resources.getString("DataTransporters.AnnotationsImporter.serverError"),
+                                MessageFormat.format(
+                                        resources.getString("DataTransporters.AnnotationsImporter.cannotGetServerInformation"),
+                                        omeroImageServer.getURIs()
+                                )
+                        );
+                    } else {
+                        importAnnotations(omeroImageServer, server, viewer);
+                    }
+                }));
+    }
+
+    private void importAnnotations(OmeroImageServer omeroImageServer, Server server, QuPathViewer viewer) {
         ImportAnnotationForm annotationForm;
         try {
-            annotationForm = new ImportAnnotationForm();
+            annotationForm = new ImportAnnotationForm(server.getOwners());
         } catch (IOException e) {
             logger.error("Error when creating the annotation form", e);
             Dialogs.showErrorMessage(
@@ -82,14 +121,29 @@ public class AnnotationImporter implements DataTransporter {
             return;
         }
 
-        CompletableFuture.supplyAsync(omeroImageServer::readPathObjects).thenAccept(pathObjects -> Platform.runLater(() -> {
-            if (pathObjects.isEmpty()) {
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.AnnotationsImporter.importingAnnotations")
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
+
+        omeroImageServer.getClient().getApisHandler().getShapes(omeroImageServer.getId(), annotationForm.getSelectedOwner().id()).thenAccept(shapes -> Platform.runLater(() -> {
+            waitingWindow.close();
+
+            if (shapes.isEmpty()) {
                 Dialogs.showErrorMessage(
                         resources.getString("DataTransporters.AnnotationsImporter.noAnnotations"),
                         resources.getString("DataTransporters.AnnotationsImporter.noAnnotationsFound")
                 );
                 return;
             }
+            List<PathObject> pathObjects = Shape.createPathObjects(shapes);
 
             PathObjectHierarchy hierarchy = viewer.getImageData().getHierarchy();
             StringBuilder message = new StringBuilder();

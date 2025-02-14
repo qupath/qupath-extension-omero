@@ -9,6 +9,7 @@ import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.KeyValuesForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
+import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.projects.ProjectImageEntry;
@@ -88,40 +89,52 @@ public class KeyValuesImporter implements DataTransporter {
             return;
         }
 
-        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class)
-                .exceptionally(error -> {
-                    logger.error("Error while retrieving annotations", error);
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.KeyValuesImporter.importingKeyValues")
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
 
-                    Platform.runLater(() -> Dialogs.showErrorMessage(
-                            resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
-                            resources.getString("DataTransporters.KeyValuesImporter.couldNotRetrieveAnnotations")
-                    ));
-                    return null;
-                })
-                .thenAccept(annotationGroup -> Platform.runLater(() -> {
-                    if (annotationGroup == null) {
-                        return;
-                    }
+        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).exceptionally(error -> {
+            logger.error("Error while retrieving annotations", error);
 
-                    Map<String,String> keyValues = MapAnnotation.getCombinedValues(
-                            annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
-                    );
+            Platform.runLater(() -> Dialogs.showErrorMessage(
+                    resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
+                    resources.getString("DataTransporters.KeyValuesImporter.couldNotRetrieveAnnotations")
+            ));
+            return null;
+        }).thenAccept(annotationGroup -> Platform.runLater(() -> {
+            waitingWindow.close();
 
-                    ProjectImageEntry<BufferedImage> projectEntry = quPath.getProject().getEntry(quPath.getImageData());
+            if (annotationGroup == null) {
+                return;
+            }
 
-                    if (keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)) {
-                        projectEntry.getMetadata().clear();
-                    }
-                    for (Map.Entry<String, String> entry : keyValues.entrySet()) {
-                        if (!keyValuesForm.getChoice().equals(KeyValuesForm.Choice.KEEP_EXISTING) || !projectEntry.getMetadata().containsKey(entry.getKey())) {
-                            projectEntry.getMetadata().put(entry.getKey(), entry.getValue());
-                        }
-                    }
+            Map<String,String> keyValues = MapAnnotation.getCombinedValues(
+                    annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
+            );
 
-                    Dialogs.showInfoNotification(
-                            resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
-                            resources.getString("DataTransporters.KeyValuesImporter.keyValuesImported")
-                    );
-                }));
+            ProjectImageEntry<BufferedImage> projectEntry = quPath.getProject().getEntry(quPath.getImageData());
+
+            if (keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)) {
+                projectEntry.getMetadata().clear();
+            }
+            for (Map.Entry<String, String> entry : keyValues.entrySet()) {
+                if (!keyValuesForm.getChoice().equals(KeyValuesForm.Choice.KEEP_EXISTING) || !projectEntry.getMetadata().containsKey(entry.getKey())) {
+                    projectEntry.getMetadata().put(entry.getKey(), entry.getValue());
+                }
+            }
+
+            Dialogs.showInfoNotification(
+                    resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
+                    resources.getString("DataTransporters.KeyValuesImporter.keyValuesImported")
+            );
+        }));
     }
 }

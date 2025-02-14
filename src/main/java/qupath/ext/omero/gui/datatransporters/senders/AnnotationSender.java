@@ -3,12 +3,14 @@ package qupath.ext.omero.gui.datatransporters.senders;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.SendAnnotationForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
+import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.MeasurementExporter;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -82,9 +84,45 @@ public class AnnotationSender implements DataTransporter {
             return;
         }
 
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.AnnotationsSender.retrievingServer")
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
+
+        omeroImageServer.getClient().getServer()
+                .exceptionally(error -> {
+                    logger.error("Cannot get server information on {}", omeroImageServer.getURIs(), error);
+                    return null;
+                })
+                .thenAccept(server -> Platform.runLater(() -> {
+                    waitingWindow.close();
+
+                    if (server == null) {
+                        Dialogs.showErrorMessage(
+                                resources.getString("DataTransporters.AnnotationsSender.serverError"),
+                                MessageFormat.format(
+                                        resources.getString("DataTransporters.AnnotationsSender.cannotGetServerInformation"),
+                                        omeroImageServer.getURIs()
+                                )
+                        );
+                    } else {
+                        sendAnnotations(omeroImageServer, server, viewer);
+                    }
+                }));
+    }
+
+    private void sendAnnotations(OmeroImageServer omeroImageServer, Server server, QuPathViewer viewer) {
         SendAnnotationForm annotationForm;
         try {
             annotationForm = new SendAnnotationForm(
+                    server.getOwners(),
                     quPath.getProject() != null,
                     !viewer.getImageData().getHierarchy().getAnnotationObjects().isEmpty(),
                     !viewer.getImageData().getHierarchy().getDetectionObjects().isEmpty()
@@ -119,7 +157,7 @@ public class AnnotationSender implements DataTransporter {
         if (annotationForm.deleteExistingAnnotations()) {
             deletionRequests.put(
                     Request.DELETE_EXISTING_ANNOTATIONS,
-                    omeroImageServer.getClient().getApisHandler().deleteShapes(omeroImageServer.getId())
+                    omeroImageServer.getClient().getApisHandler().deleteShapes(omeroImageServer.getId(), annotationForm.getSelectedOwner().id())
             );
         }
         if (annotationForm.deleteExistingMeasurements()) {
@@ -128,6 +166,18 @@ public class AnnotationSender implements DataTransporter {
                     omeroImageServer.getClient().getApisHandler().deleteAttachments(omeroImageServer.getId(), Image.class)
             );
         }
+
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.AnnotationsSender.sendingAnnotations")
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
 
         CompletableFuture.supplyAsync(() -> {
             Map<Request, Throwable> requestToErrors = new HashMap<>();      // a HashMap is manually created because using
@@ -177,6 +227,8 @@ public class AnnotationSender implements DataTransporter {
             logger.error("Unexpected error while sending annotations", error);
             return Map.of();
         }).thenAccept(errors -> Platform.runLater(() -> {
+            waitingWindow.close();
+
             logErrors(errors);
 
             String successMessage = createMessageFromResponses(errors, true);

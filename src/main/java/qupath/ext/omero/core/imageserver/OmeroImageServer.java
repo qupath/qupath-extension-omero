@@ -123,7 +123,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     }
 
     /**
-     * Get the path objects stored of this image stored on the OMERO server.
+     * Get all path objects of this image stored on the OMERO server.
      * This function may take a while as it sends an HTTP request.
      *
      * @return the list of objects of this image stored on the OMERO server
@@ -133,7 +133,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
         logger.debug("Reading path objects");
 
         try {
-            return Shape.createPathObjects(client.getApisHandler().getShapes(id).get());
+            return Shape.createPathObjects(client.getApisHandler().getShapes(id, -1).get());
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error reading path objects", e);
             return List.of();

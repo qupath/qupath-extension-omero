@@ -7,6 +7,7 @@ import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.KeyValuesForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
+import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.projects.ProjectImageEntry;
@@ -96,24 +97,41 @@ public class KeyValuesSender implements DataTransporter {
             return;
         }
 
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.KeyValuesSender.sendingKeyValues")
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
+
         omeroImageServer.getClient().getApisHandler().sendKeyValuePairs(
                 omeroImageServer.getId(),
                 keyValues,
                 keyValuesForm.getChoice().equals(KeyValuesForm.Choice.REPLACE_EXITING),
                 keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)
         ).handle((v, error) -> {
-            if (error == null) {
-                Platform.runLater(() -> Dialogs.showInfoNotification(
-                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                        resources.getString("DataTransporters.KeyValuesSender.keyValuesSent")
-                ));
-            } else {
-                logger.error("Error while sending key value pairs", error);
-                Platform.runLater(() -> Dialogs.showErrorNotification(
-                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                        resources.getString("DataTransporters.KeyValuesSender.keyValuesNotSent")
-                ));
-            }
+            Platform.runLater(() -> {
+                waitingWindow.close();
+
+                if (error == null) {
+                    Dialogs.showInfoNotification(
+                            resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                            resources.getString("DataTransporters.KeyValuesSender.keyValuesSent")
+                    );
+                } else {
+                    logger.error("Error while sending key value pairs", error);
+                    Dialogs.showErrorNotification(
+                            resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                            resources.getString("DataTransporters.KeyValuesSender.keyValuesNotSent")
+                    );
+                }
+            });
+
             return null;
         });
     }

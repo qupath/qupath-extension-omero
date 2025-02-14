@@ -94,7 +94,7 @@ public class TestOmeroImageServer extends OmeroServer {
                 pathObjects.stream().map(PathObject::getID).toList()
         );
 
-        imageServer.getClient().getApisHandler().deleteShapes(imageServer.getId()).get();
+        imageServer.getClient().getApisHandler().deleteShapes(imageServer.getId(), -1).get();
     }
 
     @Test

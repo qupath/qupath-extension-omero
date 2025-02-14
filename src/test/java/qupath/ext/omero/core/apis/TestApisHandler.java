@@ -743,7 +743,7 @@ public class TestApisHandler extends OmeroServer {
             long invalidImageID = -1;
             List<Shape> expectedShapes = List.of();
 
-            List<Shape> shapes = apisHandler.getShapes(invalidImageID).get();
+            List<Shape> shapes = apisHandler.getShapes(invalidImageID, -1).get();
 
             Assertions.assertEquals(expectedShapes, shapes);
         }
@@ -783,6 +783,7 @@ public class TestApisHandler extends OmeroServer {
             apisHandler = client.getApisHandler();
         }
 
+        @Test
         @Override
         void Check_Default_Group() {
             Group defaultGroup = apisHandler.getDefaultGroup();
@@ -909,7 +910,7 @@ public class TestApisHandler extends OmeroServer {
         void Check_Shapes_Deleted() {
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
 
-            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId).get());
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId, -1).get());
         }
 
         @Test
@@ -956,6 +957,7 @@ public class TestApisHandler extends OmeroServer {
             apisHandler = client.getApisHandler();
         }
 
+        @Test
         @Override
         void Check_Default_Group() {
             Group expectedDefaultGroup = OmeroServer.getDefaultGroup(userType);
@@ -1265,27 +1267,31 @@ public class TestApisHandler extends OmeroServer {
             apisHandler.changeChannelDisplayRanges(image.getId(), OmeroServer.getModifiableImageChannelSettings()).get();
         }
 
+        @Test
         @Override
         void Check_Shapes_Deleted() throws ExecutionException, InterruptedException {
+            long userId = OmeroServer.getConnectedOwner(userType).id();
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
             List<Shape> shapes = List.of(new Rectangle(10, 10, 100, 100), new Line(20, 20, 50, 50));
             apisHandler.addShapes(imageId, shapes).get();
 
-            apisHandler.deleteShapes(imageId);
+            apisHandler.deleteShapes(imageId, userId).get();
 
-            Assertions.assertTrue(apisHandler.getShapes(imageId).get().isEmpty());
+            Assertions.assertTrue(apisHandler.getShapes(imageId, userId).get().isEmpty());
         }
 
+        @Test
         @Override
         void Check_Shapes_Added() throws ExecutionException, InterruptedException {
+            long userId = OmeroServer.getConnectedOwner(userType).id();
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
             List<Shape> expectedShapes = List.of(new Rectangle(10, 10, 100, 100), new Line(20, 20, 50, 50));
 
             apisHandler.addShapes(imageId, expectedShapes).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, apisHandler.getShapes(imageId).get());
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, apisHandler.getShapes(imageId, userId).get());
 
-            apisHandler.deleteShapes(imageId);
+            apisHandler.deleteShapes(imageId, userId).get();
         }
 
         @Test

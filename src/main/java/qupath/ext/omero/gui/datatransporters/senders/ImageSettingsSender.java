@@ -8,6 +8,7 @@ import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImageSettingsForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
+import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -82,7 +83,6 @@ public class ImageSettingsSender implements DataTransporter {
                 resources.getString("DataTransporters.ImageSettingsSender.dataToSend"),
                 imageSettingsForm
         );
-
         if (!confirmed || imageSettingsForm.getSelectedChoices().isEmpty()) {
             return;
         }
@@ -92,6 +92,18 @@ public class ImageSettingsSender implements DataTransporter {
                 omeroImageServer,
                 viewer
         );
+
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.ImageSettingsSender.sendingImageSettings")
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
 
         CompletableFuture.supplyAsync(() -> {
             Map<ImageSettingsForm.Choice, Throwable> requestToErrors = new HashMap<>();
@@ -110,6 +122,8 @@ public class ImageSettingsSender implements DataTransporter {
             logger.error("Unexpected error while sending image settings", error);
             return Map.of();
         }).thenAccept(errors -> Platform.runLater(() -> {
+            waitingWindow.close();
+
             logErrors(errors);
 
             String successMessage = createMessageFromResponses(errors, true);
