@@ -8,31 +8,56 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.scene.control.TreeItem;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
+import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
 /**
+ * Item of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
+ * {@link RepositoryEntity RepositoryEntity} elements .
  * <p>
- *     Item of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
- *     {@link RepositoryEntity RepositoryEntity} elements .</p>
+ * The items can be filtered by {@link Owner owner}, {@link Group group}, and name.
  * <p>
- *     The items can be filtered by {@link Owner owner},
- *     {@link Group group}, and name.
- * </p>
- * <p>When an item is expanded, a web request is started to retrieve its children (if they don't already exist).</p>
+ * When an item is expanded, a web request is started to retrieve its children (if they don't already exist).
  */
 public class HierarchyItem extends TreeItem<RepositoryEntity> {
 
     private final ObservableList<TreeItem<RepositoryEntity>> children = FXCollections.observableArrayList();
     private final FilteredList<TreeItem<RepositoryEntity>> filteredChildren = new FilteredList<>(children);
+    private final ObservableList<TreeItem<RepositoryEntity>> sortedChildren = new SortedList<>(
+            filteredChildren,
+            (item1, item2) -> {
+                Map<Class<? extends RepositoryEntity>, Integer> classValues = Map.of(
+                        Project.class, 1,
+                        Dataset.class, 2,
+                        Screen.class, 3,
+                        Plate.class, 4,
+                        OrphanedFolder.class, 5                      // display entities in that order
+                );
+
+                int classComparison = classValues.getOrDefault(item1.getValue().getClass(), 0) -
+                        classValues.getOrDefault(item2.getValue().getClass(), 0);
+                if (classComparison != 0) {
+                    return classComparison;
+                }
+
+                return item1.getValue().getLabel().compareTo(item2.getValue().getLabel());
+            }
+    );
     private boolean computed = false;
 
     /**
@@ -52,7 +77,7 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
     ) {
         super(repositoryEntity);
 
-        Bindings.bindContent(getChildren(), filteredChildren);
+        Bindings.bindContent(getChildren(), sortedChildren);
 
         expandedProperty().addListener((p, o, n) -> {
             if (n && !computed) {

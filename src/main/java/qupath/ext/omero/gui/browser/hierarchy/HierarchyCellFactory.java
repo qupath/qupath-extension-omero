@@ -24,17 +24,13 @@ import java.io.IOException;
 import java.util.List;
 
 /**
+ * Cell factory of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
+ * {@link RepositoryEntity RepositoryEntity} elements .</p>
  * <p>
- *     Cell factory of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
- *     {@link RepositoryEntity RepositoryEntity} elements .</p>
+ * It displays the name of each OMERO entity, a corresponding icon, the number of children (if any),
+ * and additional information with a tooltip.
  * <p>
- *     It displays the name of each OMERO entity, a corresponding icon, the number of children (if any),
- *     and additional information with a tooltip.
- * </p>
- * <p>
- *     If the entity is an {@link Image Image},
- *     a complex tooltip described in {@link ImageTooltip} is used.
- * </p>
+ * If the entity is an {@link Image Image}, a complex tooltip described in {@link ImageTooltip} is used.
  */
 public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
 
