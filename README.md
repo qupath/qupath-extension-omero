@@ -63,7 +63,7 @@ extension can be used from scripts (with or without the graphical user interface
 You can build the extension using OpenJDK 21 or later with
 
 ```bash
-gradlew clean build
+./gradlew clean build
 ```
 
 The output will be under `build/libs`.
@@ -74,7 +74,7 @@ You can drag the jar file on top of QuPath to install the extension.
 You can run the tests with
 
 ```bash
-gradlew test
+./gradlew test
 ```
 
 Some of the tests require having Docker installed and running.
