@@ -20,7 +20,7 @@ import qupath.lib.images.servers.TileRequest;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
 import java.io.IOException;
-import java.util.Map;
+import java.util.List;
 
 public class TestIceReader extends OmeroServer {
 
@@ -96,7 +96,7 @@ public class TestIceReader extends OmeroServer {
                 reader = client.getPixelAPI(IceApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: ICE API not available");
@@ -128,7 +128,7 @@ public class TestIceReader extends OmeroServer {
                 reader = client.getPixelAPI(IceApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: ICE API not available");
@@ -160,7 +160,7 @@ public class TestIceReader extends OmeroServer {
                 reader = client.getPixelAPI(IceApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: ICE API not available");
@@ -192,7 +192,7 @@ public class TestIceReader extends OmeroServer {
                 reader = client.getPixelAPI(IceApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: ICE API not available");
@@ -224,7 +224,7 @@ public class TestIceReader extends OmeroServer {
                 reader = client.getPixelAPI(IceApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: ICE API not available");
@@ -256,7 +256,7 @@ public class TestIceReader extends OmeroServer {
                 reader = client.getPixelAPI(IceApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: ICE API not available");
@@ -288,7 +288,7 @@ public class TestIceReader extends OmeroServer {
                 reader = client.getPixelAPI(IceApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: ICE API not available");

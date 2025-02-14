@@ -52,6 +52,7 @@ public abstract class Shape {
     @SerializedName(value = "FillColor", alternate = "fillColor") private int fillColor;
     @SerializedName(value = "StrokeColor", alternate = "strokeColor") private Integer strokeColor;
     @SerializedName(value = "oldId") private String oldId = "-1:-1";
+    private transient UUID uuid;
 
     protected Shape(String type) {
         this.type = type;
@@ -125,12 +126,14 @@ public abstract class Shape {
     }
 
     /**
-     * Create a list of PathObjects corresponding to the provided shapes.
+     * Create a list of PathObjects corresponding to the provided shapes. The returned
+     * list won't include path objects with parents; they can be retrieved with
+     * {@link PathObject#getChildObjects()} on the elements of the returned list.
      *
      * @param shapes the shapes to convert to path objects
      * @return a list of PathObjects corresponding to the provided shapes
      */
-    public static List<PathObject> createPathObjects(List<Shape> shapes) {
+    public static List<PathObject> createPathObjects(List<? extends Shape> shapes) {
         List<UUID> uuids = shapes.stream()
                 .map(Shape::getQuPathId)
                 .distinct()
@@ -139,7 +142,7 @@ public abstract class Shape {
         Map<UUID, PathObject> idToPathObject = new HashMap<>();
         Map<UUID, UUID> idToParentId = new HashMap<>();
         for (UUID uuid: uuids) {
-            List<Shape> shapesWithUuid = shapes.stream()
+            List<? extends Shape> shapesWithUuid = shapes.stream()
                     .filter(shape -> uuid.equals(shape.getQuPathId()))
                     .toList();
             List<UUID> parentUuid = shapesWithUuid.stream()
@@ -252,16 +255,40 @@ public abstract class Shape {
                 .collect(Collectors.joining (" "));
     }
 
-    private UUID getQuPathId() {
-        if (text != null && text.split(":").length > 2) {
-            String uuid = text.split(":")[2];
-            try {
-                return UUID.fromString(uuid);
-            } catch (IllegalArgumentException e) {
-                logger.debug("Cannot create UUID from {}. Generating one", uuid);
+    /**
+     * @return the QuPath ID contained in this shape, or a random UUID if not
+     * found
+     */
+    protected UUID getQuPathId() {
+        if (this.uuid == null) {
+            if (text != null && text.split(":").length > 2) {
+                String uuid = text.split(":")[2];
+                try {
+                    this.uuid = UUID.fromString(uuid);
+                } catch (IllegalArgumentException e) {
+                    logger.debug("Cannot create UUID from {}. Generating one", uuid);
+                    this.uuid = UUID.randomUUID();
+                }
+            } else {
+                this.uuid = UUID.randomUUID();
             }
         }
-        return UUID.randomUUID();
+
+        return uuid;
+    }
+
+    /**
+     * @return the color of this shape (can be null)
+     */
+    protected Integer getStrokeColor() {
+        return strokeColor;
+    }
+
+    /**
+     * @return whether this shape should be locked (can be null)
+     */
+    protected Boolean getLocked() {
+        return locked;
     }
 
     private Optional<UUID> getQuPathParentId() {
@@ -276,13 +303,13 @@ public abstract class Shape {
         return Optional.empty();
     }
 
-    private static void warnIfDuplicateAttribute(List<Shape> shapes, List<?> attributes, String type) {
+    private static void warnIfDuplicateAttribute(List<? extends Shape> shapes, List<?> attributes, String type) {
         if (attributes.size() > 1) {
             logger.warn("The shapes {} have a different {}. Only the first one will considered", shapes, type);
         }
     }
 
-    private static PathObject createPathObject(List<Shape> shapes) {
+    private static PathObject createPathObject(List<? extends Shape> shapes) {
         if (shapes.isEmpty()) {
             return null;
         }
@@ -290,8 +317,8 @@ public abstract class Shape {
         List<PathClass> pathClasses = shapes.stream().map(Shape::getPathClass).toList();
         List<String> types = shapes.stream().map(Shape::getType).toList();
         List<UUID> uuids = shapes.stream().map(Shape::getQuPathId).toList();
-        List<Integer> strokeColors = shapes.stream().map(shape -> shape.strokeColor).toList();
-        List<Boolean> locked = shapes.stream().map(shape -> shape.locked).toList();
+        List<Integer> strokeColors = shapes.stream().map(Shape::getStrokeColor).toList();
+        List<Boolean> locked = shapes.stream().map(Shape::getLocked).toList();
 
         warnIfDuplicateAttribute(shapes, pathClasses, "class");
         warnIfDuplicateAttribute(shapes, types, "type (annotation/detection)");
@@ -349,7 +376,7 @@ public abstract class Shape {
         }
     }
 
-    private static ROI createRoi(List<Shape> shapes) {
+    private static ROI createRoi(List<? extends Shape> shapes) {
         if (shapes.isEmpty()) {
             return null;
         }

@@ -6,14 +6,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.lib.common.ColorTools;
+import qupath.ext.omero.TestUtilities;
+import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
+import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.List;
 
 public class TestShape {
 
@@ -30,93 +31,80 @@ public class TestShape {
     }
 
     @Test
-    void Check_Empty() {
-        Shape shape = new Gson().fromJson("{}", ShapeImplementation.class);
+    void Check_Path_Objects_With_Two_Different_Shapes_And_Different_Id() {
+        PathObject rectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(2, 3, 56, 76, ImagePlane.getDefaultPlane()));
+        PathObject ellipse = PathObjects.createAnnotationObject(ROIs.createEllipseROI(1, 6, 89, 6, ImagePlane.getDefaultPlane()));
+        Shape rectangleShape = new Rectangle(rectangle, false);
+        Shape ellipseShape = new Ellipse(ellipse, false);
+        List<PathObject> expectedPathObjects = List.of(rectangle, ellipse);
 
-        Optional<UUID> id = shape.getQuPathParentId();
+        List<PathObject> pathObjects = Shape.createPathObjects(List.of(rectangleShape, ellipseShape));
 
-        Assertions.assertTrue(id.isEmpty());
-    }
-
-    @Test
-    void Check_Path_Object_Is_Annotation() {
-        Shape shape = createShape();
-        PathObject pathObject = shape.createPathObject();
-
-        boolean isAnnotation = pathObject.isAnnotation();
-
-        Assertions.assertTrue(isAnnotation);
-    }
-
-    @Test
-    void Check_Path_Object_ID() {
-        Shape shape = createShape();
-        PathObject pathObject = shape.createPathObject();
-
-        UUID id = pathObject.getID();
-
-        Assertions.assertEquals(UUID.fromString("aba712b2-bbc2-4c05-bbba-d9fbab4d454f"), id);
-    }
-
-    @Test
-    void Check_Path_Object_Class() {
-        Shape shape = createShape();
-        PathObject pathObject = shape.createPathObject();
-
-        Set<String> classifications = pathObject.getClassifications();
-
-        Assertions.assertArrayEquals(
-                new String[] {"Stroma"},
-                classifications.toArray()
+        // PathObject does not override equals, so only the ID and the ROI are checked
+        TestUtilities.assertCollectionsEqualsWithoutOrder(
+                expectedPathObjects.stream().map(PathObject::getID).toList(),
+                pathObjects.stream().map(PathObject::getID).toList()
+        );
+        TestUtilities.assertCollectionsEqualsWithoutOrder(
+                expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
+                pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
     }
 
     @Test
-    void Check_Path_Object_ROI() {
-        Shape shape = createShape();
-        PathObject pathObject = shape.createPathObject();
+    void Check_Path_Objects_With_Two_Different_Shapes_And_Same_Id() {
+        PathObject rectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(2, 3, 56, 76, ImagePlane.getDefaultPlane()));
+        PathObject ellipse = PathObjects.createAnnotationObject(ROIs.createEllipseROI(1, 6, 89, 6, ImagePlane.getDefaultPlane()));
+        ellipse.setID(rectangle.getID());
+        Shape rectangleShape = new Rectangle(rectangle, false);
+        Shape ellipseShape = new Ellipse(ellipse, false);
 
-        ROI roi = pathObject.getROI();
+        List<PathObject> pathObjects = Shape.createPathObjects(List.of(rectangleShape, ellipseShape));
 
-        Assertions.assertTrue(roi.isEmpty());
+        Assertions.assertEquals(1, pathObjects.size());
     }
 
     @Test
-    void Check_Path_Object_Color() {
-        Shape shape = createShape();
-        PathObject pathObject = shape.createPathObject();
+    void Check_Path_Objects_With_Two_Points() {
+        PathObject point = PathObjects.createAnnotationObject(ROIs.createPointsROI(
+                List.of(new Point2(2, 3), new Point2(6, 8)),
+                ImagePlane.getDefaultPlane())
+        );
+        List<PathObject> expectedPathObjects = List.of(point);
+        List<Point> shapes = Point.create(point, false);
 
-        Integer color = pathObject.getColor();
+        List<PathObject> pathObjects = Shape.createPathObjects(shapes);
 
-        Assertions.assertEquals(ColorTools.RED, color);
+        TestUtilities.assertCollectionsEqualsWithoutOrder(
+                expectedPathObjects.stream().map(PathObject::getID).toList(),
+                pathObjects.stream().map(PathObject::getID).toList()
+        );
+        TestUtilities.assertCollectionsEqualsWithoutOrder(
+                expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
+                pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
+        );
     }
 
     @Test
-    void Check_Path_Object_Lock() {
-        Shape shape = createShape();
-        PathObject pathObject = shape.createPathObject();
+    void Check_Path_Objects_With_Parent() {
+        PathObject rectangle = PathObjects.createAnnotationObject(ROIs.createRectangleROI(2, 3, 56, 76, ImagePlane.getDefaultPlane()));
+        PathObject ellipse = PathObjects.createAnnotationObject(ROIs.createEllipseROI(1, 6, 89, 6, ImagePlane.getDefaultPlane()));
+        rectangle.addChildObject(ellipse);
+        Shape rectangleShape = new Rectangle(rectangle, false);
+        Shape ellipseShape = new Ellipse(ellipse, false);
+        List<PathObject> expectedPathObjects = List.of(rectangle);      // ellipse is not here because it's a child of rectangle
 
-        boolean lock = pathObject.isLocked();
+        List<PathObject> pathObjects = Shape.createPathObjects(List.of(rectangleShape, ellipseShape));
 
-        Assertions.assertFalse(lock);
-    }
-
-    @Test
-    void Check_ID() {
-        Shape shape = createShape();
-
-        UUID id = shape.getQuPathId();
-
-        Assertions.assertEquals(UUID.fromString("aba712b2-bbc2-4c05-bbba-d9fbab4d454f"), id);
-    }
-
-    @Test
-    void Check_Parent_ID() {
-        Shape shape = createShape();
-
-        UUID id = shape.getQuPathParentId().orElse(null);
-
-        Assertions.assertEquals(UUID.fromString("dfa7dfb2-fd32-4c05-bbba-d9fbab4d454f"), id);
+        // PathObject does not override equals, so only the ID and the ROI are checked
+        TestUtilities.assertCollectionsEqualsWithoutOrder(
+                expectedPathObjects.stream().map(PathObject::getID).toList(),
+                pathObjects.stream().map(PathObject::getID).toList()
+        );
+        TestUtilities.assertCollectionsEqualsWithoutOrder(
+                expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
+                pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
+        );
     }
 
     @Test

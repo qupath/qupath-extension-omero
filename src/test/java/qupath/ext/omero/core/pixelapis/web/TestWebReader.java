@@ -16,7 +16,7 @@ import qupath.lib.images.servers.TileRequest;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Map;
+import java.util.List;
 
 public class TestWebReader extends OmeroServer {
 
@@ -87,7 +87,7 @@ public class TestWebReader extends OmeroServer {
                 reader = client.getPixelAPI(WebApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: Web API not available");
@@ -119,7 +119,7 @@ public class TestWebReader extends OmeroServer {
                 reader = client.getPixelAPI(WebApi.class).createReader(
                         image.getId(),
                         metadata,
-                        Map.of()
+                        List.of()
                 );
             } else {
                 Assumptions.abort("Aborting tests: Web API not available");
