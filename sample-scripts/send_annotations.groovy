@@ -21,14 +21,13 @@ def omeroServer = (OmeroImageServer) server
 def annotations = getAnnotationObjects()
 
 // Send annotation to OMERO
-def removeExistingAnnotations = true
-omeroServer.getClient().getApisHandler().writeROIs(
+def fillAnnotationColors = true
+omeroServer.getClient().getApisHandler().addShapes(
         omeroServer.getId(),
         annotations.stream()
-                .map(Shape::createFromPathObject)
+                .map(pathObject -> Shape.createFromPathObject(pathObject, fillAnnotationColors))
                 .flatMap(List::stream)
-                .toList(),
-        removeExistingAnnotations
+                .toList()
 ).get()
 
 println "Annotations sent"

@@ -305,7 +305,7 @@ public abstract class Shape {
 
     private static void warnIfDuplicateAttribute(List<? extends Shape> shapes, List<?> attributes, String type) {
         if (attributes.size() > 1) {
-            logger.warn("The shapes {} have a different {}. Only the first one will considered", shapes, type);
+            logger.warn("The shapes {} have a different {}: {}. Only the first one will considered", shapes, type, attributes);
         }
     }
 
@@ -314,11 +314,11 @@ public abstract class Shape {
             return null;
         }
 
-        List<PathClass> pathClasses = shapes.stream().map(Shape::getPathClass).toList();
-        List<String> types = shapes.stream().map(Shape::getType).toList();
-        List<UUID> uuids = shapes.stream().map(Shape::getQuPathId).toList();
-        List<Integer> strokeColors = shapes.stream().map(Shape::getStrokeColor).toList();
-        List<Boolean> locked = shapes.stream().map(Shape::getLocked).toList();
+        List<PathClass> pathClasses = shapes.stream().map(Shape::getPathClass).distinct().toList();
+        List<String> types = shapes.stream().map(Shape::getType).distinct().toList();
+        List<UUID> uuids = shapes.stream().map(Shape::getQuPathId).distinct().toList();
+        List<Integer> strokeColors = shapes.stream().map(Shape::getStrokeColor).distinct().toList();
+        List<Boolean> locked = shapes.stream().map(Shape::getLocked).distinct().toList();
 
         warnIfDuplicateAttribute(shapes, pathClasses, "class");
         warnIfDuplicateAttribute(shapes, types, "type (annotation/detection)");
