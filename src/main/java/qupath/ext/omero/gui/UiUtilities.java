@@ -130,11 +130,10 @@ public class UiUtilities {
     }
 
     /**
-     * <p>Attempt to open images in the QuPath viewer from the provided URIs.</p>
+     * Attempt to open images in the QuPath viewer from the provided URIs.
      * <p>
-     *     If impossible (no URI provided or attempt to open multiple images
-     *     without using a project), an error message will appear.
-     * </p>
+     * If impossible (no URI provided or attempt to open multiple images
+     * without using a project), an error message will appear.
      *
      * @param uris the URIs of the images to open
      */
@@ -159,14 +158,19 @@ public class UiUtilities {
                     );
                 }
             } else {
-                promptToImportOmeroImages(uris);
+                ProjectCommands.promptToImportImages(
+                        QuPathGUI.getInstance(),
+                        ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream().filter(b -> b instanceof OmeroImageServerBuilder).findAny().orElse(null),
+                        uris
+                );
             }
         }
     }
 
     /**
-     * <p>Propagates changes made to a property to another property.</p>
-     * <p>The listening property is updated in the UI thread.</p>
+     * Propagates changes made to a property to another property.
+     * <p>
+     * The listening property is updated in the UI thread.
      *
      * @param propertyToUpdate the property to update
      * @param propertyToListen the property to listen
@@ -184,8 +188,9 @@ public class UiUtilities {
     }
 
     /**
-     * <p>Propagates changes made to an observable set to another observable set.</p>
-     * <p>The listening set is updated in the UI thread.</p>
+     * Propagates changes made to an observable set to another observable set.
+     * <p>
+     * The listening set is updated in the UI thread.
      *
      * @param setToUpdate the set to update
      * @param setToListen the set to listen
@@ -216,8 +221,9 @@ public class UiUtilities {
     }
 
     /**
-     * <p>Propagates changes made to an observable list to another observable list.</p>
-     * <p>The listening list is updated in the UI thread.</p>
+     * Propagates changes made to an observable list to another observable list.
+     * <p>
+     * The listening list is updated in the UI thread.
      *
      * @param listToUpdate the list to update
      * @param listToListen the list to listen
@@ -251,13 +257,5 @@ public class UiUtilities {
                 });
             }
         }));
-    }
-
-    private static void promptToImportOmeroImages(String... validUris) {
-        ProjectCommands.promptToImportImages(
-                QuPathGUI.getInstance(),
-                ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream().filter(b -> b instanceof OmeroImageServerBuilder).findAny().orElse(null),
-                validUris
-        );
     }
 }

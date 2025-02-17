@@ -63,7 +63,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                 id,
                 metadata,
                 args
-        );//TODO: lazy initialize ?
+        );
         this.originalMetadata = this.pixelAPIReader.updateMetadata(metadata);
 
         this.apiName = pixelApi.getName();
