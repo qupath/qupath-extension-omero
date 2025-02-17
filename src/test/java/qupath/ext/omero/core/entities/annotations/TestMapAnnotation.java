@@ -3,55 +3,47 @@ package qupath.ext.omero.core.entities.annotations;
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.TestUtilities;
 
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 public class TestMapAnnotation {
 
     @Test
-    void Check_Values() {
-        Map<String, String> expectedValues = Map.of(
-                "key1", "value1"
+    void Check_Pairs() {
+        List<MapAnnotation.Pair> expectedPairs = List.of(
+                new MapAnnotation.Pair("key1", "value1")
         );
-        MapAnnotation mapAnnotation = createMapAnnotation(expectedValues);
+        MapAnnotation mapAnnotation = createMapAnnotation(expectedPairs);
 
-        Map<String, String> values = mapAnnotation.getValues();
+        List<MapAnnotation.Pair> pairs = mapAnnotation.getPairs();
 
-        Assertions.assertEquals(expectedValues, values);
+        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedPairs, pairs);
     }
 
     @Test
-    void Check_Values_Missing() {
+    void Check_Pairs_Missing() {
         MapAnnotation mapAnnotation = new Gson().fromJson("{}", MapAnnotation.class);
 
-        Map<String, String> values = mapAnnotation.getValues();
+        List<MapAnnotation.Pair> pairs = mapAnnotation.getPairs();
 
-        Assertions.assertTrue(values.isEmpty());
+        Assertions.assertTrue(pairs.isEmpty());
     }
 
-    @Test
-    void Check_Combined_Values() {
-        Map<String, String> expectedValues = Map.of(
-                "key1", "value1",
-                "key2", "value2"
+    private MapAnnotation createMapAnnotation(List<MapAnnotation.Pair> pairs) {
+        return new Gson().fromJson(
+                String.format(
+                    """
+                    {
+                        "values": [%s]
+                    }
+                    """,
+                    pairs.stream()
+                            .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
+                            .collect(Collectors.joining(","))
+                ),
+                MapAnnotation.class
         );
-        List<MapAnnotation> annotations = List.of(
-                createMapAnnotation(Map.of("key1", "value1")),
-                createMapAnnotation(Map.of("key2", "value2"))
-        );
-
-        Map<String, String> values = MapAnnotation.getCombinedValues(annotations);
-
-        Assertions.assertEquals(expectedValues, values);
-    }
-
-    private MapAnnotation createMapAnnotation(Map<String, String> values) {
-        String json = String.format("""
-                {
-                    "values": %s
-                }
-                """, new Gson().toJson(values));
-        return new Gson().fromJson(json, MapAnnotation.class);
     }
 }

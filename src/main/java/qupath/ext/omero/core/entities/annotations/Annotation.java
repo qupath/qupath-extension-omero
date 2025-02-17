@@ -3,8 +3,7 @@ package qupath.ext.omero.core.entities.annotations;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.gson.JsonParseException;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Link;
@@ -19,7 +18,6 @@ import java.util.Optional;
  */
 public abstract class Annotation {
 
-    private static final Logger logger = LoggerFactory.getLogger(Annotation.class);
     private int id;
     private Owner owner;
     private Link link;
@@ -80,26 +78,23 @@ public abstract class Annotation {
     public static class GsonOmeroAnnotationDeserializer implements JsonDeserializer<Annotation> {
         @Override
         public Annotation deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) {
-            if (json.isJsonObject() && json.getAsJsonObject().get("class") != null) {
-                String type = json.getAsJsonObject().get("class").getAsString();
+            if (!json.isJsonObject() || !json.getAsJsonObject().has("class")) {
+                throw new JsonParseException(String.format("'class' attribute missing from %s", json));
+            }
+            String type = json.getAsJsonObject().get("class").getAsString();
 
-                if (TagAnnotation.isOfType(type)) {
-                    return context.deserialize(json, TagAnnotation.class);
-                } else if (MapAnnotation.isOfType(type)) {
-                    return context.deserialize(json, MapAnnotation.class);
-                } else if (FileAnnotation.isOfType(type)) {
-                    return context.deserialize(json, FileAnnotation.class);
-                } else if (CommentAnnotation.isOfType(type)) {
-                    return context.deserialize(json, CommentAnnotation.class);
-                } else if (RatingAnnotation.isOfType(type)) {
-                    return context.deserialize(json, RatingAnnotation.class);
-                } else {
-                    logger.warn("Unsupported type: {}", type);
-                    return null;
-                }
+            if (TagAnnotation.isOfType(type)) {
+                return context.deserialize(json, TagAnnotation.class);
+            } else if (MapAnnotation.isOfType(type)) {
+                return context.deserialize(json, MapAnnotation.class);
+            } else if (FileAnnotation.isOfType(type)) {
+                return context.deserialize(json, FileAnnotation.class);
+            } else if (CommentAnnotation.isOfType(type)) {
+                return context.deserialize(json, CommentAnnotation.class);
+            } else if (RatingAnnotation.isOfType(type)) {
+                return context.deserialize(json, RatingAnnotation.class);
             } else {
-                logger.warn("\"class\" attribute of the annotation missing");
-                return null;
+                throw new JsonParseException(String.format("Unsupported type: %s", type));
             }
         }
     }

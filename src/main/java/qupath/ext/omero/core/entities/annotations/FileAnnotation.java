@@ -2,8 +2,9 @@ package qupath.ext.omero.core.entities.annotations;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -14,8 +15,9 @@ import java.util.ResourceBundle;
  */
 public class FileAnnotation extends Annotation {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final Logger logger = LoggerFactory.getLogger(FileAnnotation.class);
+    private static final List<String> ACCEPTED_TYPES = List.of("FileAnnotationI", "file");
     private Map<String, String> file;
 
     @Override
@@ -41,7 +43,7 @@ public class FileAnnotation extends Annotation {
      * @return a localized title for a file annotation
      */
     public static String getTitle() {
-        return resources.getString("Web.Entities.Annotation.File.title");
+        return resources.getString("Entities.Annotation.File.title");
     }
 
     /**
@@ -51,7 +53,7 @@ public class FileAnnotation extends Annotation {
      * @return whether this annotation type refers to a file annotation
      */
     public static boolean isOfType(String type) {
-        return "FileAnnotationI".equalsIgnoreCase(type) || "file".equalsIgnoreCase(type);
+        return ACCEPTED_TYPES.stream().anyMatch(type::equalsIgnoreCase);
     }
 
     /**

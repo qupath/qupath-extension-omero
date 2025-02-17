@@ -1,20 +1,30 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import qupath.ext.omero.gui.UiUtilities;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.ResourceBundle;
-import java.util.stream.Collectors;
 
 /**
  * Annotation containing several key-value pairs (e.g. license, release date).
+ * Note that some keys can be duplicated.
  */
 public class MapAnnotation extends Annotation {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
-    private Map<String, String> values;
+    private static final Logger logger = LoggerFactory.getLogger(MapAnnotation.class);
+    private static final ResourceBundle resources = Utils.getResources();
+    private static final List<String> ACCEPTED_TYPES = List.of("MapAnnotationI", "map");
+    private List<List<String>> values;
+    /**
+     * A key-value pair of text.
+     *
+     * @param key the key of the pair
+     * @param value the value of the pair
+     */
+    public record Pair(String key, String value) {}
 
     @Override
     public String toString() {
@@ -39,7 +49,7 @@ public class MapAnnotation extends Annotation {
      * @return a localized title for a map annotation
      */
     public static String getTitle() {
-        return resources.getString("Web.Entities.Annotation.Map.title");
+        return resources.getString("Entities.Annotation.Map.title");
     }
 
     /**
@@ -49,31 +59,23 @@ public class MapAnnotation extends Annotation {
      * @return whether this annotation type refers to a map annotation
      */
     public static boolean isOfType(String type) {
-        return "MapAnnotationI".equalsIgnoreCase(type) || "map".equalsIgnoreCase(type);
+        return ACCEPTED_TYPES.stream().anyMatch(type::equalsIgnoreCase);
     }
 
     /**
-     * Get a map containing all values of a list of map annotations.
-     * If two annotations contain the same keys, one value is randomly selected.
-     *
-     * @param annotations the annotations containing the values
-     * @return a map containing all values of the provided annotations
+     * @return the values of this annotation as a list of pairs
      */
-    public static Map<String, String> getCombinedValues(List<MapAnnotation> annotations) {
-        return annotations.stream()
-                .map(MapAnnotation::getValues)
-                .flatMap(map -> map.entrySet().stream())
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (value1, value2) -> value1
-                ));
-    }
-
-    /**
-     * @return the key-value pairs of this annotation
-     */
-    public Map<String, String> getValues() {
-        return values == null ? Map.of() : values;
+    public List<Pair> getPairs() {
+        return values == null ? List.of() : values.stream()
+                .map(value -> {
+                    if (value.size() > 1) {
+                        return new Pair(value.get(0), value.get(1));
+                    } else {
+                        logger.debug("The size of {} is less than two. Cannot create entry", value);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList();
     }
 }

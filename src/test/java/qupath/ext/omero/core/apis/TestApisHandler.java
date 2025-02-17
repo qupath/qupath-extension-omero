@@ -1013,11 +1013,11 @@ public class TestApisHandler extends OmeroServer {
                     apisHandler.getAnnotations(image.getId(), Image.class).get()
                             .getAnnotationsOfClass(MapAnnotation.class)
                             .stream()
-                            .map(MapAnnotation::getValues)
-                            .flatMap (map -> map.entrySet().stream())
+                            .map(MapAnnotation::getPairs)
+                            .flatMap(List::stream)
                             .collect(Collectors.toMap(
-                                    Map.Entry::getKey,
-                                    Map.Entry::getValue,
+                                    MapAnnotation.Pair::key,
+                                    MapAnnotation.Pair::value,
                                     (value1, value2) -> value1
                             ))
             );
@@ -1048,11 +1048,11 @@ public class TestApisHandler extends OmeroServer {
                     apisHandler.getAnnotations(image.getId(), Image.class).get()
                             .getAnnotationsOfClass(MapAnnotation.class)
                             .stream()
-                            .map(MapAnnotation::getValues)
-                            .flatMap (map -> map.entrySet().stream())
+                            .map(MapAnnotation::getPairs)
+                            .flatMap(List::stream)
                             .collect(Collectors.toMap(
-                                    Map.Entry::getKey,
-                                    Map.Entry::getValue,
+                                    MapAnnotation.Pair::key,
+                                    MapAnnotation.Pair::value,
                                     (value1, value2) -> value1
                             ))
             );
@@ -1082,11 +1082,11 @@ public class TestApisHandler extends OmeroServer {
                     apisHandler.getAnnotations(image.getId(), Image.class).get()
                             .getAnnotationsOfClass(MapAnnotation.class)
                             .stream()
-                            .map(MapAnnotation::getValues)
-                            .flatMap (map -> map.entrySet().stream())
+                            .map(MapAnnotation::getPairs)
+                            .flatMap(List::stream)
                             .collect(Collectors.toMap(
-                                    Map.Entry::getKey,
-                                    Map.Entry::getValue,
+                                    MapAnnotation.Pair::key,
+                                    MapAnnotation.Pair::value,
                                     (value1, value2) -> value1
                             ))
             );
@@ -1116,11 +1116,11 @@ public class TestApisHandler extends OmeroServer {
                     apisHandler.getAnnotations(image.getId(), Image.class).get()
                             .getAnnotationsOfClass(MapAnnotation.class)
                             .stream()
-                            .map(MapAnnotation::getValues)
-                            .flatMap (map -> map.entrySet().stream())
+                            .map(MapAnnotation::getPairs)
+                            .flatMap(List::stream)
                             .collect(Collectors.toMap(
-                                    Map.Entry::getKey,
-                                    Map.Entry::getValue,
+                                    MapAnnotation.Pair::key,
+                                    MapAnnotation.Pair::value,
                                     (value1, value2) -> value1
                             ))
             );

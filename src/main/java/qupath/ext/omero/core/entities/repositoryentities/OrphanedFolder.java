@@ -2,9 +2,9 @@ package qupath.ext.omero.core.entities.repositoryentities;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class OrphanedFolder implements RepositoryEntity {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final ObservableList<Image> children = FXCollections.observableArrayList();
     private final ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final ApisHandler apisHandler;
@@ -78,7 +78,7 @@ public class OrphanedFolder implements RepositoryEntity {
 
     @Override
     public String getLabel() {
-        return resources.getString("Web.Entities.RepositoryEntities.OrphanedFolder.orphanedImages");
+        return resources.getString("Entities.RepositoryEntities.OrphanedFolder.orphanedImages");
     }
 
     @Override

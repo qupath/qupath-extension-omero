@@ -3,9 +3,9 @@ package qupath.ext.omero.gui.datatransporters.importers;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportAnnotationForm;
 import qupath.ext.omero.gui.login.WaitingWindow;
@@ -32,7 +32,7 @@ import java.util.ResourceBundle;
 public class AnnotationImporter implements DataTransporter {
 
     private static final Logger logger = LoggerFactory.getLogger(AnnotationImporter.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final QuPathGUI quPath;
 
     /**

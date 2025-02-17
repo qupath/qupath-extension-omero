@@ -2,6 +2,7 @@ package qupath.ext.omero.gui;
 
 import javafx.scene.control.SeparatorMenuItem;
 
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.gui.browser.BrowseMenu;
 import qupath.ext.omero.gui.datatransporters.DataTransporterMenu;
 import qupath.ext.omero.gui.datatransporters.importers.AnnotationImporter;
@@ -31,7 +32,7 @@ import java.util.ResourceBundle;
  */
 public class OmeroExtension implements QuPathExtension {
 
-	private static final ResourceBundle resources = UiUtilities.getResources();
+	private static final ResourceBundle resources = Utils.getResources();
 	private BrowseMenu browseMenu;
 
 	@Override

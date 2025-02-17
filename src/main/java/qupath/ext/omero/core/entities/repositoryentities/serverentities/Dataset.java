@@ -5,9 +5,9 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
@@ -23,14 +23,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Dataset extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Dataset.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Dataset.name"),
-            resources.getString("Web.Entities.Dataset.id"),
-            resources.getString("Web.Entities.Dataset.description"),
-            resources.getString("Web.Entities.Dataset.owner"),
-            resources.getString("Web.Entities.Dataset.group"),
-            resources.getString("Web.Entities.Dataset.nbImages")
+            resources.getString("Entities.Dataset.name"),
+            resources.getString("Entities.Dataset.id"),
+            resources.getString("Entities.Dataset.description"),
+            resources.getString("Entities.Dataset.owner"),
+            resources.getString("Entities.Dataset.group"),
+            resources.getString("Entities.Dataset.nbImages")
     };
     private final transient ObservableList<Image> children = FXCollections.observableArrayList();
     private final transient ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);

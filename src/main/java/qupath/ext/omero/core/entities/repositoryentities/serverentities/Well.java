@@ -3,9 +3,9 @@ package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 import com.google.gson.annotations.SerializedName;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,14 +17,14 @@ import java.util.ResourceBundle;
  */
 public class Well extends ServerEntity {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Well.name"),
-            resources.getString("Web.Entities.Well.id"),
-            resources.getString("Web.Entities.Well.owner"),
-            resources.getString("Web.Entities.Well.group"),
-            resources.getString("Web.Entities.Well.column"),
-            resources.getString("Web.Entities.Well.row")
+            resources.getString("Entities.Well.name"),
+            resources.getString("Entities.Well.id"),
+            resources.getString("Entities.Well.owner"),
+            resources.getString("Entities.Well.group"),
+            resources.getString("Entities.Well.column"),
+            resources.getString("Entities.Well.row")
     };
     @SerializedName(value = "WellSamples") private List<WellSample> wellSamples;
     @SerializedName(value = "Column") private int column;

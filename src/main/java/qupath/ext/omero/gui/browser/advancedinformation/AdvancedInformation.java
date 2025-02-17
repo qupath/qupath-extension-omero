@@ -10,6 +10,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.controlsfx.glyphfont.Glyph;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.CommentAnnotation;
@@ -29,19 +30,15 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 /**
+ * Window displaying OMERO annotations of an OMERO entity. OMERO annotations are <b>not</b>
+ * similar to QuPath annotations. Rather, they represent metadata associated with OMERO entities.
  * <p>
- *     Window displaying OMERO annotations of an OMERO entity.
- *     OMERO annotations are <b>not</b> similar to QuPath annotations. Rather, they represent metadata
- *     associated with OMERO entities.
- * </p>
- * <p>
- *     Annotations are displayed within several panes. Some annotations use a
- *     {@link FormPane}, while others use an {@link InformationPane}.
- * </p>
+ * Annotations are displayed within several panes. Some annotations use a {@link FormPane}, while
+ * others use an {@link InformationPane}.
  */
 public class AdvancedInformation extends Stage {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final ServerEntity serverEntity;
     @FXML
     private VBox content;
@@ -137,10 +134,10 @@ public class AdvancedInformation extends Stage {
 
         for (Annotation annotation : annotationList) {
             MapAnnotation mapAnnotation = (MapAnnotation) annotation;
-            for (var value : mapAnnotation.getValues().entrySet()) {
+            for (MapAnnotation.Pair pair: mapAnnotation.getPairs()) {
                 mapPane.addRow(
-                        value.getKey(),
-                        value.getValue().isEmpty() ? "-" : value.getValue(),
+                        pair.key(),
+                        pair.value().isEmpty() ? "-" : pair.value(),
                         MessageFormat.format(
                                 resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwned"),
                                 mapAnnotation.getAdderFullName(),
@@ -148,7 +145,7 @@ public class AdvancedInformation extends Stage {
                         )
                 );
             }
-            numberOfValues+= mapAnnotation.getValues().size();
+            numberOfValues += mapAnnotation.getPairs().size();
         }
         mapPane.setTitle(MapAnnotation.getTitle() + " (" + numberOfValues + ")");
 

@@ -8,6 +8,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.gui.UiUtilities;
@@ -22,7 +23,7 @@ import java.util.ResourceBundle;
 class Image extends HBox {
 
     private static final Logger logger = LoggerFactory.getLogger(Image.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     @FXML
     private Label name;
     @FXML

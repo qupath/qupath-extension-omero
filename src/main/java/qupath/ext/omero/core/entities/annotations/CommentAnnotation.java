@@ -1,7 +1,8 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -11,7 +12,8 @@ import java.util.ResourceBundle;
  */
 public class CommentAnnotation extends Annotation {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
+    private static final List<String> ACCEPTED_TYPES = List.of("CommentAnnotationI", "comment");
     private String textValue;
 
     @Override
@@ -37,7 +39,7 @@ public class CommentAnnotation extends Annotation {
      * @return a localized title for a comment annotation
      */
     public static String getTitle() {
-        return resources.getString("Web.Entities.Annotation.Comment.title");
+        return resources.getString("Entities.Annotation.Comment.title");
     }
 
     /**
@@ -47,7 +49,7 @@ public class CommentAnnotation extends Annotation {
      * @return whether this annotation type refers to a comment annotation
      */
     public static boolean isOfType(String type) {
-        return "CommentAnnotationI".equalsIgnoreCase(type) || "comment".equalsIgnoreCase(type);
+        return ACCEPTED_TYPES.stream().anyMatch(type::equalsIgnoreCase);
     }
 
     /**

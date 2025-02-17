@@ -1,10 +1,12 @@
 package qupath.ext.omero.gui.datatransporters.forms;
 
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.gui.UiUtilities;
 
@@ -17,7 +19,7 @@ import java.util.ResourceBundle;
  */
 public class SendAnnotationForm extends VBox {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String ONLY_SELECTED_ANNOTATIONS = resources.getString("DataTransporters.Forms.SendAnnotations.onlySelectedAnnotations");
     private static final String ALL_ANNOTATIONS = resources.getString("DataTransporters.Forms.SendAnnotations.allAnnotations");
     @FXML
@@ -62,6 +64,7 @@ public class SendAnnotationForm extends VBox {
         owner.getItems().add(Owner.getAllMembersOwner());
         owner.getItems().addAll(owners);
         owner.getSelectionModel().selectFirst();
+        owner.disableProperty().bind(Bindings.not(deleteExistingAnnotations.selectedProperty()));
 
         deleteExistingMeasurements.setSelected(projectOpened);
 

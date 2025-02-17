@@ -26,6 +26,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +35,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 /**
  * API to communicate with a OMERO.web server.
@@ -75,6 +75,7 @@ class WebclientApi implements AutoCloseable {
             Plate.class, "plate",
             PlateAcquisition.class, "run"
     );
+    private static final Gson gson = new Gson();
     private final URI host;
     private final RequestSender requestSender;
     private final URI pingUri;
@@ -344,7 +345,7 @@ class WebclientApi implements AutoCloseable {
             boolean replaceExisting,
             boolean deleteExisting
     ) {
-        logger.debug("Sending key value pairs {} to image with ID {}", keyValues, imageId);
+        logger.debug("Sending key-value pairs {} to image with ID {}", keyValues, imageId);
 
         URI uri;
         try {
@@ -354,17 +355,17 @@ class WebclientApi implements AutoCloseable {
         }
 
         return removeAndReturnExistingMapAnnotations(uri, imageId).thenCompose(existingAnnotations -> {
-            Map<String, String> keyValuesToSend;
-            if (deleteExisting) {
-                keyValuesToSend = keyValues;
-            } else {
-                keyValuesToSend = Stream.of(keyValues, MapAnnotation.getCombinedValues(existingAnnotations))
-                        .flatMap(map -> map.entrySet().stream())
-                        .collect(Collectors.toMap(
-                                Map.Entry::getKey,
-                                Map.Entry::getValue,
-                                (value1, value2) -> replaceExisting ? value1 : value2
-                        ));
+            List<MapAnnotation.Pair> pairsToSend = new ArrayList<>();
+            if (!deleteExisting) {
+                for (MapAnnotation annotation: existingAnnotations) {
+                    pairsToSend.addAll(annotation.getPairs());
+                }
+            }
+            for (var entry: keyValues.entrySet()) {
+                if (replaceExisting) {
+                    pairsToSend.removeAll(pairsToSend.stream().filter(pair -> pair.key().equals(entry.getKey())).toList());
+                }
+                pairsToSend.add(new MapAnnotation.Pair(entry.getKey(), entry.getValue()));
             }
 
             return requestSender.post(
@@ -373,8 +374,8 @@ class WebclientApi implements AutoCloseable {
                             "image=%d&mapAnnotation=%s",
                             imageId,
                             URLEncoder.encode(
-                                    keyValuesToSend.keySet().stream()
-                                            .map(key -> String.format("[\"%s\",\"%s\"]", key, keyValuesToSend.get(key)))
+                                    pairsToSend.stream()
+                                            .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
                                             .collect(Collectors.joining(",", "[", "]")),
                                     StandardCharsets.UTF_8
                             )
@@ -382,7 +383,6 @@ class WebclientApi implements AutoCloseable {
                     String.format("%s/webclient/", host),
                     token
             ).thenAccept(rawResponse -> {
-                Gson gson = new Gson();
                 Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
                 if (response == null || !response.containsKey("annId")) {
                     throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
@@ -420,7 +420,6 @@ class WebclientApi implements AutoCloseable {
                 String.format("%s/webclient/", host),
                 token
         ).thenAccept(rawResponse -> {
-            Gson gson = new Gson();
             Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
             if (response == null || !response.containsKey("o_type")) {
                 throw new RuntimeException(String.format("The response %s doesn't contain the `o_type` key", rawResponse));
@@ -459,7 +458,6 @@ class WebclientApi implements AutoCloseable {
                 String.format("%s/webclient/", host),
                 token
         ).thenAccept(rawResponse -> {
-            Gson gson = new Gson();
             Map<String, Object> response = gson.fromJson(rawResponse, new TypeToken<>() {});
             if (response == null || !response.containsKey("channelNames")) {
                 throw new RuntimeException(String.format("The response %s doesn't contain the `channelNames` key", rawResponse));
@@ -517,7 +515,6 @@ class WebclientApi implements AutoCloseable {
                         "index", ""
                 )
         ).thenAccept(rawResponse -> {
-            Gson gson = new Gson();
             Map<String, List<Long>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
             if (response == null || !response.containsKey("fileIds") || response.get("fileIds").isEmpty()) {
                 throw new RuntimeException(String.format("The response %s doesn't contain a non-empty `fileIds` value", rawResponse));
@@ -555,7 +552,6 @@ class WebclientApi implements AutoCloseable {
                     .toList();
 
             for (String rawResponse: responses) {
-                Gson gson = new Gson();
                 Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
                 if (response == null || !response.containsKey("bad")) {
                     throw new RuntimeException(String.format("The response %s doesn't contain the `bad` key", rawResponse));
@@ -637,7 +633,7 @@ class WebclientApi implements AutoCloseable {
     }
 
     private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotations(URI uri, long imageId) {
-        return getAnnotations(imageId, Image.class).thenApplyAsync(annotationGroup -> {
+        return getAnnotations(imageId, Image.class).thenApply(annotationGroup -> {
             List<MapAnnotation> existingAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class);
 
             List<CompletableFuture<String>> requests = existingAnnotations.stream()

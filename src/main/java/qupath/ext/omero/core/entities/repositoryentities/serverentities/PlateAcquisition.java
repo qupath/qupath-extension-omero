@@ -5,10 +5,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.Date;
 import java.util.List;
@@ -23,13 +23,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PlateAcquisition extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(PlateAcquisition.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.PlateAcquisition.name"),
-            resources.getString("Web.Entities.PlateAcquisition.id"),
-            resources.getString("Web.Entities.PlateAcquisition.owner"),
-            resources.getString("Web.Entities.PlateAcquisition.group"),
-            resources.getString("Web.Entities.PlateAcquisition.acquisitionTime")
+            resources.getString("Entities.PlateAcquisition.name"),
+            resources.getString("Entities.PlateAcquisition.id"),
+            resources.getString("Entities.PlateAcquisition.owner"),
+            resources.getString("Entities.PlateAcquisition.group"),
+            resources.getString("Entities.PlateAcquisition.acquisitionTime")
     };
     private final transient ObservableList<Image> children = FXCollections.observableArrayList();
     private final transient ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);

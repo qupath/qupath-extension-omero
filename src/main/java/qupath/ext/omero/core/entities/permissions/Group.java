@@ -1,7 +1,7 @@
 package qupath.ext.omero.core.entities.permissions;
 
 import com.google.gson.annotations.SerializedName;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 
 import java.util.List;
 import java.util.ResourceBundle;
@@ -11,8 +11,8 @@ import java.util.ResourceBundle;
  */
 public class Group {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
-    private static final Group ALL_GROUPS = new Group(-1, resources.getString("Web.Entities.Permissions.Group.allGroups"));
+    private static final ResourceBundle resources = Utils.getResources();
+    private static final Group ALL_GROUPS = new Group(-1, resources.getString("Entities.Permissions.Group.allGroups"));
     @SerializedName(value = "@id", alternate={"groupId"}) private final int id;
     @SerializedName(value = "Name", alternate={"groupName"}) private final String name;
     @SerializedName(value = "url:experimenters") private String experimentersLink;

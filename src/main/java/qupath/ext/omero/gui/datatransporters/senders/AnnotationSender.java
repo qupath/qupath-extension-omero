@@ -3,10 +3,10 @@ package qupath.ext.omero.gui.datatransporters.senders;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.SendAnnotationForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -43,7 +43,7 @@ import java.util.stream.Collectors;
 public class AnnotationSender implements DataTransporter {
 
     private static final Logger logger = LoggerFactory.getLogger(AnnotationSender.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final QuPathGUI quPath;
     private enum Request {
         SEND_ANNOTATIONS,

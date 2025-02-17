@@ -1,7 +1,8 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 
+import java.util.List;
 import java.util.ResourceBundle;
 
 /**
@@ -9,7 +10,8 @@ import java.util.ResourceBundle;
  */
 public class RatingAnnotation extends Annotation {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
+    private static final List<String> ACCEPTED_TYPES = List.of("LongAnnotationI", "rating");
     private static final short MAX_VALUE = 5;
     private short longValue;
 
@@ -36,7 +38,7 @@ public class RatingAnnotation extends Annotation {
      * @return a localized title for a map annotation
      */
     public static String getTitle() {
-        return resources.getString("Web.Entities.Annotation.Rating.title");
+        return resources.getString("Entities.Annotation.Rating.title");
     }
 
     /**
@@ -53,7 +55,7 @@ public class RatingAnnotation extends Annotation {
      * @return whether this annotation type refers to a rating annotation
      */
     public static boolean isOfType(String type) {
-        return "LongAnnotationI".equalsIgnoreCase(type) || "rating".equalsIgnoreCase(type);
+        return ACCEPTED_TYPES.stream().anyMatch(type::equalsIgnoreCase);
     }
 
     /**

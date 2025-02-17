@@ -20,6 +20,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Circle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
@@ -38,7 +39,7 @@ import java.util.ResourceBundle;
 public class UiUtilities {
 
     private static final Logger logger = LoggerFactory.getLogger(UiUtilities.class);
-    private static final ResourceBundle resources = ResourceBundle.getBundle("qupath.ext.omero.strings");
+    private static final ResourceBundle resources = Utils.getResources();
 
     private UiUtilities() {
         throw new AssertionError("This class is not instantiable.");
@@ -94,13 +95,6 @@ public class UiUtilities {
     }
 
     /**
-     * @return the resources containing the localized strings
-     */
-    public static ResourceBundle getResources() {
-        return resources;
-    }
-
-    /**
      * @return a node with a dot, either filled with green if {@code active} or red otherwise
      */
     public static Node createStateNode(boolean active) {
@@ -140,8 +134,8 @@ public class UiUtilities {
     public static void openImages(String... uris) {
         if (uris.length == 0) {
             Dialogs.showErrorMessage(
-                    resources.getString("Utilities.noImages"),
-                    resources.getString("Utilities.noValidImagesInSelected")
+                    resources.getString("UiUtilities.noImages"),
+                    resources.getString("UiUtilities.noValidImagesInSelected")
             );
         } else {
             if (QuPathGUI.getInstance().getProject() == null) {
@@ -153,8 +147,8 @@ public class UiUtilities {
                     }
                 } else {
                     Dialogs.showErrorMessage(
-                            resources.getString("Utilities.openImages"),
-                            resources.getString("Utilities.createProjectFirst")
+                            resources.getString("UiUtilities.openImages"),
+                            resources.getString("UiUtilities.createProjectFirst")
                     );
                 }
             } else {

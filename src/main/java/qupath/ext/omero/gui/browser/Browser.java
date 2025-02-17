@@ -28,6 +28,7 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
@@ -74,7 +75,7 @@ class Browser extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(Browser.class);
     private static final float DESCRIPTION_ATTRIBUTE_PROPORTION = 0.25f;
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final Client client;
     private final Server server;
     private final Consumer<Client> openClientBrowser;

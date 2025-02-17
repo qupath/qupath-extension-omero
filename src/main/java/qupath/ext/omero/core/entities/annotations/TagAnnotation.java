@@ -1,7 +1,8 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -11,7 +12,8 @@ import java.util.ResourceBundle;
  */
 public class TagAnnotation extends Annotation {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
+    private static final List<String> ACCEPTED_TYPES = List.of("TagAnnotationI", "tag");
     private String textValue;
 
     @Override
@@ -37,7 +39,7 @@ public class TagAnnotation extends Annotation {
      * @return a localized title for a tag annotation
      */
     public static String getTitle() {
-        return resources.getString("Web.Entities.Annotation.Tag.title");
+        return resources.getString("Entities.Annotation.Tag.title");
     }
 
     /**
@@ -47,7 +49,7 @@ public class TagAnnotation extends Annotation {
      * @return whether this annotation type refers to a tag annotation
      */
     public static boolean isOfType(String type) {
-        return "TagAnnotationI".equalsIgnoreCase(type) || "tag".equalsIgnoreCase(type);
+        return ACCEPTED_TYPES.stream().anyMatch(type::equalsIgnoreCase);
     }
 
     /**

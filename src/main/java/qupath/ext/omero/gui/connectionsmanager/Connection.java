@@ -11,6 +11,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.preferences.PreferencesManager;
@@ -34,7 +35,7 @@ import java.util.function.Consumer;
 class Connection extends VBox {
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final Client client;
     private final URI serverURI;
     private final Consumer<Client> openClientBrowser;

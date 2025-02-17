@@ -5,8 +5,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
 import java.util.ResourceBundle;
@@ -19,14 +19,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Project extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Project.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Project.name"),
-            resources.getString("Web.Entities.Project.id"),
-            resources.getString("Web.Entities.Project.description"),
-            resources.getString("Web.Entities.Project.owner"),
-            resources.getString("Web.Entities.Project.group"),
-            resources.getString("Web.Entities.Project.nbDatasets")
+            resources.getString("Entities.Project.name"),
+            resources.getString("Entities.Project.id"),
+            resources.getString("Entities.Project.description"),
+            resources.getString("Entities.Project.owner"),
+            resources.getString("Entities.Project.group"),
+            resources.getString("Entities.Project.nbDatasets")
     };
     private final transient ObservableList<Dataset> children = FXCollections.observableArrayList();
     private final transient ObservableList<Dataset> childrenImmutable = FXCollections.unmodifiableObservableList(children);

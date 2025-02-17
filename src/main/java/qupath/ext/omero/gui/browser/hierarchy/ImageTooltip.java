@@ -7,6 +7,7 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
@@ -21,7 +22,7 @@ import java.util.ResourceBundle;
 class ImageTooltip extends VBox {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageTooltip.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String INVALID_CLASS_NAME = "invalid-image";
     @FXML
     private Canvas canvas;

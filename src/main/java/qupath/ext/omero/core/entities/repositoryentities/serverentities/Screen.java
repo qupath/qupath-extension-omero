@@ -5,9 +5,9 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.List;
 import java.util.ResourceBundle;
@@ -20,14 +20,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Screen extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Screen.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Screen.name"),
-            resources.getString("Web.Entities.Screen.id"),
-            resources.getString("Web.Entities.Screen.description"),
-            resources.getString("Web.Entities.Screen.owner"),
-            resources.getString("Web.Entities.Screen.group"),
-            resources.getString("Web.Entities.Screen.nbPlates")
+            resources.getString("Entities.Screen.name"),
+            resources.getString("Entities.Screen.id"),
+            resources.getString("Entities.Screen.description"),
+            resources.getString("Entities.Screen.owner"),
+            resources.getString("Entities.Screen.group"),
+            resources.getString("Entities.Screen.nbPlates")
     };
     private final transient ObservableList<Plate> children = FXCollections.observableArrayList();
     private final transient ObservableList<Plate> childrenImmutable = FXCollections.unmodifiableObservableList(children);

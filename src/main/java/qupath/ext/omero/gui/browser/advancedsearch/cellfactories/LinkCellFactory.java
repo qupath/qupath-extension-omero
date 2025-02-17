@@ -2,8 +2,8 @@ package qupath.ext.omero.gui.browser.advancedsearch.cellfactories;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.TableCell;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.search.SearchResult;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.lib.gui.QuPathGUI;
 
 import java.util.ResourceBundle;
@@ -13,7 +13,7 @@ import java.util.ResourceBundle;
  */
 public class LinkCellFactory extends TableCell<SearchResult, SearchResult> {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final Button button;
 
     public LinkCellFactory() {

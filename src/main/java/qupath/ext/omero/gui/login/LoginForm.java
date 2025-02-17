@@ -5,6 +5,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
@@ -14,10 +15,12 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.gui.UiUtilities;
+import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
 import java.net.URI;
@@ -34,7 +37,7 @@ import java.util.function.Consumer;
 public class LoginForm extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(LoginForm.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String DEFAULT_URL = "https://idr.openmicroscopy.org/";
     private final Consumer<Client> onClientCreated;
     private Client createdClient;
@@ -134,7 +137,14 @@ public class LoginForm extends Stage {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         WaitingWindow waitingWindow;
         try {
-            waitingWindow = new WaitingWindow(this, resources.getString("Login.LoginForm.connecting"), executor::shutdownNow);
+            waitingWindow = new WaitingWindow(
+                    this,
+                    MessageFormat.format(
+                            resources.getString("Login.LoginForm.connectingTo"),
+                            url.getText()
+                    ),
+                    executor::shutdownNow
+            );
         } catch (IOException e) {
             logger.error("Error while creating waiting window", e);
             executor.shutdown();
@@ -161,13 +171,15 @@ public class LoginForm extends Stage {
                     waitingWindow.close();
 
                     if (!(e instanceof InterruptedException)) {
-                        new Alert(
-                                Alert.AlertType.ERROR,
-                                MessageFormat.format(
-                                        resources.getString("Login.LoginForm.connectionFailed"),
+                        new Dialogs.Builder()
+                                .alertType(Alert.AlertType.ERROR)
+                                .title(resources.getString("Login.LoginForm.connectionFailed"))
+                                .content(new Label(MessageFormat.format(
+                                        resources.getString("Login.LoginForm.connectionFailedCheck"),
                                         url.getText()
-                                )
-                        ).show();
+                                )))
+                                .owner(this)
+                                .show();
                     }
                 });
             }

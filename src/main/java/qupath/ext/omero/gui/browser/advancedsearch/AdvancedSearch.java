@@ -22,6 +22,7 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
@@ -40,17 +41,16 @@ import java.text.SimpleDateFormat;
 import java.util.ResourceBundle;
 
 /**
- * <p>Window allowing to perform a search on Omero entities.</p>
+ * Window allowing to perform a search on Omero entities.
  * <p>
- *     It displays a table that uses cell factories of the
- *     {@link qupath.ext.omero.gui.browser.advancedsearch.cellfactories cell factories} package.
- * </p>
+ * It displays a table that uses cell factories of the
+ * {@link qupath.ext.omero.gui.browser.advancedsearch.cellfactories cell factories} package.
  */
 public class AdvancedSearch extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(AdvancedSearch.class);
     private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final ApisHandler apisHandler;
     private final Server server;
     @FXML

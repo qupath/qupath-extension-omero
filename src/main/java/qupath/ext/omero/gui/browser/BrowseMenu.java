@@ -8,11 +8,11 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.core.preferences.ServerPreference;
 import qupath.ext.omero.gui.login.LoginForm;
-import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
 import java.net.URI;
@@ -27,7 +27,7 @@ import java.util.ResourceBundle;
 public class BrowseMenu extends Menu {
 
     private static final Logger logger = LoggerFactory.getLogger(BrowseMenu.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final Map<URI, BrowserCommand> browserCommands = new HashMap<>();
     private final MenuItem newServerItem = new MenuItem(resources.getString("Browser.BrowseMenu.newServer"));
     private final Stage owner;

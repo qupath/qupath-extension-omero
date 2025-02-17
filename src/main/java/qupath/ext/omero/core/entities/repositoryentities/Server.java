@@ -4,10 +4,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.List;
 import java.util.ResourceBundle;
@@ -24,7 +24,7 @@ public class Server implements RepositoryEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Server.class);
     private static final int NUMBER_OF_CHILDREN_TYPES = 5;
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final ObservableList<RepositoryEntity> children = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final ObservableList<RepositoryEntity> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final List<Owner> owners;
@@ -106,7 +106,7 @@ public class Server implements RepositoryEntity {
 
     @Override
     public String getLabel() {
-        return resources.getString("Web.Entities.RepositoryEntities.Server.server");
+        return resources.getString("Entities.RepositoryEntities.Server.server");
     }
 
     @Override

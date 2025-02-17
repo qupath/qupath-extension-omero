@@ -8,6 +8,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.core.preferences.ServerPreference;
@@ -24,12 +25,12 @@ import java.util.function.Consumer;
  * The connection manager provides a window that displays the connections to all servers.
  * The user can connect, log in, log out, and remove a connection to a server.
  * <p>
- * Each connexion is displayed using the {@link Connection} pane.
+ * Each connection is displayed using the {@link Connection} pane.
  */
 public class ConnectionsManager extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionsManager.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final Consumer<Client> openClientBrowser;
     @FXML
     private VBox container;

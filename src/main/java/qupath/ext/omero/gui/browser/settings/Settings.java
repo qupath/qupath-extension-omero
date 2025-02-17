@@ -8,6 +8,7 @@ import javafx.scene.control.TextFormatter;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.pixelapis.ice.IceApi;
 import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
@@ -26,7 +27,7 @@ import java.util.regex.Pattern;
 public class Settings extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(Settings.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final MsPixelBufferApi msPixelBufferApi;
     private final WebApi webApi;
     private final IceApi iceApi;

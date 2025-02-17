@@ -5,9 +5,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.gui.UiUtilities;
+
 
 import java.util.List;
 import java.util.ResourceBundle;
@@ -16,22 +17,21 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Represents an OMERO plate.
- * A plate contains {@link PlateAcquisition plate acquisitions}
+ * Represents an OMERO plate. A plate contains {@link PlateAcquisition plate acquisitions}
  * and {@link Well wells}.
  */
 public class Plate extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Plate.class);
     private static final int NUMBER_OF_CHILDREN_TYPES = 2;
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Plate.name"),
-            resources.getString("Web.Entities.Plate.id"),
-            resources.getString("Web.Entities.Plate.owner"),
-            resources.getString("Web.Entities.Plate.group"),
-            resources.getString("Web.Entities.Plate.columns"),
-            resources.getString("Web.Entities.Plate.rows")
+            resources.getString("Entities.Plate.name"),
+            resources.getString("Entities.Plate.id"),
+            resources.getString("Entities.Plate.owner"),
+            resources.getString("Entities.Plate.group"),
+            resources.getString("Entities.Plate.columns"),
+            resources.getString("Entities.Plate.rows")
     };
     private final transient ObservableList<ServerEntity> children = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final transient ObservableList<ServerEntity> childrenImmutable = FXCollections.unmodifiableObservableList(children);

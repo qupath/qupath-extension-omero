@@ -1,7 +1,7 @@
 package qupath.ext.omero.core.entities.permissions;
 
 import com.google.gson.annotations.SerializedName;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -19,8 +19,8 @@ public record Owner(@SerializedName(value = "@id", alternate = "id") int id,
                     @SerializedName(value = "Institution") String institution,
                     @SerializedName(value = "UserName") String username) implements Comparable<Owner> {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
-    private static final Owner ALL_MEMBERS = new Owner(-1, resources.getString("Web.Entities.Permissions.Owner.allMembers"), "", "", "", "", "");
+    private static final ResourceBundle resources = Utils.getResources();
+    private static final Owner ALL_MEMBERS = new Owner(-1, resources.getString("Entities.Permissions.Owner.allMembers"), "", "", "", "", "");
 
     @Override
     public String toString() {

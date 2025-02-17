@@ -5,9 +5,9 @@ import javafx.collections.ListChangeListener;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.preferences.PreferencesManager;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.login.LoginForm;
 import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
@@ -25,7 +25,7 @@ import java.util.function.Consumer;
 class BrowserCommand implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(BrowserCommand.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final URI uri;
     private final Stage owner;
     private final Consumer<Client> openClientBrowser;

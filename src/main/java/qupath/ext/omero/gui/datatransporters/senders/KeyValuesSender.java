@@ -3,7 +3,7 @@ package qupath.ext.omero.gui.datatransporters.senders;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.KeyValuesForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -18,20 +18,20 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 /**
- * Send key value pairs from the currently opened image to an OMERO server.
+ * Send key-value pairs from the currently opened image to an OMERO server.
  * <p>
- * Since key value pairs are only defined in projects, a project must be opened.
+ * Since key-value pairs are only defined in projects, a project must be opened.
  * <p>
  * This class uses a {@link KeyValuesForm} to prompt the user for parameters.
  */
 public class KeyValuesSender implements DataTransporter {
 
     private static final Logger logger = LoggerFactory.getLogger(KeyValuesSender.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final QuPathGUI quPath;
 
     /**
-     * Create the key value sender.
+     * Create the key-value sender.
      *
      * @param quPath the quPath window
      */
@@ -81,7 +81,7 @@ public class KeyValuesSender implements DataTransporter {
         try {
             keyValuesForm = new KeyValuesForm();
         } catch (IOException e) {
-            logger.error("Error when creating the key values form", e);
+            logger.error("Error when creating the key-values form", e);
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
                     e.getLocalizedMessage()
@@ -124,7 +124,7 @@ public class KeyValuesSender implements DataTransporter {
                             resources.getString("DataTransporters.KeyValuesSender.keyValuesSent")
                     );
                 } else {
-                    logger.error("Error while sending key value pairs", error);
+                    logger.error("Error while sending key-value pairs", error);
                     Dialogs.showErrorNotification(
                             resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
                             resources.getString("DataTransporters.KeyValuesSender.keyValuesNotSent")

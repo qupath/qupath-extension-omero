@@ -74,6 +74,7 @@ class JsonApi {
     private static final String WELLS_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
     private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%d%s";
     private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
+    private static final Gson gson = new Gson();
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
     private final URI webServerUri;
@@ -225,7 +226,7 @@ class JsonApi {
 
         return requestSender.getPaginated(uri).thenApplyAsync(jsonElements -> {
             List<Group> groups = jsonElements.stream()
-                    .map(jsonElement -> new Gson().fromJson(jsonElement, Group.class))
+                    .map(jsonElement -> gson.fromJson(jsonElement, Group.class))
                     .filter(group -> !GROUPS_TO_EXCLUDE.contains(group.getName()))
                     .toList();
 
@@ -234,7 +235,7 @@ class JsonApi {
 
                 group.setOwners(
                         requestSender.getPaginated(experimenterLink).join().stream()
-                                .map(jsonElement -> new Gson().fromJson(jsonElement, Owner.class))
+                                .map(jsonElement -> gson.fromJson(jsonElement, Owner.class))
                                 .filter(owner -> !group.isPrivate() || owner.id() == userId)
                                 .toList()
                 );

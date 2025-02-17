@@ -9,10 +9,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelApi;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 
@@ -23,33 +23,30 @@ import java.util.ResourceBundle;
 import java.util.Set;
 
 /**
+ * Provides some information on an OMERO image.
  * <p>
- *     Provides some information on an OMERO image.
- * </p>
- * <p>
- *     This class uses the {@link PixelInfo} class to get information about pixels.
- * </p>
+ * This class uses the {@link PixelInfo} class to get information about pixels.
  */
 public class Image extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Image.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Image.name"),
-            resources.getString("Web.Entities.Image.id"),
-            resources.getString("Web.Entities.Image.owner"),
-            resources.getString("Web.Entities.Image.group"),
-            resources.getString("Web.Entities.Image.acquisitionDate"),
-            resources.getString("Web.Entities.Image.imageWidth"),
-            resources.getString("Web.Entities.Image.imageHeight"),
-            resources.getString("Web.Entities.Image.uncompressedSize"),
-            resources.getString("Web.Entities.Image.nbZSlices"),
-            resources.getString("Web.Entities.Image.nbChannels"),
-            resources.getString("Web.Entities.Image.nbTimePoints"),
-            resources.getString("Web.Entities.Image.pixelSizeX"),
-            resources.getString("Web.Entities.Image.pixelSizeY"),
-            resources.getString("Web.Entities.Image.pixelSizeZ"),
-            resources.getString("Web.Entities.Image.pixelType")
+            resources.getString("Entities.Image.name"),
+            resources.getString("Entities.Image.id"),
+            resources.getString("Entities.Image.owner"),
+            resources.getString("Entities.Image.group"),
+            resources.getString("Entities.Image.acquisitionDate"),
+            resources.getString("Entities.Image.imageWidth"),
+            resources.getString("Entities.Image.imageHeight"),
+            resources.getString("Entities.Image.uncompressedSize"),
+            resources.getString("Entities.Image.nbZSlices"),
+            resources.getString("Entities.Image.nbChannels"),
+            resources.getString("Entities.Image.nbTimePoints"),
+            resources.getString("Entities.Image.pixelSizeX"),
+            resources.getString("Entities.Image.pixelSizeY"),
+            resources.getString("Entities.Image.pixelSizeZ"),
+            resources.getString("Entities.Image.pixelType")
     };
     private transient EnumSet<UnsupportedReason> unsupportedReasons;
     private transient BooleanProperty isSupported;
