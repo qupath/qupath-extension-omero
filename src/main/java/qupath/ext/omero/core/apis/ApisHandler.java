@@ -427,6 +427,32 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
+     * Attempt to retrieve the parent dataset of an image.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if there is no parent dataset for example).
+     *
+     * @param imageId the ID of the image whose parent dataset should be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the parent dataset of the provided image
+     */
+    public CompletableFuture<Dataset> getDatasetOwningImage(long imageId) {
+        return getImage(imageId)
+                .thenApply(image -> image.getDatasetsUrl().orElseThrow())
+                .thenCompose(datasetUrl -> requestSender.getPaginated(URI.create(datasetUrl)))
+                .thenApply(jsonElements -> jsonElements.stream()
+                        .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
+                        .toList()
+                )
+                .thenApply(serverEntities ->
+                        serverEntities.stream()
+                                .filter(serverEntity -> serverEntity instanceof Dataset)
+                                .map(serverEntity -> (Dataset) serverEntity)
+                                .findAny()
+                                .orElseThrow()
+                );
+    }
+
+    /**
      * See {@link JsonApi#getImages(long)}.
      */
     public CompletableFuture<List<Image>> getImages(long datasetID) {

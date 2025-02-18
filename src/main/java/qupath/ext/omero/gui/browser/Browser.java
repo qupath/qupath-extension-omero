@@ -217,7 +217,7 @@ class Browser extends Stage {
             RepositoryEntity selectedObject = selectedItem == null ? null : selectedItem.getValue();
 
             if (selectedObject instanceof Image image && image.isSupported().get()) {
-                UiUtilities.openImages(client.getApisHandler().getItemURI(image));
+                UiUtilities.openImages(List.of(client.getApisHandler().getItemURI(image)));
             }
         }
     }
@@ -330,7 +330,7 @@ class Browser extends Stage {
                         .map(serverEntity ->
                                 client.getApisHandler().getItemURI(serverEntity)
                         )
-                        .toArray(String[]::new)
+                        .toList()
         );
     }
 

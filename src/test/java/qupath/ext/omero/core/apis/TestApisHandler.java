@@ -463,6 +463,16 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
+        void Check_Parent_Dataset_Of_Image() throws ExecutionException, InterruptedException {
+            Dataset expectedDataset = OmeroServer.getDatasets(userType).getLast();
+            long imageId = OmeroServer.getImagesInDataset(expectedDataset).getFirst().getId();
+
+            Dataset dataset = apisHandler.getDatasetOwningImage(imageId).get();
+
+            Assertions.assertEquals(expectedDataset, dataset);
+        }
+
+        @Test
         void Check_Images() throws ExecutionException, InterruptedException {
             Dataset dataset = OmeroServer.getDatasets(userType).getLast();
             long datasetID = dataset.getId();

@@ -1,5 +1,7 @@
 package qupath.ext.omero.gui;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.scene.control.SeparatorMenuItem;
 
 import qupath.ext.omero.Utils;
@@ -11,9 +13,11 @@ import qupath.ext.omero.gui.datatransporters.importers.KeyValuesImporter;
 import qupath.ext.omero.gui.datatransporters.senders.AnnotationSender;
 import qupath.ext.omero.gui.datatransporters.senders.ImageSettingsSender;
 import qupath.ext.omero.gui.datatransporters.senders.KeyValuesSender;
+import qupath.fx.prefs.controlsfx.PropertyItemBuilder;
 import qupath.lib.gui.actions.ActionTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.extensions.QuPathExtension;
+import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.ext.omero.gui.connectionsmanager.ConnectionsManagerCommand;
 
@@ -33,6 +37,10 @@ import java.util.ResourceBundle;
 public class OmeroExtension implements QuPathExtension {
 
 	private static final ResourceBundle resources = Utils.getResources();
+	private static final BooleanProperty autoKvpImportProperty = PathPrefs.createPersistentPreference(
+			"omero_ext.auto_kvp_import",
+			true
+	);
 	private BrowseMenu browseMenu;
 
 	@Override
@@ -63,6 +71,16 @@ public class OmeroExtension implements QuPathExtension {
 							)
 					)
 			);
+
+			quPath.getPreferencePane()
+					.getPropertySheet()
+					.getItems()
+					.add(new PropertyItemBuilder<>(autoKvpImportProperty, Boolean.class)
+							.name(resources.getString("Extension.automaticallyImport"))
+							.category(resources.getString("Extension.name"))
+							.description(resources.getString("Extension.automaticallyImportWhenAddingImage"))
+							.build()
+					);
 		}
 	}
 
@@ -74,5 +92,13 @@ public class OmeroExtension implements QuPathExtension {
 	@Override
 	public String getDescription() {
 		return resources.getString("Extension.description");
+	}
+
+	/**
+	 * @return whether key-value pairs and parent dataset ID and name should be imported when an image of an OMERO
+	 * server is added to a QuPath project
+	 */
+	public static ReadOnlyBooleanProperty getAutoKvpImportProperty() {
+		return autoKvpImportProperty;
 	}
 }

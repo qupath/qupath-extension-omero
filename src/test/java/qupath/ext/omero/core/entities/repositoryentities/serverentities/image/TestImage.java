@@ -59,6 +59,19 @@ public class TestImage extends OmeroServer {
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedAttributeValues, attributesValues);
         }
+
+        @Test
+        void Check_Datasets_Url() {
+            String expectedDatasetsUrl = String.format(
+                    "%s/api/v0/m/images/%d/datasets/",
+                    OmeroServer.getWebServerURI(),
+                    image.getId()
+            );
+
+            String datasetsUrl = image.getDatasetsUrl().orElse("");
+
+            Assertions.assertEquals(expectedDatasetsUrl, datasetsUrl);
+        }
     }
 
     @Nested

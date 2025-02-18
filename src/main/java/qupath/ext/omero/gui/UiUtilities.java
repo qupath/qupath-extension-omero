@@ -21,16 +21,22 @@ import javafx.scene.shape.Circle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.entities.annotations.MapAnnotation;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
 import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.ext.omero.core.imageserver.OmeroImageServerBuilder;
+import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
+import java.util.List;
 import java.util.ResourceBundle;
 
 /**
@@ -40,6 +46,8 @@ public class UiUtilities {
 
     private static final Logger logger = LoggerFactory.getLogger(UiUtilities.class);
     private static final ResourceBundle resources = Utils.getResources();
+    private static final String DATASET_ID_LABEL = "dataset-id";
+    private static final String DATASET_NAME_LABEL = "dataset-name";
 
     private UiUtilities() {
         throw new AssertionError("This class is not instantiable.");
@@ -124,24 +132,29 @@ public class UiUtilities {
     }
 
     /**
-     * Attempt to open images in the QuPath viewer from the provided URIs.
+     * Attempt to open images in the QuPath viewer from the provided URIs. If a QuPath
+     * project is currently opened, the images are added to the project.
      * <p>
      * If impossible (no URI provided or attempt to open multiple images
      * without using a project), an error message will appear.
+     * <p>
+     * If the images are added to a QuPath project, an attempt will be made to automatically
+     * import the key-value pairs of the OMERO image to the metadata of the project entry, as
+     * well as the ID and the name of the parent dataset.
      *
      * @param uris the URIs of the images to open
      */
-    public static void openImages(String... uris) {
-        if (uris.length == 0) {
+    public static void openImages(List<String> uris) {
+        if (uris.isEmpty()) {
             Dialogs.showErrorMessage(
                     resources.getString("UiUtilities.noImages"),
                     resources.getString("UiUtilities.noValidImagesInSelected")
             );
         } else {
             if (QuPathGUI.getInstance().getProject() == null) {
-                if (uris.length == 1) {
+                if (uris.size() == 1) {
                     try {
-                        QuPathGUI.getInstance().openImage(QuPathGUI.getInstance().getViewer(), uris[0], true, true);
+                        QuPathGUI.getInstance().openImage(QuPathGUI.getInstance().getViewer(), uris.getFirst(), true, true);
                     } catch (IOException e) {
                         logger.error("Could not open image", e);
                     }
@@ -152,11 +165,21 @@ public class UiUtilities {
                     );
                 }
             } else {
-                ProjectCommands.promptToImportImages(
+                List<ProjectImageEntry<BufferedImage>> entries = ProjectCommands.promptToImportImages(
                         QuPathGUI.getInstance(),
                         ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream().filter(b -> b instanceof OmeroImageServerBuilder).findAny().orElse(null),
-                        uris
+                        uris.toArray(String[]::new)
                 );
+
+                if (OmeroExtension.getAutoKvpImportProperty().get()) {
+                    logger.debug("Automatically importing key-value pairs and parent dataset information");
+
+                    for (ProjectImageEntry<BufferedImage> entry: entries) {
+                        importKeyValuePairsAndParentContainer(entry);
+                    }
+                } else {
+                    logger.debug("Skipping automatic import of key-value pairs and parent dataset information");
+                }
             }
         }
     }
@@ -251,5 +274,60 @@ public class UiUtilities {
                 });
             }
         }));
+    }
+
+    private static void importKeyValuePairsAndParentContainer(ProjectImageEntry<BufferedImage> projectEntry) {
+        try (ImageServer<BufferedImage> server = projectEntry.getServerBuilder().build()) {
+            if (!(server instanceof OmeroImageServer omeroImageServer)) {
+                logger.debug("{} is not an OMERO image server. Skipping KVP and parent container info import", server);
+                return;
+            }
+
+            omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class)
+                    .whenComplete(((annotationGroup, error) -> {
+                        if (error != null) {
+                            logger.debug(
+                                    "Cannot retrieve annotations of image with ID {}. Skipping key-value pairs import",
+                                    omeroImageServer.getId()
+                            );
+                            return;
+                        }
+
+                        List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+                                .map(MapAnnotation::getPairs)
+                                .flatMap(List::stream)
+                                .toList();
+                        Platform.runLater(() -> {
+                            logger.debug("Adding key-value pairs {} to {} metadata", keyValues, projectEntry);
+
+                            for (MapAnnotation.Pair pair : keyValues) {
+                                if (projectEntry.getMetadata().containsKey(pair.key())) {
+                                    logger.debug("Cannot add {} to image entry metadata because the same key already exists", pair);
+                                } else {
+                                    projectEntry.getMetadata().put(pair.key(), pair.value());
+                                }
+                            }
+                        });
+                    }));
+
+            omeroImageServer.getClient().getApisHandler().getDatasetOwningImage(omeroImageServer.getId())
+                    .whenComplete((dataset, error) -> {
+                        if (error != null) {
+                            logger.debug(
+                                    "Cannot retrieve dataset owning image with ID {}. Skipping parent container info import",
+                                    omeroImageServer.getId()
+                            );
+                            return;
+                        }
+
+                        logger.debug("Adding dataset {} to {} metadata", dataset, projectEntry);
+                        Platform.runLater(() -> {
+                            projectEntry.getMetadata().put(DATASET_ID_LABEL, String.valueOf(dataset.getId()));
+                            projectEntry.getMetadata().put(DATASET_NAME_LABEL, dataset.getAttributeValue(0));
+                        });
+                    });
+        } catch (Exception e) {
+            logger.debug("Cannot create image server. Skipping KVP and parent container info import", e);
+        }
     }
 }

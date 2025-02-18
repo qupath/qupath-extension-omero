@@ -259,7 +259,7 @@ public class AdvancedSearch extends Stage {
     private void importSelectedImages() {
         UiUtilities.openImages(results.getSelectionModel().getSelectedItems().stream()
                 .map(SearchResult::getLink)
-                .toArray(String[]::new)
+                .toList()
         );
     }
 }
