@@ -16,7 +16,9 @@ import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -81,7 +83,10 @@ public class ConnectionsManager extends Stage {
             }
         }
 
-        for (ServerPreference serverPreference: PreferencesManager.getServerPreferences()) {
+        // Create copy to prevent modifications while iterating
+        List<ServerPreference> preferences = new ArrayList<>(PreferencesManager.getServerPreferences());
+
+        for (ServerPreference serverPreference: preferences) {
             if (!urisAdded.contains(serverPreference.webServerUri())) {
                 try {
                     container.getChildren().add(new Connection(serverPreference.webServerUri(), openClientBrowser));

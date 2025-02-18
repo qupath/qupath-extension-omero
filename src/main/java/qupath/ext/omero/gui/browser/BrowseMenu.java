@@ -16,7 +16,9 @@ import qupath.ext.omero.gui.login.LoginForm;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -88,7 +90,10 @@ public class BrowseMenu extends Menu {
     private void createURIItems() {
         getItems().clear();
 
-        for (ServerPreference serverPreference: PreferencesManager.getServerPreferences()) {
+        // Create copy to prevent modifications while iterating
+        List<ServerPreference> preferences = new ArrayList<>(PreferencesManager.getServerPreferences());
+
+        for (ServerPreference serverPreference: preferences) {
             BrowserCommand browserCommand = getBrowserCommand(serverPreference.webServerUri());
 
             MenuItem clientMenuItem = new MenuItem(serverPreference.webServerUri().toString());
