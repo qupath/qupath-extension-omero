@@ -9,7 +9,7 @@
 <?import javafx.scene.text.Font?>
 <?import javafx.stage.Stage?>
 
-<fx:root type="Stage" width="600.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+<fx:root alwaysOnTop="true" resizable="false" type="Stage" width="600.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
     <scene>
         <Scene>
             <VBox alignment="CENTER" spacing="15.0">
@@ -22,7 +22,7 @@
                     </font>
                 </Label>
                 <ProgressIndicator prefHeight="50.0" prefWidth="50.0" />
-                <Button mnemonicParsing="false" onAction="#onCancelClicked" text="%Login.WaitingWindow.cancel" />
+                <Button fx:id="cancel" mnemonicParsing="false" onAction="#onCancelClicked" text="%Login.WaitingWindow.cancel" />
             </VBox>
         </Scene>
     </scene>

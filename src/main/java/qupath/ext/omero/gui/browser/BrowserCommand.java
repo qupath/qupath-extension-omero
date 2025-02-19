@@ -118,8 +118,8 @@ class BrowserCommand implements Runnable {
                     logger.error("Cannot get server information on {}", uri, error);
                     return null;
                 })
-                .thenAccept(server -> Platform.runLater(() -> {
-                    waitingWindow.close();
+                .thenAccept(server -> {
+                    Platform.runLater(waitingWindow::close);
 
                     if (server == null) {
                         try {
@@ -128,21 +128,23 @@ class BrowserCommand implements Runnable {
                             logger.error("Error while closing client", e);
                         }
 
-                        Dialogs.showErrorMessage(
+                        Platform.runLater(() -> Dialogs.showErrorMessage(
                                 resources.getString("Browser.BrowserCommand.omeroError"),
                                 MessageFormat.format(
                                         resources.getString("Browser.BrowserCommand.cannotGetServerInformation"),
                                         uri
                                 )
-                        );
+                        ));
                     } else {
-                        try {
-                            this.browser = new Browser(owner, client, server, openClientBrowser);
-                            this.client = client;
-                        } catch (IOException e) {
-                            logger.error("Error while creating the browser", e);
-                        }
+                        Platform.runLater(() -> {
+                            try {
+                                this.browser = new Browser(owner, client, server, openClientBrowser);
+                                this.client = client;
+                            } catch (IOException e) {
+                                logger.error("Error while creating the browser", e);
+                            }
+                        });
                     }
-                }));
+                });
     }
 }

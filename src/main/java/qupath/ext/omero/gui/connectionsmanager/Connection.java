@@ -9,6 +9,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
@@ -17,12 +18,14 @@ import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.login.LoginForm;
+import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
@@ -36,6 +39,7 @@ class Connection extends VBox {
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
     private static final ResourceBundle resources = Utils.getResources();
+    private final Stage owner;
     private final Client client;
     private final URI serverURI;
     private final Consumer<Client> openClientBrowser;
@@ -62,12 +66,13 @@ class Connection extends VBox {
      * Creates the connection pane using a {@link Client}. The user will have the possibility
      * to log in, log out, or remove the connection, but not to connect to the server.
      *
+     * @param owner the window that owns this pane
      * @param client the client corresponding to the connection with the server
      * @param openClientBrowser a function that will be called to request opening the browser of a client
      * @throws IOException if an error occurs while creating the pane
      */
-    public Connection(Client client, Consumer<Client> openClientBrowser) throws IOException {
-        this(client, client.getApisHandler().getWebServerURI(), openClientBrowser);
+    public Connection(Stage owner, Client client, Consumer<Client> openClientBrowser) throws IOException {
+        this(owner, client, client.getApisHandler().getWebServerURI(), openClientBrowser);
     }
 
     /**
@@ -75,15 +80,17 @@ class Connection extends VBox {
      * to connect to the server or to remove the connection, but not to log in or log out.
      * Logging in or logging out will only be possible after a connection to the server is made.
      *
+     * @param owner the window that owns this pane
      * @param serverURI the URI of the server
      * @param openClientBrowser a function that will be called to request opening the browser of a client
      * @throws IOException if an error occurs while creating the pane
      */
-    public Connection(URI serverURI, Consumer<Client> openClientBrowser) throws IOException {
-        this(null, serverURI, openClientBrowser);
+    public Connection(Stage owner, URI serverURI, Consumer<Client> openClientBrowser) throws IOException {
+        this(owner, null, serverURI, openClientBrowser);
     }
 
-    private Connection(Client client, URI serverURI, Consumer<Client> openClientBrowser) throws IOException {
+    private Connection(Stage owner, Client client, URI serverURI, Consumer<Client> openClientBrowser) throws IOException {
+        this.owner = owner;
         this.client = client;
         this.serverURI = serverURI;
         this.openClientBrowser = openClientBrowser;
@@ -174,11 +181,7 @@ class Connection extends VBox {
             return;
         }
 
-        try {
-            client.close();
-        } catch (Exception e) {
-            logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
-        }
+        disconnect();
     }
 
     @FXML
@@ -199,11 +202,7 @@ class Connection extends VBox {
         }
 
         if (client != null) {
-            try {
-                client.close();
-            } catch (Exception e) {
-                logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
-            }
+            disconnect();
         }
         PreferencesManager.removeServer(serverURI);
     }
@@ -265,5 +264,32 @@ class Connection extends VBox {
                 }
             }));
         }
+    }
+
+    private void disconnect() {
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    owner,
+                    MessageFormat.format(
+                            resources.getString("ConnectionsManager.Connection.disconnectingFrom"),
+                            client.getApisHandler().getWebServerURI()
+                    )
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                client.close();
+            } catch (Exception e) {
+                logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
+            }
+
+            Platform.runLater(waitingWindow::close);
+        });
     }
 }

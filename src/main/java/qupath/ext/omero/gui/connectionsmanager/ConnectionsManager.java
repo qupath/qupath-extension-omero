@@ -76,7 +76,7 @@ public class ConnectionsManager extends Stage {
         Set<URI> urisAdded = new HashSet<>();
         for (Client client: Client.getClients()) {
             try {
-                container.getChildren().add(new Connection(client, openClientBrowser));
+                container.getChildren().add(new Connection(this, client, openClientBrowser));
                 urisAdded.add(client.getApisHandler().getWebServerURI());
             } catch (IOException e) {
                 logger.error("Error while creating connection pane", e);
@@ -89,7 +89,7 @@ public class ConnectionsManager extends Stage {
         for (ServerPreference serverPreference: preferences) {
             if (!urisAdded.contains(serverPreference.webServerUri())) {
                 try {
-                    container.getChildren().add(new Connection(serverPreference.webServerUri(), openClientBrowser));
+                    container.getChildren().add(new Connection(this, serverPreference.webServerUri(), openClientBrowser));
                 } catch (IOException e) {
                     logger.error("Error while creating connection pane", e);
                 }

@@ -1,4 +1,4 @@
-package qupath.ext.omero.gui.browser.settings;
+package qupath.ext.omero.gui.browser;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 /**
  * Window allowing to change settings related to a {@link Client}.
  */
-public class Settings extends Stage {
+class Settings extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(Settings.class);
     private static final ResourceBundle resources = Utils.getResources();

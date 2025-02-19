@@ -126,6 +126,7 @@ public class IceApi implements PixelApi {
      *             {@link #PORT_PARAMETER} to an integer greater than 0 to change the port this
      *             microservice uses on the OMERO server
      * @return a new web reader corresponding to this API
+     * @throws IOException when the reader creation fails
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */

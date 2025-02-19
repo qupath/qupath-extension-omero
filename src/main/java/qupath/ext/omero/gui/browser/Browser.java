@@ -34,7 +34,6 @@ import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyCellFactory;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyItem;
-import qupath.ext.omero.gui.browser.settings.Settings;
 import qupath.ext.omero.gui.login.LoginForm;
 import qupath.fx.controls.PredicateTextField;
 import qupath.lib.gui.QuPathGUI;

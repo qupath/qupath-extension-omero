@@ -2,6 +2,7 @@ package qupath.ext.omero.gui.login;
 
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -18,6 +19,8 @@ public class WaitingWindow extends Stage {
     private final Runnable onCancelClicked;
     @FXML
     private Label label;
+    @FXML
+    private Button cancel;
 
     /**
      * Create the window, giving the user the option to cancel the operation.
@@ -37,10 +40,13 @@ public class WaitingWindow extends Stage {
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
 
-        //TODO: what happens if user closes this window?
-
         setTitle(label);
         this.label.setText(label);
+
+        if (onCancelClicked == null) {
+            cancel.setVisible(false);
+            cancel.setManaged(false);
+        }
     }
 
     /**
@@ -57,6 +63,9 @@ public class WaitingWindow extends Stage {
     @FXML
     private void onCancelClicked(ActionEvent ignored) {
         close();
-        onCancelClicked.run();
+
+        if (onCancelClicked != null) {
+            onCancelClicked.run();
+        }
     }
 }

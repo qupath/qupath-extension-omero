@@ -125,7 +125,6 @@ public class Client implements AutoCloseable {
      * @throws IllegalArgumentException if the server doesn't return all necessary information on it, or if the root account
      * was used to log in
      */
-    //TODO: runnable called when client closed?
     public static Client createOrGet(String url, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
         URI webServerURI = getServerURI(new URI(url));
 
@@ -152,7 +151,7 @@ public class Client implements AutoCloseable {
                         if (e instanceof InterruptedException interruptedException) {
                             throw interruptedException;
                         }
-                        logger.warn("Cannot close connection with {}. This might ", existingClientWithUrl.get(), e);
+                        logger.warn("Cannot close connection with {}. This might create issues", existingClientWithUrl.get(), e);
                     }
                 }
             } else {
@@ -163,9 +162,14 @@ public class Client implements AutoCloseable {
         }
     }
 
+    /**
+     * Close the connection of this client. It shouldn't be used anymore after this function was called.
+     * Note that this function may take some time as it sends a web request to the OMERO server.
+     *
+     * @throws Exception if this client cannot be closed
+     */
     @Override
     public void close() throws Exception {
-        //TODO: this is sometimes called in UI but can take some time
         synchronized (Client.class) {
             clients.remove(this);
         }
