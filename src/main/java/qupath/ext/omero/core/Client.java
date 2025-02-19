@@ -83,6 +83,11 @@ public class Client implements AutoCloseable {
                         } catch (Exception e) {
                             logger.error("Error while closing {}", Client.this.apisHandler.getWebServerURI(), e);
                         }
+
+                        if (error instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
+                        }
+
                         return null;
                     }),
                     0,

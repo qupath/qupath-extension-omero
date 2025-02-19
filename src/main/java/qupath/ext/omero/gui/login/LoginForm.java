@@ -167,6 +167,10 @@ public class LoginForm extends Stage {
             } catch (Exception e) {
                 logger.error("Error while creating connection to {}", url.getText(), e);
 
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+
                 Platform.runLater(() -> {
                     waitingWindow.close();
 

@@ -42,6 +42,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -251,17 +252,17 @@ public class ApisHandler implements AutoCloseable {
         logger.debug("Finding entity ID in {}...", uri);
 
         for (Pattern pattern : allPatterns) {
-            var matcher = pattern.matcher(URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8));
+            Matcher matcher = pattern.matcher(URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8));
 
             if (matcher.find()) {
                 String idValue = matcher.group(1);
                 try {
-                    long id = Long.parseLong(matcher.group(1));
+                    long id = Long.parseLong(idValue);
                     logger.debug("Found ID {} in {}", id, uri);
 
                     return Optional.of(id);
-                } catch (Exception e) {
-                    logger.debug("Found entity ID {} but it is not an integer", idValue);
+                } catch (NumberFormatException e) {
+                    logger.debug("Found entity ID {} but it is not an integer", idValue, e);
                 }
             }
         }

@@ -287,6 +287,10 @@ class Connection extends VBox {
                 client.close();
             } catch (Exception e) {
                 logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
+
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
             }
 
             Platform.runLater(waitingWindow::close);

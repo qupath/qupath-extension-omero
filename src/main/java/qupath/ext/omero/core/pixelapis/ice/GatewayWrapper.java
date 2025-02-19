@@ -61,6 +61,10 @@ class GatewayWrapper implements AutoCloseable {
                             loginCredentials.get(i + 1).getServer().getPort(),
                             e
                     );
+
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
                 } else {
                     logger.error(
                             "Ice can't connect to {}:{}. No more credentials available",

@@ -66,11 +66,12 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                                 clientPixelApiArgsWrapper.args()
                         );
                     } catch (Exception e) {
+                        logger.debug("Cannot create OMERO image server for {}", imageUri, e);
+
                         if (e instanceof InterruptedException) {
                             Thread.currentThread().interrupt();
                         }
 
-                        logger.debug("Cannot create OMERO image server for {}", imageUri, e);
                         return null;
                     }
                 })
@@ -187,6 +188,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             });
         } catch (Exception e) {
             logger.debug("Cannot create OMERO client for {}", uri, e);
+
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+
             return Optional.empty();
         }
     }
@@ -228,6 +234,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                         yield Optional.of(Client.createOrGet(uri.toString(), new Credentials()));
                     } catch (Exception e) {
                         logger.debug("Cannot create client of {}", uri, e);
+
+                        if (e instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
+                        }
+
                         yield Optional.empty();
                     }
                 }
@@ -366,6 +377,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 ));
             } catch (Exception e) {
                 logger.debug("Cannot create client of {}", uri, e);
+
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                
                 return Optional.empty();
             }
         }

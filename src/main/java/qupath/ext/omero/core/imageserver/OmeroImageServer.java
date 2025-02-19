@@ -86,6 +86,10 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                 ).get();
             } catch (Exception e) {
                 logger.debug("Cannot get thumbnail. Using default thumbnail instead", e);
+
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
 

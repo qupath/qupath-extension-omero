@@ -126,6 +126,10 @@ class BrowserCommand implements Runnable {
                             client.close();
                         } catch (Exception e) {
                             logger.error("Error while closing client", e);
+
+                            if (e instanceof InterruptedException) {
+                                Thread.currentThread().interrupt();
+                            }
                         }
 
                         Platform.runLater(() -> Dialogs.showErrorMessage(
