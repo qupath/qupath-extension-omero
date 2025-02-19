@@ -6,6 +6,8 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.Strictness;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
 
 import java.util.ArrayList;
@@ -19,6 +21,7 @@ import java.util.Map;
  */
 public class AnnotationGroup {
 
+    private static final Logger logger = LoggerFactory.getLogger(AnnotationGroup.class);
     private static final Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer())
             .setStrictness(Strictness.LENIENT)
             .create();
@@ -81,7 +84,8 @@ public class AnnotationGroup {
 
     private static List<Experimenter> createExperimenters(JsonObject json) {
         if (!json.has("experimenters") || !json.get("experimenters").isJsonArray()) {
-            throw new IllegalArgumentException(String.format("'experimenters' array not found in %s", json));
+            logger.debug("'experimenters' array not found in {}", json);
+            return List.of();
         }
         JsonArray jsonExperimenters = json.get("experimenters").getAsJsonArray();
 
@@ -99,7 +103,8 @@ public class AnnotationGroup {
 
     private static Map<Class<? extends Annotation>, List<Annotation>> createAnnotations(JsonObject json, List<Experimenter> experimenters) {
         if (!json.has("annotations") || !json.get("annotations").isJsonArray()) {
-            throw new IllegalArgumentException(String.format("'annotations' array not found in %s", json));
+            logger.debug("'annotations' array not found in {}", json);
+            return Map.of();
         }
         JsonArray jsonAnnotations = json.get("annotations").getAsJsonArray();
 
