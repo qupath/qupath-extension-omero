@@ -90,6 +90,9 @@ public class TestIceReader extends OmeroServer {
             )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
                 metadata = imageServer.getMetadata();
+            } catch (Exception e) {
+                Assumptions.abort("Aborting tests: ICE API not available");
+                return;
             }
 
             if (client.getPixelAPI(IceApi.class).isAvailable().get()) {
@@ -122,6 +125,9 @@ public class TestIceReader extends OmeroServer {
             )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
                 metadata = imageServer.getMetadata();
+            } catch (Exception e) {
+                Assumptions.abort("Aborting tests: ICE API not available");
+                return;
             }
 
             if (client.getPixelAPI(IceApi.class).isAvailable().get()) {
@@ -154,6 +160,9 @@ public class TestIceReader extends OmeroServer {
             )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
                 metadata = imageServer.getMetadata();
+            } catch (Exception e) {
+                Assumptions.abort("Aborting tests: ICE API not available");
+                return;
             }
 
             if (client.getPixelAPI(IceApi.class).isAvailable().get()) {
@@ -186,6 +195,9 @@ public class TestIceReader extends OmeroServer {
             )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
                 metadata = imageServer.getMetadata();
+            } catch (Exception e) {
+                Assumptions.abort("Aborting tests: ICE API not available");
+                return;
             }
 
             if (client.getPixelAPI(IceApi.class).isAvailable().get()) {
@@ -218,6 +230,9 @@ public class TestIceReader extends OmeroServer {
             )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
                 metadata = imageServer.getMetadata();
+            } catch (Exception e) {
+                Assumptions.abort("Aborting tests: ICE API not available");
+                return;
             }
 
             if (client.getPixelAPI(IceApi.class).isAvailable().get()) {
@@ -250,6 +265,9 @@ public class TestIceReader extends OmeroServer {
             )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
                 metadata = imageServer.getMetadata();
+            } catch (Exception e) {
+                Assumptions.abort("Aborting tests: ICE API not available");
+                return;
             }
 
             if (client.getPixelAPI(IceApi.class).isAvailable().get()) {
@@ -282,6 +300,9 @@ public class TestIceReader extends OmeroServer {
             )) {
                 tileRequest = imageServer.getTileRequestManager().getTileRequest(0, 0, 0, 0, 0);
                 metadata = imageServer.getMetadata();
+            } catch (Exception e) {
+                Assumptions.abort("Aborting tests: ICE API not available");
+                return;
             }
 
             if (client.getPixelAPI(IceApi.class).isAvailable().get()) {
