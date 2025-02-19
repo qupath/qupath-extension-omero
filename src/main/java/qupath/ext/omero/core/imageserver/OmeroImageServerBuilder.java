@@ -212,6 +212,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             ));
         } catch (Exception e) {
             logger.debug("Cannot create image server for {}", uri, e);
+
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+
             return Optional.empty();
         }
     }
@@ -381,7 +386,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
                 }
-                
+
                 return Optional.empty();
             }
         }

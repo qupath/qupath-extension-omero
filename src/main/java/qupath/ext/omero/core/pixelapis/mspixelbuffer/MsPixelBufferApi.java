@@ -97,7 +97,7 @@ public class MsPixelBufferApi implements PixelApi {
      * Note that if this API is not available (see {@link #isAvailable()}), calling this function
      * will result in undefined behavior.
      *
-     * @param id the ID of the image to open
+     * @param imageId the ID of the image to open
      * @param metadata the metadata of the image to open
      * @param args additional arguments to change the reader creation: {@link #PORT_PARAMETER} to
      *             an integer greater than 0 to change the port this microservice uses on the OMERO server
@@ -107,7 +107,7 @@ public class MsPixelBufferApi implements PixelApi {
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata, List<String> args) {
+    public PixelApiReader createReader(long imageId, ImageServerMetadata metadata, List<String> args) {
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
@@ -124,7 +124,7 @@ public class MsPixelBufferApi implements PixelApi {
         return new MsPixelBufferReader(
                 host,
                 apisHandler,
-                id,
+                imageId,
                 metadata.getPixelType(),
                 metadata.getChannels(),
                 metadata.nLevels()

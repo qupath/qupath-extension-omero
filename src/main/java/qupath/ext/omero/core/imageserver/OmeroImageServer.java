@@ -47,9 +47,8 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      * @param pixelApi the pixel API to use when reading the image
      * @param args a list of arguments specifying how to open the image with the provided pixel API. They are specified in
      *             {@link qupath.ext.omero.core.pixelapis}
-     * @throws ExecutionException if an error occurred while retrieving the image metadata
-     * @throws InterruptedException if retrieving the image metadata was interrupted
-     * @throws IOException if a {@link PixelApiReader} cannot be created
+     * @throws ExecutionException if an error occurred while retrieving the image metadata or creating the reader
+     * @throws InterruptedException if retrieving the image metadata or creating the reader was interrupted
      * @throws IllegalArgumentException if the image ID cannot be parsed from the provided URI or if the image cannot be read
      */
     public OmeroImageServer(URI imageUri, Client client, PixelApi pixelApi, List<String> args) throws ExecutionException, InterruptedException, IOException {

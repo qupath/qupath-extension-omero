@@ -3,13 +3,11 @@ package qupath.ext.omero.core.pixelapis.ice;
 import omero.ServerError;
 import omero.api.RawPixelsStorePrx;
 import omero.api.ResolutionDescription;
-import omero.gateway.Gateway;
 import omero.gateway.SecurityContext;
 import omero.gateway.exception.DSOutOfServiceException;
 import omero.gateway.facility.BrowseFacility;
 import omero.gateway.model.ImageData;
 import omero.gateway.model.PixelsData;
-import omero.model.ExperimenterGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ObjectPool;
@@ -39,34 +37,33 @@ class IceReader implements PixelApiReader {
     private static final Logger logger = LoggerFactory.getLogger(IceReader.class);
     private static final int NUMBER_OF_READERS = Runtime.getRuntime().availableProcessors() + 5;    // Tasks that include I/O or other blocking operations
                                                                                                     // should use a bit more than the number of cores
+    private final long groupId;
+    private final SecurityContext context;
+    private final ImageData imageData;
     private final ObjectPool<RawPixelsStorePrx> readerPool;
     private final int numberOfResolutionLevels;
     private final int nChannels;
     private final int effectiveNChannels;
     private final PixelType pixelType;
     private final ColorModel colorModel;
-    private final SecurityContext context;
-    private final ImageData imageData;
-    private record ImageContextWrapper(ImageData image, SecurityContext context) {}
 
     /**
      * Creates a new Ice reader.
      *
      * @param gatewayWrapper a wrapper around a valid connection with an ICE server
-     * @param imageID the ID of the image to open
+     * @param imageId the ID of the image to open
+     * @param groupId the ID of the group owning the image to open
      * @param channels the channels of the image to open
      * @throws Exception when the reader creation fails
      */
-    public IceReader(GatewayWrapper gatewayWrapper, long imageID, List<ImageChannel> channels) throws Exception {
-        logger.debug("Creating ICE reader for image of ID {}...", imageID);
+    public IceReader(GatewayWrapper gatewayWrapper, long imageId, long groupId, List<ImageChannel> channels) throws Exception {
+        logger.debug("Creating ICE reader for image of ID {} with group of ID {}...", imageId, groupId);
 
-        ImageContextWrapper imageAndContext = getImageAndContext(
-                gatewayWrapper.getGateway(),
-                imageID,
-                gatewayWrapper.getGateway().getLoggedInUser().getGroupId()
-        );
-        context = imageAndContext.context;
-        imageData = imageAndContext.image;
+        this.groupId = groupId;
+
+        context = new SecurityContext(groupId);
+        BrowseFacility browser = gatewayWrapper.getGateway().getFacility(BrowseFacility.class);
+        imageData = browser.getImage(context, imageId);
         PixelsData pixelsData = imageData.getDefaultPixels();
 
         readerPool = new ObjectPool<>(
@@ -76,7 +73,7 @@ class IceReader implements PixelApiReader {
                         RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
                         reader.setPixelsId(pixelsData.getId(), false);
 
-                        logger.debug("RawPixelsStorePrx for image with ID {} created", imageID);
+                        logger.debug("RawPixelsStorePrx for image with ID {} created", imageId);
                         return reader;
                     } catch (DSOutOfServiceException | ServerError e) {
                         logger.error("Error when creating RawPixelsStorePrx", e);
@@ -86,6 +83,8 @@ class IceReader implements PixelApiReader {
                 reader -> {
                     try {
                         reader.close();
+
+                        logger.debug("RawPixelsStorePrx for image with ID {} closed", imageId);
                     } catch (Exception e) {
                         logger.warn("Error when closing RawPixelsStorePrx", e);
                     }
@@ -167,57 +166,21 @@ class IceReader implements PixelApiReader {
 
     @Override
     public void close() throws Exception {
+        logger.debug("Closing ICE reader of image with ID {}", imageData.getId());
+
         readerPool.close();
     }
 
     @Override
     public String toString() {
-        return String.format("Ice reader for %s", context.getServerInformation().getHost());
+        return String.format("Ice reader for image with ID %d", imageData.getId());
     }
 
-    private static ImageContextWrapper getImageAndContext(Gateway gateway, long imageID, long userGroupId) throws Exception {
-        SecurityContext context = new SecurityContext(userGroupId);
-        BrowseFacility browser = gateway.getFacility(BrowseFacility.class);
-        try {
-            return new ImageContextWrapper(
-                    browser.getImage(context, imageID),
-                    context
-            );
-        } catch (Exception e) {
-            logger.debug("Cannot get image {} from group {}. Trying other groups of the current user...", imageID, userGroupId, e);
-        }
-
-        List<ExperimenterGroup> groups = gateway.getAdminService(context).containedGroups(gateway.getLoggedInUser().asExperimenter().getId().getValue());
-        for (int i=0; i<groups.size(); i++) {
-            context = new SecurityContext(groups.get(i).getId().getValue());
-
-            try {
-                return new ImageContextWrapper(
-                        browser.getImage(context, imageID),
-                        context
-                );
-            } catch (Exception e) {
-                if (i < groups.size()-1) {
-                    logger.debug(
-                            "Cannot get image {} from group {}. Trying group {}...",
-                            imageID,
-                            groups.get(i).getId().getValue(),
-                            groups.get(i+1).getId().getValue(),
-                            e
-                    );
-                } else {
-                    logger.error(
-                            "Cannot get image {} from group {}. No more groups available",
-                            imageID,
-                            groups.get(i).getId().getValue(),
-                            e
-                    );
-                    throw e;
-                }
-            }
-        }
-
-        throw new IllegalStateException(String.format("Cannot get image %d. No groups available", imageID));
+    /**
+     * @return the ID of the group owning the image opened by this reader
+     */
+    public long getGroupId() {
+        return groupId;
     }
 
     /**

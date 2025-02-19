@@ -97,7 +97,7 @@ public class WebApi implements PixelApi {
      * Note that if this API is not available (see {@link #isAvailable()}), calling this function
      * will result in undefined behavior.
      *
-     * @param id the ID of the image to open
+     * @param imageId the ID of the image to open
      * @param metadata the metadata of the image to open
      * @param args additional arguments to change the reader creation: {@link #JPEG_QUALITY_PARAMETER}
      *             to a float between 0 and 1 to change the JPEG quality of the returned images
@@ -106,7 +106,7 @@ public class WebApi implements PixelApi {
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata, List<String> args) {
+    public PixelApiReader createReader(long imageId, ImageServerMetadata metadata, List<String> args) {
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
@@ -122,7 +122,7 @@ public class WebApi implements PixelApi {
 
         return new WebReader(
                 apisHandler,
-                id,
+                imageId,
                 metadata.getPreferredTileWidth(),
                 metadata.getPreferredTileHeight(),
                 jpegQuality.get()

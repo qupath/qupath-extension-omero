@@ -4,9 +4,9 @@ import javafx.beans.value.ObservableBooleanValue;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 /**
  * This interface provides information (e.g. types of image supported) on a specific API to access
@@ -67,7 +67,7 @@ public interface PixelApi extends AutoCloseable {
 
     /**
      * Creates a {@link PixelApiReader} corresponding to this API that will be used to read
-     * pixel values of an image.
+     * pixel values of an image. This may take a few seconds depending on the implementation.
      * <p>
      * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
      * no longer used. This pixel API will close them when it itself is closed.
@@ -75,18 +75,19 @@ public interface PixelApi extends AutoCloseable {
      * Note that if this API is not available (see {@link #isAvailable()}), calling this function
      * will result in undefined behavior.
      *
-     * @param id the ID of the image to open
+     * @param imageId the ID of the image to open
      * @param metadata the metadata of the image to open
      * @param args additional arguments to change the reader creation. See the description of the
      *             pixel API implementation for more details
      * @return a new reader corresponding to this API
-     * @throws IOException when the reader creation fails
+     * @throws ExecutionException if an error occurred while creating the reader
+     * @throws InterruptedException if the calling thread is interrupted while creating the reader
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     PixelApiReader createReader(
-            long id,
+            long imageId,
             ImageServerMetadata metadata,
             List<String> args
-    ) throws IOException;
+    ) throws ExecutionException, InterruptedException;
 }

@@ -90,6 +90,8 @@ public class ApisHandler implements AutoCloseable {
             iviewerImagePattern
     );
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
+    private final Cache<Long, CompletableFuture<Image>> imagesCache = CacheBuilder.newBuilder()
+            .build();
     private final Cache<Class<? extends RepositoryEntity>, CompletableFuture<BufferedImage>> omeroIconsCache = CacheBuilder.newBuilder()
             .build();
     private final Cache<IdSizeWrapper, CompletableFuture<BufferedImage>> thumbnailsCache = CacheBuilder.newBuilder()
@@ -462,9 +464,21 @@ public class ApisHandler implements AutoCloseable {
 
     /**
      * See {@link JsonApi#getImage(long)}.
+     * Images are cached.
      */
     public CompletableFuture<Image> getImage(long imageID) {
-        return jsonApi.getImage(imageID);
+        CompletableFuture<Image> request;
+        try {
+            request = imagesCache.get(imageID, () -> jsonApi.getImage(imageID));
+        } catch (ExecutionException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        return request.whenComplete((image, error) -> {
+            if (image == null) {
+                metadataCache.invalidate(imageID);
+            }
+        });
     }
 
     /**

@@ -21,11 +21,11 @@ import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 /**
  * This API uses the <a href="https://omero.readthedocs.io/en/v5.6.7/developers/Java.html">OMERO gateway</a>
@@ -112,26 +112,32 @@ public class IceApi implements PixelApi {
 
     /**
      * Creates an {@link IceReader} that will be used to read pixel values of an image.
+     * This may take a few seconds.
      * <p>
      * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
      * no longer used. This pixel API will close them when it itself is closed.
      * <p>
      * Note that if this API is not available (see {@link #isAvailable()}), calling this function
      * will result in undefined behavior.
+     * <p>
+     * Warning: if a reader of an image belonging to a different group than the group of the image to
+     * open exists, then the reader will be closed. See {@link #closeReadersWithDifferentGroups(long, long)}
+     * for more information.
      *
-     * @param id the ID of the image to open
+     * @param imageId the ID of the image to open
      * @param metadata the metadata of the image to open
      * @param args additional arguments to change the reader creation: {@link #ADDRESS_PARAMETER}
      *             to a string to set the address used to communicate with the OMERO server and
      *             {@link #PORT_PARAMETER} to an integer greater than 0 to change the port this
      *             microservice uses on the OMERO server
      * @return a new web reader corresponding to this API
-     * @throws IOException when the reader creation fails
+     * @throws ExecutionException if an error occurred while creating the reader
+     * @throws InterruptedException if the calling thread is interrupted while creating the reader
      * @throws IllegalArgumentException when the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
-    public PixelApiReader createReader(long id, ImageServerMetadata metadata, List<String> args) throws IOException {
+    public PixelApiReader createReader(long imageId, ImageServerMetadata metadata, List<String> args) throws ExecutionException, InterruptedException {
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
@@ -163,22 +169,26 @@ public class IceApi implements PixelApi {
 
                     gatewayWrapper = new GatewayWrapper(credentials);
                 } catch (Exception e) {
-                    throw new IOException(e);
+                    throw new ExecutionException(e);
                 }
             }
 
+            long groupId = apisHandler.getImage(imageId).get().getGroup().getId();
+
+            closeReadersWithDifferentGroups(imageId, groupId);
+
             try {
-                return readers.computeIfAbsent(id, i -> {
+                return readers.computeIfAbsent(imageId, i -> {
                     logger.debug("No reader for image with ID {} found. Creating one...", i);
 
                     try {
-                        return new IceReader(gatewayWrapper, id, metadata.getChannels());
+                        return new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels());
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                 });
             } catch (RuntimeException e) {
-                throw new IOException(e);
+                throw new ExecutionException(e);
             }
         }
     }
@@ -259,5 +269,39 @@ public class IceApi implements PixelApi {
         );
 
         logger.debug("ICE server port set to {}", serverPort);
+    }
+
+    /**
+     * ICE doesn't allow reading several images of different groups at the same time (see
+     * <a href="https://github.com/ome/omero-gateway-java/issues/98">this issue</a>).
+     * Therefore, all readers of images belonging to different groups must be closed before
+     * creating a new reader.
+     *
+     * @param imageId the ID of the image to open
+     * @param groupId the ID of the group owning the image to open. If a reader with a different
+     *                group than the provided one exists, it will be closed
+     */
+    private void closeReadersWithDifferentGroups(long imageId, long groupId) {
+        List<Map.Entry<Long, IceReader>> readersWithDifferentGroups = readers.entrySet().stream()
+                .filter(entry -> entry.getValue().getGroupId() != groupId)
+                .toList();
+        if (!readersWithDifferentGroups.isEmpty()) {
+            logger.debug(
+                    "Found readers {} with groups different from the group {} owning the image {} to open. Closing them...",
+                    readersWithDifferentGroups,
+                    groupId,
+                    imageId
+            );
+
+            for (var entry: readersWithDifferentGroups) {
+                try {
+                    entry.getValue().close();
+                } catch (Exception e) {
+                    logger.warn("Cannot close reader", e);
+                }
+
+                readers.remove(entry.getKey(), entry.getValue());
+            }
+        }
     }
 }
