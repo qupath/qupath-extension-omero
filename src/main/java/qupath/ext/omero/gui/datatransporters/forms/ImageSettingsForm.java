@@ -38,10 +38,10 @@ public class ImageSettingsForm extends VBox {
     /**
      * Creates the image settings form.
      *
-     * @param noCurrentProject  whether there is no QuPath project currently opened. This is
-     *                          needed to determine if the image name can be changed
-     * @param isRGB  whether the current image uses the RGB format. This is needed to determine if the channel
-     *               settings can be changed
+     * @param noCurrentProject whether there is no QuPath project currently opened. This is
+     *                         needed to determine if the image name can be changed
+     * @param isRGB whether the current image uses the RGB format. This is needed to determine if the channel
+     *              settings can be changed
      * @throws IOException if an error occurs while creating the form
      */
     public ImageSettingsForm(boolean noCurrentProject, boolean isRGB) throws IOException {

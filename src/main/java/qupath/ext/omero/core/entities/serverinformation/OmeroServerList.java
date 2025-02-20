@@ -26,7 +26,7 @@ public class OmeroServerList {
         if (serverInfos == null || serverInfos.isEmpty()) {
             return OptionalInt.empty();
         } else {
-            return OptionalInt.of(serverInfos.get(0).getId());
+            return OptionalInt.of(serverInfos.getFirst().getId());
         }
     }
 
@@ -38,7 +38,7 @@ public class OmeroServerList {
         if (serverInfos == null || serverInfos.isEmpty()) {
             return Optional.empty();
         } else {
-            return Optional.of(serverInfos.get(0).getHost());
+            return Optional.of(serverInfos.getFirst().getHost());
         }
     }
 
@@ -50,7 +50,7 @@ public class OmeroServerList {
         if (serverInfos == null || serverInfos.isEmpty()) {
             return OptionalInt.empty();
         } else {
-            return OptionalInt.of(serverInfos.get(0).getPort());
+            return OptionalInt.of(serverInfos.getFirst().getPort());
         }
     }
 

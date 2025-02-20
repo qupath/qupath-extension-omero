@@ -22,6 +22,3 @@ println "New annotations: " + pathObjects
 
 // Add annotations to the QuPath image
 addObjects(pathObjects)
-
-// Close server
-omeroServer.close()

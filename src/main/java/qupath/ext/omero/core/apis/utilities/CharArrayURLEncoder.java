@@ -45,8 +45,8 @@ public class CharArrayURLEncoder {
      * Translates a char array into application/x-www-form-urlencoded format using a specific encoding scheme.
      * This method uses the supplied encoding scheme to obtain the bytes for unsafe characters.
      *
-     * @param s  the char array to be translated
-     * @param charset  the charset to use for the conversion
+     * @param s the char array to be translated
+     * @param charset the charset to use for the conversion
      * @return a translated char array
      */
     public static char[] encode(char[] s, Charset charset) {

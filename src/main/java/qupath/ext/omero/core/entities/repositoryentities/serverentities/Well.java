@@ -1,13 +1,11 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,14 +17,14 @@ import java.util.ResourceBundle;
  */
 public class Well extends ServerEntity {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Well.name"),
-            resources.getString("Web.Entities.Well.id"),
-            resources.getString("Web.Entities.Well.owner"),
-            resources.getString("Web.Entities.Well.group"),
-            resources.getString("Web.Entities.Well.column"),
-            resources.getString("Web.Entities.Well.row")
+            resources.getString("Entities.Well.name"),
+            resources.getString("Entities.Well.id"),
+            resources.getString("Entities.Well.owner"),
+            resources.getString("Entities.Well.group"),
+            resources.getString("Entities.Well.column"),
+            resources.getString("Entities.Well.row")
     };
     @SerializedName(value = "WellSamples") private List<WellSample> wellSamples;
     @SerializedName(value = "Column") private int column;
@@ -53,8 +51,8 @@ public class Well extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(String.format("Column: %d, Row: %d", column, row));
+    public String getLabel() {
+        return String.format("Column: %d, Row: %d", column, row);
     }
 
     @Override
@@ -97,7 +95,7 @@ public class Well extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a well.
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a well
      */
     public static boolean isWell(String type) {
@@ -107,7 +105,7 @@ public class Well extends ServerEntity {
     /**
      * Retrieve a list of image ids belonging to this well.
      *
-     * @param withPlateAcquisition  whether to include image that are part of a plate acquisition
+     * @param withPlateAcquisition whether to include image that are part of a plate acquisition
      * @return the image ids belonging to this well
      */
     public List<Long> getImagesIds(boolean withPlateAcquisition) {

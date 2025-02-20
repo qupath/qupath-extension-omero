@@ -5,8 +5,9 @@ import com.google.gson.annotations.SerializedName;
 import java.util.Optional;
 
 /**
- * <p>This class contains various information related to the pixels of an image.</p>
- * <p>It uses the {@link PhysicalSize} and {@link ImageType} classes.</p>
+ * This class contains various information related to the pixels of an image.
+ * <p>
+ * It uses the {@link PhysicalSize} and {@link ImageType} classes.
  */
 class PixelInfo {
 

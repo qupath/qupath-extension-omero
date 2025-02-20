@@ -3,74 +3,106 @@ package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.Server;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 public class TestProject extends OmeroServer {
 
-    private static WebClient client;
-    private static Project project;
-    @BeforeAll
-    static void createClient() throws ExecutionException, InterruptedException {
-        client = OmeroServer.createUnauthenticatedClient();
+    abstract static class GenericClient {
 
-        while (client.getServer().isPopulatingChildren()) {
-            TimeUnit.MILLISECONDS.sleep(50);
-        }
-        project = client.getServer().getChildren().stream()
-                .filter(child -> child instanceof Project)
-                .map(project -> (Project) project)
-                .findAny()
-                .orElse(null);
-    }
+        protected static Credentials.UserType userType;
+        protected static Client client;
+        protected static Project project;
 
-    @AfterAll
-    static void removeClient() {
-        WebClients.removeClient(client);
-    }
-
-    @Test
-    void Check_Has_Children() {
-        boolean expectedChildren = true;
-
-        boolean hasChildren = project.hasChildren();
-
-        Assertions.assertEquals(expectedChildren, hasChildren);
-    }
-
-    @Test
-    void Check_Children() throws InterruptedException {
-        List<? extends RepositoryEntity> expectedChildren = List.of(OmeroServer.getDataset());
-
-        List<? extends RepositoryEntity> children = project.getChildren();
-        while (project.isPopulatingChildren()) {
-            TimeUnit.MILLISECONDS.sleep(50);
+        @AfterAll
+        static void removeClient() throws Exception {
+            if (client != null) {
+                client.close();
+            }
         }
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+        @Test
+        void Check_Has_Children() {
+            boolean expectedChildren = !OmeroServer.getDatasets(userType).isEmpty();
+
+            boolean hasChildren = project.hasChildren();
+
+            Assertions.assertEquals(expectedChildren, hasChildren);
+        }
+
+        @Test
+        void Check_Children() throws InterruptedException {
+            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getDatasets(userType);
+
+            List<? extends RepositoryEntity> children = project.getChildren();
+            while (project.isPopulatingChildren()) {
+                TimeUnit.MILLISECONDS.sleep(50);
+            }
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+        }
+
+        @Test
+        void Check_Attributes() {
+            int numberOfValues = project.getNumberOfAttributes();
+            List<String> expectedAttributeValues = OmeroServer.getProjectAttributeValue(project);
+
+            List<String> attributesValues = IntStream.range(0, numberOfValues)
+                    .mapToObj(i -> project.getAttributeValue(i))
+                    .toList();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedAttributeValues, attributesValues);
+        }
     }
 
-    @Test
-    void Check_Attributes() {
-        int numberOfValues = project.getNumberOfAttributes();
-        String[] expectedAttributeValues = new String[numberOfValues];
-        for (int i=0; i<numberOfValues; ++i) {
-            expectedAttributeValues[i] = OmeroServer.getProjectAttributeValue(i);
-        }
+    @Nested
+    class UnauthenticatedClient extends GenericClient {
 
-        String[] attributesValues = new String[numberOfValues];
-        for (int i=0; i<numberOfValues; ++i) {
-            attributesValues[i] = project.getAttributeValue(i);
-        }
+        @BeforeAll
+        static void createClient() throws ExecutionException, InterruptedException {
+            userType = Credentials.UserType.PUBLIC_USER;
+            client = OmeroServer.createClient(userType);
+            Server server = client.getServer().get();
 
-        Assertions.assertArrayEquals(expectedAttributeValues, attributesValues);
+            while (server.isPopulatingChildren()) {
+                TimeUnit.MILLISECONDS.sleep(50);
+            }
+            project = server.getChildren().stream()
+                    .filter(child -> child instanceof Project)
+                    .map(project -> (Project) project)
+                    .findAny()
+                    .orElse(null);
+        }
+    }
+
+    @Nested
+    class AuthenticatedClient extends GenericClient {
+
+        @BeforeAll
+        static void createClient() throws ExecutionException, InterruptedException {
+            userType = Credentials.UserType.REGULAR_USER;
+            client = OmeroServer.createClient(userType);
+            Server server = client.getServer().get();
+
+            while (server.isPopulatingChildren()) {
+                TimeUnit.MILLISECONDS.sleep(50);
+            }
+            project = server.getChildren().stream()
+                    .filter(child -> child instanceof Project)
+                    .map(project -> (Project) project)
+                    .findAny()
+                    .orElse(null);
+        }
     }
 }

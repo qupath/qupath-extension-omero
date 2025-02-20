@@ -1,8 +1,8 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import com.google.gson.annotations.SerializedName;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -12,12 +12,13 @@ import java.util.ResourceBundle;
  */
 public class TagAnnotation extends Annotation {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
-    @SerializedName(value = "textValue") private String value;
+    private static final ResourceBundle resources = Utils.getResources();
+    private static final List<String> ACCEPTED_TYPES = List.of("TagAnnotationI", "tag");
+    private String textValue;
 
     @Override
     public String toString() {
-        return String.format("%s. Value: %s", super.toString(), value);
+        return String.format("%s. Value: %s", super.toString(), textValue);
     }
 
     @Override
@@ -26,35 +27,35 @@ public class TagAnnotation extends Annotation {
             return true;
         if (!(obj instanceof TagAnnotation tagAnnotation))
             return false;
-        return Objects.equals(tagAnnotation.value, value);
+        return Objects.equals(tagAnnotation.textValue, textValue);
     }
 
     @Override
     public int hashCode() {
-        return (value == null ? "" : value).hashCode();
+        return (textValue == null ? "" : textValue).hashCode();
     }
 
     /**
      * @return a localized title for a tag annotation
      */
     public static String getTitle() {
-        return resources.getString("Web.Entities.Annotation.Tag.title");
+        return resources.getString("Entities.Annotation.Tag.title");
     }
 
     /**
      * Indicates if an annotation type refers to a tag annotation.
      *
-     * @param type  the annotation type
+     * @param type the annotation type
      * @return whether this annotation type refers to a tag annotation
      */
     public static boolean isOfType(String type) {
-        return "TagAnnotationI".equalsIgnoreCase(type) || "tag".equalsIgnoreCase(type);
+        return ACCEPTED_TYPES.stream().anyMatch(type::equalsIgnoreCase);
     }
 
     /**
      * @return the actual tag of the annotation
      */
     public Optional<String> getValue() {
-        return Optional.ofNullable(value);
+        return Optional.ofNullable(textValue);
     }
 }

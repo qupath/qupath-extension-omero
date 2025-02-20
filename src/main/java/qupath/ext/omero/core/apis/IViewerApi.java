@@ -5,19 +5,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.image.ImageSettings;
 import qupath.ext.omero.core.entities.shapes.Shape;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.RequestSender;
 
 import java.net.URI;
-import java.util.Collection;
+import java.net.URISyntaxException;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
- * <p>API to communicate with an <a href="https://www.openmicroscopy.org/omero/iviewer/">OMERO.iviewer</a>.</p>
- * <p>It is simply used to send ROIs to an OMERO server.</p>
+ * API to communicate with an <a href="https://www.openmicroscopy.org/omero/iviewer/">OMERO.iviewer</a>.
+ * <p>
+ * It is simply used to send ROIs and retrieve metadata from an OMERO server.
  */
 class IViewerApi {
 
@@ -39,14 +38,17 @@ class IViewerApi {
     private static final String ROIS_REFERER_URL = "%s/iviewer/?images=%d";
     private static final String IMAGE_SETTINGS_URL = "%s/iviewer/image_data/%d/";
     private final URI host;
+    private final RequestSender requestSender;
 
     /**
      * Creates an iviewer client.
      *
-     * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param requestSender the request sender to use
      */
-    public IViewerApi(URI host) {
+    public IViewerApi(URI host, RequestSender requestSender) {
         this.host = host;
+        this.requestSender = requestSender;
     }
 
     @Override
@@ -55,73 +57,107 @@ class IViewerApi {
     }
 
     /**
-     * <p>Attempt to write and delete ROIs to the server.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to delete shapes from the provided image on the server.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param id  the OMERO image id
-     * @param shapesToAdd  the list of shapes to add
+     * @param imageId the OMERO image id
      * @param shapesToRemove the list of shapes to remove
-     * @param token  the OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     * @return a CompletableFuture indicating the success of the operation
+     * @param token the OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Boolean> writeROIs(long id, Collection<Shape> shapesToAdd, Collection<Shape> shapesToRemove, String token) {
-        var uri = WebUtilities.createURI(String.format(ROIS_URL, host));
+    public CompletableFuture<Void> deleteShapes(long imageId, List<Shape> shapesToRemove, String token) {
+        logger.debug("Removing shapes {} from image with ID {}", shapesToRemove, imageId);
 
-        if (uri.isPresent()) {
-            Gson gson = new Gson();
-            List<String> roisToAdd = shapesToAdd.stream().map(gson::toJson).toList();
-            String roisToRemove = shapesToRemove.stream()
-                    .map(shape -> String.format("\"%s\":[\"%s\"]", shape.getOldId().split(":")[0], shape.getOldId()))
-                    .collect(Collectors.joining(","));
-
-            return RequestSender.post(
-                    uri.get(),
-                    String.format(
-                            ROIS_BODY,
-                            id,
-                            roisToAdd.size() + shapesToRemove.size(),
-                            roisToRemove,
-                            String.join(", ", roisToAdd)
-                    ),
-                    String.format(ROIS_REFERER_URL, host, id),
-                    token
-            ).thenApply(response -> {
-                if (response.isPresent()) {
-                    if (response.get().toLowerCase().contains("error")) {
-                        logger.error("Error when sending ROIs: " + response.get());
-                        return false;
-                    } else {
-                        return true;
-                    }
-                } else {
-                    return false;
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
+        URI uri;
+        try {
+            uri = new URI(String.format(ROIS_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return requestSender.post(
+                uri,
+                String.format(
+                        ROIS_BODY,
+                        imageId,
+                        shapesToRemove.size(),
+                        shapesToRemove.stream()
+                                .map(shape -> String.format("\"%s\":[\"%s\"]", shape.getOldId().split(":")[0], shape.getOldId()))
+                                .collect(Collectors.joining(",")),
+                        ""
+                ),
+                String.format(ROIS_REFERER_URL, host, imageId),
+                token
+        ).thenAccept(response -> {
+            if (response.toLowerCase().contains("error")) {
+                throw new RuntimeException(String.format("Error when sending shapes: %s", response));
+            }
+        });
     }
 
     /**
+     * Attempt to add shapes to the provided image on the server.
      * <p>
-     *     Attempt to retrieve the settings of an image.
-     * </p>
-     * <p>This function is asynchronous.</p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param imageId  the id of the image whose settings should be retrieved
-     * @return a CompletableFuture with the retrieved image settings, or an empty Optional if the request failed
+     * @param imageId the OMERO image id
+     * @param shapesToAdd the list of shapes to add
+     * @param token the OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Optional<ImageSettings>> getImageSettings(long imageId) {
-        var uri = WebUtilities.createURI(String.format(
-                IMAGE_SETTINGS_URL,
-                host,
-                imageId
-        ));
+    public CompletableFuture<Void> addShapes(long imageId, List<? extends Shape> shapesToAdd, String token) {
+        logger.debug("Adding shapes {} to image with ID {}", shapesToAdd, imageId);
 
-        if (uri.isPresent()) {
-            return RequestSender.getAndConvert(uri.get(), ImageSettings.class);
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
+        URI uri;
+        try {
+            uri = new URI(String.format(ROIS_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        Gson gson = new Gson();
+        List<String> roisToAdd = shapesToAdd.stream().map(gson::toJson).toList();
+
+        return requestSender.post(
+                uri,
+                String.format(
+                        ROIS_BODY,
+                        imageId,
+                        roisToAdd.size(),
+                        "",
+                        String.join(", ", roisToAdd)
+                ),
+                String.format(ROIS_REFERER_URL, host, imageId),
+                token
+        ).thenAccept(response -> {
+            if (response.toLowerCase().contains("error")) {
+                throw new RuntimeException(String.format("Error when adding shapes: %s", response));
+            }
+        });
+    }
+
+    /**
+     * Attempt to retrieve the settings of an image.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param imageId the id of the image whose settings should be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the retrieved image settings
+     */
+    public CompletableFuture<ImageSettings> getImageSettings(long imageId) {
+        logger.debug("Getting image settings of image with ID {}", imageId);
+
+        try {
+            return requestSender.getAndConvert(
+                    new URI(String.format(IMAGE_SETTINGS_URL, host, imageId)),
+                    ImageSettings.class
+            );
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 }

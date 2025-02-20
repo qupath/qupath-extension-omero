@@ -1,7 +1,7 @@
 package qupath.ext.omero.core.entities.permissions;
 
 import com.google.gson.annotations.SerializedName;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
 
 import java.util.List;
 import java.util.ResourceBundle;
@@ -11,11 +11,12 @@ import java.util.ResourceBundle;
  */
 public class Group {
 
-    private static final ResourceBundle resources = UiUtilities.getResources();
-    private static final Group ALL_GROUPS = new Group(-1, resources.getString("Web.Entities.Permissions.Group.allGroups"), "");
+    private static final ResourceBundle resources = Utils.getResources();
+    private static final Group ALL_GROUPS = new Group(-1, resources.getString("Entities.Permissions.Group.allGroups"));
     @SerializedName(value = "@id", alternate={"groupId"}) private final int id;
     @SerializedName(value = "Name", alternate={"groupName"}) private final String name;
-    @SerializedName(value = "url:experimenters") private final String experimentersLink;
+    @SerializedName(value = "url:experimenters") private String experimentersLink;
+    @SerializedName(value = "omero:details") private OmeroDetail omeroDetail;
     private List<Owner> owners;
 
     /**
@@ -25,18 +26,13 @@ public class Group {
      * @param name  the name of the group
      */
     public Group(int id, String name) {
-        this(id, name, "");
-    }
-
-    private Group(int id, String name, String experimentersLink) {
         this.id = id;
         this.name = name;
-        this.experimentersLink = experimentersLink;
     }
 
     @Override
     public String toString() {
-        return name;
+        return String.format("Group %s of ID %d", name, id);
     }
 
     @Override
@@ -82,6 +78,13 @@ public class Group {
     }
 
     /**
+     * @return whether this group is private (each member can only see its own data)
+     */
+    public boolean isPrivate() {
+        return omeroDetail == null || !omeroDetail.canReadGroup();
+    }
+
+    /**
      * @return the owners belonging to this group
      */
     public synchronized List<Owner> getOwners() {
@@ -91,7 +94,7 @@ public class Group {
     /**
      * Set the owners belonging to this group
      *
-     * @param owners  the owners of this group
+     * @param owners the owners of this group
      * @throws NullPointerException when the provided list is null
      */
     public synchronized void setOwners(List<Owner> owners) {

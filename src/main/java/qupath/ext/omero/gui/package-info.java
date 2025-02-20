@@ -19,6 +19,9 @@
  *         The {@link qupath.ext.omero.gui.datatransporters DataTransporters} package
  *         can send/import several entities of the current image to/from the corresponding OMERO server.
  *     </li>
+ *     <li>
+ *         The {@link qupath.ext.omero.gui.login Login} contains a window to connect to an OMERO server.
+ *     </li>
  * </ul>
  */
 package qupath.ext.omero.gui;

@@ -15,19 +15,19 @@ public class DataTransporterMenu extends Menu {
     /**
      * Create the data transporter menu.
      *
-     * @param title  the text displqyed by this menu
-     * @param qupath  the currently used QuPath GUI
+     * @param title the text displayed by this menu
+     * @param quPath the currently used QuPath GUI
      * @param transporters  the list of {@link DataTransporter} to represent
      */
-    public DataTransporterMenu(String title, QuPathGUI qupath, List<DataTransporter> transporters) {
+    public DataTransporterMenu(String title, QuPathGUI quPath, List<DataTransporter> transporters) {
         setText(title);
 
-        disableProperty().bind(qupath.imageDataProperty().isNull());
+        disableProperty().bind(quPath.imageDataProperty().isNull());
 
-        setItems(qupath, transporters);
+        setItems(quPath, transporters);
     }
 
-    private void setItems(QuPathGUI qupath, List<DataTransporter> transporters) {
+    private void setItems(QuPathGUI quPath, List<DataTransporter> transporters) {
         getItems().addAll(transporters.stream()
                 .map(dataTransporter -> {
                     MenuItem menuItem = new MenuItem(dataTransporter.getMenuTitle());
@@ -35,10 +35,10 @@ public class DataTransporterMenu extends Menu {
 
                     menuItem.disableProperty().bind(Bindings.createBooleanBinding(
                             () -> !dataTransporter.canTransportData(
-                                    qupath.getProject() != null,
-                                    qupath.getImageData() != null && qupath.getViewer().getServer().getMetadata().isRGB()
+                                    quPath.getProject() != null,
+                                    quPath.getImageData() != null && quPath.getViewer().getServer().getMetadata().isRGB()
                             ),
-                            qupath.projectProperty(), qupath.imageDataProperty()
+                            quPath.projectProperty(), quPath.imageDataProperty()
                     ));
 
                     return menuItem;

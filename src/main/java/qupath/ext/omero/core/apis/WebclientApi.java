@@ -2,7 +2,6 @@ package qupath.ext.omero.core.apis;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,28 +19,30 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEn
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
-import qupath.ext.omero.core.WebUtilities;
 import qupath.ext.omero.core.RequestSender;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.stream.IntStream;
 
 /**
- * <p>API to communicate with a OMERO.web server.</p>
+ * API to communicate with a OMERO.web server.
  * <p>
- *     This API is mainly used to keep a connection alive, log out, perform a search
- *     and get OMERO annotations.
- * </p>
- * <p>An instance of this class must be {@link #close() closed} once no longer used.</p>
+ * This API is mainly used to keep a connection alive, log out, perform a search
+ * and get OMERO annotations.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
 class WebclientApi implements AutoCloseable {
 
@@ -50,6 +51,8 @@ class WebclientApi implements AutoCloseable {
     private static final String ITEM_URL = "%s/webclient/?show=%s-%d";
     private static final String LOGOUT_URL = "%s/webclient/logout/";
     private static final String ORPHANED_IMAGES_URL = "%s/webclient/api/images/?orphaned=true";
+    private static final String WEBCLIENT_URL = "%s/webclient/";
+    private static final Pattern USER_ID_PATTERN = Pattern.compile("WEBCLIENT.USER = \\{'id': (.+?), 'fullName':");
     private static final String READ_ANNOTATION_URL = "%s/webclient/api/annotations/?%s=%d";
     private static final String SEARCH_URL = "%s/webclient/load_searching/form/" +
             "?query=%s&%s&%s&searchGroup=%s&ownedBy=%s" +
@@ -58,6 +61,7 @@ class WebclientApi implements AutoCloseable {
     private static final String WRITE_NAME_URL = "%s/webclient/action/savename/image/%d/";
     private static final String WRITE_CHANNEL_NAMES_URL = "%s/webclient/edit_channel_names/%d/";
     private static final String SEND_ATTACHMENT_URL = "%s/webclient/annotate_file/";
+    private static final String QUPATH_FILE_IDENTIFIER = "qupath_";
     private static final String DELETE_ATTACHMENT_URL = "%s/webclient/action/delete/file/%d/";
     private static final String IMAGE_ICON_URL = "%s/static/webclient/image/image16.png";
     private static final String SCREEN_ICON_URL = "%s/static/webclient/image/folder_screen16.png";
@@ -71,34 +75,49 @@ class WebclientApi implements AutoCloseable {
             Plate.class, "plate",
             PlateAcquisition.class, "run"
     );
+    private static final Gson gson = new Gson();
     private final URI host;
+    private final RequestSender requestSender;
     private final URI pingUri;
     private final String token;
 
     /**
      * Creates a web client.
      *
-     * @param host  the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
-     * @param token  the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     *               used by this session. This is needed to properly close this API.
+     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param requestSender the request sender to use when making requests
+     * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     *              used by this session. This is needed to properly close this API.
+     * @throws IllegalArgumentException when the ping URI cannot be created from the host
      */
-    public WebclientApi(URI host, String token) {
+    public WebclientApi(URI host, RequestSender requestSender, String token) {
         this.host = host;
+        this.requestSender = requestSender;
         this.token = token;
 
-        pingUri = WebUtilities.createURI(String.format(PING_URL, host)).orElse(null);
+        pingUri = URI.create(String.format(PING_URL, host));
     }
 
+    /**
+     * Close the connection by sending a login out request.
+     * This may take a moment as it waits for the request to complete.
+     *
+     * @throws URISyntaxException when the login out request URI is invalid
+     * @throws ExecutionException when the request failed
+     * @throws InterruptedException when the wait for the request to end was interrupted
+     */
     @Override
-    public void close() {
-        if (token != null) {
-            WebUtilities.createURI(String.format(LOGOUT_URL, host)).ifPresent(value -> RequestSender.post(
-                    value,
-                    Map.of("csrfmiddlewaretoken", token),
-                    value.toString(),
-                    token
-            ));
-        }
+    public void close() throws URISyntaxException, ExecutionException, InterruptedException {
+        logger.debug("Sending login out request");
+
+        URI uri = new URI(String.format(LOGOUT_URL, host));
+
+        requestSender.post(
+                uri,
+                String.format("csrfmiddlewaretoken=%s", token).getBytes(StandardCharsets.UTF_8),
+                uri.toString(),
+                token
+        ).get();
     }
 
     @Override
@@ -109,9 +128,9 @@ class WebclientApi implements AutoCloseable {
     /**
      * Returns a link of the OMERO.web client pointing to a server entity.
      *
-     * @param entity  the entity to have a link to.
-     *                Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                {@link Screen}, {@link Plate} or {@link PlateAcquisition}
+     * @param entity the entity to have a link to.
+     *               Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *               {@link Screen}, {@link Plate} or {@link PlateAcquisition}
      * @return a URL pointing to the server entity
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
@@ -124,7 +143,8 @@ class WebclientApi implements AutoCloseable {
             ));
         }
 
-        return String.format(ITEM_URL,
+        return String.format(
+                ITEM_URL,
                 host,
                 TYPE_TO_URI_LABEL.get(entity.getClass()),
                 entity.getId()
@@ -132,71 +152,105 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
+     * Attempt to send a ping to the server. This is needed to keep the connection alive between the client
+     * and the server.
      * <p>
-     *     Attempt to send a ping to the server. This is needed to keep the connection alive between the client
-     *     and the server.
-     * </p>
-     * <p>This function is asynchronous.</p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @return a CompletableFuture indicating the success of the operation
+     * @return a void CompletableFuture (that completes exceptionally if the ping fails)
      */
-    public CompletableFuture<Boolean> ping() {
-        if (pingUri == null) {
-            return CompletableFuture.completedFuture(false);
-        } else {
-            return RequestSender.isLinkReachableWithGet(pingUri);
-        }
+    public CompletableFuture<Void> ping() {
+        logger.debug("Sending ping");
+
+        return requestSender.isLinkReachable(pingUri, RequestSender.RequestType.GET, true, false);
     }
 
     /**
-     * <p>Attempt to get the image IDs of all orphaned images of the server.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to get the image IDs of all orphaned images of the server visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
-     * @return a CompletableFuture with a list containing the ID of all orphaned images,
-     * or an empty list if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with a list containing the ID of all orphaned images
      */
     public CompletableFuture<List<Long>> getOrphanedImagesIds() {
-        var uri = WebUtilities.createURI(String.format(ORPHANED_IMAGES_URL, host));
+        logger.debug("Getting the IDs of all orphaned images of the current user");
 
-        if (uri.isPresent()) {
-            return RequestSender.getAndConvertToJsonList(uri.get(), "images").thenApply(elements ->
-                    elements.stream()
-                            .map(jsonElement -> {
-                                try {
-                                    return Long.parseLong(jsonElement.getAsJsonObject().get("id").toString());
-                                } catch (Exception e) {
-                                    logger.error("Could not parse " + jsonElement, e);
-                                    return null;
-                                }
-                            })
-                            .filter(Objects::nonNull)
-                            .toList()
-            );
-        } else {
-            return CompletableFuture.completedFuture(List.of());
+        URI uri;
+        try {
+            uri = new URI(String.format(ORPHANED_IMAGES_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return requestSender.getAndConvertToJsonList(uri, "images").thenApply(elements ->
+                elements.stream()
+                        .map(jsonElement -> {
+                            if (jsonElement.isJsonObject() && jsonElement.getAsJsonObject().has("id")) {
+                                return Long.parseLong(jsonElement.getAsJsonObject().get("id").toString());
+                            } else {
+                                throw new IllegalArgumentException(String.format(
+                                        "'id' not found in %s", jsonElement
+                                ));
+                            }
+                        })
+                        .toList()
+        );
     }
 
     /**
+     * Attempt to get the ID of the public user of the server.
+     * This only works if there is no active authenticated connection with the server.
      * <p>
-     *     Attempt to retrieve OMERO annotations of an OMERO entity .
-     *     An OMERO annotation is <b>not</b> similar to a QuPath annotation, it refers to some metadata
-     *     attached to an entity.
-     * </p>
-     * <p>This function is asynchronous.</p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
-     * @param entityId  the ID of the entity
-     * @param entityClass  the class of the entity whose annotation should be retrieved.
-     *                Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
-     * @return a CompletableFuture with the annotation, or an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the public user ID
+     */
+    public CompletableFuture<Long> getPublicUserId() {
+        logger.debug("Getting ID of the public user of the server");
+
+        URI uri;
+        try {
+            uri = new URI(String.format(WEBCLIENT_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        return requestSender.get(uri).thenApply(response -> {
+            Matcher matcher = USER_ID_PATTERN.matcher(response);
+
+            if (matcher.find()) {
+                return Long.parseLong(matcher.group(1));
+            } else {
+                throw new RuntimeException(String.format("Pattern %s not found in %s", USER_ID_PATTERN, response));
+            }
+        });
+    }
+
+    /**
+     * Attempt to retrieve OMERO annotations of an OMERO entity.
+     * An OMERO annotation is <b>not</b> similar to a QuPath annotation, it refers to some metadata
+     * attached to an entity.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param entityId the ID of the entity
+     * @param entityClass the class of the entity whose annotation should be retrieved.
+     *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     * @return a CompletableFuture (that may complete exceptionally) with the annotation
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
      */
-    public CompletableFuture<Optional<AnnotationGroup>> getAnnotations(
+    public CompletableFuture<AnnotationGroup> getAnnotations(
             long entityId,
             Class<? extends RepositoryEntity> entityClass
     ) {
+        logger.debug("Getting OMERO annotations of the {} with ID {}", entityClass, entityId);
+
         if (!TYPE_TO_URI_LABEL.containsKey(entityClass)) {
             throw new IllegalArgumentException(String.format(
                     "The provided item (%d) is not an image, dataset, project, screen, plate, or plate acquisition.",
@@ -204,29 +258,29 @@ class WebclientApi implements AutoCloseable {
             ));
         }
 
-        var uri = WebUtilities.createURI(String.format(
-                READ_ANNOTATION_URL,
-                host,
-                TYPE_TO_URI_LABEL.get(entityClass),
-                entityId
-        ));
-
-        if (uri.isPresent()) {
-            return RequestSender.getAndConvert(uri.get(), JsonObject.class)
-                    .thenApply(json -> json.map(AnnotationGroup::new));
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
+        URI uri;
+        try {
+            uri = new URI(String.format(READ_ANNOTATION_URL, host, TYPE_TO_URI_LABEL.get(entityClass), entityId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return requestSender.getAndConvert(uri, JsonObject.class)
+                .thenApply(AnnotationGroup::new);
     }
 
     /**
-     * <p>Attempt to perform a search on the server.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to perform a search on the server.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param searchQuery  the parameters used in the search
-     * @return a CompletableFuture with a list of search results, or an empty list if an error occurred
+     * @param searchQuery the parameters used in the search
+     * @return a CompletableFuture (that may complete exceptionally) with a list of search results, or an empty list if an error occurred
      */
     public CompletableFuture<List<SearchResult>> getSearchResults(SearchQuery searchQuery) {
+        logger.debug("Searching with query {}", searchQuery);
+
         StringBuilder fields = new StringBuilder();
         if (searchQuery.searchOnName()) {
             fields.append("&field=name");
@@ -255,207 +309,187 @@ class WebclientApi implements AutoCloseable {
             dataTypes.append("&datatype=screens");
         }
 
-        var uri = WebUtilities.createURI(String.format(SEARCH_URL,
-                host,
-                searchQuery.query(),
-                fields,
-                dataTypes,
-                searchQuery.group().getId(),
-                searchQuery.owner().id(),
-                System.currentTimeMillis()
-        ));
-        if (uri.isPresent()) {
-            return RequestSender.get(uri.get()).thenApply(response ->
-                    response.map(s -> SearchResult.createFromHTMLResponse(s, host)).orElseGet(List::of)
-            );
-        } else {
-            return CompletableFuture.completedFuture(List.of());
+        try {
+            return requestSender
+                    .get(new URI(String.format(SEARCH_URL,
+                            host,
+                            searchQuery.query(),
+                            fields,
+                            dataTypes,
+                            searchQuery.group().getId(),
+                            searchQuery.owner().id(),
+                            System.currentTimeMillis()
+                    ))).thenApplyAsync(response ->
+                            SearchResult.createFromHTMLResponse(response, host)
+                    );
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
     /**
+     * Send key value pairs associated with an image to the OMERO server.
      * <p>
-     *     Send key value pairs associated with an image to the OMERO server.
-     * </p>
-     * <p>This function is asynchronous.</p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param imageId  the id of the image to associate the key value pairs
-     * @param keyValues  the key value pairs to send
-     * @param replaceExisting  whether to replace values when keys already exist on the OMERO server
-     * @param deleteExisting  whether to delete all existing key value pairs on the OMERO server
-     * @return a CompletableFuture indicating the success of the operation
+     * @param imageId the id of the image to associate the key value pairs
+     * @param keyValues the key value pairs to send
+     * @param replaceExisting whether to replace values when keys already exist on the OMERO server
+     * @param deleteExisting whether to delete all existing key value pairs on the OMERO server
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Boolean> sendKeyValuePairs(
+    public CompletableFuture<Void> sendKeyValuePairs(
             long imageId,
             Map<String, String> keyValues,
             boolean replaceExisting,
             boolean deleteExisting
     ) {
-        var uri = WebUtilities.createURI(String.format(
-                WRITE_KEY_VALUES_URL,
-                host
-        ));
+        logger.debug("Sending key-value pairs {} to image with ID {}", keyValues, imageId);
 
-        if (uri.isPresent()) {
-            return removeAndReturnExistingMapAnnotations(uri.get(), imageId).thenCompose(existingAnnotations -> {
-                Map<String, String> keyValuesToSend;
-                if (deleteExisting) {
-                    keyValuesToSend = keyValues;
-                } else {
-                    keyValuesToSend = Stream.of(keyValues, MapAnnotation.getCombinedValues(existingAnnotations))
-                            .flatMap(map -> map.entrySet().stream())
-                            .collect(Collectors.toMap(
-                                    Map.Entry::getKey,
-                                    Map.Entry::getValue,
-                                    (value1, value2) -> replaceExisting ? value1 : value2
-                            ));
-                }
-
-                return RequestSender.post(
-                        uri.get(),
-                        String.format(
-                                "image=%d&mapAnnotation=%s",
-                                imageId,
-                                URLEncoder.encode(
-                                        keyValuesToSend.keySet().stream()
-                                                .map(key -> String.format("[\"%s\",\"%s\"]", key, keyValuesToSend.get(key)))
-                                                .collect(Collectors.joining(",", "[", "]")),
-                                        StandardCharsets.UTF_8
-                                )
-                        ).getBytes(StandardCharsets.UTF_8),
-                        String.format("%s/webclient/", host),
-                        token
-                ).thenApply(rawResponse -> {
-                    if (rawResponse.isPresent()) {
-                        Gson gson = new Gson();
-                        try {
-                            Map<String, List<String>> response = gson.fromJson(rawResponse.get(), new TypeToken<>() {});
-                            return response != null && response.containsKey("annId");
-                        } catch (JsonSyntaxException e) {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                });
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
+        URI uri;
+        try {
+            uri = new URI(String.format(WRITE_KEY_VALUES_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
-    }
 
-    /**
-     * <p>
-     *     Change the name of an image on OMERO.
-     * </p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @param imageId  the id of the image whose name should be changed
-     * @param imageName  the new name of the image
-     * @return a CompletableFuture indicating the success of the operation
-     */
-    public CompletableFuture<Boolean> changeImageName(long imageId, String imageName) {
-        var uri = WebUtilities.createURI(String.format(
-                WRITE_NAME_URL,
-                host,
-                imageId
-        ));
+        return removeAndReturnExistingMapAnnotations(uri, imageId).thenCompose(existingAnnotations -> {
+            List<MapAnnotation.Pair> pairsToSend = new ArrayList<>();
+            if (!deleteExisting) {
+                for (MapAnnotation annotation: existingAnnotations) {
+                    pairsToSend.addAll(annotation.getPairs());
+                }
+            }
+            for (var entry: keyValues.entrySet()) {
+                if (replaceExisting) {
+                    pairsToSend.removeAll(pairsToSend.stream().filter(pair -> pair.key().equals(entry.getKey())).toList());
+                }
+                pairsToSend.add(new MapAnnotation.Pair(entry.getKey(), entry.getValue()));
+            }
 
-        if (uri.isPresent()) {
-            return RequestSender.post(
-                    uri.get(),
+            return requestSender.post(
+                    uri,
                     String.format(
-                            "name=%s&",
-                            imageName
+                            "image=%d&mapAnnotation=%s",
+                            imageId,
+                            URLEncoder.encode(
+                                    pairsToSend.stream()
+                                            .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
+                                            .collect(Collectors.joining(",", "[", "]")),
+                                    StandardCharsets.UTF_8
+                            )
                     ).getBytes(StandardCharsets.UTF_8),
                     String.format("%s/webclient/", host),
                     token
-            ).thenApply(rawResponse -> {
-                if (rawResponse.isPresent()) {
-                    Gson gson = new Gson();
-                    try {
-                        Map<String, String> response = gson.fromJson(rawResponse.get(), new TypeToken<>() {});
-                        return response != null && response.containsKey("o_type");
-                    } catch (JsonSyntaxException e) {
-                        return false;
-                    }
-                } else {
-                    return false;
+            ).thenAccept(rawResponse -> {
+                Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+                if (response == null || !response.containsKey("annId")) {
+                    throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
                 }
             });
-        } else {
-            return CompletableFuture.completedFuture(false);
-        }
+        });
     }
 
     /**
+     * Change the name of an image on OMERO.
      * <p>
-     *     Change the names of the channels of an image on OMERO.
-     * </p>
-     * <p>This function is asynchronous.</p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param imageId  the id of the image whose channels name should be changed
-     * @param channelsName  the new names of the channels
-     * @return a CompletableFuture indicating the success of the operation
+     * @param imageId the id of the image whose name should be changed
+     * @param imageName the new name of the image
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Boolean> changeChannelNames(long imageId, List<String> channelsName) {
-        var uri = WebUtilities.createURI(String.format(
-                WRITE_CHANNEL_NAMES_URL,
-                host,
-                imageId
-        ));
+    public CompletableFuture<Void> changeImageName(long imageId, String imageName) {
+        logger.debug("Changing image name of image with ID {} to {}", imageId, imageName);
 
-        StringBuilder body = new StringBuilder();
-        for (int i=0; i<channelsName.size(); i++) {
-            body.append(String.format("channel%d=%s&", i, channelsName.get(i)));
+        URI uri;
+        try {
+            uri = new URI(String.format(WRITE_NAME_URL, host, imageId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
 
-        if (uri.isPresent()) {
-            return RequestSender.post(
-                    uri.get(),
-                    String.format(
-                            "%ssave=save",
-                            body
-                    ).getBytes(StandardCharsets.UTF_8),
-                    String.format("%s/webclient/", host),
-                    token
-            ).thenApply(rawResponse -> {
-                if (rawResponse.isPresent()) {
-                    Gson gson = new Gson();
-                    try {
-                        Map<String, Object> response = gson.fromJson(rawResponse.get(), new TypeToken<>() {});
-                        return response != null && response.containsKey("channelNames");
-                    } catch (JsonSyntaxException e) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
-        }
+        return requestSender.post(
+                uri,
+                String.format(
+                        "name=%s&",
+                        imageName
+                ).getBytes(StandardCharsets.UTF_8),
+                String.format("%s/webclient/", host),
+                token
+        ).thenAccept(rawResponse -> {
+            Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+            if (response == null || !response.containsKey("o_type")) {
+                throw new RuntimeException(String.format("The response %s doesn't contain the `o_type` key", rawResponse));
+            }
+        });
     }
 
     /**
-     * <p>Send a file to be attached to a server entity.</p>
+     * Change the names of the channels of an image on OMERO.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param entityId  the ID of the entity
-     * @param entityClass  the class of the entity.
-     *                     Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                     {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
-     * @param attachmentName  the name of the file to send
-     * @param attachmentContent  the content of the file to send
-     * @return a CompletableFuture indicating the success of the operation
+     * @param imageId the id of the image whose channels name should be changed
+     * @param channelsName the new names of the channels
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
+     */
+    public CompletableFuture<Void> changeChannelNames(long imageId, List<String> channelsName) {
+        logger.debug("Changing channel names of image with ID {} to {}", imageId, channelsName);
+
+        URI uri;
+        try {
+            uri = new URI(String.format(WRITE_CHANNEL_NAMES_URL, host, imageId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        return requestSender.post(
+                uri,
+                String.format(
+                        "%ssave=save",
+                        IntStream.range(0, channelsName.size())
+                                .mapToObj(i -> String.format("channel%d=%s&", i, channelsName.get(i)))
+                                .collect(Collectors.joining())
+                ).getBytes(StandardCharsets.UTF_8),
+                String.format("%s/webclient/", host),
+                token
+        ).thenAccept(rawResponse -> {
+            Map<String, Object> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+            if (response == null || !response.containsKey("channelNames")) {
+                throw new RuntimeException(String.format("The response %s doesn't contain the `channelNames` key", rawResponse));
+            }
+        });
+    }
+
+    /**
+     * Send a file to be attached to a server entity.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param entityId the ID of the entity
+     * @param entityClass the class of the entity.
+     *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     * @param attachmentName the name of the file to send. A prefix will be added to it to mark
+     *                       this file as coming from QuPath
+     * @param attachmentContent the content of the file to send
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
      */
-    public CompletableFuture<Boolean> sendAttachment(
+    public CompletableFuture<Void> sendAttachment(
             long entityId,
             Class<? extends RepositoryEntity> entityClass,
             String attachmentName,
             String attachmentContent
     ) {
+        logger.debug("Sending file {} to the {} with ID {}", attachmentName, entityClass, entityId);
+
         if (!TYPE_TO_URI_LABEL.containsKey(entityClass)) {
             throw new IllegalArgumentException(String.format(
                     "The provided item (%s) is not an image, dataset, project, screen, plate, or plate acquisition.",
@@ -463,144 +497,159 @@ class WebclientApi implements AutoCloseable {
             ));
         }
 
-        var uri = WebUtilities.createURI(String.format(
-                SEND_ATTACHMENT_URL,
-                host
-        ));
-
-        if (uri.isPresent()) {
-            return RequestSender.post(
-                    uri.get(),
-                    attachmentName,
-                    attachmentContent,
-                    String.format("%s/webclient/", host),
-                    token,
-                    Map.of(
-                            TYPE_TO_URI_LABEL.get(entityClass), String.valueOf(entityId),
-                            "index", ""
-                    )
-            ).thenApply(rawResponse -> {
-                if (rawResponse.isPresent()) {
-                    Gson gson = new Gson();
-                    try {
-                        Map<String, List<Long>> response = gson.fromJson(rawResponse.get(), new TypeToken<>() {});
-                        return response != null && response.containsKey("fileIds") && !response.get("fileIds").isEmpty();
-                    } catch (JsonSyntaxException e) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            });
-        } else {
-            return CompletableFuture.completedFuture(false);
+        URI uri;
+        try {
+            uri = new URI(String.format(SEND_ATTACHMENT_URL, host));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
-    }
 
-    /**
-     * <p>Delete all attachments of an OMERO entity.</p>
-     *
-     * @param entityId  the ID of the entity whose attachments should be deleted
-     * @param entityClass  the class of the entity whose attachments should be deleted.
-     *                     Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                     {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
-     * @return a CompletableFuture indicating the success of the operation
-     * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
-     * screen, plate, or plate acquisition
-     */
-    public CompletableFuture<Boolean> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
-        return getAnnotations(entityId, entityClass).thenApply(annotationGroup ->
-                annotationGroup
-                        .map(group -> group.getAnnotationsOfClass(FileAnnotation.class).stream()
-                                .map(Annotation::getId)
-                                .toList()
-                        )
-                        .orElseGet(List::of)
-        ).thenApplyAsync(attachmentIds -> {
-            List<URI> uris = attachmentIds.stream()
-                    .map(annotationId -> WebUtilities.createURI(String.format(DELETE_ATTACHMENT_URL, host, annotationId)))
-                    .flatMap(Optional::stream)
-                    .toList();
-
-            if (uris.size() == attachmentIds.size()) {
-                List<String> responses = uris.stream()
-                        .map(uri -> RequestSender.post(uri, "", String.format("%s/webclient/", host), token))
-                        .map(CompletableFuture::join)
-                        .flatMap(Optional::stream)
-                        .filter(rawResponse -> {
-                            Gson gson = new Gson();
-                            try {
-                                Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
-                                return response != null && response.containsKey("bad");
-                            } catch (JsonSyntaxException e) {
-                                return false;
-                            }
-                        })
-                        .toList();
-
-                return responses.size() == attachmentIds.size();
-            } else {
-                return false;
+        return requestSender.post(
+                uri,
+                QUPATH_FILE_IDENTIFIER + attachmentName,
+                attachmentContent,
+                String.format("%s/webclient/", host),
+                token,
+                Map.of(
+                        TYPE_TO_URI_LABEL.get(entityClass), String.valueOf(entityId),
+                        "index", ""
+                )
+        ).thenAccept(rawResponse -> {
+            Map<String, List<Long>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+            if (response == null || !response.containsKey("fileIds") || response.get("fileIds").isEmpty()) {
+                throw new RuntimeException(String.format("The response %s doesn't contain a non-empty `fileIds` value", rawResponse));
             }
         });
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO image icon.</p>
-     * <p>This function is asynchronous.</p>
+     * Delete all attachments added from QuPath of an OMERO entity.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @return a CompletableFuture with the icon, of an empty Optional if an error occurred
+     * @param entityId the ID of the entity whose attachments should be deleted
+     * @param entityClass the class of the entity whose attachments should be deleted.
+     *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
+     * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
+     * screen, plate, or plate acquisition
      */
-    public CompletableFuture<Optional<BufferedImage>> getImageIcon() {
-        return ApiUtilities.getImage(String.format(IMAGE_ICON_URL, host));
+    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
+        logger.debug("Deleting all attachments added from QuPath to the {} with ID {}", entityClass, entityId);
+
+        return getAnnotations(entityId, entityClass).thenApply(annotationGroup ->
+                annotationGroup.getAnnotationsOfClass(FileAnnotation.class).stream()
+                        .filter(annotation -> annotation.getFilename().isPresent() && annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER))
+                        .map(Annotation::getId)
+                        .toList()
+        ).thenAcceptAsync(attachmentIds -> {
+            List<String> responses = attachmentIds.stream()
+                    .map(annotationId -> URI.create(String.format(DELETE_ATTACHMENT_URL, host, annotationId)))
+                    .map(uri -> requestSender.post(uri, "", String.format("%s/webclient/", host), token))
+                    .map(CompletableFuture::join)
+                    .toList();
+
+            for (String rawResponse: responses) {
+                Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+                if (response == null || !response.containsKey("bad")) {
+                    throw new RuntimeException(String.format("The response %s doesn't contain the `bad` key", rawResponse));
+                }
+            }
+        });
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO screen icon.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve the OMERO image icon.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
-     * @return a CompletableFuture with the icon, of an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getScreenIcon() {
-        return ApiUtilities.getImage(String.format(SCREEN_ICON_URL, host));
+    public CompletableFuture<BufferedImage> getImageIcon() {
+        logger.debug("Getting OMERO image icon");
+
+        try {
+            return requestSender.getImage(new URI(String.format(IMAGE_ICON_URL, host)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO plate icon.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve the OMERO screen icon.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
-     * @return a CompletableFuture with the icon, of an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getPlateIcon() {
-        return ApiUtilities.getImage(String.format(PLATE_ICON_URL, host));
+    public CompletableFuture<BufferedImage> getScreenIcon() {
+        logger.debug("Getting OMERO screen icon");
+
+        try {
+            return requestSender.getImage(new URI(String.format(SCREEN_ICON_URL, host)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
-     * <p>Attempt to retrieve the OMERO plate acquisition icon.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve the OMERO plate icon.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
-     * @return a CompletableFuture with the icon, of an empty Optional if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
-    public CompletableFuture<Optional<BufferedImage>> getPlateAcquisitionIcon() {
-        return ApiUtilities.getImage(String.format(PLATE_ACQUISITION_ICON_URL, host));
+    public CompletableFuture<BufferedImage> getPlateIcon() {
+        logger.debug("Getting OMERO plate icon");
+
+        try {
+            return requestSender.getImage(new URI(String.format(PLATE_ICON_URL, host)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * Attempt to retrieve the OMERO plate acquisition icon.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
+     *
+     * @return a CompletableFuture (that may complete exceptionally) with the icon
+     */
+    public CompletableFuture<BufferedImage> getPlateAcquisitionIcon() {
+        logger.debug("Getting OMERO plate acquisition icon");
+
+        try {
+            return requestSender.getImage(new URI(String.format(PLATE_ACQUISITION_ICON_URL, host)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotations(URI uri, long imageId) {
-        return getAnnotations(imageId, Image.class).thenApplyAsync(annotationGroupResponse -> {
-            List<MapAnnotation> existingAnnotations = annotationGroupResponse
-                    .map(annotationGroup -> annotationGroup.getAnnotationsOfClass(MapAnnotation.class))
-                    .orElse(List.of());
+        return getAnnotations(imageId, Image.class).thenApply(annotationGroup -> {
+            List<MapAnnotation> existingAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class);
 
-            existingAnnotations.stream()
+            List<CompletableFuture<String>> requests = existingAnnotations.stream()
                     .map(Annotation::getId)
                     .map(id -> String.format("image=%d&annId=%d&mapAnnotation=\"\"", imageId, id))
-                    .map(body -> RequestSender.post(
+                    .map(body -> requestSender.post(
                             uri,
                             body.getBytes(StandardCharsets.UTF_8),
                             String.format("%s/webclient/", host),
                             token
                     ))
-                    .forEach(CompletableFuture::join);
+                    .toList();
+
+            for (CompletableFuture<String> request: requests) {
+                request.join();
+            }
 
             return existingAnnotations;
         });

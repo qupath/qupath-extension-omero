@@ -37,13 +37,9 @@ def omeroServer = (OmeroImageServer) server
 
 // Delete existing attachment
 if (deleteExistingAttachments) {
-    boolean status = omeroServer.getClient().getApisHandler().deleteAttachments(omeroServer.getId(), Image.class).get()
+    omeroServer.getClient().getApisHandler().deleteAttachments(omeroServer.getId(), Image.class).get()
 
-    if (status) {
-        println "Existing attachments deleted"
-    } else {
-        println "Impossible to delete existing attachments. Check the logs"
-    }
+    println "Existing attachments deleted"
 }
 
 // Send annotation measurements
@@ -61,18 +57,14 @@ if (sendAnnotationMeasurements) {
         def annotationMeasurements = outputStream.toString()
 
         // Send annotation measurements
-        def status = omeroServer.getClient().getApisHandler().sendAttachment(
+        omeroServer.getClient().getApisHandler().sendAttachment(
                 omeroServer.getId(),
                 Image.class,
                 "annotation_measurements.csv",
                 annotationMeasurements
         ).get()
 
-        if (status) {
-            println "Annotation measurements sent"
-        } else {
-            println "Impossible to send annotation measurements. Check the logs"
-        }
+        println "Annotation measurements sent"
     } catch (IOException e) {
         println "Error when reading annotation measurements: " + e
     }
@@ -93,22 +85,15 @@ if (sendDetectionMeasurements) {
         def detectionMeasurements = outputStream.toString()
 
         // Send detection measurements
-        def status = omeroServer.getClient().getApisHandler().sendAttachment(
+        omeroServer.getClient().getApisHandler().sendAttachment(
                 omeroServer.getId(),
                 Image.class,
                 "detection_measurements.csv",
                 detectionMeasurements
         ).get()
 
-        if (status) {
-            println "Detection measurements sent"
-        } else {
-            println "Impossible to send detection measurements. Check the logs"
-        }
+        println "Detection measurements sent"
     } catch (IOException e) {
         println "Error when reading detection measurements: " + e
     }
 }
-
-// Close server
-omeroServer.close()

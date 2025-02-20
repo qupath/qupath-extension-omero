@@ -36,7 +36,7 @@ public class TestEllipse {
     void Check_ROI() {
         Shape ellipse = createEllipseFromJSON();
 
-        Class<? extends ROI> roiClass = ellipse.createROI().getClass();
+        Class<? extends ROI> roiClass = ellipse.createRoi().getClass();
 
         Assertions.assertEquals(EllipseROI.class, roiClass);
     }
@@ -59,8 +59,11 @@ public class TestEllipse {
     }
 
     private Shape createEllipseFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(
-                ROIs.createEllipseROI(40, 80, 20, 40, null)
-        )).get(0);
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(
+                        ROIs.createEllipseROI(40, 80, 20, 40, null)
+                ),
+                true
+        ).getFirst();
     }
 }

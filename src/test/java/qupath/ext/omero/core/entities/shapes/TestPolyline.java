@@ -38,9 +38,9 @@ public class TestPolyline {
     void Check_Polyline_Created_From_Path_Object() {
         PathObject pathObject = PathObjects.createAnnotationObject(ROIs.createPolylineROI(10, 10, null));
 
-        List<Shape> shapes = Shape.createFromPathObject(pathObject);
+        List<? extends Shape> shapes = Shape.createFromPathObject(pathObject, true);
 
-        Assertions.assertTrue(shapes.get(0) instanceof Polyline);
+        Assertions.assertInstanceOf(Polyline.class, shapes.getFirst());
     }
 
     private Shape createPolylineFromJSON() {
@@ -58,10 +58,13 @@ public class TestPolyline {
     }
 
     private Shape createPolylineFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(ROIs.createPolylineROI(List.of(
-                new Point2(0, 0),
-                new Point2(50, 0),
-                new Point2(0, 50)
-        ), null))).get(0);
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(ROIs.createPolylineROI(List.of(
+                        new Point2(0, 0),
+                        new Point2(50, 0),
+                        new Point2(0, 50)
+                ), null)),
+                true
+        ).getFirst();
     }
 }

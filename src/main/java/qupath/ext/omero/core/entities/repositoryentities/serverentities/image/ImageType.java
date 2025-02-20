@@ -1,7 +1,5 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities.image;
 
-import com.google.gson.annotations.SerializedName;
-
 import java.util.Optional;
 
 /**
@@ -10,7 +8,7 @@ import java.util.Optional;
  */
 class ImageType {
 
-    @SerializedName(value = "value") private String value;
+    private String value;
 
     @Override
     public String toString() {

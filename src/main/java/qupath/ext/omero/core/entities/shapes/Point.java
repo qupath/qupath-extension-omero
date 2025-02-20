@@ -20,8 +20,8 @@ public class Point extends Shape {
     /**
      * Create a point.
 
-     * @param x  the x-coordinate of the point
-     * @param y  the y-coordinate of the point
+     * @param x the x-coordinate of the point
+     * @param y the y-coordinate of the point
      */
     public Point(double x, double y) {
         super(TYPE);
@@ -33,18 +33,19 @@ public class Point extends Shape {
     /**
      * Create a list of points corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
+     * @param pathObject the path object corresponding to this shape
+     * @param fillColor whether to fill the points with colors
      * @return a list of points corresponding to the path object
      */
-    public static List<Point> create(PathObject pathObject) {
+    public static List<Point> create(PathObject pathObject, boolean fillColor) {
         return pathObject.getROI().getAllPoints().stream()
                 .map(point2 -> new Point(point2.getX(), point2.getY()))
-                .peek(point -> point.linkWithPathObject(pathObject))
+                .peek(point -> point.linkWithPathObject(pathObject, fillColor))
                 .toList();
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createPointsROI(x, y, getPlane());
     }
 

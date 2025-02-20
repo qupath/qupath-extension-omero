@@ -8,10 +8,9 @@ import qupath.lib.images.servers.*
 
 // Create a connection to an OMERO server
 def serverURL = "https://idr.openmicroscopy.org/"
-def authentication = WebClient.Authentication.TRY_TO_SKIP       // try to skip authentication if the server allows it. Can be
-                                                                // WebClient.Authentication.ENFORCE to enforce authentication or
-                                                                // WebClient.Authentication.SKIP to skip authentication (even if the server doesn't allow it)
-def client = WebClients.createClient(serverURL, authentication).get()
+def credentials = new Credentials()                                                     // to skip authentication and use the public account
+//def credentials = new Credentials("some_username", "some_password".toCharArray())     // to authenticate with a regular account
+def client = Client.createOrGet(serverURL, credentials)
 
 // List projects of the OMERO server
 def projects = client.getApisHandler().getProjects().get()
@@ -35,7 +34,7 @@ images.forEach(it -> {
 
 // Open an image and print its metadata
 def imageID = 1920093
-def image = client.getApisHandler().getImage(imageID).get().get()
+def image = client.getApisHandler().getImage(imageID).get()
 def imageURI = client.getApisHandler().getItemURI(image)
 ImageServer<BufferedImage> server = ImageServerProvider.buildServer(imageURI, BufferedImage.class)
 println "Image metadata: " + server.getMetadata()

@@ -1,7 +1,5 @@
 package qupath.ext.omero.core.entities.annotations.annotationsentities;
 
-import com.google.gson.annotations.SerializedName;
-
 import java.util.Objects;
 
 /**
@@ -9,9 +7,9 @@ import java.util.Objects;
  */
 public class Experimenter {
 
-    @SerializedName(value = "id") private int id;
-    @SerializedName(value = "firstName") private String firstName;
-    @SerializedName(value = "lastName") private String lastName;
+    private int id;
+    private String firstName;
+    private String lastName;
 
     @Override
     public String toString() {

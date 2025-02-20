@@ -1,44 +1,42 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
-import com.google.common.collect.Lists;
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.gui.UiUtilities;
+
 
 import java.util.List;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Represents an OMERO plate.
- * A plate contains {@link PlateAcquisition plate acquisitions}
+ * Represents an OMERO plate. A plate contains {@link PlateAcquisition plate acquisitions}
  * and {@link Well wells}.
  */
 public class Plate extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Plate.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final int NUMBER_OF_CHILDREN_TYPES = 2;
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Plate.name"),
-            resources.getString("Web.Entities.Plate.id"),
-            resources.getString("Web.Entities.Plate.owner"),
-            resources.getString("Web.Entities.Plate.group"),
-            resources.getString("Web.Entities.Plate.columns"),
-            resources.getString("Web.Entities.Plate.rows")
+            resources.getString("Entities.Plate.name"),
+            resources.getString("Entities.Plate.id"),
+            resources.getString("Entities.Plate.owner"),
+            resources.getString("Entities.Plate.group"),
+            resources.getString("Entities.Plate.columns"),
+            resources.getString("Entities.Plate.rows")
     };
-    private final transient ObservableList<ServerEntity> children = FXCollections.observableArrayList();
+    private final transient ObservableList<ServerEntity> children = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final transient ObservableList<ServerEntity> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
-    private transient volatile boolean isPopulating = false;
+    private int childrenTypesPopulated = 0;
     @SerializedName(value = "Columns") private int columns;
     @SerializedName(value = "Rows") private int rows;
 
@@ -80,13 +78,13 @@ public class Plate extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(name == null ? "" : name);
+    public String getLabel() {
+        return name == null ? "-" : name;
     }
 
     @Override
-    public boolean isPopulatingChildren() {
-        return isPopulating;
+    public synchronized boolean isPopulatingChildren() {
+        return childrenTypesPopulated != NUMBER_OF_CHILDREN_TYPES;
     }
 
     @Override
@@ -124,7 +122,7 @@ public class Plate extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a plate.
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a plate
      */
     public static boolean isPlate(String type) {
@@ -137,32 +135,42 @@ public class Plate extends ServerEntity {
                     "The web server URI has not been set on this plate. See the setWebServerURI(URI) function."
             );
         } else {
-            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
-                isPopulating = true;
-                client.getApisHandler().getPlateAcquisitions(getId()).thenCompose(plateAcquisitions -> {
-                    for (PlateAcquisition plateAcquisition: plateAcquisitions) {
-                        plateAcquisition.setNumberOfWells(columns * rows);
-                    }
+            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+                client.getApisHandler().getPlateAcquisitions(id)
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving plate acquisitions", error);
+                            return List.of();
+                        })
+                        .thenAccept(plateAcquisitions -> {
+                            synchronized (this) {
+                                childrenTypesPopulated++;
+                            }
 
-                    children.addAll(plateAcquisitions);
-                    return client.getApisHandler().getWellsFromPlate(getId());
-                }).thenAcceptAsync(wells -> {
-                    List<Long> ids = wells.stream()
-                            .map(well -> well.getImagesIds(false))
-                            .flatMap(List::stream)
-                            .toList();
-                    List<List<Long>> batches = Lists.partition(ids, 16);
+                            for (PlateAcquisition plateAcquisition: plateAcquisitions) {
+                                plateAcquisition.setNumberOfWells(columns * rows);
+                            }
+                            children.addAll(plateAcquisitions);
+                        });
 
-                    for (List<Long> batch: batches) {
-                        children.addAll(batch.stream()
+                client.getApisHandler().getWellsFromPlate(id)
+                        .thenApplyAsync(wells -> wells.stream()
+                                .map(well -> well.getImagesIds(false))
+                                .flatMap(List::stream)
                                 .map(id -> client.getApisHandler().getImage(id))
                                 .map(CompletableFuture::join)
-                                .flatMap(Optional::stream)
-                                .toList());
-                    }
+                                .toList()
+                        )
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving wells", error);
+                            return List.of();
+                        })
+                        .thenAccept(images -> {
+                            synchronized (this) {
+                                childrenTypesPopulated++;
+                            }
 
-                    isPopulating = false;
-                });
+                            children.addAll(images);
+                        });
             }, () -> logger.warn(String.format(
                     "Could not find the web client corresponding to %s. Impossible to get the children of this plate (%s).",
                     webServerURI,

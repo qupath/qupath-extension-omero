@@ -1,9 +1,9 @@
 package qupath.ext.omero.core.entities.annotations;
 
-import com.google.gson.*;
-import com.google.gson.annotations.SerializedName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Link;
@@ -13,17 +13,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * <p>
- *     An OMERO annotation is <b>not</b> similar to a QuPath annotation.
- *     It represents metadata attached to OMERO entities.
- * </p>
+ * An OMERO annotation is <b>not</b> similar to a QuPath annotation.
+ * It represents metadata attached to OMERO entities.
  */
 public abstract class Annotation {
 
-    private static final Logger logger = LoggerFactory.getLogger(Annotation.class);
-    @SerializedName(value = "id") private int id;
-    @SerializedName(value = "owner") private Owner owner;
-    @SerializedName(value = "link") private Link link;
+    private int id;
+    private Owner owner;
+    private Link link;
 
     @Override
     public String toString() {
@@ -38,19 +35,16 @@ public abstract class Annotation {
     }
 
     /**
+     * Update information about the adder and the creator of this annotation
+     * based on the provided list of experimenters. If the list of
+     * experimenters doesn't contain an experimenter corresponding to
+     * the current adder/owner, the adder/owner is not updated.
      * <p>
-     *     Update information about the adder and the creator of this annotation
-     *     based on the provided list of experimenters. If the list of
-     *     experimenters doesn't contain an experimenter corresponding to
-     *     the current adder/owner, the adder/owner is not updated.
-     * </p>
-     * <p>
-     *     This function is useful when the JSON creating this annotation lacks information
-     *     on the adder and the owner.
-     * </p>
+     * This function is useful when the JSON creating this annotation lacks information
+     * on the adder and the owner.
      *
-     * @param experimenters  the list of experimenters having information on
-     *                       the adder and the owner of this annotation
+     * @param experimenters the list of experimenters having information on
+     *                      the adder and the owner of this annotation
      */
     public void updateAdderAndOwner(List<Experimenter> experimenters) {
         updateOwner(experimenters, owner).ifPresent(owner -> this.owner = owner);
@@ -84,26 +78,23 @@ public abstract class Annotation {
     public static class GsonOmeroAnnotationDeserializer implements JsonDeserializer<Annotation> {
         @Override
         public Annotation deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) {
-            if (json.isJsonObject() && json.getAsJsonObject().get("class") != null) {
-                String type = json.getAsJsonObject().get("class").getAsString();
+            if (!json.isJsonObject() || !json.getAsJsonObject().has("class")) {
+                throw new JsonParseException(String.format("'class' attribute missing from %s", json));
+            }
+            String type = json.getAsJsonObject().get("class").getAsString();
 
-                if (TagAnnotation.isOfType(type)) {
-                    return context.deserialize(json, TagAnnotation.class);
-                } else if (MapAnnotation.isOfType(type)) {
-                    return context.deserialize(json, MapAnnotation.class);
-                } else if (FileAnnotation.isOfType(type)) {
-                    return context.deserialize(json, FileAnnotation.class);
-                } else if (CommentAnnotation.isOfType(type)) {
-                    return context.deserialize(json, CommentAnnotation.class);
-                } else if (RatingAnnotation.isOfType(type)) {
-                    return context.deserialize(json, RatingAnnotation.class);
-                } else {
-                    logger.warn("Unsupported type: {}", type);
-                    return null;
-                }
+            if (TagAnnotation.isOfType(type)) {
+                return context.deserialize(json, TagAnnotation.class);
+            } else if (MapAnnotation.isOfType(type)) {
+                return context.deserialize(json, MapAnnotation.class);
+            } else if (FileAnnotation.isOfType(type)) {
+                return context.deserialize(json, FileAnnotation.class);
+            } else if (CommentAnnotation.isOfType(type)) {
+                return context.deserialize(json, CommentAnnotation.class);
+            } else if (RatingAnnotation.isOfType(type)) {
+                return context.deserialize(json, RatingAnnotation.class);
             } else {
-                logger.warn("\"class\" attribute of the annotation missing");
-                return null;
+                throw new JsonParseException(String.format("Unsupported type: %s", type));
             }
         }
     }

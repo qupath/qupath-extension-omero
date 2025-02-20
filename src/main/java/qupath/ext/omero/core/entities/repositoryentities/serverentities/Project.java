@@ -1,14 +1,12 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClients;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
 import java.util.ResourceBundle;
@@ -21,14 +19,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Project extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Project.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Project.name"),
-            resources.getString("Web.Entities.Project.id"),
-            resources.getString("Web.Entities.Project.description"),
-            resources.getString("Web.Entities.Project.owner"),
-            resources.getString("Web.Entities.Project.group"),
-            resources.getString("Web.Entities.Project.nbDatasets")
+            resources.getString("Entities.Project.name"),
+            resources.getString("Entities.Project.id"),
+            resources.getString("Entities.Project.description"),
+            resources.getString("Entities.Project.owner"),
+            resources.getString("Entities.Project.group"),
+            resources.getString("Entities.Project.nbDatasets")
     };
     private final transient ObservableList<Dataset> children = FXCollections.observableArrayList();
     private final transient ObservableList<Dataset> childrenImmutable = FXCollections.unmodifiableObservableList(children);
@@ -70,9 +68,8 @@ public class Project extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        String name = this.name == null ? "" : this.name;
-        return new SimpleStringProperty(name + " (" + childCount + ")");
+    public String getLabel() {
+        return String.format("%s (%d)", name == null ? "-" : name, childCount);
     }
 
     @Override
@@ -115,7 +112,7 @@ public class Project extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a project
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a project
      */
     public static boolean isProject(String type) {
@@ -128,17 +125,17 @@ public class Project extends ServerEntity {
                     "The web server URI has not been set on this project. See the setWebServerURI(URI) function."
             );
         } else {
-            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
                 client.getApisHandler().getDatasets(getId()).thenAccept(datasets -> {
                     children.addAll(datasets);
                     isPopulating = false;
                 });
-            }, () -> logger.warn(String.format(
-                    "Could not find the web client corresponding to %s. Impossible to get the children of this project (%s).",
+            }, () -> logger.warn(
+                    "Could not find the web client corresponding to {}. Impossible to get the children of this project ({}).",
                     webServerURI,
                     this
-            )));
+            ));
         }
     }
 }

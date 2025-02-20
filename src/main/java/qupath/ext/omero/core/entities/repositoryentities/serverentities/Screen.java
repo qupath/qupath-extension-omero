@@ -1,16 +1,15 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.gui.UiUtilities;
 
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -21,14 +20,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Screen extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Screen.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Screen.name"),
-            resources.getString("Web.Entities.Screen.id"),
-            resources.getString("Web.Entities.Screen.description"),
-            resources.getString("Web.Entities.Screen.owner"),
-            resources.getString("Web.Entities.Screen.group"),
-            resources.getString("Web.Entities.Screen.nbPlates")
+            resources.getString("Entities.Screen.name"),
+            resources.getString("Entities.Screen.id"),
+            resources.getString("Entities.Screen.description"),
+            resources.getString("Entities.Screen.owner"),
+            resources.getString("Entities.Screen.group"),
+            resources.getString("Entities.Screen.nbPlates")
     };
     private final transient ObservableList<Plate> children = FXCollections.observableArrayList();
     private final transient ObservableList<Plate> childrenImmutable = FXCollections.unmodifiableObservableList(children);
@@ -70,9 +69,8 @@ public class Screen extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        String name = this.name == null ? "" : this.name;
-        return new SimpleStringProperty(name + " (" + childCount + ")");
+    public String getLabel() {
+        return String.format("%s (%d)", name == null ? "-" : name, childCount);
     }
 
     @Override
@@ -115,7 +113,7 @@ public class Screen extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a screen
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a screen
      */
     public static boolean isScreen(String type) {
@@ -128,17 +126,23 @@ public class Screen extends ServerEntity {
                     "The web server URI has not been set on this screen. See the setWebServerURI(URI) function."
             );
         } else {
-            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
-                client.getApisHandler().getPlates(getId()).thenAccept(plates -> {
-                    children.addAll(plates);
-                    isPopulating = false;
-                });
-            }, () -> logger.warn(String.format(
-                    "Could not find the web client corresponding to %s. Impossible to get the children of this screen (%s).",
+
+                client.getApisHandler().getPlates(getId())
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving plates", error);
+                            return List.of();
+                        })
+                        .thenAccept(plates -> {
+                            children.addAll(plates);
+                            isPopulating = false;
+                        });
+            }, () -> logger.warn(
+                    "Could not find the web client corresponding to {}. Impossible to get the children of this screen ({}).",
                     webServerURI,
                     this
-            )));
+            ));
         }
     }
 }

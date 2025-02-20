@@ -1,9 +1,10 @@
 package qupath.ext.omero.core.pixelapis.mspixelbuffer;
 
 import loci.formats.gui.AWTImageTools;
-import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebUtilities;
-import qupath.ext.omero.core.pixelapis.PixelAPIReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.PixelType;
@@ -21,18 +22,22 @@ import java.awt.image.DataBufferShort;
 import java.awt.image.DataBufferUShort;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.IntStream;
 
 /**
  * Read pixel values using the <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO Pixel Data Microservice</a>.
  */
-class MsPixelBufferReader implements PixelAPIReader {
+class MsPixelBufferReader implements PixelApiReader {
 
+    private static final Logger logger = LoggerFactory.getLogger(MsPixelBufferReader.class);
     private static final String TILE_URI = "%s/tile/%d/%d/%d/%d?x=%d&y=%d&w=%d&h=%d&format=tif&resolution=%d";
     private final String host;
+    private final ApisHandler apisHandler;
     private final long imageID;
     private final PixelType pixelType;
     private final int numberOfChannels;
@@ -42,20 +47,23 @@ class MsPixelBufferReader implements PixelAPIReader {
     /**
      * Create a new MsPixelBuffer reader.
      *
-     * @param host  the URI from which this microservice is available
-     * @param imageID  the ID of the image to open
-     * @param pixelType  the pixel type of the image to open
-     * @param channels  the channels of the image to open
-     * @param numberOfLevels  the number of resolution levels of the image to open
+     * @param host the URI from which this microservice is available
+     * @param apisHandler the apis handler to use when sending requests
+     * @param imageID the ID of the image to open
+     * @param pixelType the pixel type of the image to open
+     * @param channels the channels of the image to open
+     * @param numberOfLevels the number of resolution levels of the image to open
      */
     public MsPixelBufferReader(
             String host,
+            ApisHandler apisHandler,
             long imageID,
             PixelType pixelType,
             List<ImageChannel> channels,
             int numberOfLevels
     ) {
         this.host = host;
+        this.apisHandler = apisHandler;
         this.imageID = imageID;
         this.pixelType = pixelType;
         this.numberOfChannels = channels.size();
@@ -65,54 +73,50 @@ class MsPixelBufferReader implements PixelAPIReader {
 
     @Override
     public BufferedImage readTile(TileRequest tileRequest) throws IOException {
+        logger.debug("Reading tile {} from MS pixel buffer API", tileRequest);
+
         // OMERO expects resolutions to be specified in reverse order
         int level = numberOfLevels - tileRequest.getLevel() - 1;
 
-        List<BufferedImage> images = IntStream.range(0, numberOfChannels)
-                .mapToObj(i -> readTile(
-                        imageID,
-                        i,
-                        level,
-                        tileRequest
-                ))
-                .map(CompletableFuture::join)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .toList();
-
-        if (images.size() != numberOfChannels) {
-            throw new IOException("Could not retrieve all pixels for all channels");
-        } else {
-            if (numberOfChannels == 1 && pixelType.equals(PixelType.UINT8)) {
-                return images.get(0);
-            } else {
-                DataBuffer dataBuffer = getDataBuffer(images.stream()
-                        .map(AWTImageTools::getPixels)
-                        .toList()
-                );
-
-                return new BufferedImage(
-                        colorModel,
-                        WritableRaster.createWritableRaster(
-                                new BandedSampleModel(
-                                        dataBuffer.getDataType(),
-                                        tileRequest.getTileWidth(),
-                                        tileRequest.getTileHeight(),
-                                        numberOfChannels
-                                ),
-                                dataBuffer,
-                                null
-                        ),
-                        false,
-                        null
-                );
-            }
+        List<BufferedImage> images;
+        try {
+            images = IntStream.range(0, numberOfChannels)
+                    .mapToObj(i -> readTile(
+                            imageID,
+                            i,
+                            level,
+                            tileRequest
+                    ))
+                    .map(CompletableFuture::join)
+                    .toList();
+        } catch (CompletionException e) {
+            throw new IOException(e);
         }
-    }
 
-    @Override
-    public String getName() {
-        return MsPixelBufferAPI.NAME;
+        if (numberOfChannels == 1 && pixelType.equals(PixelType.UINT8)) {
+            return images.getFirst();
+        } else {
+            DataBuffer dataBuffer = getDataBuffer(images.stream()
+                    .map(AWTImageTools::getPixels)
+                    .toList()
+            );
+
+            return new BufferedImage(
+                    colorModel,
+                    WritableRaster.createWritableRaster(
+                            new BandedSampleModel(
+                                    dataBuffer.getDataType(),
+                                    tileRequest.getTileWidth(),
+                                    tileRequest.getTileHeight(),
+                                    numberOfChannels
+                            ),
+                            dataBuffer,
+                            null
+                    ),
+                    false,
+                    null
+            );
+        }
     }
 
     @Override
@@ -127,21 +131,23 @@ class MsPixelBufferReader implements PixelAPIReader {
         );
     }
 
-    private CompletableFuture<Optional<BufferedImage>> readTile(long imageID, int channel, int level, TileRequest tileRequest) {
-        return WebUtilities.createURI(String.format(TILE_URI,
-                host,
-                imageID,
-                tileRequest.getZ(),
-                channel,
-                tileRequest.getT(),
-                tileRequest.getTileX(),
-                tileRequest.getTileY(),
-                tileRequest.getTileWidth(),
-                tileRequest.getTileHeight(),
-                level
-        ))
-                .map(RequestSender::getImage)
-                .orElse(CompletableFuture.completedFuture(Optional.empty()));
+    private CompletableFuture<BufferedImage> readTile(long imageID, int channel, int level, TileRequest tileRequest) {
+        try {
+            return apisHandler.getImage(new URI(String.format(TILE_URI,
+                    host,
+                    imageID,
+                    tileRequest.getZ(),
+                    channel,
+                    tileRequest.getT(),
+                    tileRequest.getTileX(),
+                    tileRequest.getTileY(),
+                    tileRequest.getTileWidth(),
+                    tileRequest.getTileHeight(),
+                    level
+            )));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private DataBuffer getDataBuffer(List<Object> pixels) {

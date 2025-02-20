@@ -36,7 +36,7 @@ public class TestRectangle {
     void Check_ROI() {
         Shape rectangle = createRectangleFromJSON();
 
-        Class<? extends ROI> roiClass = rectangle.createROI().getClass();
+        Class<? extends ROI> roiClass = rectangle.createRoi().getClass();
 
         Assertions.assertEquals(RectangleROI.class, roiClass);
     }
@@ -59,8 +59,11 @@ public class TestRectangle {
     }
 
     private Shape createRectangleFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(
-                ROIs.createRectangleROI(50, 100, 10, 20, null)
-        )).get(0);
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(
+                        ROIs.createRectangleROI(50, 100, 10, 20, null)
+                ),
+                true
+        ).getFirst();
     }
 }

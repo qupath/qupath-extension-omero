@@ -36,7 +36,7 @@ public class TestLine {
     void Check_ROI() {
         Shape line = createLineFromJSON();
 
-        Class<? extends ROI> roiClass = line.createROI().getClass();
+        Class<? extends ROI> roiClass = line.createRoi().getClass();
 
         Assertions.assertEquals(LineROI.class, roiClass);
     }
@@ -59,8 +59,11 @@ public class TestLine {
     }
 
     private Shape createLineFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(
-                ROIs.createLineROI(10, 20, 50, 100, null)
-        )).get(0);
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(
+                        ROIs.createLineROI(10, 20, 50, 100, null)
+                ),
+                true
+        ).get(0);
     }
 }

@@ -4,18 +4,15 @@ import com.google.gson.annotations.SerializedName;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.pixelapis.PixelAPI;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 
@@ -26,38 +23,36 @@ import java.util.ResourceBundle;
 import java.util.Set;
 
 /**
+ * Provides some information on an OMERO image.
  * <p>
- *     Provides some information on an OMERO image.
- * </p>
- * <p>
- *     This class uses the {@link PixelInfo} class to get information about pixels.
- * </p>
+ * This class uses the {@link PixelInfo} class to get information about pixels.
  */
 public class Image extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Image.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Image.name"),
-            resources.getString("Web.Entities.Image.id"),
-            resources.getString("Web.Entities.Image.owner"),
-            resources.getString("Web.Entities.Image.group"),
-            resources.getString("Web.Entities.Image.acquisitionDate"),
-            resources.getString("Web.Entities.Image.imageWidth"),
-            resources.getString("Web.Entities.Image.imageHeight"),
-            resources.getString("Web.Entities.Image.uncompressedSize"),
-            resources.getString("Web.Entities.Image.nbZSlices"),
-            resources.getString("Web.Entities.Image.nbChannels"),
-            resources.getString("Web.Entities.Image.nbTimePoints"),
-            resources.getString("Web.Entities.Image.pixelSizeX"),
-            resources.getString("Web.Entities.Image.pixelSizeY"),
-            resources.getString("Web.Entities.Image.pixelSizeZ"),
-            resources.getString("Web.Entities.Image.pixelType")
+            resources.getString("Entities.Image.name"),
+            resources.getString("Entities.Image.id"),
+            resources.getString("Entities.Image.owner"),
+            resources.getString("Entities.Image.group"),
+            resources.getString("Entities.Image.acquisitionDate"),
+            resources.getString("Entities.Image.imageWidth"),
+            resources.getString("Entities.Image.imageHeight"),
+            resources.getString("Entities.Image.uncompressedSize"),
+            resources.getString("Entities.Image.nbZSlices"),
+            resources.getString("Entities.Image.nbChannels"),
+            resources.getString("Entities.Image.nbTimePoints"),
+            resources.getString("Entities.Image.pixelSizeX"),
+            resources.getString("Entities.Image.pixelSizeY"),
+            resources.getString("Entities.Image.pixelSizeZ"),
+            resources.getString("Entities.Image.pixelType")
     };
     private transient EnumSet<UnsupportedReason> unsupportedReasons;
     private transient BooleanProperty isSupported;
     @SerializedName(value = "AcquisitionDate") private long acquisitionDate;
     @SerializedName(value = "Pixels") private PixelInfo pixels;
+    @SerializedName(value = "url:datasets") private String datasetsUrl;
     /**
      * The reason why an image may not be supported by a pixel API
      */
@@ -94,8 +89,8 @@ public class Image extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        return new SimpleStringProperty(name == null || name.isEmpty() ? "-" : name);
+    public String getLabel() {
+        return name == null ? "-" : name;
     }
 
     @Override
@@ -174,7 +169,7 @@ public class Image extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to an image
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to an image
      */
     public static boolean isImage(String type) {
@@ -198,6 +193,13 @@ public class Image extends ServerEntity {
     public synchronized Set<UnsupportedReason> getUnsupportedReasons() {
         setUpSupported();
         return unsupportedReasons;
+    }
+
+    /**
+     * @return a link to the datasets owning this image, or an empty Optional if it doesn't exist
+     */
+    public Optional<String> getDatasetsUrl() {
+        return Optional.ofNullable(datasetsUrl);
     }
 
     private Optional<int[]> getImageDimensions() {
@@ -235,23 +237,23 @@ public class Image extends ServerEntity {
             isSupported = new SimpleBooleanProperty(false);
             unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
 
-            Optional<ReadOnlyObjectProperty<PixelAPI>> selectedPixelAPI = WebClients.getClientFromURI(webServerURI)
-                    .map(WebClient::getSelectedPixelAPI);
+            Optional<ReadOnlyObjectProperty<PixelApi>> selectedPixelAPI = Client.getClientFromURI(webServerURI)
+                    .map(Client::getSelectedPixelApi);
 
             if (selectedPixelAPI.isPresent()) {
                 setSupported(selectedPixelAPI.get());
                 selectedPixelAPI.get().addListener(change -> setSupported(selectedPixelAPI.get()));
             } else {
-                logger.warn(String.format(
-                        "Could not find the web client corresponding to %s. Impossible to determine if this image (%s) is supported.",
+                logger.warn(
+                        "Could not find the web client corresponding to {}. Impossible to determine if this image ({}) is supported.",
                         webServerURI,
                         this
-                ));
+                );
             }
         }
     }
 
-    private synchronized void setSupported(ReadOnlyObjectProperty<PixelAPI> selectedPixelAPI) {
+    private synchronized void setSupported(ReadOnlyObjectProperty<PixelApi> selectedPixelAPI) {
         isSupported.set(true);
         unsupportedReasons.clear();
 

@@ -5,85 +5,98 @@ import javafx.collections.ListChangeListener;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.gui.browser.newserver.NewServerForm;
-import qupath.ext.omero.gui.browser.serverbrowser.BrowserCommand;
-import qupath.fx.dialogs.Dialogs;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.preferences.PreferencesManager;
+import qupath.ext.omero.core.preferences.ServerPreference;
+import qupath.ext.omero.gui.login.LoginForm;
 
 import java.io.IOException;
 import java.net.URI;
-import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
- * <p>
- *     Menu allowing to create a connection with a new server
- *     (see the {@link qupath.ext.omero.gui.browser.newserver new server} package), or to browse
- *     an already connected server (see the {@link qupath.ext.omero.gui.browser.serverbrowser browse server} package).
- * </p>
- * <p>
- *     This class uses a {@link BrowseMenuModel} to update its state.
- * </p>
+ * Menu allowing to create a connection with a new server using a {@link LoginForm}, or to browse an already
+ * connected server (see {@link BrowserCommand}).
  */
 public class BrowseMenu extends Menu {
 
     private static final Logger logger = LoggerFactory.getLogger(BrowseMenu.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private final Map<URI, BrowserCommand> browserCommands = new HashMap<>();
-    private MenuItem newServerItem;
+    private final MenuItem newServerItem = new MenuItem(resources.getString("Browser.BrowseMenu.newServer"));
+    private final Stage owner;
+    private LoginForm loginForm;
 
     /**
      * Creates the browse menu.
+     *
+     * @param owner the window owning this menu
      */
-    public BrowseMenu() {
+    public BrowseMenu(Stage owner) {
+        this.owner = owner;
+
         initUI();
         setUpListeners();
     }
 
-    public void openBrowserOfClient(URI uri) {
-        if (browserCommands.containsKey(uri)) {
-            browserCommands.get(uri).run();
-        }
+    /**
+     * Open the browser of the provided client. It will be created if it doesn't already exist.
+     *
+     * @param client the client that should be displayed in the browser to open
+     */
+    public void openBrowserOfClient(Client client) {
+        getBrowserCommand(client.getApisHandler().getWebServerURI()).run();
     }
 
     private void initUI() {
         setText(resources.getString("Browser.BrowseMenu.browseServer"));
+
+        newServerItem.setOnAction(ignoredEvent -> {
+            if (loginForm == null) {
+                try {
+                    loginForm = new LoginForm(
+                            owner,
+                            client -> Platform.runLater(() ->
+                                    getBrowserCommand(client.getApisHandler().getWebServerURI()).run()
+                            )
+                    );
+                    loginForm.show();
+                } catch (IOException e) {
+                    logger.error("Error while creating the login server form", e);
+                }
+            } else {
+                loginForm.show();
+                loginForm.requestFocus();
+            }
+        });
+
         createURIItems();
-        createNewServerItem();
     }
 
     private void setUpListeners() {
-        BrowseMenuModel.getURIs().addListener((ListChangeListener<? super URI>) change -> {
-            while (change.next()) {
-                if (change.wasRemoved()) {
-                    for (URI uri: change.getRemoved()) {
-                        if (browserCommands.containsKey(uri)) {
-                            browserCommands.get(uri).close();
-                            browserCommands.remove(uri);
-                        }
-                    }
-                }
-            }
-
-            createURIItems();
-            getItems().add(newServerItem);
-        });
+        PreferencesManager.getServerPreferences().addListener((ListChangeListener<? super ServerPreference>) change ->
+                Platform.runLater(this::createURIItems)
+        );
     }
 
     private void createURIItems() {
         getItems().clear();
 
-        for (URI uri: BrowseMenuModel.getURIs()) {
-            BrowserCommand browserCommand = getBrowserCommand(uri);
+        // Create copy to prevent modifications while iterating
+        List<ServerPreference> preferences = new ArrayList<>(PreferencesManager.getServerPreferences());
 
-            MenuItem clientMenuItem = new MenuItem(uri.toString());
+        for (ServerPreference serverPreference: preferences) {
+            BrowserCommand browserCommand = getBrowserCommand(serverPreference.webServerUri());
+
+            MenuItem clientMenuItem = new MenuItem(serverPreference.webServerUri().toString());
             clientMenuItem.setOnAction(e -> browserCommand.run());
             getItems().add(clientMenuItem);
         }
@@ -91,59 +104,16 @@ public class BrowseMenu extends Menu {
         if (!getItems().isEmpty()) {
             getItems().add(new SeparatorMenuItem());
         }
-    }
 
-    private void createNewServerItem() {
-        newServerItem = new MenuItem(resources.getString("Browser.BrowseMenu.newServer"));
-        newServerItem.setOnAction(ignoredEvent -> {
-            try {
-                NewServerForm newServerForm = new NewServerForm();
-
-                boolean dialogConfirmed = Dialogs.showConfirmDialog(resources.getString("Browser.BrowseMenu.enterURL"), newServerForm);
-
-                if (dialogConfirmed) {
-                    String url = newServerForm.getURL();
-
-                    WebClients.createClient(
-                            url,
-                            newServerForm.canSkipAuthentication() ? WebClient.Authentication.TRY_TO_SKIP : WebClient.Authentication.ENFORCE
-                    ).thenAccept(client -> Platform.runLater(() -> {
-                        if (client.getStatus().equals(WebClient.Status.SUCCESS)) {
-                            BrowserCommand browser = getBrowserCommand(client.getApisHandler().getWebServerURI());
-                            browser.run();
-                        } else if (client.getStatus().equals(WebClient.Status.FAILED)) {
-                            Optional<WebClient.FailReason> failReason = client.getFailReason();
-                            String message = null;
-
-                            if (failReason.isPresent()) {
-                                if (failReason.get().equals(WebClient.FailReason.INVALID_URI_FORMAT)) {
-                                    message = MessageFormat.format(resources.getString("Browser.BrowseMenu.invalidURI"), url);
-                                } else if (failReason.get().equals(WebClient.FailReason.ALREADY_CREATING)) {
-                                    message = MessageFormat.format(resources.getString("Browser.BrowseMenu.alreadyCreating"), url);
-                                }
-                            } else {
-                                message = MessageFormat.format(resources.getString("Browser.BrowseMenu.connectionFailed"), url);
-                            }
-
-                            if (message != null) {
-                                Dialogs.showErrorMessage(
-                                        resources.getString("Browser.BrowseMenu.webServer"),
-                                        message
-                                );
-                            }
-                        }
-                    }));
-                }
-            } catch (IOException e) {
-                logger.error("Error while creating the new server form", e);
-            }
-        });
         getItems().add(newServerItem);
     }
 
     private BrowserCommand getBrowserCommand(URI uri) {
         if (!browserCommands.containsKey(uri)) {
-            browserCommands.put(uri, new BrowserCommand(uri));
+            browserCommands.put(
+                    uri,
+                    new BrowserCommand(uri, owner, this::openBrowserOfClient)
+            );
         }
 
         return browserCommands.get(uri);

@@ -1,5 +1,6 @@
 package qupath.ext.omero;
 
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -7,14 +8,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.Container;
+import org.testcontainers.containers.ExecConfig;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.AbstractWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
+import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
@@ -23,16 +26,22 @@ import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchResult;
-import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferAPI;
+import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
+import qupath.lib.common.ColorTools;
+import qupath.lib.images.servers.ImageChannel;
+import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * <p>
@@ -76,6 +85,16 @@ public abstract class OmeroServer {
     private static final GenericContainer<?> omeroServer;
     private static final GenericContainer<?> omeroWeb;
     private static final String analysisFileId;
+    private enum ImageType {
+        RGB,
+        UINT8,
+        UINT16,
+        INT16,
+        INT32,
+        FLOAT32,
+        FLOAT64,
+        COMPLEX
+    }
 
     static {
         if (!dockerAvailable || IS_LOCAL_OMERO_SERVER_RUNNING) {
@@ -83,7 +102,7 @@ public abstract class OmeroServer {
             redis = null;
             omeroServer = null;
             omeroWeb = null;
-            analysisFileId = "85";
+            analysisFileId = "64";
         } else {
             // See https://hub.docker.com/r/openmicroscopy/omero-server
             postgres = new GenericContainer<>(DockerImageName.parse("postgres"))
@@ -91,7 +110,7 @@ public abstract class OmeroServer {
                     .withNetworkAliases("postgres")
                     .withEnv("POSTGRES_PASSWORD", "postgres")
                     .withLogConsumer(frame ->
-                            logger.info(String.format("Postgres container: %s", frame.getUtf8String()))
+                            logger.debug("Postgres container: {}", frame.getUtf8String())
                     );
 
             omeroServer = new GenericContainer<>(DockerImageName.parse("openmicroscopy/omero-server"))
@@ -107,22 +126,31 @@ public abstract class OmeroServer {
                     .waitingFor(new AbstractWaitStrategy() {
                         @Override
                         protected void waitUntilReady() {
-                            while (true) {
-                                logger.info("Attempting to connect to the OMERO server");
+                            try (RequestSender requestSender = new RequestSender()) {
+                                while (true) {
+                                    logger.info("Attempting to connect to the OMERO server");
 
-                                try {
-                                    WebClient client = createRootClient();
-                                    WebClients.removeClient(client);
-                                    logger.info("Connection to the OMERO server succeeded");
-                                    return;
-                                } catch (IllegalStateException | ExecutionException | InterruptedException ignored) {
-                                    logger.info("Connection to the OMERO server failed. Retrying in one second.");}
+                                    try {
+                                        requestSender.isLinkReachable(
+                                                URI.create(getWebServerURI()),
+                                                RequestSender.RequestType.GET,
+                                                false,
+                                                true
+                                        ).get();
+                                        logger.info("Connection to the OMERO server succeeded");
+                                        return;
+                                    } catch (Exception e) {
+                                        logger.info("Connection to the OMERO server failed. Retrying in five seconds.", e);
+                                    }
 
-                                try {
-                                    TimeUnit.SECONDS.sleep(1);
-                                } catch (InterruptedException e) {
-                                    throw new RuntimeException(e);
+                                    try {
+                                        TimeUnit.SECONDS.sleep(5);
+                                    } catch (InterruptedException e) {
+                                        throw new RuntimeException(e);
+                                    }
                                 }
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
                             }
                         }
                     })
@@ -133,7 +161,7 @@ public abstract class OmeroServer {
                     )
                     .dependsOn(postgres)
                     .withLogConsumer(frame ->
-                            logger.info(String.format("OMERO server container: %s", frame.getUtf8String()))
+                            logger.debug("OMERO server container: {}", frame.getUtf8String())
                     );
 
             // See https://github.com/glencoesoftware/omero-ms-pixel-buffer:
@@ -142,7 +170,7 @@ public abstract class OmeroServer {
                     .withNetwork(Network.SHARED)
                     .withNetworkAliases("redis")
                     .withLogConsumer(frame ->
-                            logger.info(String.format("Redis container: %s", frame.getUtf8String()))
+                            logger.debug(String.format("Redis container: %s", frame.getUtf8String()))
                     );
 
             // See https://hub.docker.com/r/openmicroscopy/omero-web-standalone
@@ -152,7 +180,7 @@ public abstract class OmeroServer {
                     // Enable public user (see https://omero.readthedocs.io/en/stable/sysadmins/public.html#configuring-public-user)
                     .withEnv("CONFIG_omero_web_public_enabled", "True")
                     .withEnv("CONFIG_omero_web_public_user", "public")
-                    .withEnv("CONFIG_omero_web_public_password", "password")
+                    .withEnv("CONFIG_omero_web_public_password", "password_public")
                     .withEnv("CONFIG_omero_web_public_url__filter", "(.*?)")
                     // Setup Django cached session (see https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero-web-caches
                     // and https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero-web-session-engine)
@@ -167,13 +195,27 @@ public abstract class OmeroServer {
                     )
                     .dependsOn(redis)
                     .withLogConsumer(frame ->
-                            logger.info(String.format("OMERO web container: %s", frame.getUtf8String()))
+                            logger.debug("OMERO web container: {}", frame.getUtf8String())
                     );
 
             omeroWeb.start();
             omeroServer.start();
 
             try {
+                // Wait for omero server to be ready
+                boolean serverNotReady = true;
+                while (serverNotReady) {
+                    Container.ExecResult rootConnectionResult = omeroServer.execInContainer(
+                            "/opt/omero/server/venv3/bin/omero", "login", "root@localhost:4064", "-w", "password"
+                    );
+
+                    serverNotReady = rootConnectionResult.getStderr().contains("Exception");
+                    if (serverNotReady) {
+                        logger.debug("Connection to OMERO failed: {}\nWaiting 1 second and retrying...", rootConnectionResult.getStderr());
+                        TimeUnit.SECONDS.sleep(1);
+                    }
+                }
+
                 // Set up the OMERO server (by creating users, importing images...)
                 Container.ExecResult omeroServerSetupResult = omeroServer.execInContainer("/resources/setup.sh");
                 logCommandResult(omeroServerSetupResult);
@@ -188,16 +230,20 @@ public abstract class OmeroServer {
                 omeroWeb.copyFileToContainer(MountableFile.forHostPath(omeroFolderPath, 0777), "/tmp/OMERO.tar.gz");
 
                 // Set up the OMERO web container (by installing the pixel buffer microservice)
-                Container.ExecResult omeroWebInstallPixelMsResult = omeroWeb.execInContainerWithUser(
-                        "root",
-                        "/resources/installPixelBufferMs.sh"
+                Container.ExecResult omeroWebInstallPixelMsResult = omeroWeb.execInContainer(
+                        ExecConfig.builder()
+                                .user("root")
+                                .command(new String[] {"/resources/installPixelBufferMs.sh"})
+                                .build()
                 );
                 logCommandResult(omeroWebInstallPixelMsResult);
 
                 // Set up the OMERO web container (by starting the pixel buffer microservice)
-                Container.ExecResult omeroWebRunPixelMsResult = omeroWeb.execInContainerWithUser(
-                        "root",
-                        "/resources/runPixelBufferMs.sh"
+                Container.ExecResult omeroWebRunPixelMsResult = omeroWeb.execInContainer(
+                        ExecConfig.builder()
+                                .user("root")
+                                .command(new String[] {"/resources/runPixelBufferMs.sh"})
+                                .build()
                 );
                 logCommandResult(omeroWebRunPixelMsResult);
             } catch (InterruptedException | IOException e) {
@@ -217,28 +263,14 @@ public abstract class OmeroServer {
                 "http://" + omeroWeb.getHost() + ":" + omeroWeb.getMappedPort(OMERO_WEB_PORT);
     }
 
-    protected static WebClient createUnauthenticatedClient() throws ExecutionException, InterruptedException {
-        return createValidClient(WebClient.Authentication.SKIP);
-    }
-
-    protected static WebClient createAuthenticatedClient() throws ExecutionException, InterruptedException {
-        return createValidClient(
-                WebClient.Authentication.ENFORCE,
-                "-u",
-                getUserUsername(),
-                "-p",
-                getUserPassword()
-        );
-    }
-
-    protected static WebClient createRootClient() throws ExecutionException, InterruptedException {
-        return createValidClient(
-                WebClient.Authentication.ENFORCE,
-                "-u",
-                getRootUsername(),
-                "-p",
-                getRootPassword()
-        );
+    protected static Credentials getCredentials(Credentials.UserType userType) {
+        return switch (userType) {
+            case PUBLIC_USER -> new Credentials();
+            case REGULAR_USER -> new Credentials(
+                    getUsername(Credentials.UserType.REGULAR_USER),
+                    getPassword(Credentials.UserType.REGULAR_USER).toCharArray()
+            );
+        };
     }
 
     protected static String getServerURI() {
@@ -249,56 +281,455 @@ public abstract class OmeroServer {
         return OMERO_SERVER_PORT;
     }
 
-    protected static String getRootUsername() {
-        return "root";
+    protected static Client createClient(Credentials.UserType userType) {
+        Credentials credentials = getCredentials(userType);
+        Client client = null;
+        int attempt = 0;
+
+        do {
+            try {
+                client = Client.createOrGet(getWebServerURI(), credentials);
+            } catch (Exception e) {
+                logger.debug("Client creation attempt {} of {} failed", attempt, CLIENT_CREATION_ATTEMPTS - 1, e);
+            }
+        } while (client != null && ++attempt < CLIENT_CREATION_ATTEMPTS);
+
+        if (client == null) {
+            throw new IllegalStateException("Client creation failed");
+        } else {
+            client.getPixelAPI(MsPixelBufferApi.class).setPort(getMsPixelBufferApiPort(), true);
+            return client;
+        }
     }
 
-    protected static String getRootPassword() {
-        return OMERO_PASSWORD;
+    protected static String getUsername(Credentials.UserType userType) {
+        return getConnectedOwner(userType).username();
     }
 
-    protected static String getUserUsername() {
-        return "public";
-    }
-
-    protected static String getUserPassword() {
-        return "password";
-    }
-
-    protected static Project getProject() {
-        return new Project(1);
-    }
-
-    protected static URI getProjectURI() {
-        return URI.create(getWebServerURI() + "/webclient/?show=project-" + getProject().getId());
-    }
-
-    protected static String getProjectAttributeValue(int informationIndex) {
-        return switch (informationIndex) {
-            case 0 -> "project";
-            case 1 -> String.valueOf(getProject().getId());
-            case 2 -> "-";
-            case 3 -> getCurrentOwner().getFullName();
-            case 4 -> getCurrentGroup().getName();
-            case 5 -> "1";
-            default -> "";
+    protected static String getPassword(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> "password_user";
+            case PUBLIC_USER -> "password_public";
         };
     }
 
-    protected static Dataset getOrphanedDataset() {
-        return new Dataset(2);
+    protected static List<Group> getGroups(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(
+                    getGroup1(),
+                    getGroup2(),
+                    getGroup3()
+            );
+            case PUBLIC_USER -> List.of(
+                    getPublicGroup()
+            );
+        };
     }
 
-    protected static Dataset getDataset() {
-        return new Dataset(1);
+    protected static Group getDefaultGroup(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> getGroup1();
+            case PUBLIC_USER -> getPublicGroup();
+        };
     }
 
-    protected static URI getDatasetURI() {
-        return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + getDataset().getId());
+    protected static List<Owner> getOwners(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(
+                    getUser1(),
+                    getUser2(),
+                    getUser()
+            );
+            case PUBLIC_USER -> List.of(
+                    getPublicUser()
+            );
+        };
     }
 
-    protected static AnnotationGroup getDatasetAnnotationGroup() {
-        return new AnnotationGroup(JsonParser.parseString(String.format("""
+    protected static Owner getConnectedOwner(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> getUser();
+            case PUBLIC_USER -> getPublicUser();
+        };
+    }
+
+    protected static List<Project> getProjects(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(new Project(2));
+            case PUBLIC_USER -> List.of(new Project(1));
+        };
+    }
+
+    protected static URI getProjectURI(Project project) {
+        return URI.create(getWebServerURI() + "/webclient/?show=project-" + project.getId());
+    }
+
+    protected static List<String> getProjectAttributeValue(Project project) {
+        return List.of(
+                "project",
+                String.valueOf(project.getId()),
+                "-",
+                Objects.requireNonNull(getOwnerOfEntity(project)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(project)).getName(),
+                switch ((int) project.getId()) {
+                    case 1 -> "1";
+                    case 2 -> "2";
+                    default -> "0";
+                }
+        );
+    }
+
+    protected static List<Dataset> getDatasets(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(new Dataset(3), new Dataset(4));
+            case PUBLIC_USER -> List.of(new Dataset(1));
+        };
+    }
+
+    protected static List<Dataset> getDatasetsInProject(Project project) {
+        return switch ((int) project.getId()) {
+            case 1 -> List.of(new Dataset(1));
+            case 2 -> List.of(new Dataset(3), new Dataset(4));
+            default -> List.of();
+        };
+    }
+
+    protected static List<String> getDatasetAttributeValue(Dataset dataset) {
+        return List.of(
+                switch ((int) dataset.getId()) {
+                    case 1 -> "dataset";
+                    case 2 -> "orphaned_dataset";
+                    case 3 -> "dataset1";
+                    case 4 -> "dataset2";
+                    case 5 -> "orphaned_dataset1";
+                    case 6 -> "orphaned_dataset2";
+                    default -> "";
+                },
+                String.valueOf(dataset.getId()),
+                "-",
+                Objects.requireNonNull(getOwnerOfEntity(dataset)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(dataset)).getName(),
+                switch ((int) dataset.getId()) {
+                    case 1 -> "7";
+                    case 4 -> "2";
+                    default -> "0";
+                }
+        );
+    }
+
+    protected static List<Dataset> getOrphanedDatasets(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(new Dataset(5), new Dataset(6));
+            case PUBLIC_USER -> List.of(new Dataset(2));
+        };
+    }
+
+    protected static URI getDatasetURI(Dataset dataset) {
+        return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + dataset.getId());
+    }
+
+    protected static Image getRGBImage(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> new Image(19);
+            case PUBLIC_USER -> new Image(1);
+        };
+    }
+
+    protected static Image getUint8Image(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> new Image(41);
+            case PUBLIC_USER -> new Image(2);
+        };
+    }
+
+    protected static Image getUint16Image(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> new Image(42);
+            case PUBLIC_USER -> new Image(3);
+        };
+    }
+
+    protected static Image getInt16Image(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> new Image(43);
+            case PUBLIC_USER -> new Image(4);
+        };
+    }
+
+    protected static Image getInt32Image(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> new Image(44);
+            case PUBLIC_USER -> new Image(5);
+        };
+    }
+
+    protected static Image getFloat32Image(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> new Image(20);
+            case PUBLIC_USER -> new Image(6);
+        };
+    }
+
+    protected static List<ChannelSettings> getFloat32ChannelSettings() {
+        return List.of(
+                new ChannelSettings("0", 0, 211, Integer.parseInt("FF0000", 16)),
+                new ChannelSettings("1", 0, 248, Integer.parseInt("00FF00", 16)),
+                new ChannelSettings("2", 0, 184, Integer.parseInt("0000FF", 16))
+        );
+    }
+
+    protected static ImageSettings getFloat32ImageSettings() {
+        return new ImageSettings("float32.tiff", getFloat32ChannelSettings());
+    }
+
+    protected static Image getFloat64Image(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> new Image(45);
+            case PUBLIC_USER -> new Image(7);
+        };
+    }
+
+    protected static Image getComplexImage(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> new Image(46);
+            case PUBLIC_USER -> new Image(8);
+        };
+    }
+
+    protected static ImageServerMetadata getImageMetadata(Image image) {
+        return switch (getImageType(image)) {
+            case RGB -> new ImageServerMetadata.Builder()
+                    .name("rgb.tiff")
+                    .pixelType(PixelType.UINT8)
+                    .width(256)
+                    .height(256)
+                    .rgb(true)
+                    .channels(List.of(
+                            ImageChannel.getInstance("0", ColorTools.RED),
+                            ImageChannel.getInstance("1", ColorTools.GREEN),
+                            ImageChannel.getInstance("2", ColorTools.BLUE)
+                    ))
+                    .pixelSizeMicrons(1, 1)
+                    .build();
+            case COMPLEX -> new ImageServerMetadata.Builder()
+                    .name("complex.tiff")
+                    .pixelType(PixelType.FLOAT32)
+                    .width(256)
+                    .height(256)
+                    .sizeZ(10)
+                    .sizeT(3)
+                    .channels(List.of(ImageChannel.getInstance("0", ColorTools.packRGB(128, 128, 128))))
+                    .pixelSizeMicrons(2.675500000484335, 2.675500000484335)
+                    .zSpacingMicrons(3.947368)
+                    .build();
+            default -> new ImageServerMetadata.Builder().build();
+        };
+    }
+
+    protected static List<String> getImageAttributeValue(Image image) {
+        ImageServerMetadata metadata = getImageMetadata(image);
+
+        return List.of(
+                metadata.getName(),
+                String.valueOf(image.getId()),
+                Objects.requireNonNull(getOwnerOfEntity(image)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(image)).getName(),
+                "-",
+                metadata.getWidth() + " px",
+                metadata.getHeight() + " px",
+                switch (getImageType(image)) {
+                    case RGB -> "0.2 MB";
+                    case COMPLEX -> "7.5 MB";
+                    default -> "";
+                },
+                String.valueOf(metadata.getSizeZ()),
+                String.valueOf(metadata.getSizeC()),
+                String.valueOf(metadata.getSizeT()),
+                metadata.getPixelWidthMicrons() + " µm",
+                metadata.getPixelHeightMicrons() + " µm",
+                Double.isNaN(metadata.getZSpacingMicrons()) ? "-" : metadata.getZSpacingMicrons() + " µm",
+                switch (metadata.getPixelType()) {
+                    case UINT8 -> "uint8";
+                    case INT8 -> "int8";
+                    case UINT16 -> "uint16";
+                    case INT16 -> "int16";
+                    case UINT32 -> "uint32";
+                    case INT32 -> "int32";
+                    case FLOAT32 -> "float";
+                    case FLOAT64 -> "double";
+                }
+        );
+    }
+
+    protected static List<Image> getOrphanedImages(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(
+                    getComplexImage(userType),
+                    getFloat64Image(userType),
+                    getInt16Image(userType),
+                    getInt32Image(userType),
+                    getUint16Image(userType),
+                    getUint8Image(userType)
+            );
+            case PUBLIC_USER -> List.of(getComplexImage(userType));
+        };
+    }
+
+    protected static List<Image> getImagesInDataset(Dataset dataset) {
+        return switch ((int) dataset.getId()) {
+            case 1 -> List.of(
+                    getFloat32Image(Credentials.UserType.PUBLIC_USER),
+                    getFloat64Image(Credentials.UserType.PUBLIC_USER),
+                    getInt16Image(Credentials.UserType.PUBLIC_USER),
+                    getInt32Image(Credentials.UserType.PUBLIC_USER),
+                    getRGBImage(Credentials.UserType.PUBLIC_USER),
+                    getUint16Image(Credentials.UserType.PUBLIC_USER),
+                    getUint8Image(Credentials.UserType.PUBLIC_USER)
+            );
+            case 4 -> List.of(
+                    getFloat32Image(Credentials.UserType.REGULAR_USER),
+                    getRGBImage(Credentials.UserType.REGULAR_USER)
+            );
+            default -> List.of();
+        };
+    }
+
+    protected static List<Image> getImagesInPlate(Plate plate) {
+        if (plate.getId() < 3) {
+            return List.of(
+                    new Image(9 + (plate.getId()-1) * 5),
+                    new Image(10 + (plate.getId()-1) * 5),
+                    new Image(11 + (plate.getId()-1) * 5),
+                    new Image(12 + (plate.getId()-1) * 5),
+                    new Image(13 + (plate.getId()-1) * 5)
+            );
+        } else if (plate.getId() < 7) {
+            return List.of(
+                    new Image(11 + (plate.getId()-1) * 5),
+                    new Image(12 + (plate.getId()-1) * 5),
+                    new Image(13 + (plate.getId()-1) * 5),
+                    new Image(14 + (plate.getId()-1) * 5),
+                    new Image(15 + (plate.getId()-1) * 5)
+            );
+        } {
+            return List.of();
+        }
+    }
+
+    protected static Image getAnnotableImage(Credentials.UserType userType) {
+        return getRGBImage(userType);
+    }
+
+    protected static Image getModifiableImage(Credentials.UserType userType) {
+        return getComplexImage(userType);
+    }
+
+    protected static List<ChannelSettings> getModifiableImageChannelSettings() {
+        return List.of(
+                new ChannelSettings("0", 0, 240, Integer.parseInt("808080", 16))
+        );
+    }
+
+    protected static URI getImageURI(Image image) {
+        return URI.create(getWebServerURI() + "/webclient/?show=image-" + image.getId());
+    }
+
+    protected static double getImageRedChannelMean(Image image) {
+        return switch (getImageType(image)) {
+            case RGB -> 5.414;
+            case UINT8 -> 7.134;
+            case UINT16 -> 4.295;
+            case INT16 -> 6.730;
+            case INT32 -> 4.574;
+            case FLOAT32 -> 8.429;
+            case FLOAT64 -> 7.071;
+            case COMPLEX -> 0.0;
+        };
+    }
+
+    protected static double getImageRedChannelStdDev(Image image) {
+        return switch (getImageType(image)) {
+            case RGB -> 18.447;
+            case UINT8 -> 24.279;
+            case UINT16 -> 14.650;
+            case INT16 -> 22.913;
+            case INT32 -> 15.597;
+            case FLOAT32 -> 28.605;
+            case FLOAT64 -> 23.995;
+            case COMPLEX -> 0.0;
+        };
+    }
+
+    protected static List<Screen> getScreens(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(new Screen(2), new Screen(3));
+            case PUBLIC_USER -> List.of(new Screen(1));
+        };
+    }
+
+    protected static List<String> getScreenAttributeValue(Screen screen) {
+        return List.of(
+                switch ((int) screen.getId()) {
+                    case 1 -> "screen";
+                    case 2 -> "screen1";
+                    case 3 -> "screen2";
+                    default -> "";
+                },
+                String.valueOf(screen.getId()),
+                "-",
+                Objects.requireNonNull(getOwnerOfEntity(screen)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(screen)).getName(),
+                "1"
+        );
+    }
+
+    protected static List<Plate> getOrphanedPlates(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(new Plate(5), new Plate(6));
+            case PUBLIC_USER -> List.of(new Plate(2));
+        };
+    }
+
+    protected static List<Plate> getPlatesInScreen(Screen screen) {
+        return switch ((int) screen.getId()) {
+            case 1 -> List.of(new Plate(1));
+            case 2 -> List.of(new Plate(3));
+            case 3 -> List.of(new Plate(4));
+            default -> List.of();
+        };
+    }
+
+    protected static List<PlateAcquisition> getPlateAcquisitionsInScreen() {
+        return List.of();
+    }
+
+    protected static List<String> getPlateAttributeValue(Plate plate) {
+        return List.of(
+                "plate",
+                String.valueOf(plate.getId()),
+                Objects.requireNonNull(getOwnerOfEntity(plate)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(plate)).getName(),
+                "3",
+                "3"
+        );
+    }
+
+    protected static List<Well> getWellsInPlate(Plate plate) {
+        if (plate.getId() < 7) {
+            return List.of(
+                    new Well(1 + (plate.getId()-1) * 4),
+                    new Well(2 + (plate.getId()-1) * 4),
+                    new Well(3 + (plate.getId()-1) * 4),
+                    new Well(4 + (plate.getId()-1) * 4)
+            );
+        } else {
+            return List.of();
+        }
+    }
+
+    protected static AnnotationGroup getAnnotationsInDataset(Dataset dataset) {
+        if (dataset.getId() == 1) {
+            return new AnnotationGroup(JsonParser.parseString(String.format("""
                 {
                     "annotations": [
                         {
@@ -340,391 +771,223 @@ public abstract class OmeroServer {
                         }
                    ]
                 }
-                """, analysisFileId)).getAsJsonObject());
+                """, analysisFileId)).getAsJsonObject()
+            );
+        } else {
+            return new AnnotationGroup(new JsonObject());
+        }
     }
 
-    protected static String getDatasetAttributeValue(int informationIndex) {
-        return switch (informationIndex) {
-            case 0 -> "dataset";
-            case 1 -> String.valueOf(getDataset().getId());
-            case 2 -> "-";
-            case 3 -> getCurrentOwner().getFullName();
-            case 4 -> getCurrentGroup().getName();
-            case 5 -> "9";
-            default -> "";
+    protected static List<SearchResult> getSearchResultsOnDataset(Credentials.UserType userType) {
+        return switch (userType) {
+            case REGULAR_USER -> List.of(
+                    new SearchResult(
+                            "dataset",
+                            3,
+                            "dataset1",
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(3))).getName(),
+                            "/webclient/?show=dataset-3",
+                            null,
+                            null
+                    ),
+                    new SearchResult(
+                            "dataset",
+                            4,
+                            "dataset2",
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(4))).getName(),
+                            "/webclient/?show=dataset-4",
+                            null,
+                            null
+                    ),
+                    new SearchResult(
+                            "dataset",
+                            5,
+                            "orphaned_dataset1",
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(5))).getName(),
+                            "/webclient/?show=dataset-5",
+                            null,
+                            null
+                    ),
+                    new SearchResult(
+                            "dataset",
+                            6,
+                            "orphaned_dataset2",
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(6))).getName(),
+                            "/webclient/?show=dataset-6",
+                            null,
+                            null
+                    )
+            );
+            case PUBLIC_USER -> List.of(
+                    new SearchResult(
+                            "dataset",
+                            1,
+                            "dataset",
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(1))).getName(),
+                            "/webclient/?show=dataset-1",
+                            null,
+                            null
+                    ),
+                    new SearchResult(
+                            "dataset",
+                            2,
+                            "orphaned_dataset",
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(2))).getName(),
+                            "/webclient/?show=dataset-2",
+                            null,
+                            null
+                    )
+            );
         };
-    }
-
-    protected static List<SearchResult> getSearchResultsOnDataset() {
-        return List.of(
-                new SearchResult(
-                        "dataset",
-                        1,
-                        "dataset",
-                        getCurrentGroup().getName(),
-                        "/webclient/?show=dataset-1",
-                        null,
-                        null
-                ),
-                new SearchResult(
-                        "dataset",
-                        2,
-                        "orphaned_dataset",
-                        getCurrentGroup().getName(),
-                        "/webclient/?show=dataset-2",
-                        null,
-                        null
-                )
-        );
-    }
-
-    protected static List<Image> getImagesInDataset() {
-        return List.of(
-                new Image(1),
-                new Image(2),
-                new Image(3),
-                new Image(4),
-                new Image(5),
-                new Image(6),
-                new Image(7),
-                new Image(8),
-                new Image(9)
-        );
-    }
-
-    protected static List<URI> getImagesUriInDataset() {
-        return getImagesInDataset().stream()
-                .map(image -> URI.create(getWebServerURI() + "/webclient/?show=image-" + image.getId()))
-                .toList();
-    }
-
-    protected static Image getRGBImage() {
-        return getImagesInDataset().get(0);
-    }
-
-    protected static URI getRGBImageURI() {
-        return getImagesUriInDataset().get(0);
-    }
-
-    protected static String getRGBImageName() {
-        return "rgb.tiff";
-    }
-
-    protected static int getRGBImageWidth() {
-        return 256;
-    }
-
-    protected static int getRGBImageHeight() {
-        return 256;
-    }
-
-    protected static PixelType getRGBImagePixelType() {
-        return PixelType.UINT8;
-    }
-
-    protected static int getRGBImageNumberOfSlices() {
-        return 1;
-    }
-
-    protected static int getRGBImageNumberOfChannels() {
-        return 3;
-    }
-
-    protected static int getRGBImageNumberOfTimePoints() {
-        return 1;
-    }
-
-    protected static double getRGBImagePixelWidthMicrons() {
-        return 1.0;
-    }
-
-    protected static double getRGBImagePixelHeightMicrons() {
-        return 1.0;
-    }
-
-    protected static String getRGBImageAttributeValue(int informationIndex) {
-        return switch (informationIndex) {
-            case 0 -> getRGBImageName();
-            case 1 -> String.valueOf(getRGBImage().getId());
-            case 2 -> getCurrentOwner().getFullName();
-            case 3 -> getCurrentGroup().getName();
-            case 4, 13 -> "-";
-            case 5 -> getRGBImageWidth() + " px";
-            case 6 -> getRGBImageHeight() + " px";
-            case 7 -> "0.2 MB";
-            case 8 -> String.valueOf(getRGBImageNumberOfSlices());
-            case 9 -> String.valueOf(getRGBImageNumberOfChannels());
-            case 10 -> String.valueOf(getRGBImageNumberOfTimePoints());
-            case 11 -> getRGBImagePixelWidthMicrons() + " µm";
-            case 12 -> getRGBImagePixelHeightMicrons() + " µm";
-            case 14 -> getRGBImagePixelType().toString().toLowerCase();
-            default -> "";
-        };
-    }
-
-    protected static double getRGBImageRedChannelMean() {
-        return 5.414;
-    }
-
-    protected static double getRGBImageRedChannelStdDev() {
-        return 18.447;
-    }
-
-    protected static Image getUInt8Image() {
-        return getImagesInDataset().get(1);
-    }
-
-    protected static URI getUInt8ImageURI() {
-        return getImagesUriInDataset().get(1);
-    }
-
-    protected static double getUInt8ImageRedChannelMean() {
-        return 7.134;
-    }
-
-    protected static double getUInt8ImageRedChannelStdDev() {
-        return 24.279;
-    }
-
-    protected static Image getUInt16Image() {
-        return getImagesInDataset().get(3);
-    }
-
-    protected static URI getUInt16ImageURI() {
-        return getImagesUriInDataset().get(3);
-    }
-
-    protected static double getUInt16ImageRedChannelMean() {
-        return 4.295;
-    }
-
-    protected static double getUInt16ImageRedChannelStdDev() {
-        return 14.650;
-    }
-
-    protected static Image getInt16Image() {
-        return getImagesInDataset().get(4);
-    }
-
-    protected static URI getInt16ImageURI() {
-        return getImagesUriInDataset().get(4);
-    }
-
-    protected static double getInt16ImageRedChannelMean() {
-        return 6.730;
-    }
-
-    protected static double getInt16ImageRedChannelStdDev() {
-        return 22.913;
-    }
-
-    protected static Image getInt32Image() {
-        return getImagesInDataset().get(6);
-    }
-
-    protected static URI getInt32ImageURI() {
-        return getImagesUriInDataset().get(6);
-    }
-
-    protected static double getInt32ImageRedChannelMean() {
-        return 4.574;
-    }
-
-    protected static double getInt32ImageRedChannelStdDev() {
-        return 15.597;
-    }
-
-    protected static Image getFloat32Image() {
-        return getImagesInDataset().get(7);
-    }
-
-    protected static URI getFloat32ImageURI() {
-        return getImagesUriInDataset().get(7);
-    }
-
-    protected static double getFloat32ImageRedChannelMean() {
-        return 8.429;
-    }
-
-    protected static double getFloat32ImageRedChannelStdDev() {
-        return 28.605;
-    }
-
-    protected static ImageSettings getFloat32ImageSettings() {
-        return new ImageSettings("float32.tiff", getFloat32ChannelSettings());
-    }
-
-    protected static List<ChannelSettings> getFloat32ChannelSettings() {
-        return List.of(
-                new ChannelSettings("0", 0, 211, Integer.parseInt("FF0000", 16)),
-                new ChannelSettings("1", 0, 248, Integer.parseInt("00FF00", 16)),
-                new ChannelSettings("2", 0, 184, Integer.parseInt("0000FF", 16))
-        );
-    }
-
-    protected static Image getFloat64Image() {
-        return getImagesInDataset().get(8);
-    }
-
-    protected static URI getFloat64ImageURI() {
-        return getImagesUriInDataset().get(8);
-    }
-
-    protected static double getFloat64ImageRedChannelMean() {
-        return 7.071;
-    }
-
-    protected static double getFloat64ImageRedChannelStdDev() {
-        return 23.995;
-    }
-
-    protected static Image getComplexImage() {
-        return new Image(10);
-    }
-
-    protected static URI getComplexImageURI() {
-        return URI.create(getWebServerURI() + "/webclient/?show=image-" + getComplexImage().getId());
-    }
-
-    protected static String getComplexImageName() {
-        return "complex.tiff";
-    }
-
-    protected static PixelType getComplexImagePixelType() {
-        return PixelType.FLOAT32;
-    }
-
-    protected static int getComplexImageWidth() {
-        return 256;
-    }
-
-    protected static int getComplexImageHeight() {
-        return 256;
-    }
-
-    protected static int getComplexImageNumberOfSlices() {
-        return 10;
-    }
-
-    protected static int getComplexImageNumberOfChannels() {
-        return 1;
-    }
-
-    protected static int getComplexImageNumberOfTimePoints() {
-        return 3;
-    }
-
-    protected static boolean isComplexImageRGB() {
-        return false;
-    }
-
-    protected static double getComplexImagePixelWidthMicrons() {
-        return 2.675500000484335;
-    }
-
-    protected static double getComplexImagePixelHeightMicrons() {
-        return 2.675500000484335;
-    }
-
-    protected static double getComplexImagePixelZSpacingMicrons() {
-        return 3.947368;
-    }
-
-    protected static String getComplexImageAttributeValue(int informationIndex) {
-        return switch (informationIndex) {
-            case 0 -> getComplexImageName();
-            case 1 -> String.valueOf(getComplexImage().getId());
-            case 2 -> getCurrentOwner().getFullName();
-            case 3 -> getCurrentGroup().getName();
-            case 4 -> "-";
-            case 5 -> getComplexImageWidth() + " px";
-            case 6 -> getComplexImageHeight() + " px";
-            case 7 -> "7.5 MB";
-            case 8 -> String.valueOf(getComplexImageNumberOfSlices());
-            case 9 -> String.valueOf(getComplexImageNumberOfChannels());
-            case 10 -> String.valueOf(getComplexImageNumberOfTimePoints());
-            case 11 -> getComplexImagePixelWidthMicrons() + " µm";
-            case 12 -> getComplexImagePixelHeightMicrons() + " µm";
-            case 13 -> getComplexImagePixelZSpacingMicrons() + " µm";
-            case 14 -> "float";
-            default -> "";
-        };
-    }
-
-    protected static Image getOrphanedImage() {
-        return getComplexImage();
-    }
-
-    protected static Screen getScreen() {
-        return new Screen(1);
-    }
-
-    protected static Plate getPlate() {
-        return new Plate(1);
-    }
-
-    protected static Plate getOrphanedPlate() {
-        return new Plate(2);
-    }
-
-    protected static List<Well> getWells() {
-        return List.of(
-                new Well(1),
-                new Well(2),
-                new Well(3),
-                new Well(4)
-        );
-    }
-
-    protected static List<Group> getGroups() {
-        return List.of(
-                new Group(0, "system"),
-                new Group(1, "user"),
-                new Group(2, "guest"),
-                new Group(3, "public-data")
-        );
-    }
-
-    protected static List<Owner> getOwners() {
-        return List.of(
-                new Owner(0, "root", "", "root", "", "", "root"),
-                new Owner(1, "Guest", "", "Account", "", "", "guest"),
-                new Owner(2, "public", "", "access", "", "", "public")
-        );
-    }
-
-    protected static Group getCurrentGroup() {
-        return getGroups().get(3);
-    }
-
-    protected static Owner getCurrentOwner() {
-        return getOwners().get(2);
     }
 
     private static void logCommandResult(Container.ExecResult result) {
         if (!result.getStdout().isBlank()) {
-            logger.info(String.format("Setting up OMERO server: %s", result.getStdout()));
+            logger.debug("Setting up OMERO server: {}", result.getStdout());
         }
 
         if (!result.getStderr().isBlank()) {
-            logger.warn(String.format("Setting up OMERO server: %s", result.getStderr()));
+            logger.warn("Setting up OMERO server: {}", result.getStderr());
         }
     }
 
-    private static WebClient createValidClient(WebClient.Authentication authentication, String... args) throws ExecutionException, InterruptedException {
-        WebClient webClient;
+    private static Client createValidClient(Credentials credentials) {
+        Client client = null;
         int attempt = 0;
 
         do {
-            webClient = WebClients.createClient(getWebServerURI(), authentication, args).get();
-        } while (!webClient.getStatus().equals(WebClient.Status.SUCCESS) && ++attempt < CLIENT_CREATION_ATTEMPTS);
+            try {
+                client = Client.createOrGet(getWebServerURI(), credentials);
+            } catch (Exception e) {
+                logger.debug("Client creation attempt {} of {} failed", attempt, CLIENT_CREATION_ATTEMPTS - 1, e);
+            }
+        } while (client != null && ++attempt < CLIENT_CREATION_ATTEMPTS);
 
-        if (webClient.getStatus().equals(WebClient.Status.SUCCESS)) {
-            webClient.getPixelAPI(MsPixelBufferAPI.class).setPort(getMsPixelBufferApiPort(), true);
-            return webClient;
-        } else {
+        if (client == null) {
             throw new IllegalStateException("Client creation failed");
+        } else {
+            client.getPixelAPI(MsPixelBufferApi.class).setPort(getMsPixelBufferApiPort(), true);
+            return client;
         }
+    }
+
+    private static Group getGroup1() {
+        return new Group(4, "group1");
+    }
+
+    private static Group getGroup2() {
+        return new Group(5, "group2");
+    }
+
+    private static Group getGroup3() {
+        return new Group(6, "group3");
+    }
+
+    private static Group getPublicGroup() {
+        return new Group(3, "public-data");
+    }
+
+    private static Owner getUser1() {
+        return new Owner(3, "user1", "", "user1", "", "", "user1");
+    }
+
+    private static Owner getUser2() {
+        return new Owner(4, "user2", "", "user2", "", "", "user2");
+    }
+
+    private static Owner getUser() {
+        return new Owner(6, "user", "", "user", "", "", "user");
+    }
+
+    private static Owner getPublicUser() {
+        return new Owner(2, "public", "", "access", "", "", "public");
+    }
+
+    private static Owner getOwnerOfEntity(ServerEntity serverEntity) {
+        return switch (serverEntity) {
+            case Image image -> switch ((int) image.getId()) {
+                case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 -> getPublicUser();
+                case 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 -> getUser1();
+                case 41, 42, 43, 44, 45 -> getUser2();
+                case 46 -> getUser();
+                default -> null;
+            };
+            case Project project -> switch ((int) project.getId()) {
+                case 1 -> getPublicUser();
+                case 2 -> getUser1();
+                default -> null;
+            };
+            case Dataset dataset -> switch ((int) dataset.getId()) {
+                case 1, 2 -> getPublicUser();
+                case 3, 4, 5, 6 -> getUser1();
+                default -> null;
+            };
+            case Screen screen -> switch ((int) screen.getId()) {
+                case 1 -> getPublicUser();
+                case 2, 3 -> getUser1();
+                default -> null;
+            };
+            case Plate plate -> switch ((int) plate.getId()) {
+                case 1, 2 -> getPublicUser();
+                case 3, 4, 5, 6 -> getUser1();
+                default -> null;
+            };
+            case null, default -> null;
+        };
+    }
+
+    private static Group getGroupOfEntity(ServerEntity serverEntity) {
+        return switch (serverEntity) {
+            case Image image -> switch ((int) image.getId()) {
+                case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 -> getPublicGroup();
+                case 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 46 -> getGroup1();
+                case 41, 42, 43, 44, 45 -> getGroup2();
+                default -> null;
+            };
+            case Project project -> switch ((int) project.getId()) {
+                case 1 -> getPublicGroup();
+                case 2 -> getGroup1();
+                default -> null;
+            };
+            case Dataset dataset -> switch ((int) dataset.getId()) {
+                case 1, 2 -> getPublicGroup();
+                case 3, 4, 5, 6 -> getGroup1();
+                default -> null;
+            };
+            case Screen screen -> switch ((int) screen.getId()) {
+                case 1 -> getPublicGroup();
+                case 2, 3 -> getGroup1();
+                default -> null;
+            };
+            case Plate plate -> switch ((int) plate.getId()) {
+                case 1, 2 -> getPublicGroup();
+                case 3, 4, 5, 6 -> getGroup1();
+                default -> null;
+            };
+            case null, default -> null;
+        };
+    }
+
+    private static ImageType getImageType(Image image) {
+        Map<Function<Credentials.UserType, Image>, ImageType> imageToType = Map.of(
+                OmeroServer::getRGBImage, ImageType.RGB,
+                OmeroServer::getUint8Image, ImageType.UINT8,
+                OmeroServer::getUint16Image, ImageType.UINT16,
+                OmeroServer::getInt16Image, ImageType.INT16,
+                OmeroServer::getInt32Image, ImageType.INT32,
+                OmeroServer::getFloat32Image, ImageType.FLOAT32,
+                OmeroServer::getFloat64Image, ImageType.FLOAT64,
+                OmeroServer::getComplexImage, ImageType.COMPLEX
+        );
+
+        for (var entry: imageToType.entrySet()) {
+            if (Arrays.stream(Credentials.UserType.values())
+                    .map(entry.getKey())
+                    .anyMatch(image::equals)) {
+                return entry.getValue();
+            }
+        }
+        throw new IllegalArgumentException("Image not recognized");
     }
 
     private static int getMsPixelBufferApiPort() {

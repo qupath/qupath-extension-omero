@@ -1,16 +1,11 @@
 package qupath.ext.omero.core.apis;
 
 import qupath.ext.omero.core.apis.utilities.CharArrayURLEncoder;
-import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.WebUtilities;
 
-import java.awt.image.BufferedImage;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Utility methods used by the different APIs.
@@ -22,24 +17,11 @@ class ApiUtilities {
     }
 
     /**
-     * <p>Attempt to retrieve an image from a URL link.</p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @param url  the URL of the request
-     * @return a CompletableFuture containing the resulting image, or an empty optional if it couldn't be retrieved
-     */
-    public static CompletableFuture<Optional<BufferedImage>> getImage(String url) {
-        return WebUtilities.createURI(url)
-                .map(RequestSender::getImage)
-                .orElse(CompletableFuture.completedFuture(Optional.empty()));
-    }
-
-    /**
      * <p>Concatenate and convert two char arrays to a byte array using the UTF 8 encoding.</p>
      * <p>The input parameters are cleared (filled with zeros) once processed.</p>
      *
-     * @param arr1  the array that will be concatenated on the left
-     * @param arr2  the array that will be concatenated on the right
+     * @param arr1 the array that will be concatenated on the left
+     * @param arr2 the array that will be concatenated on the right
      * @return the concatenation of the two arrays in the byte format
      */
     public static byte[] concatAndConvertToBytes(char[] arr1, char[] arr2) {
@@ -53,7 +35,7 @@ class ApiUtilities {
      * </p>
      * <p>The input array is cleared (filled with zeros) once processed.</p>
      *
-     * @param text  the array to convert
+     * @param text the array to convert
      * @return the encoded char array
      */
     public static char[] urlEncode(char[] text) {

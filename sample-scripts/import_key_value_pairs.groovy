@@ -36,29 +36,22 @@ def omeroServer = (OmeroImageServer) server
 // Get all annotations from OMERO
 def annotationGroup = omeroServer.getClient().getApisHandler().getAnnotations(omeroServer.getId(), Image.class).get()
 
-if (annotationGroup.isPresent()) {
-    // Filter the retrieved list of annotations by only keeping the map annotations
-    def mapAnnotations = annotationGroup.get().getAnnotationsOfClass(MapAnnotation.class)
+// Filter the retrieved list of annotations by only keeping the map annotations
+def mapAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
 
-    // Get the key value pairs of the list of map annotations
-    def keyValues = MapAnnotation.getCombinedValues(mapAnnotations)
+// Get the key value pairs of the list of map annotations
+def keyValues = MapAnnotation.getCombinedValues(mapAnnotations)
 
-    // Delete all existing key value pairs if necessary
-    if (deleteExistingKeyValuePairs) {
-        projectEntry.clearMetadata()
-    }
-
-    // Set and replace (if necessary) key value pairs of the QuPath image by the ones from OMERO
-    for (Map.Entry<String, String> entry : keyValues.entrySet()) {
-        if (replaceExistingKeyValuesPairs || !projectEntry.containsMetadata(entry.getKey())) {
-            projectEntry.putMetadataValue(entry.getKey(), entry.getValue())
-        }
-    }
-
-    println "Key value pairs imported"
-} else {
-    println "Error when retrieving annotations"
+// Delete all existing key value pairs if necessary
+if (deleteExistingKeyValuePairs) {
+    projectEntry.clearMetadata()
 }
 
-// Close server
-omeroServer.close()
+// Set and replace (if necessary) key value pairs of the QuPath image by the ones from OMERO
+for (Map.Entry<String, String> entry : keyValues.entrySet()) {
+    if (replaceExistingKeyValuesPairs || !projectEntry.containsMetadata(entry.getKey())) {
+        projectEntry.putMetadataValue(entry.getKey(), entry.getValue())
+    }
+}
+
+println "Key value pairs imported"

@@ -3,11 +3,12 @@ package qupath.ext.omero.gui.datatransporters.senders;
 import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImageSettingsForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
+import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.viewer.QuPathViewer;
@@ -17,24 +18,28 @@ import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
+ * Send image settings from the currently opened image to an OMERO server.
  * <p>
- *     Send image settings from the currently opened image to an OMERO server.
- * </p>
- * <p>
- *     This class uses an {@link ImageSettingsForm} to prompt the user for parameters.
- * </p>
+ * This class uses an {@link ImageSettingsForm} to prompt the user for parameters.
  */
 public class ImageSettingsSender implements DataTransporter {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageSettingsSender.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
-    private enum MessageType {
-        SUCCESS,
-        ERROR
+    private static final ResourceBundle resources = Utils.getResources();
+    private final QuPathGUI quPath;
+
+    /**
+     * Create the image settings sender.
+     *
+     * @param quPath the quPath window
+     */
+    public ImageSettingsSender(QuPathGUI quPath) {
+        this.quPath = quPath;
     }
 
     @Override
@@ -49,69 +54,99 @@ public class ImageSettingsSender implements DataTransporter {
 
     @Override
     public void transportData() {
-        QuPathGUI quPathGUI = QuPathGUI.getInstance();
-        QuPathViewer viewer = quPathGUI.getViewer();
+        QuPathViewer viewer = quPath.getViewer();
 
-        if (viewer != null && viewer.getServer() instanceof OmeroImageServer omeroImageServer) {
-            ImageSettingsForm imageSettingsForm;
-            try {
-                imageSettingsForm = new ImageSettingsForm(
-                        quPathGUI.getProject() == null,
-                        omeroImageServer.getMetadata().isRGB()
-                );
-            } catch (IOException e) {
-                logger.error("Error when creating the image settings form", e);
-                Dialogs.showErrorMessage(
-                        resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
-                        e.getLocalizedMessage()
-                );
-                return;
-            }
-
-            boolean confirmed = Dialogs.showConfirmDialog(
-                    resources.getString("DataTransporters.ImageSettingsSender.dataToSend"),
-                    imageSettingsForm
-            );
-
-            if (confirmed && !imageSettingsForm.getSelectedChoices().isEmpty()) {
-                Map<ImageSettingsForm.Choice, CompletableFuture<Boolean>> requests = createRequests(
-                        imageSettingsForm.getSelectedChoices(),
-                        omeroImageServer,
-                        viewer
-                );
-
-                CompletableFuture.supplyAsync(() -> requests.entrySet().stream().collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> entry.getValue().join()
-                ))).thenAccept(statuses -> Platform.runLater(() -> {
-                    String successMessage = createMessageFromResponses(statuses, MessageType.SUCCESS);
-                    String errorMessage = createMessageFromResponses(statuses, MessageType.ERROR);
-
-                    if (!errorMessage.isEmpty()) {
-                        errorMessage += String.format("\n\n%s", resources.getString("DataTransporters.ImageSettingsSender.notAllParametersSent"));
-                        Dialogs.showErrorMessage(
-                                resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
-                                errorMessage
-                        );
-                    }
-
-                    if (!successMessage.isEmpty()) {
-                        Dialogs.showInfoNotification(
-                                resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
-                                successMessage
-                        );
-                    }
-                }));
-            }
-        } else {
+        if (viewer == null || !(viewer.getServer() instanceof OmeroImageServer omeroImageServer)) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
                     resources.getString("DataTransporters.ImageSettingsSender.notFromOMERO")
             );
+            return;
         }
+
+        ImageSettingsForm imageSettingsForm;
+        try {
+            imageSettingsForm = new ImageSettingsForm(
+                    quPath.getProject() == null,
+                    omeroImageServer.getMetadata().isRGB()
+            );
+        } catch (IOException e) {
+            logger.error("Error when creating the image settings form", e);
+            Dialogs.showErrorMessage(
+                    resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
+                    e.getLocalizedMessage()
+            );
+            return;
+        }
+
+        boolean confirmed = Dialogs.showConfirmDialog(
+                resources.getString("DataTransporters.ImageSettingsSender.dataToSend"),
+                imageSettingsForm
+        );
+        if (!confirmed || imageSettingsForm.getSelectedChoices().isEmpty()) {
+            return;
+        }
+
+        Map<ImageSettingsForm.Choice, CompletableFuture<Void>> requests = createRequests(
+                imageSettingsForm.getSelectedChoices(),
+                omeroImageServer,
+                viewer
+        );
+
+        WaitingWindow waitingWindow;
+        try {
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.ImageSettingsSender.sendingImageSettings")
+            );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
+
+        CompletableFuture.supplyAsync(() -> {
+            Map<ImageSettingsForm.Choice, Throwable> requestToErrors = new HashMap<>();
+            for (var entry: requests.entrySet()) {
+                try {
+                    requestToErrors.put(
+                            entry.getKey(),
+                            entry.getValue().handle((v, error) -> error).get()
+                    );
+                } catch (ExecutionException | InterruptedException e) {
+                    requestToErrors.put(entry.getKey(), e);
+                }
+            }
+            return requestToErrors;
+        }).exceptionally(error -> {
+            logger.error("Unexpected error while sending image settings", error);
+            return Map.of();
+        }).thenAccept(errors -> Platform.runLater(() -> {
+            waitingWindow.close();
+
+            logErrors(errors);
+
+            String successMessage = createMessageFromResponses(errors, true);
+            String errorMessage = createMessageFromResponses(errors, false);
+
+            if (!errorMessage.isEmpty()) {
+                errorMessage += String.format("\n\n%s", resources.getString("DataTransporters.ImageSettingsSender.notAllParametersSent"));
+                Dialogs.showErrorMessage(
+                        resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
+                        errorMessage
+                );
+            }
+
+            if (!successMessage.isEmpty()) {
+                Dialogs.showInfoNotification(
+                        resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
+                        successMessage
+                );
+            }
+        }));
     }
 
-    private static Map<ImageSettingsForm.Choice, CompletableFuture<Boolean>> createRequests(
+    private static Map<ImageSettingsForm.Choice, CompletableFuture<Void>> createRequests(
             List<ImageSettingsForm.Choice> selectedChoices,
             OmeroImageServer omeroImageServer,
             QuPathViewer viewer
@@ -141,14 +176,36 @@ public class ImageSettingsSender implements DataTransporter {
                 }));
     }
 
-    private static String createMessageFromResponses(Map<ImageSettingsForm.Choice, Boolean> statuses, MessageType messageType) {
-        return statuses.entrySet().stream()
-                .filter(entry -> switch (messageType) {
-                    case SUCCESS -> entry.getValue();
-                    case ERROR -> !entry.getValue();
+    private static void logErrors(Map<ImageSettingsForm.Choice, Throwable> errors) {
+        for (Map.Entry<ImageSettingsForm.Choice, Throwable> error: errors.entrySet()) {
+            if (error.getValue() != null) {
+                logger.error(
+                        "Error while sending {}", switch (error.getKey()) {
+                            case IMAGE_NAME -> "image name";
+                            case CHANNEL_NAMES -> "channel names";
+                            case CHANNEL_COLORS -> "channel colors";
+                            case CHANNEL_DISPLAY_RANGES -> "channel display ranges";
+                            },
+                        error.getValue()
+                );
+            }
+        }
+    }
+
+    private static String createMessageFromResponses(Map<ImageSettingsForm.Choice, Throwable> errors, boolean isSuccess) {
+        return errors.entrySet().stream()
+                .filter(entry -> {
+                    if (isSuccess) {
+                        return entry.getValue() == null;
+                    } else {
+                        return entry.getValue() != null;
+                    }
                 })
                 .map(entry -> MessageFormat.format(
-                        resources.getString(entry.getValue() ? "DataTransporters.ImageSettingsSender.parameterSent" : "DataTransporters.ImageSettingsSender.parameterNotSent"),
+                        resources.getString(isSuccess ?
+                                "DataTransporters.ImageSettingsSender.parameterSent" :
+                                "DataTransporters.ImageSettingsSender.parameterNotSent"
+                        ),
                         resources.getString(switch (entry.getKey()) {
                             case IMAGE_NAME -> "DataTransporters.ImageSettingsSender.imageName";
                             case CHANNEL_NAMES -> "DataTransporters.ImageSettingsSender.channelNames";

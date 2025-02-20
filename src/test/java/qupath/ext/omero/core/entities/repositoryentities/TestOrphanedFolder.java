@@ -6,8 +6,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.core.WebClient;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.Credentials;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -15,17 +15,21 @@ import java.util.concurrent.TimeUnit;
 
 public class TestOrphanedFolder extends OmeroServer {
 
-    private static WebClient client;
+    private static final Credentials.UserType userType = Credentials.UserType.PUBLIC_USER;
+    private static Client client;
     private static OrphanedFolder orphanedFolder;
+
     @BeforeAll
     static void createClient() throws ExecutionException, InterruptedException {
-        client = OmeroServer.createUnauthenticatedClient();
+        client = OmeroServer.createClient(userType);
         orphanedFolder = OrphanedFolder.create(client.getApisHandler()).get();
     }
 
     @AfterAll
-    static void removeClient() {
-        WebClients.removeClient(client);
+    static void removeClient() throws Exception {
+        if (client != null) {
+            client.close();
+        }
     }
 
     @Test
@@ -39,7 +43,7 @@ public class TestOrphanedFolder extends OmeroServer {
 
     @Test
     void Check_Children() throws InterruptedException {
-        List<? extends RepositoryEntity> expectedChildren = List.of(OmeroServer.getOrphanedImage());
+        List<? extends RepositoryEntity> expectedChildren = OmeroServer.getOrphanedImages(userType);
 
         List<? extends RepositoryEntity> children = orphanedFolder.getChildren();
         while (orphanedFolder.isPopulatingChildren()) {

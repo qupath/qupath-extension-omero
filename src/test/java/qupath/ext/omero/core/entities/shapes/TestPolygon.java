@@ -39,7 +39,7 @@ public class TestPolygon {
     void Check_ROI() {
         Shape polygon = createPolygonFromJSON();
 
-        Class<? extends ROI> roiClass = polygon.createROI().getClass();
+        Class<? extends ROI> roiClass = polygon.createRoi().getClass();
 
         Assertions.assertEquals(PolygonROI.class, roiClass);
     }
@@ -59,12 +59,16 @@ public class TestPolygon {
     }
 
     private Shape createPolygonFromPathObject() {
-        return Shape.createFromPathObject(PathObjects.createAnnotationObject(ROIs.createPolygonROI(
-                List.of(
-                        new Point2(0, 0),
-                        new Point2(50, 0),
-                        new Point2(0, 50)
-                ), null
-        ))).get(0);
+        return Shape.createFromPathObject(
+                PathObjects.createAnnotationObject(ROIs.createPolygonROI(
+                        List.of(
+                                new Point2(0, 0),
+                                new Point2(50, 0),
+                                new Point2(0, 50)
+                        ),
+                        null
+                )),
+                true
+        ).getFirst();
     }
 }

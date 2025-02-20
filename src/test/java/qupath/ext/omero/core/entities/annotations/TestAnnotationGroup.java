@@ -1,5 +1,6 @@
 package qupath.ext.omero.core.entities.annotations;
 
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -11,11 +12,7 @@ public class TestAnnotationGroup {
 
     @Test
     void Check_Annotations_Not_Created_Because_Class_Missing() {
-        AnnotationGroup annotationGroup = createAnnotationGroup("{}, {}");
-
-        Map<Class<? extends Annotation>, List<Annotation>> annotations = annotationGroup.getAnnotations();
-
-        Assertions.assertEquals(0, annotations.values().stream().mapToInt(List::size).sum());
+        Assertions.assertThrows(JsonParseException.class, () -> createAnnotationGroup("{}, {}"));
     }
 
     @Test

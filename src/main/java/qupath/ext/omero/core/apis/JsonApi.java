@@ -1,52 +1,57 @@
 package qupath.ext.omero.core.apis;
 
-import com.drew.lang.annotations.Nullable;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.Strictness;
 import com.google.gson.reflect.TypeToken;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.authenticators.Authenticator;
-import qupath.ext.omero.core.entities.login.LoginResponse;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.Credentials;
+import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.entities.LoginResponse;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.entities.serverinformation.OmeroAPI;
+import qupath.ext.omero.core.entities.serverinformation.OmeroApi;
 import qupath.ext.omero.core.entities.serverinformation.OmeroServerList;
-import qupath.ext.omero.core.WebUtilities;
-import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.lib.io.GsonTools;
 
-import java.net.PasswordAuthentication;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 /**
- * <p>The OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">JSON API</a>.</p>
+ * The OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">JSON API</a>.
  * <p>
- *     This API is used to get basic information on the server, authenticate, get details on OMERO entities
- *     (e.g. images, datasets), and get ROIs of an image.
- * </p>
+ * This API is used to get basic information on the server, authenticate, get details on OMERO entities
+ * (e.g. images, datasets), and get ROIs of an image.
  */
 class JsonApi {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonApi.class);
     private static final String OWNERS_URL_KEY = "url:experimenters";
-    private static final String GROUPS_URL_KEY = "url:experimentergroups";
     private static final String PROJECTS_URL_KEY = "url:projects";
     private static final String DATASETS_URL_KEY = "url:datasets";
     private static final String IMAGES_URL_KEY = "url:images";
@@ -56,6 +61,7 @@ class JsonApi {
     private static final String SERVERS_URL_KEY = "url:servers";
     private static final String LOGIN_URL_KEY = "url:login";
     private static final String API_URL = "%s/api/";
+    private static final String GROUPS_OF_USER_URL = "%s%d/experimentergroups/";
     private static final String PROJECTS_URL = "%s?childCount=true";
     private static final String DATASETS_URL = "%s%d/datasets/?childCount=true";
     private static final String IMAGES_URL = "%s%d/images/?childCount=true";
@@ -66,85 +72,77 @@ class JsonApi {
     private static final String PLATE_ACQUISITIONS_URL = "%s/api/v0/m/plates/%d/plateacquisitions/";
     private static final String PLATE_WELLS_URL = "%s/api/v0/m/plates/%d/wells/";
     private static final String WELLS_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
-    private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%s";
+    private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%d%s";
+    private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
+    private static final Gson gson = new Gson();
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
-    private final URI webURI;
+    private final URI webServerUri;
+    private final RequestSender requestSender;
     private final Map<String, String> urls;
-    private final int serverID;
-    private final String serverURI;
+    private final String serverUri;
     private final int port;
     private final String token;
+    private final Group defaultGroup;
+    private final long userId;
+    private final String sessionUuid;
 
-    private JsonApi(URI webURI, Map<String, String> urls, int serverID, String serverURI, int port, String token) {
-        this.webURI = webURI;
-        this.urls = urls;
-        this.serverID = serverID;
-        this.serverURI = serverURI;
-        this.port = port;
-        this.token = token;
+    /**
+     * Create a JSON API client. This will send a few requests to get basic information on the server and
+     * authenticate if necessary, so it can take a few seconds. However, this operation is cancellable.
+     *
+     * @param webServerUri the URL to the OMERO web server to connect to
+     * @param requestSender the request sender to use when sending requests
+     * @param credentials the credentials to use for the authentication
+     * @throws URISyntaxException if a link to the server cannot be created
+     * @throws ExecutionException if a request to the server fails or if a response does not contain expected elements.
+     * This can happen if the server is unreachable or if the authentication fails for example
+     * @throws InterruptedException if the running thread is interrupted
+     * @throws IllegalArgumentException if the server doesn't return all necessary information on it
+     */
+    public JsonApi(URI webServerUri, RequestSender requestSender, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
+        this.webServerUri = webServerUri;
+        this.requestSender = requestSender;
+        this.urls = getUrls(requestSender, new URI(String.format(API_URL, webServerUri)));
+
+        CompletableFuture<String> tokenRequest = getToken(requestSender, this.urls);
+        CompletableFuture<OmeroServerList> serverInformationRequest = getServerInformation(requestSender, this.urls);
+
+        OmeroServerList serverInformation = serverInformationRequest.get();
+        if (serverInformation.getServerHost().isPresent() &&
+                serverInformation.getServerId().isPresent() &&
+                serverInformation.getServerPort().isPresent()) {
+            this.serverUri = serverInformation.getServerHost().get();
+            this.port = serverInformation.getServerPort().getAsInt();
+
+            logger.debug("OMERO.server information set: {}:{}", this.serverUri, this.port);
+        } else {
+            throw new IllegalArgumentException(String.format(
+                    "The retrieved server information %s does not have all the required information (host, id, and port)",
+                    serverInformation
+            ));
+        }
+
+        this.token = tokenRequest.get();
+        if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
+            LoginResponse loginResponse = login(this.requestSender, credentials, this.urls, serverInformation.getServerId().getAsInt(), token);
+            this.defaultGroup = loginResponse.group();
+            this.userId = loginResponse.userId();
+            this.sessionUuid = loginResponse.sessionUuid();
+
+            logger.debug("Created JSON API with authenticated user of ID {} and default group {}", userId, defaultGroup);
+        } else {
+            this.defaultGroup = null;
+            this.userId = -1;
+            sessionUuid = null;
+
+            logger.debug("Created JSON API with unauthenticated user");
+        }
     }
 
     @Override
     public String toString() {
-        return String.format("JSON API of %s", webURI);
-    }
-
-    /**
-     * <p>Attempt to create a JSON API client.</p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @param uri  the web server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
-     * @return a CompletableFuture with the JSON API client, an empty Optional if an error occurred
-     */
-    public static CompletableFuture<Optional<JsonApi>> create(URI uri) {
-        var apiURI = WebUtilities.createURI(String.format(API_URL, uri));
-
-        if (apiURI.isPresent()) {
-            return RequestSender.getAndConvert(apiURI.get(), OmeroAPI.class)
-                    .thenCompose(omeroAPI -> {
-                        if (omeroAPI.isPresent() && omeroAPI.get().getLatestVersionURL().isPresent()) {
-                            return getURLs(omeroAPI.get().getLatestVersionURL().get());
-                        } else {
-                            return CompletableFuture.completedFuture(Map.of());
-                        }
-                    })
-                    .thenApplyAsync(urls -> {
-                        if (urls.isEmpty()) {
-                            logger.error("Could not find API URL in " + apiURI.get());
-                            return Optional.empty();
-                        } else {
-                            try {
-                                Optional<OmeroServerList> serverInformation = getServerInformation(urls).get();
-                                Optional<String> token = getToken(urls).get();
-
-                                if (serverInformation.isPresent() &&
-                                        serverInformation.get().getServerHost().isPresent() &&
-                                        serverInformation.get().getServerId().isPresent() &&
-                                        serverInformation.get().getServerPort().isPresent() &&
-                                        token.isPresent()
-                                ) {
-                                    return Optional.of(new JsonApi(
-                                            uri,
-                                            urls,
-                                            serverInformation.get().getServerId().getAsInt(),
-                                            serverInformation.get().getServerHost().get(),
-                                            serverInformation.get().getServerPort().getAsInt(),
-                                            token.get()
-                                    ));
-                                } else {
-                                    logger.error("A server information (server uri, server ID, or server port) is missing");
-                                    return Optional.empty();
-                                }
-                            } catch (InterruptedException | ExecutionException e) {
-                                logger.error("Error when retrieving information about the server", e);
-                                return Optional.empty();
-                            }
-                        }
-                    });
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
+        return String.format("JSON API of %s", webServerUri);
     }
 
     /**
@@ -155,23 +153,19 @@ class JsonApi {
     }
 
     /**
+     * Get the server URI of this server. This is the <b>OMERO server</b>
+     * URI and may be different from the <b>OMERO web</b> URI.
      * <p>
-     *     Get the server URI of this server. This is the <b>OMERO server</b>
-     *     URI and may be different from the <b>OMERO web</b> URI.
-     * </p>
-     * <p>
-     *     The returned address is the address used by OMERO web to communicate
-     *     with an OMERO server. If these two entities are running on the same server,
-     *     the returned value of this function may be {@code localhost} or any local IP.
-     *     Therefore, if you can't communicate with the returned value of this function,
-     *     you should be able to communicate with the address of OMERO web (returned by
-     *     {@link ApisHandler#getWebServerURI()}.
-     * </p>
+     * The returned address is the address used by OMERO web to communicate
+     * the returned value of this function may be {@code localhost} or any local IP.
+     * Therefore, if you can't communicate with the returned value of this function,
+     * you should be able to communicate with the address of OMERO web (returned by
+     * {@link ApisHandler#getWebServerURI()}.
      *
      * @return the server host
      */
-    public String getServerURI() {
-        return serverURI;
+    public String getServerUri() {
+        return serverUri;
     }
 
     /**
@@ -183,6 +177,27 @@ class JsonApi {
     }
 
     /**
+     * @return the user ID of the connected user, or -1 if no authentication was performed
+     */
+    public long getUserId() {
+        return userId;
+    }
+
+    /**
+     * @return the default group of the connected user, or null if no authentication was performed
+     */
+    public Group getDefaultGroup() {
+        return defaultGroup;
+    }
+
+    /**
+     * @return the session UUID of the current connection, or null if no authentication was performed
+     */
+    public String getSessionUuid() {
+        return sessionUuid;
+    }
+
+    /**
      * @return the number of OMERO entities (e.g. datasets, images) currently being loaded by the API.
      * This property may be updated from any thread
      */
@@ -191,221 +206,181 @@ class JsonApi {
     }
 
     /**
-     * <p>Attempt to authenticate to the current server.</p>
-     * <p>This function is asynchronous.</p>
-     *
-     * <p>The arguments must have one of the following format:</p>
-     * <ul>
-     *     <li>{@code --username [username] --password [password]}</li>
-     *     <li>{@code -u [username] -p [password]}</li>
-     * </ul>
+     * Attempt to retrieve all groups of a user. This doesn't include the system and user groups.
      * <p>
-     *     If the arguments are not enough to authenticate, the user will
-     *     automatically be asked for credentials.
-     * </p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if a request failed for example).
      *
-     * @return a CompletableFuture with the authentication status
+     * @param userId the ID of the user that belong to the returned groups
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all groups of the provided user
      */
-    public CompletableFuture<LoginResponse> login(@Nullable String username, @Nullable String password) {
-        var uri = WebUtilities.createURI(urls.get(LOGIN_URL_KEY));
+    public CompletableFuture<List<Group>> getGroups(long userId) {
+        logger.debug("Getting groups of user with ID {}", userId);
 
-        PasswordAuthentication authentication = username == null || password == null ?
-                Authenticator.getPasswordAuthentication(webURI.toString()) :
-                new PasswordAuthentication(username, password.toCharArray());
-
-        if (uri.isEmpty() || authentication == null) {
-            return CompletableFuture.completedFuture(LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.CANCELED));
-        } else {
-            char[] encodedPassword = ApiUtilities.urlEncode(authentication.getPassword());
-
-            byte[] body = ApiUtilities.concatAndConvertToBytes(
-                    String.join("&", "server=" + serverID, "username=" + authentication.getUserName(), "password=").toCharArray(),
-                    encodedPassword
-            );
-
-            return RequestSender.post(
-                    uri.get(),
-                    body,
-                    uri.get().toString(),
-                    token
-            ).thenApply(response -> {
-                Arrays.fill(body, (byte) 0);
-
-                return response
-                        .map(LoginResponse::createSuccessfulLoginResponse)
-                        .orElseGet(() -> LoginResponse.createNonSuccessfulLoginResponse(LoginResponse.Status.FAILED));
-            });
+        URI uri;
+        try {
+            uri = new URI(String.format(GROUPS_OF_USER_URL, urls.get(OWNERS_URL_KEY), userId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        return requestSender.getPaginated(uri).thenApplyAsync(jsonElements -> {
+            List<Group> groups = jsonElements.stream()
+                    .map(jsonElement -> gson.fromJson(jsonElement, Group.class))
+                    .filter(group -> !GROUPS_TO_EXCLUDE.contains(group.getName()))
+                    .toList();
+
+            for (Group group: groups) {
+                URI experimenterLink = URI.create(group.getExperimentersLink());
+
+                group.setOwners(
+                        requestSender.getPaginated(experimenterLink).join().stream()
+                                .map(jsonElement -> gson.fromJson(jsonElement, Owner.class))
+                                .filter(owner -> !group.isPrivate() || owner.id() == userId)
+                                .toList()
+                );
+            }
+
+            return groups;
+        });
     }
 
     /**
+     * Attempt to retrieve all projects visible by the current user.
      * <p>
-     *     Attempt to retrieve all groups of the server.
-     *     This doesn't include the default group.
-     * </p>
-     * <p>This function is asynchronous.</p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @return a CompletableFuture with the list containing all groups of this server,
-     * or an empty list if the request failed
-     */
-    public CompletableFuture<List<Group>> getGroups() {
-        var uri = WebUtilities.createURI(urls.get(GROUPS_URL_KEY));
-
-        if (uri.isPresent()) {
-            return RequestSender.getPaginated(uri.get()).thenApplyAsync(jsonElements -> {
-                List<Group> groups = jsonElements.stream()
-                        .map(jsonElement -> new Gson().fromJson(jsonElement, Group.class))
-                        .toList();
-
-                for (Group group: groups) {
-                    var experimenterLink = WebUtilities.createURI(group.getExperimentersLink());
-                    if (experimenterLink.isPresent()) {
-                        try {
-                            group.setOwners(RequestSender.getPaginated(experimenterLink.get()).get().stream()
-                                    .map(jsonElement -> new Gson().fromJson(jsonElement, Owner.class))
-                                    .toList());
-                        } catch (InterruptedException | ExecutionException e) {
-                            logger.warn("Couldn't retrieve owners of " + group, e);
-                        }
-                    }
-                }
-
-                return groups;
-            });
-        } else {
-            return CompletableFuture.completedFuture(List.of());
-        }
-    }
-
-    /**
-     * <p>
-     *     Attempt to retrieve all owners of the server.
-     *     This doesn't include the default owner.
-     * </p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @return a CompletableFuture with the list containing all owners of this server,
-     * or an empty list if the request failed
-     */
-    public CompletableFuture<List<Owner>> getOwners() {
-        var uri = WebUtilities.createURI(urls.get(OWNERS_URL_KEY));
-
-        if (uri.isPresent()) {
-            return RequestSender.getPaginated(uri.get()).thenApply(jsonElements ->
-                    jsonElements.stream().map(jsonElement -> new Gson().fromJson(jsonElement, Owner.class)).toList()
-            );
-        } else {
-            return CompletableFuture.completedFuture(List.of());
-        }
-    }
-
-    /**
-     * <p>Attempt to retrieve all projects of the server.</p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @return a CompletableFuture with the list containing all projects of this server
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all projects of this server
      */
     public CompletableFuture<List<Project>> getProjects() {
+        logger.debug("Getting all projects visible by the current user");
+
         return getChildren(String.format(PROJECTS_URL, urls.get(PROJECTS_URL_KEY))).thenApply(
                 children -> children.stream().map(child -> (Project) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all orphaned datasets of the server.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all orphaned datasets visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @return a CompletableFuture with the list containing all orphaned datasets of this server
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all orphaned datasets of this server
      */
     public CompletableFuture<List<Dataset>> getOrphanedDatasets() {
+        logger.debug("Getting all orphaned datasets visible by the current user");
+
         return getChildren(String.format(ORPHANED_DATASETS_URL, urls.get(DATASETS_URL_KEY))).thenApply(
                 children -> children.stream().map(child -> (Dataset) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all datasets of a project.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all datasets of the provided project.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param projectID  the project ID whose datasets should be retrieved
-     * @return a CompletableFuture with the list containing all datasets of the project
+     * @param projectId the project ID whose datasets should be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all datasets of the project
      */
-    public CompletableFuture<List<Dataset>> getDatasets(long projectID) {
-        return getChildren(String.format(DATASETS_URL, urls.get(PROJECTS_URL_KEY), projectID)).thenApply(
+    public CompletableFuture<List<Dataset>> getDatasets(long projectId) {
+        logger.debug("Getting all datasets of project with ID {}", projectId);
+
+        return getChildren(String.format(DATASETS_URL, urls.get(PROJECTS_URL_KEY), projectId)).thenApply(
                 children -> children.stream().map(child -> (Dataset) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all images of a dataset.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all images of a dataset visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param datasetID  the dataset ID whose images should be retrieved
-     * @return a CompletableFuture with the list containing all images of the dataset
+     * @param datasetId the dataset ID whose images should be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all images of the dataset
      */
-    public CompletableFuture<List<Image>> getImages(long datasetID) {
-        return getChildren(String.format(IMAGES_URL, urls.get(DATASETS_URL_KEY), datasetID)).thenApply(
+    public CompletableFuture<List<Image>> getImages(long datasetId) {
+        logger.debug("Getting all images of dataset with ID {}", datasetId);
+
+        return getChildren(String.format(IMAGES_URL, urls.get(DATASETS_URL_KEY), datasetId)).thenApply(
                 children -> children.stream().map(child -> (Image) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to create an Image entity from an image ID.</p>
-     *
-     * @param imageID  the ID of the image
-     * @return a CompletableFuture with the image, or an empty Optional if it couldn't be retrieved
-     */
-    public CompletableFuture<Optional<Image>> getImage(long imageID) {
-        var uri = WebUtilities.createURI(urls.get(IMAGES_URL_KEY) + imageID);
-
-        if (uri.isPresent()) {
-            changeNumberOfEntitiesLoading(true);
-
-            return RequestSender.getAndConvert(uri.get(), JsonElement.class).thenApply(jsonElement -> {
-                changeNumberOfEntitiesLoading(false);
-
-                if (jsonElement.isPresent()) {
-                    var serverEntity = ServerEntity.createFromJsonElement(jsonElement.get().getAsJsonObject().get("data"), webURI);
-                    if (serverEntity.isPresent() && serverEntity.get() instanceof Image image) {
-                        return Optional.of(image);
-                    }
-                }
-                return Optional.empty();
-            });
-        } else {
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
-    }
-
-    /**
-     * Get the number of orphaned images of this server.
-     *
-     * @param orphanedImagesIds  the IDs of the orphaned images of this server
-     * @return the number of orphaned images
-     */
-    public int getNumberOfOrphanedImages(List<Long> orphanedImagesIds) {
-        return (int) orphanedImagesIds.stream()
-                .map(id -> WebUtilities.createURI(urls.get(IMAGES_URL_KEY) + id))
-                .flatMap(Optional::stream)
-                .count();
-    }
-
-    /**
+     * Attempt to create an Image entity from an image ID.
      * <p>
-     *     Populate all orphaned images of this server to the list specified in parameter.
-     *     This function populates and doesn't return a list because the number of images can
-     *     be large, so this operation can take tens of seconds and should be run in a background thread.
-     * </p>
-     * <p>The list can be updated from any thread.</p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param children  the list which should be populated by the orphaned images. It should
-     *                  be possible to add elements to this list
-     * @param orphanedImagesIds  the Ids of all orphaned images of the server
+     * @param imageId the ID of the image
+     * @return a CompletableFuture (that may complete exceptionally) with the image
+     */
+    public CompletableFuture<Image> getImage(long imageId) {
+        logger.debug("Getting information on image with ID {}", imageId);
+
+        URI uri;
+        try {
+            uri = new URI(urls.get(IMAGES_URL_KEY) + imageId);
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        synchronized (this) {
+            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
+        }
+
+        return requestSender.getAndConvert(uri, JsonObject.class)
+                .thenApply(jsonImage -> {
+                    if (!jsonImage.has("data")) {
+                        throw new RuntimeException(String.format("'data' member not present in %s", jsonImage));
+                    }
+
+                    ServerEntity serverEntity = ServerEntity.createFromJsonElement(jsonImage.get("data"), webServerUri);
+                    if (serverEntity instanceof Image image) {
+                        return image;
+                    } else {
+                        throw new RuntimeException(String.format("The returned server entity %s is not an image", serverEntity));
+                    }
+                })
+                .whenComplete((jsonImage, error) -> {
+                    synchronized (this) {
+                        numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
+                    }
+                });
+    }
+
+    /**
+     * Populate the orphaned images with the provided IDs to the list specified in parameter.
+     * This function populates and doesn't return a list because the number of images can
+     * be large, so this operation can take tens of seconds and should be run in a background thread.
+     * <p>
+     * The list can be updated from any thread.
+     *
+     * @param children the list which should be populated by the orphaned images. It should
+     *                 be possible to add elements to this list
+     * @param orphanedImagesIds the IDs of all orphaned images that should be added to the list
+     * @throws IllegalArgumentException when an orphaned image ID is invalid
+     * @throws CancellationException when the computation is cancelled
+     * @throws CompletionException when a request fails
+     * @throws JsonSyntaxException when a conversion from JSON to image fails
+     * @throws ClassCastException when a conversion from JSON to image fails
      */
     public void populateOrphanedImagesIntoList(List<Image> children, List<Long> orphanedImagesIds) {
-        resetNumberOfOrphanedImagesLoaded();
+        logger.debug("Populating orphaned images with IDs {}", orphanedImagesIds);
 
-        List<URI> orphanedImagesURIs = getOrphanedImagesURIs(orphanedImagesIds);
+        synchronized (this) {
+            numberOfOrphanedImagesLoaded.set(0);
+        }
+
+        List<URI> orphanedImagesURIs = orphanedImagesIds.stream()
+                .map(id -> URI.create(urls.get(IMAGES_URL_KEY) + id))
+                .toList();
+
         // The number of parallel requests is limited to 16
         // to avoid too many concurrent streams
         List<List<URI>> batches = Lists.partition(orphanedImagesURIs, 16);
@@ -413,19 +388,19 @@ class JsonApi {
             children.addAll(batch.stream()
                     .map(this::requestImageInfo)
                     .map(CompletableFuture::join)
-                    .flatMap(Optional::stream)
-                    .map(jsonObject -> ServerEntity.createFromJsonElement(jsonObject, webURI))
-                    .flatMap(Optional::stream)
+                    .map(jsonObject -> ServerEntity.createFromJsonElement(jsonObject, webServerUri))
                     .map(serverEntity -> (Image) serverEntity)
                     .toList()
             );
 
-            addToNumberOfOrphanedImagesLoaded(batch.size());
+            synchronized (this) {
+                numberOfOrphanedImagesLoaded.set(numberOfOrphanedImagesLoaded.get() + batch.size());
+            }
         }
     }
 
     /**
-     * @return the number of orphaned images which have been loaded
+     * @return the number of orphaned images which have been loaded.
      * This property may be updated from any thread
      */
     public ReadOnlyIntegerProperty getNumberOfOrphanedImagesLoaded() {
@@ -433,241 +408,277 @@ class JsonApi {
     }
 
     /**
-     * <p>Attempt to retrieve all screens of the server.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all screens visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @return a CompletableFuture with the list containing all screen of this server
+     * @return a CompletableFuture (that may complete exceptionally) with a list containing all screen of this server
      */
     public CompletableFuture<List<Screen>> getScreens() {
+        logger.debug("Getting all screens visible by the current user");
+
         return getChildren(String.format(SCREENS_URL, urls.get(SCREENS_URL_KEY))).thenApply(
                 children -> children.stream().map(child -> (Screen) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all orphaned (e.g. not in any screen) plates of the server.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all orphaned (e.g. not in any screen) plates visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @return a CompletableFuture with the list containing all orphaned plates of this server
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all orphaned plates of this server
      */
     public CompletableFuture<List<Plate>> getOrphanedPlates() {
+        logger.debug("Getting all orphaned plates visible by the current user");
+
         return getChildren(String.format(ORPHANED_PLATES_URL, urls.get(PLATES_URL_KEY))).thenApply(
                 children -> children.stream().map(child -> (Plate) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all plates of a project.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all plates visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param screenID  the screen ID whose plates should be retrieved
-     * @return a CompletableFuture with the list containing all plates of the screen
+     * @param screenId the screen ID whose plates should be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all plates of the screen
      */
-    public CompletableFuture<List<Plate>> getPlates(long screenID) {
-        return getChildren(String.format(PLATES_URL, urls.get(SCREENS_URL_KEY), screenID)).thenApply(
+    public CompletableFuture<List<Plate>> getPlates(long screenId) {
+        logger.debug("Getting all plates of screen with ID {}", screenId);
+
+        return getChildren(String.format(PLATES_URL, urls.get(SCREENS_URL_KEY), screenId)).thenApply(
                 children -> children.stream().map(child -> (Plate) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all plate acquisitions of a plate.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all plate acquisitions of a plate visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param plateID  the plate ID whose plate acquisitions should be retrieved
-     * @return a CompletableFuture with the list containing all plate acquisitions of the plate
+     * @param plateId the plate ID whose plate acquisitions should be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all plate acquisitions of the plate
      */
-    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateID) {
-        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webURI, plateID)).thenApply(
+    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId) {
+        logger.debug("Getting all plate acquisitions of plate with ID {}", plateId);
+
+        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webServerUri, plateId)).thenApply(
                 children -> children.stream().map(child -> (PlateAcquisition) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all wells of a plate.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all wells of a plate visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param plateID  the plate acquisition ID whose wells should be retrieved
-     * @return a CompletableFuture with the list containing all wells of the plate
+     * @param plateId the plate acquisition ID whose wells should be retrieved
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all wells of the plate
      */
-    public CompletableFuture<List<Well>> getWellsFromPlate(long plateID) {
-        return getChildren(String.format(PLATE_WELLS_URL, webURI, plateID)).thenApply(
+    public CompletableFuture<List<Well>> getWellsFromPlate(long plateId) {
+        logger.debug("Getting all wells of plate with ID {}", plateId);
+
+        return getChildren(String.format(PLATE_WELLS_URL, webServerUri, plateId)).thenApply(
                 children -> children.stream().map(child -> (Well) child).toList()
         );
     }
 
     /**
-     * <p>Attempt to retrieve all wells of a plate acquisition.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve all wells of a plate acquisition visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @param plateAcquisitionID  the plate acquisition ID whose wells should be retrieved
-     * @param wellSampleIndex  the index of the well sample
-     * @return a CompletableFuture with the list containing all wells of the plate acquisition
+     * @param plateAcquisitionId the plate acquisition ID whose wells should be retrieved
+     * @param wellSampleIndex the index of the well sample
+     * @return a CompletableFuture (that may complete exceptionally) with the list containing all wells of the plate acquisition
      */
-    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionID, int wellSampleIndex) {
-        return getChildren(String.format(WELLS_URL, webURI, plateAcquisitionID, wellSampleIndex)).thenApply(
+    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, int wellSampleIndex) {
+        logger.debug("Getting all wells of plate acquisition with ID {} and well sample of ID {}", plateAcquisitionId, wellSampleIndex);
+
+        return getChildren(String.format(WELLS_URL, webServerUri, plateAcquisitionId, wellSampleIndex)).thenApply(
                 children -> children.stream().map(child -> (Well) child).toList()
         );
     }
 
     /**
-     * <p>Indicates if the server can be browsed without being authenticated.</p>
-     * <p>This works only if the client isn't already authenticated to the server.</p>
-     * <p>This function is asynchronous.</p>
+     * Attempt to retrieve shapes of an image optionally belonging to a user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request or the conversion failed for example).
      *
-     * @return a CompletableFuture indicating if authentication can be skipped
+     * @param imageId the OMERO image ID
+     * @param userId the ID of the user that should own the shapes to retrieve. Can be negative or equal to 0 to get
+     *               all shapes of the image
+     * @return a CompletableFuture (that may complete exceptionally) with the list of ROIs, or an empty list if no ROIs
+     * was found with the provided ID
      */
-    public CompletableFuture<Boolean> canSkipAuthentication() {
-        var uri = WebUtilities.createURI(urls.get(PROJECTS_URL_KEY));
+    public CompletableFuture<List<Shape>> getShapes(long imageId, long userId) {
+        logger.debug("Getting shapes of image with ID {}", imageId);
 
-        if (uri.isPresent()) {
-            return RequestSender.isLinkReachableWithGet(uri.get());
-        } else {
-            return CompletableFuture.completedFuture(false);
-        }
-    }
-
-    /**
-     * <p>Attempt to retrieve ROIs of an image.</p>
-     * <p>This function is asynchronous.</p>
-     *
-     * @param id  the OMERO image ID
-     * @return a CompletableFuture with the list of ROIs. If an error occurs, the list is empty
-     */
-    public CompletableFuture<List<Shape>> getROIs(long id) {
-        var uri = WebUtilities.createURI(String.format(ROIS_URL, webURI, id));
-
-        if (uri.isPresent()) {
-            var gson = new GsonBuilder().registerTypeAdapter(Shape.class, new Shape.GsonShapeDeserializer()).setLenient().create();
-
-            return RequestSender.getPaginated(uri.get()).thenApply(jsonElements -> jsonElements.stream()
-                    .map(datum -> {
-                        int roiID = datum.getAsJsonObject().get("@id").getAsInt();
-
-                        return datum.getAsJsonObject().getAsJsonArray("shapes").asList().stream()
-                                .map(jsonElement -> {
-                                    try {
-                                        return gson.fromJson(jsonElement, Shape.class);
-                                    } catch (JsonSyntaxException e) {
-                                        logger.error("Error parsing shape", e);
-                                        return null;
-                                    }
-                                })
-                                .filter(Objects::nonNull)
-                                .peek(shape -> shape.setOldId(roiID))
-                                .toList();
-                    })
-                    .flatMap(List::stream)
-                    .toList());
-        } else {
-            return CompletableFuture.completedFuture(List.of());
-        }
-    }
-
-    private static CompletableFuture<Map<String, String>> getURLs(String url) {
-        var uri = WebUtilities.createURI(url);
-
-        if (uri.isPresent()) {
-            return RequestSender.getAndConvert(uri.get(), new TypeToken<Map<String, String>>() {}).thenApply(response -> response.orElse(Map.of()));
-        } else {
-            return CompletableFuture.completedFuture(Map.of());
-        }
-    }
-
-    private static CompletableFuture<Optional<OmeroServerList>> getServerInformation(Map<String, String> urls) {
-        String url = SERVERS_URL_KEY;
-
-        if (urls.containsKey(url)) {
-            var uri = WebUtilities.createURI(urls.get(url));
-
-            if (uri.isPresent()) {
-                return RequestSender.getAndConvert(
-                        uri.get(),
-                        OmeroServerList.class
-                );
+        URI uri;
+        try {
+            if (userId > 0) {
+                uri = new URI(String.format(ROIS_URL, webServerUri, imageId, "&owner=" + userId));
             } else {
-                return CompletableFuture.completedFuture(Optional.empty());
+                uri = new URI(String.format(ROIS_URL, webServerUri, imageId, ""));
             }
-        } else {
-            logger.error("Couldn't find the URL corresponding to " + url);
-            return CompletableFuture.completedFuture(Optional.empty());
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
-    }
 
-    private static CompletableFuture<Optional<String>> getToken(Map<String, String> urls) {
-        String url = TOKEN_URL_KEY;
+        Gson gson = new GsonBuilder().registerTypeAdapter(Shape.class, new Shape.GsonShapeDeserializer())
+                .setStrictness(Strictness.LENIENT)
+                .create();
 
-        if (urls.containsKey(url)) {
-            var uri = WebUtilities.createURI(urls.get(url));
-
-            if (uri.isPresent()) {
-                return RequestSender.getAndConvert(
-                        uri.get(),
-                        new TypeToken<Map<String, String>>() {}
-                ).thenApply(response -> {
-                    if (response.isPresent() && response.get().containsKey("data")) {
-                        return Optional.of(response.get().get("data"));
-                    } else {
-                        logger.error("Couldn't get token. The server response doesn't contain the required information.");
-                        return Optional.empty();
+        return requestSender.getPaginated(uri).thenApply(jsonElements -> jsonElements.stream()
+                .map(jsonElement -> {
+                    if (!jsonElement.isJsonObject()) {
+                        throw new RuntimeException(String.format("The provided JSON element %s is not a JSON object", jsonElement));
                     }
-                });
-            } else {
-                return CompletableFuture.completedFuture(Optional.empty());
-            }
+                    JsonObject jsonObject = jsonElement.getAsJsonObject();
+
+                    if (!jsonObject.has("@id") || !jsonObject.get("@id").isJsonPrimitive() ||
+                            !jsonObject.getAsJsonPrimitive("@id").isNumber()
+                    ) {
+                        throw new RuntimeException(String.format("The number '@id' was not found in %s", jsonObject));
+                    }
+                    int roiID = jsonObject.get("@id").getAsInt();
+
+                    if (!jsonObject.has("shapes") || !jsonObject.get("shapes").isJsonArray()) {
+                        throw new RuntimeException(String.format("The array 'shapes' was not found in %s", jsonObject));
+                    }
+                    List<JsonElement> shapes = jsonElement.getAsJsonObject().getAsJsonArray("shapes").asList();
+
+                    return shapes.stream()
+                            .map(shape -> gson.fromJson(shape, Shape.class))
+                            .filter(Objects::nonNull)
+                            .peek(shape -> shape.setOldId(roiID))
+                            .toList();
+                })
+                .flatMap(List::stream)
+                .toList()
+        );
+    }
+
+    private static Map<String, String> getUrls(RequestSender requestSender, URI apiURI) throws ExecutionException, InterruptedException, URISyntaxException {
+        OmeroApi omeroAPI = requestSender.getAndConvert(apiURI, OmeroApi.class).get();
+
+        if (omeroAPI.getLatestVersionURL().isPresent()) {
+            return requestSender.getAndConvert(new URI(omeroAPI.getLatestVersionURL().get()), new TypeToken<Map<String, String>>() {}).get();
         } else {
-            logger.error("Couldn't find the URL corresponding to " + url);
-            return CompletableFuture.completedFuture(Optional.empty());
+            throw new IllegalArgumentException("The latest version of the API supported by the server was not found");
         }
     }
 
-    private List<URI> getOrphanedImagesURIs(List<Long> orphanedImagesIds) {
-        return orphanedImagesIds.stream()
-                .map(id -> WebUtilities.createURI(urls.get(IMAGES_URL_KEY) + id))
-                .flatMap(Optional::stream)
-                .toList();
+    private static CompletableFuture<String> getToken(RequestSender requestSender, Map<String, String> urls) {
+        String token = TOKEN_URL_KEY;
+
+        if (urls.containsKey(token)) {
+            URI uri;
+            try {
+                uri = new URI(urls.get(token));
+            } catch (URISyntaxException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+
+            return requestSender.getAndConvert(uri, new TypeToken<Map<String, String>>() {}).thenApply(response -> {
+                if (response.containsKey("data")) {
+                    return response.get("data");
+                } else {
+                    throw new IllegalArgumentException(String.format("'data' field not found in %s", response));
+                }
+            });
+        } else {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    String.format("The %s token was not found in %s", token, urls)
+            ));
+        }
     }
 
-    private synchronized void resetNumberOfOrphanedImagesLoaded() {
-        numberOfOrphanedImagesLoaded.set(0);
+    private static CompletableFuture<OmeroServerList> getServerInformation(RequestSender requestSender, Map<String, String> urls) {
+        String token = SERVERS_URL_KEY;
+
+        if (urls.containsKey(token)) {
+            try {
+                return requestSender.getAndConvert(new URI(urls.get(token)), OmeroServerList.class);
+            } catch (URISyntaxException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        } else {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    String.format("The %s token was not found in %s", token, urls)
+            ));
+        }
     }
 
-    private synchronized void addToNumberOfOrphanedImagesLoaded(int addition) {
-        numberOfOrphanedImagesLoaded.set(numberOfOrphanedImagesLoaded.get() + addition);
+    private static LoginResponse login(
+            RequestSender requestSender,
+            Credentials credentials,
+            Map<String, String> urls,
+            int serverID,
+            String token
+    ) throws URISyntaxException, ExecutionException, InterruptedException {
+        URI uri = new URI(urls.get(LOGIN_URL_KEY));
+
+        char[] encodedPassword = ApiUtilities.urlEncode(credentials.password());
+
+        byte[] body = ApiUtilities.concatAndConvertToBytes(
+                String.join("&", "server=" + serverID, "username=" + credentials.username(), "password=").toCharArray(),
+                encodedPassword
+        );
+
+        return requestSender.post(
+                        uri,
+                        body,
+                        uri.toString(),
+                        token
+                ).whenComplete((response, error) -> {
+                    Arrays.fill(body, (byte) 0);    // clear password
+                })
+                .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
+                .thenApply(LoginResponse::parseServerAuthenticationResponse).get();
     }
 
     private CompletableFuture<List<ServerEntity>> getChildren(String url) {
-        var uri = WebUtilities.createURI(url);
-
-        if (uri.isPresent()) {
-            changeNumberOfEntitiesLoading(true);
-
-            return RequestSender.getPaginated(uri.get()).thenApply(jsonElements -> {
-                changeNumberOfEntitiesLoading(false);
-
-                return ServerEntity.createFromJsonElements(jsonElements, webURI).toList();
-            });
-        } else {
-            return CompletableFuture.completedFuture(List.of());
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
+
+        synchronized (this) {
+            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
+        }
+
+        return requestSender.getPaginated(uri)
+                .thenApply(jsonElements ->
+                        jsonElements.stream()
+                                .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
+                                .toList()
+                )
+                .whenComplete((entities, error) -> {
+                    synchronized (this) {
+                        numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
+                    }
+                });
     }
 
-    private CompletableFuture<Optional<JsonObject>> requestImageInfo(URI uri) {
-        return RequestSender.getAndConvert(uri, JsonObject.class).thenApply(response -> {
-            if (response.isPresent()) {
-                try  {
-                    return Optional.ofNullable(response.get().getAsJsonObject("data"));
-                } catch (Exception e) {
-                    logger.error("Cannot read 'data' member in " + response, e);
-                    return Optional.empty();
-                }
+    private CompletableFuture<JsonObject> requestImageInfo(URI uri) {
+        return requestSender.getAndConvert(uri, JsonObject.class).thenApply(response -> {
+            if (response.has("data") && response.get("data").isJsonObject()) {
+                return response.get("data").getAsJsonObject();
             } else {
-                return Optional.empty();
+                throw new RuntimeException(String.format("'data' JSON object not found in %s", response));
             }
         });
-    }
-
-    private synchronized void changeNumberOfEntitiesLoading(boolean increment) {
-        int quantityToAdd = increment ? 1 : -1;
-        numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + quantityToAdd);
     }
 }

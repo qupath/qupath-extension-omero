@@ -34,18 +34,11 @@ def server = imageData.getServer()
 def omeroServer = (OmeroImageServer) server
 
 // Attempt to send key value pairs to OMERO
-def status = omeroServer.getClient().getApisHandler().sendKeyValuePairs(
+omeroServer.getClient().getApisHandler().sendKeyValuePairs(
         omeroServer.getId(),
         keyValues,
         replaceExistingKeyValuesPairs,
         deleteExistingKeyValuePairs
 ).get()
 
-if (status) {
-    println "Key value pairs sent"
-} else {
-    println "Error when sending key value pairs. Check that the server is reachable and you have sufficient permissions."
-}
-
-// Close server
-omeroServer.close()
+println "Key value pairs sent"

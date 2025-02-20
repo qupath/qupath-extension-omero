@@ -11,5 +11,5 @@ sed -i 's\uri: "redis://:@localhost:6379/1"\uri: "redis://:@redis:6379/0"\g' con
 
 # Start the pixel buffer microservice in the background
 cd /omero-ms-pixel-buffer/build/install/omero-ms-pixel-buffer/
-export JAVA_HOME=/usr/lib/jvm/jre
+export JAVA_HOME=/usr/lib/jvm/jre-11
 bin/omero-ms-pixel-buffer &

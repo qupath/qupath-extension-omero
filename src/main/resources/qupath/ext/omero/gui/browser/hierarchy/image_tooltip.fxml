@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" stylesheets="@../../styles.css" type="VBox" xmlns="http://javafx.com/javafx/19" xmlns:fx="http://javafx.com/fxml/1">
+   <Canvas fx:id="canvas" height="100.0" width="100.0" />
+   <VBox fx:id="errorContainer" styleClass="invalid-image">
+      <Label styleClass="invalid-image" text="Image not supported:" />
+      <VBox fx:id="errors" />
+   </VBox>
+</fx:root>

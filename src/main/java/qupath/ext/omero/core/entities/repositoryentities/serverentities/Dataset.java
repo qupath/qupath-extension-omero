@@ -1,18 +1,17 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.ReadOnlyStringProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.WebClients;
+import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -24,14 +23,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class Dataset extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Dataset.class);
-    private static final ResourceBundle resources = UiUtilities.getResources();
+    private static final ResourceBundle resources = Utils.getResources();
     private static final String[] ATTRIBUTES = new String[] {
-            resources.getString("Web.Entities.Dataset.name"),
-            resources.getString("Web.Entities.Dataset.id"),
-            resources.getString("Web.Entities.Dataset.description"),
-            resources.getString("Web.Entities.Dataset.owner"),
-            resources.getString("Web.Entities.Dataset.group"),
-            resources.getString("Web.Entities.Dataset.nbImages")
+            resources.getString("Entities.Dataset.name"),
+            resources.getString("Entities.Dataset.id"),
+            resources.getString("Entities.Dataset.description"),
+            resources.getString("Entities.Dataset.owner"),
+            resources.getString("Entities.Dataset.group"),
+            resources.getString("Entities.Dataset.nbImages")
     };
     private final transient ObservableList<Image> children = FXCollections.observableArrayList();
     private final transient ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);
@@ -73,9 +72,8 @@ public class Dataset extends ServerEntity {
     }
 
     @Override
-    public ReadOnlyStringProperty getLabel() {
-        String name = this.name == null ? "" : this.name;
-        return new SimpleStringProperty(name + " (" + childCount + ")");
+    public String getLabel() {
+        return String.format("%s (%d)", name == null ? "-" : name, childCount);
     }
 
     @Override
@@ -118,7 +116,7 @@ public class Dataset extends ServerEntity {
     /**
      * Indicates if an OMERO entity type refers to a dataset
      *
-     * @param type  the OMERO entity type
+     * @param type the OMERO entity type
      * @return whether this type refers to a dataset
      */
     public static boolean isDataset(String type) {
@@ -131,17 +129,22 @@ public class Dataset extends ServerEntity {
                     "The web server URI has not been set on this dataset. See the setWebServerURI(URI) function."
             );
         } else {
-            WebClients.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
-                client.getApisHandler().getImages(getId()).thenAccept(images -> {
-                    children.addAll(images);
-                    isPopulating = false;
-                });
-            }, () -> logger.warn(String.format(
-                    "Could not find the web client corresponding to %s. Impossible to get the children of this dataset (%s).",
+
+                client.getApisHandler().getImages(getId())
+                        .exceptionally(error -> {
+                            logger.error("Error while retrieving images", error);
+                            return List.of();
+                        }).thenAccept(images -> {
+                            isPopulating = false;
+                            children.addAll(images);
+                        });
+            }, () -> logger.warn(
+                    "Could not find the web client corresponding to {}. Impossible to get the children of this dataset ({}).",
                     webServerURI,
                     this
-            )));
+            ));
         }
     }
 }

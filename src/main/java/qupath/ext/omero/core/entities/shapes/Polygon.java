@@ -20,7 +20,7 @@ public class Polygon extends Shape {
     /**
      * Creates a polygon.
      *
-     * @param points  a list of points describing the polygon
+     * @param points a list of points describing the polygon
      */
     public Polygon(List<Point2> points) {
         super(TYPE);
@@ -31,17 +31,18 @@ public class Polygon extends Shape {
     /**
      * Creates a polygon corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
+     * @param pathObject the path object corresponding to this shape
      * @param roi the roi describing the polygon
+     * @param fillColor whether to fill the polygon with colors
      */
-    public Polygon(PathObject pathObject, ROI roi) {
+    public Polygon(PathObject pathObject, ROI roi, boolean fillColor) {
         this(roi.getAllPoints());
 
-        linkWithPathObject(pathObject);
+        linkWithPathObject(pathObject, fillColor);
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createPolygonROI(parseStringPoints(pointString == null ? "" : pointString), getPlane());
     }
 

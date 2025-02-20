@@ -20,7 +20,7 @@ public class TestLabel {
     void Check_ROI() {
         Shape label = createLabelFromJSON();
 
-        Class<? extends ROI> roiClass = label.createROI().getClass();
+        Class<? extends ROI> roiClass = label.createRoi().getClass();
 
         Assertions.assertEquals(PointsROI.class, roiClass); // Labels are unsupported and converted to points
     }

@@ -21,10 +21,10 @@ public class Ellipse extends Shape {
     /**
      * Creates an ellipse.
      *
-     * @param x  x-coordinate of the center of the ellipse
-     * @param y  y-coordinate of the center of the ellipse
-     * @param radiusX  radius along the x-axis
-     * @param radiusY  radius along the y-axis
+     * @param x x-coordinate of the center of the ellipse
+     * @param y y-coordinate of the center of the ellipse
+     * @param radiusX radius along the x-axis
+     * @param radiusY radius along the y-axis
      */
     public Ellipse(double x, double y, double radiusX, double radiusY) {
         super(TYPE);
@@ -38,9 +38,10 @@ public class Ellipse extends Shape {
     /**
      * Creates an ellipse corresponding to a path object.
      *
-     * @param pathObject  the path object corresponding to this shape
+     * @param pathObject the path object corresponding to this shape
+     * @param fillColor whether to fill the ellipse with colors
      */
-    public Ellipse(PathObject pathObject) {
+    public Ellipse(PathObject pathObject, boolean fillColor) {
         this(
                 pathObject.getROI().getCentroidX(),
                 pathObject.getROI().getCentroidY(),
@@ -48,11 +49,11 @@ public class Ellipse extends Shape {
                 pathObject.getROI().getBoundsHeight()/2
         );
 
-        linkWithPathObject(pathObject);
+        linkWithPathObject(pathObject, fillColor);
     }
 
     @Override
-    public ROI createROI() {
+    public ROI createRoi() {
         return ROIs.createEllipseROI(x-radiusX, y-radiusY, radiusX*2, radiusY*2, getPlane());
     }
 
