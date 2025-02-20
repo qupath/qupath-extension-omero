@@ -42,6 +42,9 @@ a guest account, you have to be authenticated.
   * If you can't open any image with the Ice API, it may be because the OMERO.server
 instance is on a different server than the OMERO.web instance. You can define a different
 address and port to the OMERO.server in the settings of the extension.
+  * Note that two images belonging to two different groups of the same server cannot
+currently be read at the same time with the ICE API (see [this issue](https://github.com/ome/omero-gateway-java/issues/98)).
+Also, consecutively opening images of different groups can create problems (see [this issue](https://github.com/ome/omero-gateway-java/issues/99)).
 * The **OMERO Pixel Data Microservice** (available [here](https://github.com/glencoesoftware/omero-ms-pixel-buffer)):
   * This method can read every image and access raw pixel values.
   * If this microservice is installed on your OMERO server, the extension will automatically
