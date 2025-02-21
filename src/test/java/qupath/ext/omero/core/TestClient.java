@@ -238,7 +238,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Existing_Authenticated_Client_Disconnected() throws Exception {
-        Client existingClient = Client.createOrGet(
+        Client.createOrGet(
                 OmeroServer.getWebServerURI(),
                 new Credentials(
                         OmeroServer.getUsername(Credentials.UserType.REGULAR_USER),

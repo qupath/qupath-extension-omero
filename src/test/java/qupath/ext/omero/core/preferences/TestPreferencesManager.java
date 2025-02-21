@@ -7,7 +7,6 @@ import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.Credentials;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,8 +14,7 @@ public class TestPreferencesManager {
 
     @BeforeEach
     void clearPreferences() {
-        // new ArrayList to make a copy of the list
-        for (ServerPreference serverPreference: new ArrayList<>(PreferencesManager.getServerPreferences())) {
+        for (ServerPreference serverPreference: PreferencesManager.getServerPreferences()) {
             PreferencesManager.removeServer(serverPreference.webServerUri());
         }
     }

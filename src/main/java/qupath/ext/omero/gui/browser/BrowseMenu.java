@@ -1,7 +1,6 @@
 package qupath.ext.omero.gui.browser;
 
 import javafx.application.Platform;
-import javafx.collections.ListChangeListener;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
@@ -16,9 +15,7 @@ import qupath.ext.omero.gui.login.LoginForm;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -82,18 +79,13 @@ public class BrowseMenu extends Menu {
     }
 
     private void setUpListeners() {
-        PreferencesManager.getServerPreferences().addListener((ListChangeListener<? super ServerPreference>) change ->
-                Platform.runLater(this::createURIItems)
-        );
+        PreferencesManager.addListenerToServerPreferences(() -> Platform.runLater(this::createURIItems));
     }
 
     private void createURIItems() {
         getItems().clear();
 
-        // Create copy to prevent modifications while iterating
-        List<ServerPreference> preferences = new ArrayList<>(PreferencesManager.getServerPreferences());
-
-        for (ServerPreference serverPreference: preferences) {
+        for (ServerPreference serverPreference: PreferencesManager.getServerPreferences()) {
             BrowserCommand browserCommand = getBrowserCommand(serverPreference.webServerUri());
 
             MenuItem clientMenuItem = new MenuItem(serverPreference.webServerUri().toString());

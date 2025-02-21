@@ -52,8 +52,7 @@ public class Client implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private static final int PING_DELAY_SECONDS = 60;
-    private static final ObservableList<Client> clients = FXCollections.observableList(new CopyOnWriteArrayList<>());
-    private static final ObservableList<Client> clientsImmutable = FXCollections.unmodifiableObservableList(clients);
+    private static final ObservableList<Client> clients = FXCollections.observableArrayList();
     private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final ObservableList<PixelApi> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelApis);
     private final ObjectProperty<PixelApi> selectedPixelAPI = new SimpleObjectProperty<>();
@@ -215,14 +214,22 @@ public class Client implements AutoCloseable {
     }
 
     /**
-     * Returns an unmodifiable list of all connected (but not necessarily authenticated) clients.
-     * <p>
-     * This list may be updated from any thread.
+     * Get an unmodifiable list containing all connected (but not necessarily authenticated) clients. The
+     * returned list won't be modified because it's a copy of the internal list.
      *
-     * @return the connected clients
+     * @return a copy of the connected clients
      */
-    public static ObservableList<Client> getClients() {
-        return clientsImmutable;
+    public static synchronized List<Client> getClients() {
+        return List.copyOf(clients);
+    }
+
+    /**
+     * Add a listener that will be called each time a client is added or removed.
+     *
+     * @param listener the listener to call when a client is added or removed
+     */
+    public static synchronized void addListenerToClients(Runnable listener) {
+        clients.addListener((ListChangeListener<? super Client>) change -> listener.run());
     }
 
     /**
