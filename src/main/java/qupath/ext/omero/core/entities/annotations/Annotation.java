@@ -4,6 +4,7 @@ import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
+import com.google.gson.annotations.SerializedName;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Link;
@@ -19,6 +20,7 @@ import java.util.Optional;
 public abstract class Annotation {
 
     private int id;
+    @SerializedName("ns") private String namespace;
     private Owner owner;
     private Link link;
 
@@ -32,6 +34,13 @@ public abstract class Annotation {
      */
     public int getId() {
         return id;
+    }
+
+    /**
+     * @return the namespace of this annotation, or an empty Optional if not defined
+     */
+    public Optional<String> getNamespace() {
+        return Optional.ofNullable(namespace);
     }
 
     /**
