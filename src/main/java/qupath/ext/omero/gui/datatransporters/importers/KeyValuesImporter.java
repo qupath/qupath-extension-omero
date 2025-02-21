@@ -12,7 +12,6 @@ import qupath.ext.omero.core.entities.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportKeyValuePairsForm;
-import qupath.ext.omero.gui.datatransporters.forms.KeyValuesForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
@@ -34,7 +33,7 @@ import java.util.stream.Collectors;
  * <p>
  * Since key-value pairs are only defined in projects, a project must be opened.
  * <p>
- * This class uses a {@link KeyValuesForm} to prompt the user for parameters.
+ * This class uses a {@link ImportKeyValuePairsForm} to prompt the user for parameters.
  */
 public class KeyValuesImporter implements DataTransporter {
 
@@ -166,6 +165,7 @@ public class KeyValuesImporter implements DataTransporter {
         List<MapAnnotation.Pair> keyValuesNotWrittenBecauseDuplicate = new ArrayList<>();
         for (MapAnnotation.Pair pair : keyValues) {
             if (selectedChoice.equals(ImportKeyValuePairsForm.Choice.KEEP_EXISTING) && projectEntry.getMetadata().containsKey(pair.key())) {
+                keyValuesNotWrittenBecauseDuplicate.add(pair);
                 logger.debug("Key-value pair {} not added to metadata of current image because it already exists", pair);
             } else if (keyValuesWritten.stream().map(MapAnnotation.Pair::key).anyMatch(key -> pair.key().equals(key))) {
                 keyValuesNotWrittenBecauseDuplicate.add(pair);

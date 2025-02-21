@@ -4,9 +4,12 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.entities.annotations.Annotation;
+import qupath.ext.omero.core.entities.annotations.MapAnnotation;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
-import qupath.ext.omero.gui.datatransporters.forms.KeyValuesForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
+import qupath.ext.omero.gui.datatransporters.forms.SendKeyValuePairsForm;
 import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
@@ -14,7 +17,9 @@ import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -22,7 +27,7 @@ import java.util.ResourceBundle;
  * <p>
  * Since key-value pairs are only defined in projects, a project must be opened.
  * <p>
- * This class uses a {@link KeyValuesForm} to prompt the user for parameters.
+ * This class uses a {@link SendKeyValuePairsForm} to prompt the user for parameters.
  */
 public class KeyValuesSender implements DataTransporter {
 
@@ -77,21 +82,54 @@ public class KeyValuesSender implements DataTransporter {
             return;
         }
 
-        KeyValuesForm keyValuesForm;
+        WaitingWindow waitingWindow;
         try {
-            keyValuesForm = new KeyValuesForm();
-        } catch (IOException e) {
-            logger.error("Error when creating the key-values form", e);
-            Dialogs.showErrorMessage(
-                    resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                    e.getLocalizedMessage()
+            waitingWindow = new WaitingWindow(
+                    quPath.getStage(),
+                    resources.getString("DataTransporters.KeyValuesSender.gettingExistingNamespaces")
             );
+        } catch (IOException e) {
+            logger.error("Error while creating the waiting window");
+            return;
+        }
+        waitingWindow.show();
+
+        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class)
+                .exceptionally(error -> {
+                    logger.warn("Cannot get annotations of image with ID {}. Assuming no namespace exists", omeroImageServer.getId(), error);
+                    return null;
+                }).thenAccept(annotationGroup -> {
+                    Platform.runLater(waitingWindow::close);
+
+                    if (annotationGroup == null) {
+                        return;
+                    }
+
+                    Platform.runLater(() -> sendKeyValuePairs(
+                            omeroImageServer,
+                            keyValues,
+                            annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+                                    .map(Annotation::getNamespace)
+                                    .flatMap(Optional::stream)
+                                    .toList()
+                    ));
+                });
+    }
+
+    private void sendKeyValuePairs(OmeroImageServer omeroImageServer, Map<String,String> keyValues, List<String> namespaces) {
+        logger.debug("Got namespaces {} for image with ID {}", namespaces, omeroImageServer.getId());
+
+        SendKeyValuePairsForm sendKeyValuePairsForm;
+        try {
+            sendKeyValuePairsForm = new SendKeyValuePairsForm(keyValues, namespaces);
+        } catch (IOException e) {
+            logger.error("Error when creating the send key-values form", e);
             return;
         }
 
         boolean confirmed = Dialogs.showConfirmDialog(
                 resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                keyValuesForm
+                sendKeyValuePairsForm
         );
         if (!confirmed) {
             return;
@@ -111,10 +149,10 @@ public class KeyValuesSender implements DataTransporter {
 
         omeroImageServer.getClient().getApisHandler().sendKeyValuePairs(
                 omeroImageServer.getId(),
-                "qupath",
-                keyValues,
-                keyValuesForm.getChoice().equals(KeyValuesForm.Choice.REPLACE_EXITING),
-                keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)
+                sendKeyValuePairsForm.getSelectedNamespace(),
+                sendKeyValuePairsForm.getKeyValuePairsToSend(),
+                sendKeyValuePairsForm.getSelectedChoice().equals(SendKeyValuePairsForm.Choice.REPLACE_EXITING),
+                true //TODO: change
         ).handle((v, error) -> {
             Platform.runLater(() -> {
                 waitingWindow.close();

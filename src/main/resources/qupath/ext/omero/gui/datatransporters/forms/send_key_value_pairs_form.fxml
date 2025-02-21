@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.ChoiceBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import org.controlsfx.control.ListSelectionView?>
+
+<fx:root spacing="20.0" stylesheets="@../../styles.css" type="VBox" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+   <VBox spacing="10.0">
+      <Label text="%DataTransporters.Forms.SendKeyValuePairs.selectKeyValuePairs"/>
+      <ListSelectionView fx:id="keyValuesToSend"/>
+   </VBox>
+   <HBox alignment="CENTER_LEFT" spacing="10.0">
+      <Label text="%DataTransporters.Forms.SendKeyValuePairs.namespace"/>
+      <ChoiceBox fx:id="namespace" prefWidth="150.0"/>
+      <TextField fx:id="newNamespace" promptText="%DataTransporters.Forms.SendKeyValuePairs.newNamespace"
+                 text="qupath"/>
+   </HBox>
+   <VBox spacing="10.0">
+      <RadioButton fx:id="keepExisting" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendKeyValuePairs.keepExisting" />
+      <RadioButton fx:id="replaceExisting" mnemonicParsing="false" text="%DataTransporters.Forms.SendKeyValuePairs.replaceExisting" />
+   </VBox>
+</fx:root>

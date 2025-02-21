@@ -23,7 +23,6 @@ public class ImportKeyValuePairsForm extends VBox {
     private RadioButton replaceExisting;
     @FXML
     private RadioButton deleteAll;
-
     /**
      * Describes how to deal with existing key value pairs.
      */
