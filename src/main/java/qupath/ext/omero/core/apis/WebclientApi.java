@@ -328,12 +328,13 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * Send key value pairs associated with an image to the OMERO server.
+     * Send key-value pairs associated with an image to the OMERO server.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
      * @param imageId the id of the image to associate the key value pairs
+     * @param namespace the OMERO namespace the key-value pairs should have on the OMERO server
      * @param keyValues the key value pairs to send
      * @param replaceExisting whether to replace values when keys already exist on the OMERO server
      * @param deleteExisting whether to delete all existing key value pairs on the OMERO server
@@ -341,11 +342,12 @@ class WebclientApi implements AutoCloseable {
      */
     public CompletableFuture<Void> sendKeyValuePairs(
             long imageId,
+            String namespace,
             Map<String, String> keyValues,
             boolean replaceExisting,
             boolean deleteExisting
     ) {
-        logger.debug("Sending key-value pairs {} to image with ID {}", keyValues, imageId);
+        logger.debug("Sending key-value pairs {} with namespace {} to image with ID {}", keyValues, namespace, imageId);
 
         URI uri;
         try {
@@ -371,8 +373,9 @@ class WebclientApi implements AutoCloseable {
             return requestSender.post(
                     uri,
                     String.format(
-                            "image=%d&mapAnnotation=%s",
+                            "image=%d&ns=%s&mapAnnotation=%s",
                             imageId,
+                            namespace,
                             URLEncoder.encode(
                                     pairsToSend.stream()
                                             .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))

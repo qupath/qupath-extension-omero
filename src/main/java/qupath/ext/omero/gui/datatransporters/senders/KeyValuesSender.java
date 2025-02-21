@@ -111,6 +111,7 @@ public class KeyValuesSender implements DataTransporter {
 
         omeroImageServer.getClient().getApisHandler().sendKeyValuePairs(
                 omeroImageServer.getId(),
+                "qupath",
                 keyValues,
                 keyValuesForm.getChoice().equals(KeyValuesForm.Choice.REPLACE_EXITING),
                 keyValuesForm.getChoice().equals(KeyValuesForm.Choice.DELETE_ALL)

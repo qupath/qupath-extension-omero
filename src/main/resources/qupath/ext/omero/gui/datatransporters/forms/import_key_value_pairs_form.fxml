@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.RadioButton?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<fx:root spacing="20.0" type="VBox" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+   <HBox fx:id="namespaceContainer" alignment="CENTER_LEFT" spacing="10.0">
+      <Label text="%DataTransporters.Forms.ImportKeyValuePairs.selectNamespaces" />
+   </HBox>
+   <VBox spacing="10.0">
+      <RadioButton fx:id="keepExisting" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.ImportKeyValuePairs.keepExisting" />
+      <RadioButton fx:id="replaceExisting" mnemonicParsing="false" text="%DataTransporters.Forms.ImportKeyValuePairs.replaceExisting" />
+      <RadioButton fx:id="deleteAll" mnemonicParsing="false" text="%DataTransporters.Forms.ImportKeyValuePairs.deleteAll" />
+   </VBox>
+</fx:root>
