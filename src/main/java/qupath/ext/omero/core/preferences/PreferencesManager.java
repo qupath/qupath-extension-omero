@@ -14,7 +14,7 @@ import qupath.lib.gui.prefs.PathPrefs;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
@@ -23,11 +23,11 @@ import java.util.function.UnaryOperator;
 public class PreferencesManager {
 
     private static final Logger logger = LoggerFactory.getLogger(PreferencesManager.class);
+    private static final Gson gson = new Gson();
     private static final StringProperty preference = PathPrefs.createPersistentPreference(
             "omero_ext.servers-information",
             "[]"
     );
-    private static final Gson gson = new Gson();
     private static final ObservableList<ServerPreference> serverPreferences;
     private static final ObservableList<ServerPreference> serverPreferencesImmutable;
 
@@ -39,7 +39,7 @@ public class PreferencesManager {
             logger.debug("Cannot retrieve server preferences from {}. Considering it to be empty", preference.get());
         }
 
-        serverPreferences = FXCollections.observableList(new CopyOnWriteArrayList<>());
+        serverPreferences = FXCollections.observableArrayList();
         serverPreferences.addAll(existingPreferences);
         serverPreferencesImmutable = FXCollections.unmodifiableObservableList(serverPreferences);
     }
@@ -55,7 +55,7 @@ public class PreferencesManager {
      * @param webServerUri the URI of the OMERO server to save
      * @param credentials the credentials used to connect to the OMERO server
      */
-    public static synchronized void addServer(URI webServerUri, Credentials credentials) {
+    public synchronized static void addServer(URI webServerUri, Credentials credentials) {
         List<ServerPreference> existingPreferences = serverPreferences.stream()
                 .filter(preference -> preference.webServerUri().equals(webServerUri))
                 .toList();
@@ -84,7 +84,7 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO server to remove
      */
-    public static synchronized void removeServer(URI webServerUri) {
+    public synchronized static void removeServer(URI webServerUri) {
         serverPreferences.removeAll(serverPreferences.stream()
                 .filter(serverPreference -> serverPreference.webServerUri().equals(webServerUri))
                 .toList()
@@ -94,7 +94,9 @@ public class PreferencesManager {
     }
 
     /**
-     * @return the currently saved server preferences. This list can be updated from any thread
+     * Get the currently saved server preferences. This list is immutable.
+     *
+     * @return the currently saved server preferences
      */
     public static ObservableList<ServerPreference> getServerPreferences() {
         return serverPreferencesImmutable;
@@ -107,10 +109,10 @@ public class PreferencesManager {
      * @return the last saved credentials of the provided OMERO server
      */
     public static Optional<Credentials> getCredentials(URI webServerUri) {
-        return serverPreferences.stream()
-                .filter(preference -> preference.webServerUri().equals(webServerUri))
-                .findAny()
-                .map(ServerPreference::credentials);
+        return getProperty(
+                webServerUri,
+                serverPreference -> Optional.of(serverPreference.credentials())
+        );
     }
 
     /**
@@ -143,10 +145,10 @@ public class PreferencesManager {
      * @return the JPEG quality, or an empty optional if not found
      */
     public static Optional<Float> getWebJpegQuality(URI webServerUri) {
-        return serverPreferences.stream()
-                .filter(preference -> preference.webServerUri().equals(webServerUri))
-                .findAny()
-                .flatMap(serverPreference -> serverPreference.webJpegQuality() == 0 ? Optional.empty() : Optional.of(serverPreference.webJpegQuality()));
+        return getProperty(
+                webServerUri,
+                serverPreference -> serverPreference.webJpegQuality() == 0 ? Optional.empty() : Optional.of(serverPreference.webJpegQuality())
+        );
     }
 
     /**
@@ -179,10 +181,10 @@ public class PreferencesManager {
      * @return the OMERO ICE server address, or an empty optional if not found
      */
     public static Optional<String> getIceAddress(URI webServerUri) {
-        return serverPreferences.stream()
-                .filter(preference -> preference.webServerUri().equals(webServerUri))
-                .findAny()
-                .flatMap(serverPreference -> Optional.ofNullable(serverPreference.iceAddress()));
+        return getProperty(
+                webServerUri,
+                serverPreference -> Optional.ofNullable(serverPreference.iceAddress())
+        );
     }
 
     /**
@@ -215,10 +217,10 @@ public class PreferencesManager {
      * @return the OMERO ICE server port, or an empty optional if not found
      */
     public static Optional<Integer> getIcePort(URI webServerUri) {
-        return serverPreferences.stream()
-                .filter(preference -> preference.webServerUri().equals(webServerUri))
-                .findAny()
-                .flatMap(serverPreference -> serverPreference.icePort() == 0 ? Optional.empty() : Optional.of(serverPreference.icePort()));
+        return getProperty(
+                webServerUri,
+                serverPreference -> serverPreference.icePort() == 0 ? Optional.empty() : Optional.of(serverPreference.icePort())
+        );
     }
 
     /**
@@ -251,13 +253,20 @@ public class PreferencesManager {
      * @return the pixel buffer microservice port, or an empty optional if not found
      */
     public static Optional<Integer> getMsPixelBufferPort(URI webServerUri) {
+        return getProperty(
+                webServerUri,
+                serverPreference -> serverPreference.msPixelBufferPort() == 0 ? Optional.empty() : Optional.of(serverPreference.msPixelBufferPort())
+        );
+    }
+
+    private synchronized static <T> Optional<T> getProperty(URI webServerUri, Function<ServerPreference, Optional<T>> preferenceGetter) {
         return serverPreferences.stream()
                 .filter(preference -> preference.webServerUri().equals(webServerUri))
                 .findAny()
-                .flatMap(serverPreference -> serverPreference.msPixelBufferPort() == 0 ? Optional.empty() : Optional.of(serverPreference.msPixelBufferPort()));
+                .flatMap(preferenceGetter);
     }
 
-    private static synchronized <T> void setProperty(URI webServerUri, String propertyName, T propertyValue, UnaryOperator<ServerPreference> preferenceCreator) {
+    private synchronized static <T> void setProperty(URI webServerUri, String propertyName, T propertyValue, UnaryOperator<ServerPreference> preferenceCreator) {
         List<ServerPreference> existingPreferences = serverPreferences.stream()
                 .filter(preference -> preference.webServerUri().equals(webServerUri))
                 .toList();
