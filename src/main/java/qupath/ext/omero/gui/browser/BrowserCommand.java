@@ -1,7 +1,6 @@
 package qupath.ext.omero.gui.browser;
 
 import javafx.application.Platform;
-import javafx.collections.ListChangeListener;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,20 +44,15 @@ class BrowserCommand implements Runnable {
         this.owner = owner;
         this.openClientBrowser = openClientBrowser;
 
-        Client.getClients().addListener((ListChangeListener<? super Client>) change -> Platform.runLater(() -> {
+        Client.addListenerToClients(() -> Platform.runLater(() -> {
             if (client != null) {
-                while (change.next()) {
-                    if (change.wasRemoved()) {
-                        if (change.getRemoved().contains(client)) {
-                            if (browser != null) {
-                                browser.close();
-                            }
-                            browser = null;
-                            client = null;
-                        }
+                if (!Client.getClients().contains(client)) {
+                    if (browser != null) {
+                        browser.close();
                     }
+                    browser = null;
+                    client = null;
                 }
-                change.reset();
             }
         }));
     }

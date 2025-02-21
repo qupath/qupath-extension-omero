@@ -5,6 +5,7 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +19,7 @@ import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
- * A static class to store {@link ServerPreference ServerPreferences}.
+ * A static class to store {@link ServerPreference ServerPreferences}. All methods of this class are thread-safe.
  */
 public class PreferencesManager {
 
@@ -29,7 +30,6 @@ public class PreferencesManager {
             "[]"
     );
     private static final ObservableList<ServerPreference> serverPreferences;
-    private static final ObservableList<ServerPreference> serverPreferencesImmutable;
 
     static {
         List<ServerPreference> existingPreferences = List.of();
@@ -39,9 +39,7 @@ public class PreferencesManager {
             logger.debug("Cannot retrieve server preferences from {}. Considering it to be empty", preference.get());
         }
 
-        serverPreferences = FXCollections.observableArrayList();
-        serverPreferences.addAll(existingPreferences);
-        serverPreferencesImmutable = FXCollections.unmodifiableObservableList(serverPreferences);
+        serverPreferences = FXCollections.observableArrayList(existingPreferences);
     }
 
     private PreferencesManager() {
@@ -55,7 +53,7 @@ public class PreferencesManager {
      * @param webServerUri the URI of the OMERO server to save
      * @param credentials the credentials used to connect to the OMERO server
      */
-    public synchronized static void addServer(URI webServerUri, Credentials credentials) {
+    public static synchronized void addServer(URI webServerUri, Credentials credentials) {
         List<ServerPreference> existingPreferences = serverPreferences.stream()
                 .filter(preference -> preference.webServerUri().equals(webServerUri))
                 .toList();
@@ -84,7 +82,7 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO server to remove
      */
-    public synchronized static void removeServer(URI webServerUri) {
+    public static synchronized void removeServer(URI webServerUri) {
         serverPreferences.removeAll(serverPreferences.stream()
                 .filter(serverPreference -> serverPreference.webServerUri().equals(webServerUri))
                 .toList()
@@ -94,12 +92,22 @@ public class PreferencesManager {
     }
 
     /**
-     * Get the currently saved server preferences. This list is immutable.
+     * Get an unmodifiable list containing all server preferences. The returned list
+     * won't be modified because it's a copy of the internal list.
      *
-     * @return the currently saved server preferences
+     * @return a copy of the currently saved server preferences
      */
-    public static ObservableList<ServerPreference> getServerPreferences() {
-        return serverPreferencesImmutable;
+    public static synchronized List<ServerPreference> getServerPreferences() {
+        return List.copyOf(serverPreferences);
+    }
+
+    /**
+     * Add a listener that will be called each time a preference is added or removed.
+     *
+     * @param listener the listener to call when a preference is added or removed
+     */
+    public static synchronized void addListenerToServerPreferences(Runnable listener) {
+        serverPreferences.addListener((ListChangeListener<? super ServerPreference>) change -> listener.run());
     }
 
     /**
@@ -259,14 +267,14 @@ public class PreferencesManager {
         );
     }
 
-    private synchronized static <T> Optional<T> getProperty(URI webServerUri, Function<ServerPreference, Optional<T>> preferenceGetter) {
+    private static synchronized <T> Optional<T> getProperty(URI webServerUri, Function<ServerPreference, Optional<T>> preferenceGetter) {
         return serverPreferences.stream()
                 .filter(preference -> preference.webServerUri().equals(webServerUri))
                 .findAny()
                 .flatMap(preferenceGetter);
     }
 
-    private synchronized static <T> void setProperty(URI webServerUri, String propertyName, T propertyValue, UnaryOperator<ServerPreference> preferenceCreator) {
+    private static synchronized <T> void setProperty(URI webServerUri, String propertyName, T propertyValue, UnaryOperator<ServerPreference> preferenceCreator) {
         List<ServerPreference> existingPreferences = serverPreferences.stream()
                 .filter(preference -> preference.webServerUri().equals(webServerUri))
                 .toList();

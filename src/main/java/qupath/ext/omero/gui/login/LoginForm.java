@@ -19,12 +19,14 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.preferences.PreferencesManager;
+import qupath.ext.omero.core.preferences.ServerPreference;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
+import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.ExecutorService;
@@ -84,9 +86,10 @@ public class LoginForm extends Stage {
         initModality(Modality.WINDOW_MODAL);
 
         if (webServerUri == null) {
-            url.setText(PreferencesManager.getServerPreferences().isEmpty() ?
+            List<ServerPreference> preferences = PreferencesManager.getServerPreferences();
+            url.setText(preferences.isEmpty() ?
                     DEFAULT_URL :
-                    PreferencesManager.getServerPreferences().getLast().webServerUri().toString()
+                    preferences.getLast().webServerUri().toString()
             );
         } else {
             url.setText(webServerUri.toString());

@@ -1,7 +1,6 @@
 package qupath.ext.omero.gui.connectionsmanager;
 
 import javafx.application.Platform;
-import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
@@ -16,9 +15,7 @@ import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -62,12 +59,8 @@ public class ConnectionsManager extends Stage {
     }
 
     private void setUpListeners() {
-        Client.getClients().addListener((ListChangeListener<? super Client>) change ->
-                Platform.runLater(this::populate)
-        );
-        PreferencesManager.getServerPreferences().addListener((ListChangeListener<? super ServerPreference>) change ->
-                Platform.runLater(this::populate)
-        );
+        Client.addListenerToClients(() -> Platform.runLater(this::populate));
+        PreferencesManager.addListenerToServerPreferences(() -> Platform.runLater(this::populate));
     }
 
     private void populate() {
@@ -83,10 +76,7 @@ public class ConnectionsManager extends Stage {
             }
         }
 
-        // Create copy to prevent modifications while iterating
-        List<ServerPreference> preferences = new ArrayList<>(PreferencesManager.getServerPreferences());
-
-        for (ServerPreference serverPreference: preferences) {
+        for (ServerPreference serverPreference: PreferencesManager.getServerPreferences()) {
             if (!urisAdded.contains(serverPreference.webServerUri())) {
                 try {
                     container.getChildren().add(new Connection(this, serverPreference.webServerUri(), openClientBrowser));
