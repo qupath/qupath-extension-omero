@@ -584,15 +584,15 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#sendKeyValuePairs(long, Map, boolean, boolean)}.
+     * See {@link WebclientApi#sendKeyValuePairs(long, String, Map, boolean)}.
      */
     public CompletableFuture<Void> sendKeyValuePairs(
             long imageId,
+            String namespace,
             Map<String, String> keyValues,
-            boolean replaceExisting,
-            boolean deleteExisting
+            boolean replaceExisting
     ) {
-        return webclientApi.sendKeyValuePairs(imageId, keyValues, replaceExisting, deleteExisting);
+        return webclientApi.sendKeyValuePairs(imageId, namespace, keyValues, replaceExisting);
     }
 
     /**

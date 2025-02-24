@@ -14,11 +14,19 @@ public class TestAnnotation {
     @Test
     void Check_Id() {
         int expectedId = 76;
+
         Annotation annotation = createAnnotation();
 
-        int id = annotation.getId();
+        Assertions.assertEquals(expectedId, annotation.getId());
+    }
 
-        Assertions.assertEquals(expectedId, id);
+    @Test
+    void Check_Namespace() {
+        String expectedNamespace = "some_namespace";
+
+        Annotation annotation = createAnnotation();
+
+        Assertions.assertEquals(expectedNamespace, annotation.getNamespace().orElse(""));
     }
 
     @Test
@@ -132,6 +140,7 @@ public class TestAnnotation {
                 """
                 {
                     "id": 76,
+                    "ns": "some_namespace",
                     "owner": %s,
                     "link": %s
                 }
