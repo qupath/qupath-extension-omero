@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
@@ -584,11 +585,11 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#sendKeyValuePairs(long, String, Map, boolean)}.
+     * See {@link WebclientApi#sendKeyValuePairs(long, Namespace, Map, boolean)}.
      */
     public CompletableFuture<Void> sendKeyValuePairs(
             long imageId,
-            String namespace,
+            Namespace namespace,
             Map<String, String> keyValues,
             boolean replaceExisting
     ) {

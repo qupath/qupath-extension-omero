@@ -6,6 +6,7 @@ import javafx.scene.control.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.MapAnnotation;
@@ -145,7 +146,7 @@ public class KeyValuesImporter implements DataTransporter {
                 }));
     }
 
-    private void setKeyValuePairs(AnnotationGroup annotationGroup, List<String> selectedNamespaces, ImportKeyValuePairsForm.Choice selectedChoice, Project<BufferedImage> project) {
+    private void setKeyValuePairs(AnnotationGroup annotationGroup, List<Namespace> selectedNamespaces, ImportKeyValuePairsForm.Choice selectedChoice, Project<BufferedImage> project) {
         List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
                 .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() &&
                         selectedNamespaces.contains(mapAnnotation.getNamespace().get())

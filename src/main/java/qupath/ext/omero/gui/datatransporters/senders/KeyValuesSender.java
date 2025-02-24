@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
@@ -116,7 +117,7 @@ public class KeyValuesSender implements DataTransporter {
                 });
     }
 
-    private void sendKeyValuePairs(OmeroImageServer omeroImageServer, Map<String,String> keyValues, List<String> namespaces) {
+    private void sendKeyValuePairs(OmeroImageServer omeroImageServer, Map<String,String> keyValues, List<Namespace> namespaces) {
         logger.debug("Got namespaces {} for image with ID {}", namespaces, omeroImageServer.getId());
 
         SendKeyValuePairsForm sendKeyValuePairsForm;

@@ -105,14 +105,14 @@ public class SearchResult {
                 try {
                     acquiredDate = OMERO_DATE_FORMAT.parse(findPatternInText(DATE_PATTERN, row).orElse(""));
                 } catch (ParseException e) {
-                    logger.info("Could not parse acquired date.", e);
+                    logger.debug("Could not parse acquired date", e);
                 }
 
                 Date importedDate = null;
                 try {
                     importedDate = OMERO_DATE_FORMAT.parse(findPatternInText(DATE_PATTERN, row, 1).orElse(""));
                 } catch (ParseException e) {
-                    logger.info("Could not parse imported date.", e);
+                    logger.debug("Could not parse imported date", e);
                 }
 
                 searchResults.add(new SearchResult(

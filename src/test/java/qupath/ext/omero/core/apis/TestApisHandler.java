@@ -12,6 +12,7 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
@@ -820,7 +821,7 @@ public class TestApisHandler extends OmeroServer {
             );
 
             Assertions.assertThrows(ExecutionException.class, () ->
-                    apisHandler.sendKeyValuePairs(image.getId(), "qupath", keyValues, true).get()
+                    apisHandler.sendKeyValuePairs(image.getId(), new Namespace("qupath"), keyValues, true).get()
             );
         }
 
@@ -995,13 +996,13 @@ public class TestApisHandler extends OmeroServer {
             );
 
             Assertions.assertDoesNotThrow(() ->
-                    apisHandler.sendKeyValuePairs(image.getId(), "qupath", keyValues, true).get()
+                    apisHandler.sendKeyValuePairs(image.getId(), new Namespace("qupath"), keyValues, true).get()
             );
         }
 
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException {
-            String namespace = randomString();              // random so that it is not affected by other tests
+            Namespace namespace = new Namespace(randomString());              // random so that it is not affected by other tests
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> existingKeyValues = Map.of(
                     "A", "existingValue"
@@ -1036,7 +1037,7 @@ public class TestApisHandler extends OmeroServer {
 
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException {
-            String namespace = randomString();              // random so that it is not affected by other tests
+            Namespace namespace = new Namespace(randomString());              // random so that it is not affected by other tests
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> existingKeyValues = Map.of(
                     "A", "existingValue"
@@ -1071,8 +1072,8 @@ public class TestApisHandler extends OmeroServer {
 
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException {
-            String existingNamespace = randomString();          // random so that it is not affected by other tests
-            String differentNamespace = randomString();         // random so that it is not affected by other tests
+            Namespace existingNamespace = new Namespace(randomString());          // random so that it is not affected by other tests
+            Namespace differentNamespace = new Namespace(randomString());         // random so that it is not affected by other tests
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> existingKeyValues = Map.of(
                     "A", "existingValue"
@@ -1107,8 +1108,8 @@ public class TestApisHandler extends OmeroServer {
 
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException {
-            String existingNamespace = randomString();          // random so that it is not affected by other tests
-            String differentNamespace = randomString();         // random so that it is not affected by other tests
+            Namespace existingNamespace = new Namespace(randomString());          // random so that it is not affected by other tests
+            Namespace differentNamespace = new Namespace(randomString());         // random so that it is not affected by other tests
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> existingKeyValues = Map.of(
                     "A", "existingValue"

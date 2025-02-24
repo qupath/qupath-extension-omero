@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.FileAnnotation;
@@ -341,7 +342,7 @@ class WebclientApi implements AutoCloseable {
      */
     public CompletableFuture<Void> sendKeyValuePairs(
             long imageId,
-            String namespace,
+            Namespace namespace,
             Map<String, String> keyValues,
             boolean replaceExisting
     ) {
@@ -371,7 +372,7 @@ class WebclientApi implements AutoCloseable {
                 String.format(
                         "image=%d&ns=%s&mapAnnotation=%s",
                         imageId,
-                        namespace,
+                        namespace.name(),
                         URLEncoder.encode(
                                 pairsToSend.stream()
                                         .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
@@ -630,7 +631,7 @@ class WebclientApi implements AutoCloseable {
         }
     }
 
-    private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotationsOfNamespace(URI uri, long imageId, String namespace) {
+    private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotationsOfNamespace(URI uri, long imageId, Namespace namespace) {
         return getAnnotations(imageId, Image.class).thenApply(annotationGroup -> {
             List<MapAnnotation> existingAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
                     .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(namespace))

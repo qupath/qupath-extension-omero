@@ -5,6 +5,7 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.google.gson.annotations.SerializedName;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Link;
@@ -39,8 +40,8 @@ public abstract class Annotation {
     /**
      * @return the namespace of this annotation, or an empty Optional if not defined
      */
-    public Optional<String> getNamespace() {
-        return Optional.ofNullable(namespace);
+    public Optional<Namespace> getNamespace() {
+        return namespace == null ? Optional.empty() : Optional.of(new Namespace(namespace));
     }
 
     /**

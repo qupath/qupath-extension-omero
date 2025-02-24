@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
@@ -22,11 +23,11 @@ public class TestAnnotation {
 
     @Test
     void Check_Namespace() {
-        String expectedNamespace = "some_namespace";
+        Namespace expectedNamespace = new Namespace("some_namespace");
 
         Annotation annotation = createAnnotation();
 
-        Assertions.assertEquals(expectedNamespace, annotation.getNamespace().orElse(""));
+        Assertions.assertEquals(expectedNamespace, annotation.getNamespace().orElse(null));
     }
 
     @Test

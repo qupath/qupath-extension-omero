@@ -8,8 +8,10 @@ import javafx.scene.control.RadioButton;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import org.controlsfx.control.ListSelectionView;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
@@ -27,7 +29,7 @@ public class SendKeyValuePairsForm extends VBox {
     @FXML
     private ListSelectionView<Map.Entry<String, String>> keyValuesToSend;
     @FXML
-    private ChoiceBox<String> namespace;
+    private ChoiceBox<Namespace> namespace;
     @FXML
     private TextField newNamespace;
     @FXML
@@ -47,7 +49,7 @@ public class SendKeyValuePairsForm extends VBox {
      *
      * @throws IOException if an error occurs while creating the form
      */
-    public SendKeyValuePairsForm(Map<String, String> keyValues, List<String> existingNamespaces) throws IOException {
+    public SendKeyValuePairsForm(Map<String, String> keyValues, List<Namespace> existingNamespaces) throws IOException {
         UiUtilities.loadFXML(this, SendKeyValuePairsForm.class.getResource("send_key_value_pairs_form.fxml"));
 
         Label sourceHeader = new Label(resources.getString("DataTransporters.Forms.SendKeyValuePairs.available"));
@@ -70,8 +72,28 @@ public class SendKeyValuePairsForm extends VBox {
             }
         });
 
+        namespace.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Namespace object) {
+                if (object == null) {
+                    return null;
+                } else if (object.equals(Namespace.getDefaultNamespace())) {
+                    return resources.getString("DataTransporters.Forms.ImportKeyValuePairs.default");
+                } else {
+                    return object.name();
+                }
+            }
+
+            @Override
+            public Namespace fromString(String string) {
+                return new Namespace(string);
+            }
+        });
+        if (!existingNamespaces.contains(Namespace.getDefaultNamespace())) {
+            namespace.getItems().add(Namespace.getDefaultNamespace());
+        }
         namespace.getItems().addAll(existingNamespaces);
-        namespace.getItems().add(resources.getString("DataTransporters.Forms.SendKeyValuePairs.new"));
+        namespace.getItems().add(new Namespace(resources.getString("DataTransporters.Forms.SendKeyValuePairs.new")));
         namespace.getSelectionModel().selectFirst();
 
         newNamespace.visibleProperty().bind(namespace.getSelectionModel().selectedIndexProperty().isEqualTo(namespace.getItems().size()-1));
@@ -106,9 +128,9 @@ public class SendKeyValuePairsForm extends VBox {
     /**
      * @return the selected namespace. It can be empty
      */
-    public String getSelectedNamespace() {
+    public Namespace getSelectedNamespace() {
         if (newNamespace.isVisible()) {
-            return newNamespace.getText();
+            return new Namespace(newNamespace.getText());
         } else {
             return namespace.getValue();
         }
