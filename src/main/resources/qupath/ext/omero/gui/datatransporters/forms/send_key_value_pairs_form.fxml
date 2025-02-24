@@ -20,7 +20,7 @@
                  text="qupath"/>
    </HBox>
    <VBox spacing="10.0">
-      <RadioButton fx:id="keepExisting" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendKeyValuePairs.keepExisting" />
-      <RadioButton fx:id="replaceExisting" mnemonicParsing="false" text="%DataTransporters.Forms.SendKeyValuePairs.replaceExisting" />
+      <RadioButton fx:id="replaceExisting" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendKeyValuePairs.replaceExisting" />
+      <RadioButton fx:id="keepExisting" mnemonicParsing="false" text="%DataTransporters.Forms.SendKeyValuePairs.keepExisting" />
    </VBox>
 </fx:root>

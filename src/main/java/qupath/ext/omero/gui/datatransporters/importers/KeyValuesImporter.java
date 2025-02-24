@@ -110,6 +110,16 @@ public class KeyValuesImporter implements DataTransporter {
 
                     logger.debug("Got annotations {} for image with ID {}", annotationGroup, omeroImageServer.getId());
 
+                    if (annotationGroup.getAnnotationsOfClass(MapAnnotation.class).isEmpty()) {
+                        new Dialogs.Builder()
+                                .alertType(Alert.AlertType.WARNING)
+                                .title(resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"))
+                                .content(new Label(resources.getString("DataTransporters.KeyValuesImporter.noKeyValuePairFound")))
+                                .owner(quPath.getStage())
+                                .show();
+                        return;
+                    }
+
                     ImportKeyValuePairsForm importKeyValuePairsForm;
                     try {
                         importKeyValuePairsForm = new ImportKeyValuePairsForm(annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
@@ -199,7 +209,7 @@ public class KeyValuesImporter implements DataTransporter {
                             MessageFormat.format(
                                     resources.getString("DataTransporters.KeyValuesImporter.followingKeyValuesNotAdded"),
                                     keyValuesNotWrittenBecauseDuplicate.stream()
-                                            .map(pair -> String.format("[%s: %s])", pair.key(), pair.value()))
+                                            .map(pair -> String.format("[%s: %s]", pair.key(), pair.value()))
                                             .collect(Collectors.joining(", "))
                             )
                     )))

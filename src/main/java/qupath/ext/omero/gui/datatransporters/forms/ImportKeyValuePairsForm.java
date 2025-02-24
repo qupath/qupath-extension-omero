@@ -3,6 +3,7 @@ package qupath.ext.omero.gui.datatransporters.forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import org.controlsfx.control.CheckComboBox;
 import qupath.ext.omero.gui.UiUtilities;
@@ -15,6 +16,8 @@ import java.util.List;
  */
 public class ImportKeyValuePairsForm extends VBox {
 
+    @FXML
+    private HBox namespaceContainer;
     @FXML
     private CheckComboBox<String> namespace;
     @FXML
@@ -40,8 +43,13 @@ public class ImportKeyValuePairsForm extends VBox {
     public ImportKeyValuePairsForm(List<String> namespaces) throws IOException {
         UiUtilities.loadFXML(this, ImportKeyValuePairsForm.class.getResource("import_key_value_pairs_form.fxml"));
 
-        namespace.getItems().addAll(namespaces);
-        namespace.getCheckModel().checkAll();
+        if (namespaces.isEmpty()) {
+            namespaceContainer.setVisible(false);
+            namespaceContainer.setManaged(false);
+        } else {
+            namespace.getItems().addAll(namespaces);
+            namespace.getCheckModel().checkAll();
+        }
 
         ToggleGroup group = new ToggleGroup();
         keepExisting.setToggleGroup(group);
