@@ -256,9 +256,7 @@ class JsonApi {
     public CompletableFuture<List<Project>> getProjects() {
         logger.debug("Getting all projects visible by the current user");
 
-        return getChildren(String.format(PROJECTS_URL, urls.get(PROJECTS_URL_KEY))).thenApply(
-                children -> children.stream().map(child -> (Project) child).toList()
-        );
+        return getChildren(String.format(PROJECTS_URL, urls.get(PROJECTS_URL_KEY)), Project.class);
     }
 
     /**
@@ -272,9 +270,7 @@ class JsonApi {
     public CompletableFuture<List<Dataset>> getOrphanedDatasets() {
         logger.debug("Getting all orphaned datasets visible by the current user");
 
-        return getChildren(String.format(ORPHANED_DATASETS_URL, urls.get(DATASETS_URL_KEY))).thenApply(
-                children -> children.stream().map(child -> (Dataset) child).toList()
-        );
+        return getChildren(String.format(ORPHANED_DATASETS_URL, urls.get(DATASETS_URL_KEY)), Dataset.class);
     }
 
     /**
@@ -289,9 +285,7 @@ class JsonApi {
     public CompletableFuture<List<Dataset>> getDatasets(long projectId) {
         logger.debug("Getting all datasets of project with ID {}", projectId);
 
-        return getChildren(String.format(DATASETS_URL, urls.get(PROJECTS_URL_KEY), projectId)).thenApply(
-                children -> children.stream().map(child -> (Dataset) child).toList()
-        );
+        return getChildren(String.format(DATASETS_URL, urls.get(PROJECTS_URL_KEY), projectId), Dataset.class);
     }
 
     /**
@@ -306,9 +300,7 @@ class JsonApi {
     public CompletableFuture<List<Image>> getImages(long datasetId) {
         logger.debug("Getting all images of dataset with ID {}", datasetId);
 
-        return getChildren(String.format(IMAGES_URL, urls.get(DATASETS_URL_KEY), datasetId)).thenApply(
-                children -> children.stream().map(child -> (Image) child).toList()
-        );
+        return getChildren(String.format(IMAGES_URL, urls.get(DATASETS_URL_KEY), datasetId), Image.class);
     }
 
     /**
@@ -418,9 +410,7 @@ class JsonApi {
     public CompletableFuture<List<Screen>> getScreens() {
         logger.debug("Getting all screens visible by the current user");
 
-        return getChildren(String.format(SCREENS_URL, urls.get(SCREENS_URL_KEY))).thenApply(
-                children -> children.stream().map(child -> (Screen) child).toList()
-        );
+        return getChildren(String.format(SCREENS_URL, urls.get(SCREENS_URL_KEY)), Screen.class);
     }
 
     /**
@@ -434,9 +424,7 @@ class JsonApi {
     public CompletableFuture<List<Plate>> getOrphanedPlates() {
         logger.debug("Getting all orphaned plates visible by the current user");
 
-        return getChildren(String.format(ORPHANED_PLATES_URL, urls.get(PLATES_URL_KEY))).thenApply(
-                children -> children.stream().map(child -> (Plate) child).toList()
-        );
+        return getChildren(String.format(ORPHANED_PLATES_URL, urls.get(PLATES_URL_KEY)), Plate.class);
     }
 
     /**
@@ -451,9 +439,7 @@ class JsonApi {
     public CompletableFuture<List<Plate>> getPlates(long screenId) {
         logger.debug("Getting all plates of screen with ID {}", screenId);
 
-        return getChildren(String.format(PLATES_URL, urls.get(SCREENS_URL_KEY), screenId)).thenApply(
-                children -> children.stream().map(child -> (Plate) child).toList()
-        );
+        return getChildren(String.format(PLATES_URL, urls.get(SCREENS_URL_KEY), screenId), Plate.class);
     }
 
     /**
@@ -468,9 +454,7 @@ class JsonApi {
     public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId) {
         logger.debug("Getting all plate acquisitions of plate with ID {}", plateId);
 
-        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webServerUri, plateId)).thenApply(
-                children -> children.stream().map(child -> (PlateAcquisition) child).toList()
-        );
+        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webServerUri, plateId), PlateAcquisition.class);
     }
 
     /**
@@ -485,9 +469,7 @@ class JsonApi {
     public CompletableFuture<List<Well>> getWellsFromPlate(long plateId) {
         logger.debug("Getting all wells of plate with ID {}", plateId);
 
-        return getChildren(String.format(PLATE_WELLS_URL, webServerUri, plateId)).thenApply(
-                children -> children.stream().map(child -> (Well) child).toList()
-        );
+        return getChildren(String.format(PLATE_WELLS_URL, webServerUri, plateId), Well.class);
     }
 
     /**
@@ -503,9 +485,7 @@ class JsonApi {
     public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, int wellSampleIndex) {
         logger.debug("Getting all wells of plate acquisition with ID {} and well sample of ID {}", plateAcquisitionId, wellSampleIndex);
 
-        return getChildren(String.format(WELLS_URL, webServerUri, plateAcquisitionId, wellSampleIndex)).thenApply(
-                children -> children.stream().map(child -> (Well) child).toList()
-        );
+        return getChildren(String.format(WELLS_URL, webServerUri, plateAcquisitionId, wellSampleIndex), Well.class);
     }
 
     /**
@@ -647,7 +627,7 @@ class JsonApi {
                 .thenApply(LoginResponse::parseServerAuthenticationResponse).get();
     }
 
-    private CompletableFuture<List<ServerEntity>> getChildren(String url) {
+    private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(String url, Class<T> type) {
         URI uri;
         try {
             uri = new URI(url);
@@ -660,10 +640,10 @@ class JsonApi {
         }
 
         return requestSender.getPaginated(uri)
-                .thenApply(jsonElements ->
-                        jsonElements.stream()
-                                .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
-                                .toList()
+                .thenApply(jsonElements -> jsonElements.stream()
+                        .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
+                        .map(type::cast)
+                        .toList()
                 )
                 .whenComplete((entities, error) -> {
                     synchronized (this) {
