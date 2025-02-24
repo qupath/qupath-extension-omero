@@ -151,8 +151,7 @@ public class KeyValuesSender implements DataTransporter {
                 omeroImageServer.getId(),
                 sendKeyValuePairsForm.getSelectedNamespace(),
                 sendKeyValuePairsForm.getKeyValuePairsToSend(),
-                sendKeyValuePairsForm.getSelectedChoice().equals(SendKeyValuePairsForm.Choice.REPLACE_EXITING),
-                true //TODO: change
+                sendKeyValuePairsForm.getSelectedChoice().equals(SendKeyValuePairsForm.Choice.REPLACE_EXITING)
         ).handle((v, error) -> {
             Platform.runLater(() -> {
                 waitingWindow.close();

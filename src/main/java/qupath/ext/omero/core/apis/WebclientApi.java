@@ -337,15 +337,13 @@ class WebclientApi implements AutoCloseable {
      * @param namespace the OMERO namespace the key-value pairs should have on the OMERO server
      * @param keyValues the key value pairs to send
      * @param replaceExisting whether to replace values when keys already exist on the OMERO server
-     * @param deleteExisting whether to delete all existing key value pairs on the OMERO server
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
     public CompletableFuture<Void> sendKeyValuePairs(
             long imageId,
             String namespace,
             Map<String, String> keyValues,
-            boolean replaceExisting,
-            boolean deleteExisting
+            boolean replaceExisting
     ) {
         logger.debug("Sending key-value pairs {} with namespace {} to image with ID {}", keyValues, namespace, imageId);
 
@@ -356,12 +354,10 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return removeAndReturnExistingMapAnnotations(uri, imageId).thenCompose(existingAnnotations -> {
+        return removeAndReturnExistingMapAnnotationsOfNamespace(uri, imageId, namespace).thenApply(existingAnnotations -> {
             List<MapAnnotation.Pair> pairsToSend = new ArrayList<>();
-            if (!deleteExisting) {
-                for (MapAnnotation annotation: existingAnnotations) {
-                    pairsToSend.addAll(annotation.getPairs());
-                }
+            for (MapAnnotation annotation: existingAnnotations) {
+                pairsToSend.addAll(annotation.getPairs());
             }
             for (var entry: keyValues.entrySet()) {
                 if (replaceExisting) {
@@ -369,28 +365,27 @@ class WebclientApi implements AutoCloseable {
                 }
                 pairsToSend.add(new MapAnnotation.Pair(entry.getKey(), entry.getValue()));
             }
-
-            return requestSender.post(
-                    uri,
-                    String.format(
-                            "image=%d&ns=%s&mapAnnotation=%s",
-                            imageId,
-                            namespace,
-                            URLEncoder.encode(
-                                    pairsToSend.stream()
-                                            .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
-                                            .collect(Collectors.joining(",", "[", "]")),
-                                    StandardCharsets.UTF_8
-                            )
-                    ).getBytes(StandardCharsets.UTF_8),
-                    String.format("%s/webclient/", host),
-                    token
-            ).thenAccept(rawResponse -> {
-                Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
-                if (response == null || !response.containsKey("annId")) {
-                    throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
-                }
-            });
+            return pairsToSend;
+        }).thenCompose(pairsToSend -> requestSender.post(
+                uri,
+                String.format(
+                        "image=%d&ns=%s&mapAnnotation=%s",
+                        imageId,
+                        namespace,
+                        URLEncoder.encode(
+                                pairsToSend.stream()
+                                        .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
+                                        .collect(Collectors.joining(",", "[", "]")),
+                                StandardCharsets.UTF_8
+                        )
+                ).getBytes(StandardCharsets.UTF_8),
+                String.format("%s/webclient/", host),
+                token
+        )).thenAccept(rawResponse -> {
+            Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+            if (response == null || !response.containsKey("annId")) {
+                throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
+            }
         });
     }
 
@@ -635,9 +630,11 @@ class WebclientApi implements AutoCloseable {
         }
     }
 
-    private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotations(URI uri, long imageId) {
+    private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotationsOfNamespace(URI uri, long imageId, String namespace) {
         return getAnnotations(imageId, Image.class).thenApply(annotationGroup -> {
-            List<MapAnnotation> existingAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class);
+            List<MapAnnotation> existingAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+                    .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(namespace))
+                    .toList();
 
             List<CompletableFuture<String>> requests = existingAnnotations.stream()
                     .map(Annotation::getId)

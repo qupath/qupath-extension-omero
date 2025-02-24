@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -625,16 +626,16 @@ public class TestApisHandler extends OmeroServer {
         abstract void Check_Key_Value_Pairs_Sent() throws ExecutionException, InterruptedException;
 
         @Test
-        abstract void Check_Key_Value_Pairs_Sent_When_Existing_Deleted() throws ExecutionException, InterruptedException;
+        abstract void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException;
 
         @Test
-        abstract void Check_Key_Value_Pairs_Sent_When_Existing_Not_Deleted() throws ExecutionException, InterruptedException;
+        abstract void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException;
 
         @Test
-        abstract void Check_Key_Value_Pairs_Sent_When_Existing_Replaced() throws ExecutionException, InterruptedException;
+        abstract void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException;
 
         @Test
-        abstract void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced() throws ExecutionException, InterruptedException;
+        abstract void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException;
 
         @Test
         abstract void Check_Image_Name_Can_Be_Changed() throws ExecutionException, InterruptedException;
@@ -819,31 +820,31 @@ public class TestApisHandler extends OmeroServer {
             );
 
             Assertions.assertThrows(ExecutionException.class, () ->
-                    apisHandler.sendKeyValuePairs(image.getId(), keyValues, true, true).get()
+                    apisHandler.sendKeyValuePairs(image.getId(), "qupath", keyValues, true).get()
             );
         }
 
         @Test
         @Override
-        void Check_Key_Value_Pairs_Sent_When_Existing_Deleted() {
+        void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Same_Namespace() {
             // Empty because key values can't be sent, see Check_Key_Value_Pairs_Sent
         }
 
         @Test
         @Override
-        void Check_Key_Value_Pairs_Sent_When_Existing_Not_Deleted() {
+        void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Same_Namespace() {
             // Empty because key values can't be sent, see Check_Key_Value_Pairs_Sent
         }
 
         @Test
         @Override
-        void Check_Key_Value_Pairs_Sent_When_Existing_Replaced() {
+        void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Different_Namespace() {
             // Empty because key values can't be sent, see Check_Key_Value_Pairs_Sent
         }
 
         @Test
         @Override
-        void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced() {
+        void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Different_Namespace() {
             // Empty because key values can't be sent, see Check_Key_Value_Pairs_Sent
         }
 
@@ -990,92 +991,22 @@ public class TestApisHandler extends OmeroServer {
         void Check_Key_Value_Pairs_Sent() {
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> keyValues = Map.of(
-                    "A", "B",
-                    "C", "D"
+                    "A", "B"
             );
 
             Assertions.assertDoesNotThrow(() ->
-                    apisHandler.sendKeyValuePairs(image.getId(), keyValues, true, true).get()
+                    apisHandler.sendKeyValuePairs(image.getId(), "qupath", keyValues, true).get()
             );
         }
 
-        @Test
         @Override
-        void Check_Key_Value_Pairs_Sent_When_Existing_Deleted() throws ExecutionException, InterruptedException {
-            Image image = OmeroServer.getAnnotableImage(userType);
-            Map<String, String> existingKeyValues = Map.of(
-                    "existingKey", "existingValue"
-            );
-            apisHandler.sendKeyValuePairs(image.getId(), existingKeyValues, true, true).get();
-            Map<String, String> keyValuesToSend = Map.of(
-                    "A", "B",
-                    "C", "D"
-            );
-            Map<String, String> expectedKeyValues = Map.of(
-                    "A", "B",
-                    "C", "D"
-            );
-
-            apisHandler.sendKeyValuePairs(image.getId(), keyValuesToSend, true, true).get();
-
-            Assertions.assertEquals(
-                    expectedKeyValues,
-                    apisHandler.getAnnotations(image.getId(), Image.class).get()
-                            .getAnnotationsOfClass(MapAnnotation.class)
-                            .stream()
-                            .map(MapAnnotation::getPairs)
-                            .flatMap(List::stream)
-                            .collect(Collectors.toMap(
-                                    MapAnnotation.Pair::key,
-                                    MapAnnotation.Pair::value,
-                                    (value1, value2) -> value1
-                            ))
-            );
-        }
-
-        @Test
-        @Override
-        void Check_Key_Value_Pairs_Sent_When_Existing_Not_Deleted() throws ExecutionException, InterruptedException {
-            Image image = OmeroServer.getAnnotableImage(userType);
-            Map<String, String> existingKeyValues = Map.of(
-                    "existingKey", "existingValue"
-            );
-            apisHandler.sendKeyValuePairs(image.getId(), existingKeyValues, true, true).get();
-            Map<String, String> keyValuesToSend = Map.of(
-                    "A", "B",
-                    "C", "D"
-            );
-            Map<String, String> expectedKeyValues = Map.of(
-                    "A", "B",
-                    "C", "D",
-                    "existingKey", "existingValue"
-            );
-
-            apisHandler.sendKeyValuePairs(image.getId(), keyValuesToSend, true, false).get();
-
-            Assertions.assertEquals(
-                    expectedKeyValues,
-                    apisHandler.getAnnotations(image.getId(), Image.class).get()
-                            .getAnnotationsOfClass(MapAnnotation.class)
-                            .stream()
-                            .map(MapAnnotation::getPairs)
-                            .flatMap(List::stream)
-                            .collect(Collectors.toMap(
-                                    MapAnnotation.Pair::key,
-                                    MapAnnotation.Pair::value,
-                                    (value1, value2) -> value1
-                            ))
-            );
-        }
-
-        @Test
-        @Override
-        void Check_Key_Value_Pairs_Sent_When_Existing_Replaced() throws ExecutionException, InterruptedException {
+        void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException {
+            String namespace = randomString();              // random so that it is not affected by other tests
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> existingKeyValues = Map.of(
                     "A", "existingValue"
             );
-            apisHandler.sendKeyValuePairs(image.getId(), existingKeyValues, true, true).get();
+            apisHandler.sendKeyValuePairs(image.getId(), namespace, existingKeyValues, true).get();
             Map<String, String> keyValuesToSend = Map.of(
                     "A", "B",
                     "C", "D"
@@ -1085,13 +1016,14 @@ public class TestApisHandler extends OmeroServer {
                     "C", "D"
             );
 
-            apisHandler.sendKeyValuePairs(image.getId(), keyValuesToSend, true, true).get();
+            apisHandler.sendKeyValuePairs(image.getId(), namespace, keyValuesToSend, true).get();
 
             Assertions.assertEquals(
                     expectedKeyValues,
                     apisHandler.getAnnotations(image.getId(), Image.class).get()
                             .getAnnotationsOfClass(MapAnnotation.class)
                             .stream()
+                            .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(namespace))
                             .map(MapAnnotation::getPairs)
                             .flatMap(List::stream)
                             .collect(Collectors.toMap(
@@ -1102,14 +1034,14 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
-        @Test
         @Override
-        void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced() throws ExecutionException, InterruptedException {
+        void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException {
+            String namespace = randomString();              // random so that it is not affected by other tests
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> existingKeyValues = Map.of(
                     "A", "existingValue"
             );
-            apisHandler.sendKeyValuePairs(image.getId(), existingKeyValues, true, true).get();
+            apisHandler.sendKeyValuePairs(image.getId(), namespace, existingKeyValues, true).get();
             Map<String, String> keyValuesToSend = Map.of(
                     "A", "B",
                     "C", "D"
@@ -1119,13 +1051,86 @@ public class TestApisHandler extends OmeroServer {
                     "C", "D"
             );
 
-            apisHandler.sendKeyValuePairs(image.getId(), keyValuesToSend, false, false).get();
+            apisHandler.sendKeyValuePairs(image.getId(), namespace, keyValuesToSend, false).get();
 
             Assertions.assertEquals(
                     expectedKeyValues,
                     apisHandler.getAnnotations(image.getId(), Image.class).get()
                             .getAnnotationsOfClass(MapAnnotation.class)
                             .stream()
+                            .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(namespace))
+                            .map(MapAnnotation::getPairs)
+                            .flatMap(List::stream)
+                            .collect(Collectors.toMap(
+                                    MapAnnotation.Pair::key,
+                                    MapAnnotation.Pair::value,
+                                    (value1, value2) -> value1
+                            ))
+            );
+        }
+
+        @Override
+        void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException {
+            String existingNamespace = randomString();          // random so that it is not affected by other tests
+            String differentNamespace = randomString();         // random so that it is not affected by other tests
+            Image image = OmeroServer.getAnnotableImage(userType);
+            Map<String, String> existingKeyValues = Map.of(
+                    "A", "existingValue"
+            );
+            apisHandler.sendKeyValuePairs(image.getId(), existingNamespace, existingKeyValues, true).get();
+            Map<String, String> keyValuesToSend = Map.of(
+                    "A", "B",
+                    "C", "D"
+            );
+            Map<String, String> expectedKeyValues = Map.of(
+                    "A", "B",
+                    "C", "D"
+            );
+
+            apisHandler.sendKeyValuePairs(image.getId(), differentNamespace, keyValuesToSend, true).get();
+
+            Assertions.assertEquals(
+                    expectedKeyValues,
+                    apisHandler.getAnnotations(image.getId(), Image.class).get()
+                            .getAnnotationsOfClass(MapAnnotation.class)
+                            .stream()
+                            .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(differentNamespace))
+                            .map(MapAnnotation::getPairs)
+                            .flatMap(List::stream)
+                            .collect(Collectors.toMap(
+                                    MapAnnotation.Pair::key,
+                                    MapAnnotation.Pair::value,
+                                    (value1, value2) -> value1
+                            ))
+            );
+        }
+
+        @Override
+        void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException {
+            String existingNamespace = randomString();          // random so that it is not affected by other tests
+            String differentNamespace = randomString();         // random so that it is not affected by other tests
+            Image image = OmeroServer.getAnnotableImage(userType);
+            Map<String, String> existingKeyValues = Map.of(
+                    "A", "existingValue"
+            );
+            apisHandler.sendKeyValuePairs(image.getId(), existingNamespace, existingKeyValues, true).get();
+            Map<String, String> keyValuesToSend = Map.of(
+                    "A", "B",
+                    "C", "D"
+            );
+            Map<String, String> expectedKeyValues = Map.of(
+                    "A", "B",
+                    "C", "D"
+            );
+
+            apisHandler.sendKeyValuePairs(image.getId(), differentNamespace, keyValuesToSend, false).get();
+
+            Assertions.assertEquals(
+                    expectedKeyValues,
+                    apisHandler.getAnnotations(image.getId(), Image.class).get()
+                            .getAnnotationsOfClass(MapAnnotation.class)
+                            .stream()
+                            .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(differentNamespace))
                             .map(MapAnnotation::getPairs)
                             .flatMap(List::stream)
                             .collect(Collectors.toMap(
@@ -1331,6 +1336,19 @@ public class TestApisHandler extends OmeroServer {
             apisHandler.sendAttachment(image.getId(), image.getClass(),"annotations3.csv", "test3").get();
 
             Assertions.assertDoesNotThrow(() -> apisHandler.deleteAttachments(image.getId(), image.getClass()).get());
+        }
+
+        private static String randomString() {
+            int leftLimit = 48; // numeral '0'
+            int rightLimit = 122; // letter 'z'
+            int targetStringLength = 10;
+            Random random = new Random();
+
+            return random.ints(leftLimit, rightLimit + 1)
+                    .filter(i -> (i <= 57 || i >= 65) && (i <= 90 || i >= 97))
+                    .limit(targetStringLength)
+                    .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
+                    .toString();
         }
     }
 
