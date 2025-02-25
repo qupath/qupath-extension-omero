@@ -87,7 +87,7 @@ public class KeyValuesImporter implements DataTransporter {
                     resources.getString("DataTransporters.KeyValuesImporter.gettingKeyValuePairs")
             );
         } catch (IOException e) {
-            logger.error("Error while creating the waiting window");
+            logger.error("Error while creating the waiting window", e);
             return;
         }
         waitingWindow.show();
@@ -200,7 +200,7 @@ public class KeyValuesImporter implements DataTransporter {
                     .content(new Label(String.format(
                             "%s\n\n%s",
                             keyValuesWritten.isEmpty() ?
-                                    resources.getString("DataTransporters.KeyValuesImporter.nokeyValuesAdded") :
+                                    resources.getString("DataTransporters.KeyValuesImporter.noKeyValuesAdded") :
                                     MessageFormat.format(
                                             resources.getString("DataTransporters.KeyValuesImporter.followingKeyValuesAdded"),
                                             keyValuesWritten.stream()

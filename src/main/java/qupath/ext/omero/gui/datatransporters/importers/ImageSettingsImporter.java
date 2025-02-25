@@ -75,15 +75,11 @@ public class ImageSettingsImporter implements DataTransporter {
             );
         } catch (IOException e) {
             logger.error("Error when creating the image settings form", e);
-            Dialogs.showErrorMessage(
-                    resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
-                    e.getLocalizedMessage()
-            );
             return;
         }
 
         boolean confirmed = Dialogs.showConfirmDialog(
-                resources.getString("DataTransporters.ImageSettingsImporter.dataToSend"),
+                resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
                 imageSettingsForm
         );
         List<ImageSettingsForm.Choice> selectedChoices = imageSettingsForm.getSelectedChoices();
@@ -98,7 +94,7 @@ public class ImageSettingsImporter implements DataTransporter {
                     resources.getString("DataTransporters.ImageSettingsImporter.importingAnnotations")
             );
         } catch (IOException e) {
-            logger.error("Error while creating the waiting window");
+            logger.error("Error while creating the waiting window", e);
             return;
         }
         waitingWindow.show();

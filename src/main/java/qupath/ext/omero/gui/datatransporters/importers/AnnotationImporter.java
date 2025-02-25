@@ -73,7 +73,7 @@ public class AnnotationImporter implements DataTransporter {
                     resources.getString("DataTransporters.AnnotationsImporter.retrievingServer")
             );
         } catch (IOException e) {
-            logger.error("Error while creating the waiting window");
+            logger.error("Error while creating the waiting window", e);
             return;
         }
         waitingWindow.show();
@@ -114,7 +114,7 @@ public class AnnotationImporter implements DataTransporter {
         }
 
         boolean confirmed = Dialogs.showConfirmDialog(
-                resources.getString("DataTransporters.AnnotationsImporter.dataToSend"),
+                resources.getString("DataTransporters.AnnotationsImporter.importAnnotations"),
                 annotationForm
         );
         if (!confirmed) {
@@ -128,7 +128,7 @@ public class AnnotationImporter implements DataTransporter {
                     resources.getString("DataTransporters.AnnotationsImporter.importingAnnotations")
             );
         } catch (IOException e) {
-            logger.error("Error while creating the waiting window");
+            logger.error("Error while creating the waiting window", e);
             return;
         }
         waitingWindow.show();
