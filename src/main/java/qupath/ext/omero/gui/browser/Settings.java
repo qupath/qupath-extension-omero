@@ -5,6 +5,7 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,6 +110,20 @@ class Settings extends Stage {
         iceApi.getServerPort().addListener((p, o, n) -> Platform.runLater(() ->
                 omeroPort.setText(String.valueOf(n))
         ));
+
+        getScene().addEventFilter(
+                KeyEvent.KEY_PRESSED,
+                keyEvent -> {
+                    switch (keyEvent.getCode()) {
+                        case ENTER:
+                            onOKClicked(null);
+                            break;
+                        case ESCAPE:
+                            close();
+                            break;
+                    }
+                }
+        );
     }
 
     private boolean save() {
