@@ -56,6 +56,16 @@ class Settings extends Stage {
         setUpListeners();
     }
 
+    /**
+     * Reset the text fields of this window to the values of the pixel APIs
+     */
+    public void resetEntries() {
+        msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferApi.getPort().get()));
+        webJpegQuality.setText(String.valueOf(webApi.getJpegQuality().get()));
+        omeroAddress.setText(iceApi.getServerAddress().get());
+        omeroPort.setText(String.valueOf(iceApi.getServerPort().get()));
+    }
+
     @FXML
     private void onOKClicked(ActionEvent ignoredEvent) {
         if (save()) {
@@ -66,11 +76,6 @@ class Settings extends Stage {
     @FXML
     private void onCancelClicked(ActionEvent ignoredEvent) {
         close();
-    }
-
-    @FXML
-    private void onApplyClicked(ActionEvent ignoredEvent) {
-        save();
     }
 
     private void initUI(Stage ownerWindow) throws IOException {
@@ -85,10 +90,7 @@ class Settings extends Stage {
                 Pattern.matches("^\\d*\\.?\\d*$", change.getControlNewText()) ? change : null;
         webJpegQuality.setTextFormatter(new TextFormatter<>(floatFilter));
 
-        msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferApi.getPort().get()));
-        webJpegQuality.setText(String.valueOf(webApi.getJpegQuality().get()));
-        omeroAddress.setText(iceApi.getServerAddress().get());
-        omeroPort.setText(String.valueOf(iceApi.getServerPort().get()));
+        resetEntries();
 
         initOwner(ownerWindow);
         show();
