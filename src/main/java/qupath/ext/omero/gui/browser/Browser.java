@@ -200,12 +200,17 @@ class Browser extends Stage {
         if (settings == null) {
             try {
                 settings = new Settings(this, client);
+
             } catch (IOException e) {
                 logger.error("Error while creating the settings window", e);
             }
         } else {
-            settings.show();
-            settings.requestFocus();
+            if (settings.isShowing()) {
+                settings.requestFocus();
+            } else {
+                settings.resetEntries();
+                settings.show();
+            }
         }
     }
 

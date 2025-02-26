@@ -116,8 +116,8 @@ public class MsPixelBufferApi implements PixelApi {
                 .ifPresent(port -> {
                     try {
                         setPort(Integer.parseInt(port), true);
-                    } catch (NumberFormatException e) {
-                        logger.warn("Can't convert {} to integer", port, e);
+                    } catch (IllegalArgumentException e) {
+                        logger.warn("Can't use provided port {}", port, e);
                     }
                 });
 
@@ -165,13 +165,18 @@ public class MsPixelBufferApi implements PixelApi {
      * Set the port used by this microservice on the OMERO server.
      * This may change the availability of this pixel API.
      *
-     * @param port the new port this microservice uses on the OMERO server
+     * @param port the new port this microservice uses on the OMERO server. It must be greater than 0
      * @param checkAvailabilityNow whether to directly check if the new port changes the
      *                             availability of this pixel API. If false, the check will
      *                             be performed in the background (recommended to avoid blocking
      *                             the calling thread)
+     * @throws IllegalArgumentException if the provided port is not greater than 0
      */
     public void setPort(int port, boolean checkAvailabilityNow) {
+        if (port < 0) {
+            throw new IllegalArgumentException(String.format("The provided port %d is not greater than 0", port));
+        }
+
         this.port.set(port);
         PreferencesManager.setMsPixelBufferPort(
                 apisHandler.getWebServerURI(),
