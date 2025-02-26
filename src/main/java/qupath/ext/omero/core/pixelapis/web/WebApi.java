@@ -115,8 +115,8 @@ public class WebApi implements PixelApi {
                 .ifPresent(quality -> {
                     try {
                         setJpegQuality(Float.parseFloat(quality));
-                    } catch (NumberFormatException e) {
-                        logger.warn("Can't convert {} to float", quality, e);
+                    } catch (IllegalArgumentException e) {
+                        logger.warn("Can't use provided JPEG quality {}", quality, e);
                     }
                 });
 
@@ -149,19 +149,19 @@ public class WebApi implements PixelApi {
      * Set the JPEG quality used by this pixel API.
      *
      * @param jpegQuality the JPEG quality (number between 0 and 1)
+     * @throws IllegalArgumentException if the provided quality is not between 0 and 1
      */
     public void setJpegQuality(float jpegQuality) {
-        if (jpegQuality > 0 && jpegQuality <= 1) {
-            this.jpegQuality.set(jpegQuality);
-
-            PreferencesManager.setWebJpegQuality(
-                    apisHandler.getWebServerURI(),
-                    jpegQuality
-            );
-
-            logger.debug("JPEG quality of web API changed to {}", jpegQuality);
-        } else {
-            logger.warn("Requested JPEG quality '{}' is invalid, must be between 0 and 1.", jpegQuality);
+        if (jpegQuality < 0 || jpegQuality > 1) {
+            throw new IllegalArgumentException(String.format("The provided JPEG quality %f is not between 0 and 1", jpegQuality));
         }
+
+        this.jpegQuality.set(jpegQuality);
+        PreferencesManager.setWebJpegQuality(
+                apisHandler.getWebServerURI(),
+                jpegQuality
+        );
+
+        logger.debug("JPEG quality of web API changed to {}", jpegQuality);
     }
 }

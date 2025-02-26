@@ -148,8 +148,8 @@ public class IceApi implements PixelApi {
                 .ifPresent(port -> {
                     try {
                         setServerPort(Integer.parseInt(port));
-                    } catch (NumberFormatException e) {
-                        logger.warn("Can't convert {} to integer", port, e);
+                    } catch (IllegalArgumentException e) {
+                        logger.warn("Can't use provided server port {}", port, e);
                     }
                 });
 
@@ -258,11 +258,15 @@ public class IceApi implements PixelApi {
     /**
      * Set the port used to communicate with the OMERO server.
      *
-     * @param serverPort the port of the OMERO server
+     * @param serverPort the port of the OMERO server. It must be greater than 0
+     * @throws IllegalArgumentException if the provided port is not greater than 0
      */
     public void setServerPort(int serverPort) {
-        this.serverPort.set(serverPort);
+        if (serverPort < 0) {
+            throw new IllegalArgumentException(String.format("The provided server port %d is not greater than 0", serverPort));
+        }
 
+        this.serverPort.set(serverPort);
         PreferencesManager.setIcePort(
                 apisHandler.getWebServerURI(),
                 serverPort

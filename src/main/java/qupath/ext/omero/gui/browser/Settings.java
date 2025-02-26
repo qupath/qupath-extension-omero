@@ -128,26 +128,46 @@ class Settings extends Stage {
 
     private boolean save() {
         try {
-            msPixelBufferApi.setPort(Integer.parseInt(msPixelBufferAPIPort.getText()), false);
             webApi.setJpegQuality(Float.parseFloat(webJpegQuality.getText()));
-            iceApi.setServerAddress(omeroAddress.getText());
-            iceApi.setServerPort(Integer.parseInt(omeroPort.getText()));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Incorrect JPEG quality {}", webJpegQuality.getText(), e);
 
-            // Reset the texts, as the user input may have had incorrect values and been ignored
-            msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferApi.getPort().get()));
-            webJpegQuality.setText(String.valueOf(webApi.getJpegQuality().get()));
-            omeroAddress.setText(iceApi.getServerAddress().get());
-            omeroPort.setText(String.valueOf(iceApi.getServerPort().get()));
-
-            Dialogs.showInfoNotification(
-                    resources.getString("Browser.ServerBrowser.Settings.saved"),
-                    resources.getString("Browser.ServerBrowser.Settings.parametersSaved")
+            Dialogs.showErrorMessage(
+                    resources.getString("Browser.ServerBrowser.Settings.error"),
+                    resources.getString("Browser.ServerBrowser.Settings.invalidJpegQuality")
             );
-
-            return true;
-        } catch (NumberFormatException e) {
-            logger.warn("Incorrect input", e);
             return false;
         }
+
+        iceApi.setServerAddress(omeroAddress.getText());
+        try {
+            iceApi.setServerPort(Integer.parseInt(omeroPort.getText()));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Incorrect ICE server port {}", omeroPort.getText(), e);
+
+            Dialogs.showErrorMessage(
+                    resources.getString("Browser.ServerBrowser.Settings.error"),
+                    resources.getString("Browser.ServerBrowser.Settings.iceServerPort")
+            );
+            return false;
+        }
+
+        try {
+            msPixelBufferApi.setPort(Integer.parseInt(msPixelBufferAPIPort.getText()), false);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Incorrect pixel buffer microservice port {}", msPixelBufferAPIPort.getText(), e);
+
+            Dialogs.showErrorMessage(
+                    resources.getString("Browser.ServerBrowser.Settings.error"),
+                    resources.getString("Browser.ServerBrowser.Settings.invalidPixelBufferMicroservicePort")
+            );
+            return false;
+        }
+
+        Dialogs.showInfoNotification(
+                resources.getString("Browser.ServerBrowser.Settings.saved"),
+                resources.getString("Browser.ServerBrowser.Settings.parametersSaved")
+        );
+        return true;
     }
 }
