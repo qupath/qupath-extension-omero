@@ -1,12 +1,15 @@
 package qupath.ext.omero.gui.browser;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
+import org.controlsfx.control.textfield.CustomTextField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
@@ -33,13 +36,13 @@ class Settings extends Stage {
     private final WebApi webApi;
     private final IceApi iceApi;
     @FXML
-    private TextField msPixelBufferAPIPort;
-    @FXML
-    private TextField webJpegQuality;
+    private CustomTextField webJpegQuality;
     @FXML
     private TextField omeroAddress;
     @FXML
     private TextField omeroPort;
+    @FXML
+    private TextField msPixelBufferAPIPort;
 
     /**
      * Creates the settings window.
@@ -82,14 +85,31 @@ class Settings extends Stage {
     private void initUI(Stage ownerWindow) throws IOException {
         UiUtilities.loadFXML(this, Settings.class.getResource("settings.fxml"));
 
-        UnaryOperator<TextFormatter.Change> integerFilter = change ->
-                Pattern.matches("^\\d*$", change.getControlNewText()) ? change : null;
-        msPixelBufferAPIPort.setTextFormatter(new TextFormatter<>(integerFilter));
-        omeroPort.setTextFormatter(new TextFormatter<>(integerFilter));
-
         UnaryOperator<TextFormatter.Change> floatFilter = change ->
                 Pattern.matches("^\\d*\\.?\\d*$", change.getControlNewText()) ? change : null;
         webJpegQuality.setTextFormatter(new TextFormatter<>(floatFilter));
+        webJpegQuality.rightProperty().bind(Bindings.createObjectBinding(
+                () -> {
+                    try {
+                        float quality = Float.parseFloat(webJpegQuality.getText());
+                        if (quality >= 0 && quality <= 1) {
+                            return null;
+                        } else {
+                            logger.debug("JPEG quality {} not between 0 and 1", quality);
+                            return new Label("❌");
+                        }
+                    } catch (NumberFormatException e) {
+                        logger.debug("Cannot convert JPEG quality {} to float", webJpegQuality.getText(), e);
+                        return new Label("❌");
+                    }
+                },
+                webJpegQuality.textProperty()
+        ));
+
+        UnaryOperator<TextFormatter.Change> integerFilter = change ->
+                Pattern.matches("^\\d*$", change.getControlNewText()) ? change : null;
+        omeroPort.setTextFormatter(new TextFormatter<>(integerFilter));
+        msPixelBufferAPIPort.setTextFormatter(new TextFormatter<>(integerFilter));
 
         resetEntries();
 
