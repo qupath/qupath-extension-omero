@@ -399,7 +399,7 @@ public class RequestSender implements AutoCloseable {
 
     private List<JsonElement> readFollowingPages(String uri, int limit, int totalCount) {
         return IntStream.iterate(limit, i -> i + limit)
-                .limit(max(0, (totalCount - limit) / limit))
+                .limit(max(0, (int) Math.ceil((float) (totalCount - limit) / limit)))
                 .mapToObj(offset -> URI.create(uri + "offset=" + offset))
                 .map(currentURI -> getAndConvertToJsonList(currentURI, "data"))
                 .map(CompletableFuture::join)
