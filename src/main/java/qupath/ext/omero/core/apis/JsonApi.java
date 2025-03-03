@@ -75,6 +75,7 @@ class JsonApi {
     private static final String PLATE_WELLS_URL = "%s/api/v0/m/plates/%d/wells/";
     private static final String WELLS_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
     private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%d%s";
+    private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
     private static final Gson gson = new Gson();
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
@@ -212,7 +213,10 @@ class JsonApi {
     /**
      * Attempt to retrieve all groups of a user or of the server.
      * <ul>
-     *     <li>When retrieving the groups of a user, private groups won't be populated by their members (excluding the provided user).</li>
+     *     <li>
+     *         When retrieving the groups of a user, private groups won't be populated by their members (excluding the provided user).
+     *         Also, the 'system' and 'user' groups won't be included.
+     *     </li>
      *     <li>When retrieving all groups of the server, private groups will be populated by all their members.</li>
      * </ul>
      *
@@ -242,9 +246,12 @@ class JsonApi {
             List<Group> groups = jsonElements.stream()
                     .map(jsonElement -> gson.fromJson(jsonElement, Group.class))
                     .toList();
-            logger.debug("Groups {} retrieved", groups);
+            List<Group> filteredGroups = groups.stream()
+                    .filter(group -> retrieveAllGroups || !GROUPS_TO_EXCLUDE.contains(group.getName()))
+                    .toList();
+            logger.debug("Groups {} filtered to {} retrieved", groups, filteredGroups);
 
-            for (Group group: groups) {
+            for (Group group: filteredGroups) {
                 URI experimenterLink = URI.create(group.getExperimentersLink());
                 List<Owner> owners = requestSender.getPaginated(experimenterLink).join().stream()
                         .map(jsonElement -> gson.fromJson(jsonElement, Owner.class))
@@ -257,7 +264,7 @@ class JsonApi {
                 logger.debug("Owners {} have been filtered to {} and assigned to {}", owners, group.getOwners(), group);
             }
 
-            return groups;
+            return filteredGroups;
         });
     }
 

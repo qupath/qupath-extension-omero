@@ -125,8 +125,8 @@ public class Server implements RepositoryEntity {
     }
 
     /**
-     * @return an unmodifiable list of groups the connected owner belong to, or all
-     * groups of the server if the connected user is an admin
+     * @return an unmodifiable list of groups the connected owner belong to (except for the
+     * 'user' and 'system' groups), or all groups of the server if the connected user is an admin
      */
     public List<Group> getGroups() {
         return groups;

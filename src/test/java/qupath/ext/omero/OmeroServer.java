@@ -316,13 +316,11 @@ public abstract class OmeroServer {
     protected static List<Group> getGroups(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> List.of(
-                    getUserGroup(),
                     getGroup1(),
                     getGroup2(),
                     getGroup3()
             );
             case UNAUTHENTICATED -> List.of(
-                    getUserGroup(),
                     getPublicGroup()
             );
             case ADMIN -> getGroups();
@@ -351,14 +349,13 @@ public abstract class OmeroServer {
 
     protected static List<Owner> getOwners(UserType userType) {
         return switch (userType) {
-            case AUTHENTICATED, UNAUTHENTICATED -> List.of(
-                    getRootUser(),
-                    getAdminUser(),
-                    getPublicUser(),
+            case AUTHENTICATED -> List.of(
                     getUser1(),
                     getUser2(),
-                    getUser3(),
                     getUser()
+            );
+            case UNAUTHENTICATED -> List.of(
+                    getPublicUser()
             );
             case ADMIN -> List.of(
                     getRootUser(),
