@@ -158,7 +158,7 @@ public class IceApi implements PixelApi {
                 logger.debug("Gateway null. Creating one...");
 
                 try {
-                    String sessionUuid = apisHandler.getSessionUuid();
+                    String sessionUuid = apisHandler.getSessionUuid().orElseThrow();
 
                     List<LoginCredentials> credentials = new ArrayList<>();
                     if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {

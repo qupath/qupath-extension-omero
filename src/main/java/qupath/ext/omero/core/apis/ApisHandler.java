@@ -209,27 +209,30 @@ public class ApisHandler implements AutoCloseable {
      * the server if no authentication was performed
      */
     public CompletableFuture<Long> getUserId() {
-        long userId = jsonApi.getUserId();
-
-        if (userId > -1) {
-            return CompletableFuture.completedFuture(userId);
-        } else {
-            return webclientApi.getPublicUserId();
-        }
+        return jsonApi.getUserId()
+                .map(CompletableFuture::completedFuture)
+                .orElseGet(webclientApi::getPublicUserId);
     }
 
     /**
      * See {@link JsonApi#getDefaultGroup()}.
      */
-    public Group getDefaultGroup() {
+    public Optional<Group> getDefaultGroup() {
         return jsonApi.getDefaultGroup();
     }
 
     /**
      * See {@link JsonApi#getSessionUuid()}.
      */
-    public String getSessionUuid() {
+    public Optional<String> getSessionUuid() {
         return jsonApi.getSessionUuid();
+    }
+
+    /**
+     * See {@link JsonApi#isAdmin()}.
+     */
+    public Optional<Boolean> isAdmin() {
+        return jsonApi.isAdmin();
     }
 
     /**
@@ -407,6 +410,13 @@ public class ApisHandler implements AutoCloseable {
      */
     public CompletableFuture<List<Group>> getGroups(long userId) {
         return jsonApi.getGroups(userId);
+    }
+
+    /**
+     * Same as {@link #getGroups(long)}, but to get all groups of the server
+     */
+    public CompletableFuture<List<Group>> getGroups() {
+        return jsonApi.getGroups(-1);
     }
 
     /**

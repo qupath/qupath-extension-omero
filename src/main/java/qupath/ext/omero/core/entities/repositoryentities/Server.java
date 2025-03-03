@@ -41,18 +41,12 @@ public class Server implements RepositoryEntity {
      * @param apisHandler the APIs handler to use when making requests
      * @throws ExecutionException if an error while performing a request to the server
      * @throws InterruptedException if the running thread is interrupted
-     * @throws IllegalArgumentException if the root account was used to log in, or if the server didn't return
-     * all the required information
+     * @throws IllegalArgumentException if the server didn't return all the required information
      */
     public Server(ApisHandler apisHandler) throws ExecutionException, InterruptedException {
         long userId = apisHandler.getUserId().get();
-        if (userId == 0) {
-            throw new IllegalArgumentException(
-                    "It is forbidden to use the root account to log in, as no images should be uploaded with this user"
-            );
-        }
 
-        this.groups = apisHandler.getGroups(userId).get();
+        this.groups = apisHandler.isAdmin().orElse(false) ? apisHandler.getGroups().get() : apisHandler.getGroups(userId).get();
         if (groups.isEmpty()) {
             throw new IllegalArgumentException(String.format(
                     "The server didn't return any group for user with ID %d", userId
@@ -74,22 +68,21 @@ public class Server implements RepositoryEntity {
                         this.owners
                 )));
 
-        Group group = apisHandler.getDefaultGroup();
-        if (group == null) {
-            this.defaultGroup = this.groups.getFirst();
-        } else {
-            if (this.groups.contains(group)) {
-                this.defaultGroup = group;
-            } else {
-                this.defaultGroup = this.groups.getFirst();
-                logger.warn(
-                        "The group {} was not found in the list returned by the server ({}). Using {}",
-                        group,
-                        this.groups,
-                        this.defaultGroup
-                );
-            }
-        }
+        this.defaultGroup = apisHandler.getDefaultGroup()
+                .map(group -> {
+                    if (this.groups.contains(group)) {
+                        return group;
+                    } else {
+                        logger.warn(
+                                "The group {} was not found in the list returned by the server ({}). Using {}",
+                                group,
+                                this.groups,
+                                this.groups.getFirst()
+                        );
+                        return this.groups.getFirst();
+                    }
+                })
+                .orElse(this.groups.getFirst());
 
         populate(apisHandler);
     }
@@ -132,14 +125,16 @@ public class Server implements RepositoryEntity {
     }
 
     /**
-     * @return an unmodifiable list of groups the connected owner belong to
+     * @return an unmodifiable list of groups the connected owner belong to, or all
+     * groups of the server if the connected user is an admin
      */
     public List<Group> getGroups() {
         return groups;
     }
 
     /**
-     * @return an unmodifiable list of owners belonging to groups the connected owner belong to
+     * @return an unmodifiable list of owners belonging to groups the connected owner belong to,
+     * or all owners of the server if the connected user is an admin
      */
     public List<Owner> getOwners() {
         return owners;

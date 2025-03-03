@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.Credentials;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -15,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 public class TestOrphanedFolder extends OmeroServer {
 
-    private static final Credentials.UserType userType = Credentials.UserType.PUBLIC_USER;
+    private static final UserType userType = UserType.UNAUTHENTICATED;
     private static Client client;
     private static OrphanedFolder orphanedFolder;
 

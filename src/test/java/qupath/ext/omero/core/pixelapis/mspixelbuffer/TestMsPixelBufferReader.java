@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -26,7 +25,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
     abstract static class GenericImage {
 
-        protected static final Credentials.UserType userType = Credentials.UserType.PUBLIC_USER;
+        protected static final UserType userType = UserType.UNAUTHENTICATED;
         protected static Image image;
         protected static Client client;
         protected static TileRequest tileRequest;

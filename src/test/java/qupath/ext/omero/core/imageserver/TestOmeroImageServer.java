@@ -4,7 +4,6 @@ import org.junit.jupiter.api.*;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
@@ -22,7 +21,7 @@ import java.util.concurrent.ExecutionException;
 
 public class TestOmeroImageServer extends OmeroServer {
 
-    private static final Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+    private static final UserType userType = UserType.AUTHENTICATED;
     private static final Image image = OmeroServer.getRGBImage(userType);
     private static Client client;
     private static OmeroImageServer imageServer;

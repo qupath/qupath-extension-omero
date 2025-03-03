@@ -55,7 +55,7 @@ public class TestApisHandler extends OmeroServer {
 
         protected static Client client;
         protected static ApisHandler apisHandler;
-        protected static Credentials.UserType userType;
+        protected static UserType userType;
 
         @AfterAll
         static void removeClient() throws Exception {
@@ -193,6 +193,9 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         abstract void Check_Session_Uuid();
+
+        @Test
+        abstract void Check_Is_Admin();
 
         @Test
         void Check_Base_URL_Reachable() {
@@ -419,11 +422,20 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Groups() throws ExecutionException, InterruptedException {
+        void Check_Groups_Of_User() throws ExecutionException, InterruptedException {
             long userId = OmeroServer.getConnectedOwner(userType).id();
             List<Group> expectedGroups = OmeroServer.getGroups(userType);
 
             List<Group> groups = apisHandler.getGroups(userId).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
+        }
+
+        @Test
+        void Check_Groups() throws ExecutionException, InterruptedException {
+            List<Group> expectedGroups = OmeroServer.getGroups();
+
+            List<Group> groups = apisHandler.getGroups().get();
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
         }
@@ -790,7 +802,7 @@ public class TestApisHandler extends OmeroServer {
 
         @BeforeAll
         static void createClient() {
-            userType = Credentials.UserType.PUBLIC_USER;
+            userType = UserType.UNAUTHENTICATED;
             client = OmeroServer.createClient(userType);
             apisHandler = client.getApisHandler();
         }
@@ -798,17 +810,25 @@ public class TestApisHandler extends OmeroServer {
         @Test
         @Override
         void Check_Default_Group() {
-            Group defaultGroup = apisHandler.getDefaultGroup();
+            Optional<Group> defaultGroup = apisHandler.getDefaultGroup();
 
-            Assertions.assertNull(defaultGroup);
+            Assertions.assertTrue(defaultGroup.isEmpty());
         }
 
         @Test
         @Override
         void Check_Session_Uuid() {
-            String sessionUuid = apisHandler.getSessionUuid();
+            Optional<String> sessionUuid = apisHandler.getSessionUuid();
 
-            Assertions.assertNull(sessionUuid);
+            Assertions.assertTrue(sessionUuid.isEmpty());
+        }
+
+        @Test
+        @Override
+        void Check_Is_Admin() {
+            Optional<Boolean> isAdmin = apisHandler.isAdmin();
+
+            Assertions.assertTrue(isAdmin.isEmpty());
         }
 
         @Test
@@ -964,7 +984,7 @@ public class TestApisHandler extends OmeroServer {
 
         @BeforeAll
         static void createClient() {
-            userType = Credentials.UserType.REGULAR_USER;
+            userType = UserType.AUTHENTICATED;
             client = OmeroServer.createClient(userType);
             apisHandler = client.getApisHandler();
         }
@@ -974,7 +994,7 @@ public class TestApisHandler extends OmeroServer {
         void Check_Default_Group() {
             Group expectedDefaultGroup = OmeroServer.getDefaultGroup(userType);
 
-            Group defaultGroup = apisHandler.getDefaultGroup();
+            Group defaultGroup = apisHandler.getDefaultGroup().orElse(null);
 
             Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
         }
@@ -982,9 +1002,16 @@ public class TestApisHandler extends OmeroServer {
         @Test
         @Override
         void Check_Session_Uuid() {
-            String sessionUuid = apisHandler.getSessionUuid();
+            String sessionUuid = apisHandler.getSessionUuid().orElse(null);
 
             Assertions.assertNotNull(sessionUuid);
+        }
+
+        @Override
+        void Check_Is_Admin() {
+            boolean isAdmin = apisHandler.isAdmin().orElseThrow();
+
+            Assertions.assertFalse(isAdmin);
         }
 
         @Test

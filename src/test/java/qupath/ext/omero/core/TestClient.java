@@ -61,7 +61,7 @@ public class TestClient extends OmeroServer {
 
         @BeforeAll
         static void createClient() {
-            client = OmeroServer.createClient(Credentials.UserType.PUBLIC_USER);
+            client = OmeroServer.createClient(UserType.UNAUTHENTICATED);
         }
     }
 
@@ -70,7 +70,7 @@ public class TestClient extends OmeroServer {
 
         @BeforeAll
         static void createClient() {
-            client = OmeroServer.createClient(Credentials.UserType.REGULAR_USER);
+            client = OmeroServer.createClient(UserType.AUTHENTICATED);
         }
     }
 
@@ -97,7 +97,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_Creation_With_Public_User() {
-        Credentials.UserType userType = Credentials.UserType.PUBLIC_USER;
+        UserType userType = UserType.UNAUTHENTICATED;
 
         Assertions.assertDoesNotThrow(() -> {
             Client client = Client.createOrGet(
@@ -110,7 +110,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_Creation_With_User() {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
 
         Assertions.assertDoesNotThrow(() -> {
             Client client = Client.createOrGet(
@@ -123,7 +123,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_Creation_With_Incorrect_Username() {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
 
         Assertions.assertThrows(Exception.class, () -> {
             try (Client client = Client.createOrGet(
@@ -135,7 +135,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_Creation_With_Incorrect_Password() {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
 
         Assertions.assertThrows(Exception.class, () -> {
             try (Client client = Client.createOrGet(
@@ -147,7 +147,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_Creation_With_Invalid_URI() {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
 
         Assertions.assertThrows(Exception.class, () -> {
             try (Client client = Client.createOrGet(
@@ -159,7 +159,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_Can_Be_Retrieved_After_Added() throws Exception {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
         URI uri = URI.create(OmeroServer.getWebServerURI());
         Client expectedClient = Client.createOrGet(
                 uri.toString(),
@@ -175,7 +175,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_Cannot_Be_Retrieved_After_Closed() throws Exception {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
         URI uri = URI.create(OmeroServer.getWebServerURI());
         Client removedClient = Client.createOrGet(
                 uri.toString(),
@@ -190,7 +190,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_List_After_Added() throws Exception {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
         Client client = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
                 new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
@@ -206,7 +206,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Client_List_After_Closed() throws Exception {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
         Client client = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
                 new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
@@ -220,7 +220,7 @@ public class TestClient extends OmeroServer {
 
     @Test
     void Check_Existing_Client_Retrieved() throws Exception {
-        Credentials.UserType userType = Credentials.UserType.REGULAR_USER;
+        UserType userType = UserType.AUTHENTICATED;
         Client expectedClient = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
                 new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
@@ -241,16 +241,16 @@ public class TestClient extends OmeroServer {
         Client.createOrGet(
                 OmeroServer.getWebServerURI(),
                 new Credentials(
-                        OmeroServer.getUsername(Credentials.UserType.REGULAR_USER),
-                        OmeroServer.getPassword(Credentials.UserType.REGULAR_USER).toCharArray()
+                        OmeroServer.getUsername(UserType.AUTHENTICATED),
+                        OmeroServer.getPassword(UserType.AUTHENTICATED).toCharArray()
                 )
         );
 
         Client client = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
                 new Credentials(
-                        OmeroServer.getUsername(Credentials.UserType.PUBLIC_USER),
-                        OmeroServer.getPassword(Credentials.UserType.PUBLIC_USER).toCharArray()
+                        OmeroServer.getUsername(UserType.UNAUTHENTICATED),
+                        OmeroServer.getPassword(UserType.UNAUTHENTICATED).toCharArray()
                 )
         );
 
@@ -269,8 +269,8 @@ public class TestClient extends OmeroServer {
         Client client = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
                 new Credentials(
-                        OmeroServer.getUsername(Credentials.UserType.PUBLIC_USER),
-                        OmeroServer.getPassword(Credentials.UserType.PUBLIC_USER).toCharArray()
+                        OmeroServer.getUsername(UserType.UNAUTHENTICATED),
+                        OmeroServer.getPassword(UserType.UNAUTHENTICATED).toCharArray()
                 )
         );
 

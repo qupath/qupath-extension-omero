@@ -3,6 +3,9 @@
 # Connect as root
 /opt/omero/server/venv3/bin/omero login root@localhost:4064 -w password
 
+# Create admin user
+/opt/omero/server/venv3/bin/omero user add admin admin admin --group-name system -P password_admin
+
 # Create public user and group
 /opt/omero/server/venv3/bin/omero group add public-data --type=read-only
 /opt/omero/server/venv3/bin/omero user add public public access --group-name public-data -P password_public

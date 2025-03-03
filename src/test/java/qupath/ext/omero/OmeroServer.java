@@ -44,31 +44,25 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 /**
+ * An abstract class that gives access to an OMERO server hosted
+ * on a local Docker container. Each subclass of this class will
+ * have access to the same OMERO server.
  * <p>
- *     An abstract class that gives access to an OMERO server hosted
- *     on a local Docker container. Each subclass of this class will
- *     have access to the same OMERO server.
- * </p>
+ * The OMERO server is populated by several projects, datasets, images,
+ * users, groups. The <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO
+ * Pixel Data Microservice</a> is also installed on the server.
  * <p>
- *     The OMERO server is populated by several projects, datasets, images,
- *     users, groups. The <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO
- *     Pixel Data Microservice</a> is also installed on the server.
- * </p>
+ * All useful information of the OMERO server are returned by functions
+ * of this class.
  * <p>
- *     All useful information of the OMERO server are returned by functions
- *     of this class.
- * </p>
+ * If Docker can't be found on the host machine, all tests are skipped.
  * <p>
- *     If Docker can't be found on the host machine, all tests are skipped.
- * </p>
- * <p>
- *     If a Docker container containing a working OMERO server is already
- *     running on the host machine, set the {@link #IS_LOCAL_OMERO_SERVER_RUNNING}
- *     variable to {@code true}. This will prevent this class to create new containers,
- *     gaining some time when running the tests.
- *     A local OMERO server can be started by running the qupath-extension-omero/src/test/resources/server.sh
- *     script.
- * </p>
+ * If a Docker container containing a working OMERO server is already
+ * running on the host machine, set the {@link #IS_LOCAL_OMERO_SERVER_RUNNING}
+ * variable to {@code true}. This will prevent this class to create new containers,
+ * gaining some time when running the tests.
+ * A local OMERO server can be started by running the qupath-extension-omero/src/test/resources/server.sh
+ * script.
  */
 public abstract class OmeroServer {
 
@@ -94,6 +88,11 @@ public abstract class OmeroServer {
         FLOAT32,
         FLOAT64,
         COMPLEX
+    }
+    protected enum UserType {
+        UNAUTHENTICATED,
+        AUTHENTICATED,
+        ADMIN
     }
 
     static {
@@ -263,12 +262,12 @@ public abstract class OmeroServer {
                 "http://" + omeroWeb.getHost() + ":" + omeroWeb.getMappedPort(OMERO_WEB_PORT);
     }
 
-    protected static Credentials getCredentials(Credentials.UserType userType) {
+    protected static Credentials getCredentials(UserType userType) {
         return switch (userType) {
-            case PUBLIC_USER -> new Credentials();
-            case REGULAR_USER -> new Credentials(
-                    getUsername(Credentials.UserType.REGULAR_USER),
-                    getPassword(Credentials.UserType.REGULAR_USER).toCharArray()
+            case UNAUTHENTICATED -> new Credentials();
+            case AUTHENTICATED, ADMIN -> new Credentials(
+                    getUsername(userType),
+                    getPassword(userType).toCharArray()
             );
         };
     }
@@ -281,7 +280,7 @@ public abstract class OmeroServer {
         return OMERO_SERVER_PORT;
     }
 
-    protected static Client createClient(Credentials.UserType userType) {
+    protected static Client createClient(UserType userType) {
         Credentials credentials = getCredentials(userType);
         Client client = null;
         int attempt = 0;
@@ -302,61 +301,91 @@ public abstract class OmeroServer {
         }
     }
 
-    protected static String getUsername(Credentials.UserType userType) {
+    protected static String getUsername(UserType userType) {
         return getConnectedOwner(userType).username();
     }
 
-    protected static String getPassword(Credentials.UserType userType) {
+    protected static String getPassword(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> "password_user";
-            case PUBLIC_USER -> "password_public";
+            case AUTHENTICATED -> "password_user";
+            case UNAUTHENTICATED -> "password_public";
+            case ADMIN -> "password_admin";
         };
     }
 
-    protected static List<Group> getGroups(Credentials.UserType userType) {
+    protected static List<Group> getGroups(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(
+            case AUTHENTICATED -> List.of(
+                    getUserGroup(),
                     getGroup1(),
                     getGroup2(),
                     getGroup3()
             );
-            case PUBLIC_USER -> List.of(
+            case UNAUTHENTICATED -> List.of(
+                    getUserGroup(),
                     getPublicGroup()
             );
+            case ADMIN -> getGroups();
         };
     }
 
-    protected static Group getDefaultGroup(Credentials.UserType userType) {
+    protected static List<Group> getGroups() {
+        return List.of(
+                getSystemGroup(),
+                getUserGroup(),
+                getGuestGroup(),
+                getPublicGroup(),
+                getGroup1(),
+                getGroup2(),
+                getGroup3()
+        );
+    }
+
+    protected static Group getDefaultGroup(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> getGroup1();
-            case PUBLIC_USER -> getPublicGroup();
+            case AUTHENTICATED -> getGroup1();
+            case UNAUTHENTICATED -> getPublicGroup();
+            case ADMIN -> getSystemGroup();
         };
     }
 
-    protected static List<Owner> getOwners(Credentials.UserType userType) {
+    protected static List<Owner> getOwners(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(
+            case AUTHENTICATED, UNAUTHENTICATED -> List.of(
+                    getRootUser(),
+                    getAdminUser(),
+                    getPublicUser(),
                     getUser1(),
                     getUser2(),
+                    getUser3(),
                     getUser()
             );
-            case PUBLIC_USER -> List.of(
-                    getPublicUser()
+            case ADMIN -> List.of(
+                    getRootUser(),
+                    getGuestUser(),
+                    getAdminUser(),
+                    getPublicUser(),
+                    getUser1(),
+                    getUser2(),
+                    getUser3(),
+                    getUser()
             );
         };
     }
 
-    protected static Owner getConnectedOwner(Credentials.UserType userType) {
+    protected static Owner getConnectedOwner(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> getUser();
-            case PUBLIC_USER -> getPublicUser();
+            case AUTHENTICATED -> getUser();
+            case UNAUTHENTICATED -> getPublicUser();
+            case ADMIN -> getAdminUser();
         };
     }
 
-    protected static List<Project> getProjects(Credentials.UserType userType) {
+    protected static List<Project> getProjects(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(new Project(2));
-            case PUBLIC_USER -> List.of(new Project(1));
+            case AUTHENTICATED -> List.of(new Project(2));
+            case UNAUTHENTICATED -> List.of(new Project(1));
+            case ADMIN -> List.of(new Project(1), new Project(2));
         };
     }
 
@@ -379,10 +408,11 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static List<Dataset> getDatasets(Credentials.UserType userType) {
+    protected static List<Dataset> getDatasets(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(new Dataset(3), new Dataset(4));
-            case PUBLIC_USER -> List.of(new Dataset(1));
+            case AUTHENTICATED -> List.of(new Dataset(3), new Dataset(4));
+            case UNAUTHENTICATED -> List.of(new Dataset(1));
+            case ADMIN -> List.of();
         };
     }
 
@@ -417,10 +447,11 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static List<Dataset> getOrphanedDatasets(Credentials.UserType userType) {
+    protected static List<Dataset> getOrphanedDatasets(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(new Dataset(5), new Dataset(6));
-            case PUBLIC_USER -> List.of(new Dataset(2));
+            case AUTHENTICATED -> List.of(new Dataset(5), new Dataset(6));
+            case UNAUTHENTICATED -> List.of(new Dataset(2));
+            case ADMIN -> List.of(new Dataset(2), new Dataset(5), new Dataset(6));
         };
     }
 
@@ -428,45 +459,51 @@ public abstract class OmeroServer {
         return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + dataset.getId());
     }
 
-    protected static Image getRGBImage(Credentials.UserType userType) {
+    protected static Image getRGBImage(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> new Image(19);
-            case PUBLIC_USER -> new Image(1);
+            case AUTHENTICATED -> new Image(19);
+            case UNAUTHENTICATED -> new Image(1);
+            case ADMIN -> null;
         };
     }
 
-    protected static Image getUint8Image(Credentials.UserType userType) {
+    protected static Image getUint8Image(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> new Image(41);
-            case PUBLIC_USER -> new Image(2);
+            case AUTHENTICATED -> new Image(41);
+            case UNAUTHENTICATED -> new Image(2);
+            case ADMIN -> null;
         };
     }
 
-    protected static Image getUint16Image(Credentials.UserType userType) {
+    protected static Image getUint16Image(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> new Image(42);
-            case PUBLIC_USER -> new Image(3);
+            case AUTHENTICATED -> new Image(42);
+            case UNAUTHENTICATED -> new Image(3);
+            case ADMIN -> null;
         };
     }
 
-    protected static Image getInt16Image(Credentials.UserType userType) {
+    protected static Image getInt16Image(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> new Image(43);
-            case PUBLIC_USER -> new Image(4);
+            case AUTHENTICATED -> new Image(43);
+            case UNAUTHENTICATED -> new Image(4);
+            case ADMIN -> null;
         };
     }
 
-    protected static Image getInt32Image(Credentials.UserType userType) {
+    protected static Image getInt32Image(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> new Image(44);
-            case PUBLIC_USER -> new Image(5);
+            case AUTHENTICATED -> new Image(44);
+            case UNAUTHENTICATED -> new Image(5);
+            case ADMIN -> null;
         };
     }
 
-    protected static Image getFloat32Image(Credentials.UserType userType) {
+    protected static Image getFloat32Image(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> new Image(20);
-            case PUBLIC_USER -> new Image(6);
+            case AUTHENTICATED -> new Image(20);
+            case UNAUTHENTICATED -> new Image(6);
+            case ADMIN -> null;
         };
     }
 
@@ -482,17 +519,19 @@ public abstract class OmeroServer {
         return new ImageSettings("float32.tiff", getFloat32ChannelSettings());
     }
 
-    protected static Image getFloat64Image(Credentials.UserType userType) {
+    protected static Image getFloat64Image(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> new Image(45);
-            case PUBLIC_USER -> new Image(7);
+            case AUTHENTICATED -> new Image(45);
+            case UNAUTHENTICATED -> new Image(7);
+            case ADMIN -> null;
         };
     }
 
-    protected static Image getComplexImage(Credentials.UserType userType) {
+    protected static Image getComplexImage(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> new Image(46);
-            case PUBLIC_USER -> new Image(8);
+            case AUTHENTICATED -> new Image(46);
+            case UNAUTHENTICATED -> new Image(8);
+            case ADMIN -> null;
         };
     }
 
@@ -561,9 +600,9 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static List<Image> getOrphanedImages(Credentials.UserType userType) {
+    protected static List<Image> getOrphanedImages(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(
+            case AUTHENTICATED -> List.of(
                     getComplexImage(userType),
                     getFloat64Image(userType),
                     getInt16Image(userType),
@@ -571,24 +610,25 @@ public abstract class OmeroServer {
                     getUint16Image(userType),
                     getUint8Image(userType)
             );
-            case PUBLIC_USER -> List.of(getComplexImage(userType));
+            case UNAUTHENTICATED -> List.of(getComplexImage(userType));
+            case ADMIN -> List.of();
         };
     }
 
     protected static List<Image> getImagesInDataset(Dataset dataset) {
         return switch ((int) dataset.getId()) {
             case 1 -> List.of(
-                    getFloat32Image(Credentials.UserType.PUBLIC_USER),
-                    getFloat64Image(Credentials.UserType.PUBLIC_USER),
-                    getInt16Image(Credentials.UserType.PUBLIC_USER),
-                    getInt32Image(Credentials.UserType.PUBLIC_USER),
-                    getRGBImage(Credentials.UserType.PUBLIC_USER),
-                    getUint16Image(Credentials.UserType.PUBLIC_USER),
-                    getUint8Image(Credentials.UserType.PUBLIC_USER)
+                    getFloat32Image(UserType.UNAUTHENTICATED),
+                    getFloat64Image(UserType.UNAUTHENTICATED),
+                    getInt16Image(UserType.UNAUTHENTICATED),
+                    getInt32Image(UserType.UNAUTHENTICATED),
+                    getRGBImage(UserType.UNAUTHENTICATED),
+                    getUint16Image(UserType.UNAUTHENTICATED),
+                    getUint8Image(UserType.UNAUTHENTICATED)
             );
             case 4 -> List.of(
-                    getFloat32Image(Credentials.UserType.REGULAR_USER),
-                    getRGBImage(Credentials.UserType.REGULAR_USER)
+                    getFloat32Image(UserType.AUTHENTICATED),
+                    getRGBImage(UserType.AUTHENTICATED)
             );
             default -> List.of();
         };
@@ -616,11 +656,11 @@ public abstract class OmeroServer {
         }
     }
 
-    protected static Image getAnnotableImage(Credentials.UserType userType) {
+    protected static Image getAnnotableImage(UserType userType) {
         return getRGBImage(userType);
     }
 
-    protected static Image getModifiableImage(Credentials.UserType userType) {
+    protected static Image getModifiableImage(UserType userType) {
         return getComplexImage(userType);
     }
 
@@ -660,10 +700,11 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<Screen> getScreens(Credentials.UserType userType) {
+    protected static List<Screen> getScreens(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(new Screen(2), new Screen(3));
-            case PUBLIC_USER -> List.of(new Screen(1));
+            case AUTHENTICATED -> List.of(new Screen(2), new Screen(3));
+            case UNAUTHENTICATED -> List.of(new Screen(1));
+            case ADMIN -> List.of(new Screen(1), new Screen(2), new Screen(3));
         };
     }
 
@@ -683,10 +724,11 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static List<Plate> getOrphanedPlates(Credentials.UserType userType) {
+    protected static List<Plate> getOrphanedPlates(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(new Plate(5), new Plate(6));
-            case PUBLIC_USER -> List.of(new Plate(2));
+            case AUTHENTICATED -> List.of(new Plate(5), new Plate(6));
+            case UNAUTHENTICATED -> List.of(new Plate(2));
+            case ADMIN -> List.of(new Plate(2), new Plate(5), new Plate(6));
         };
     }
 
@@ -778,9 +820,9 @@ public abstract class OmeroServer {
         }
     }
 
-    protected static List<SearchResult> getSearchResultsOnDataset(Credentials.UserType userType) {
+    protected static List<SearchResult> getSearchResultsOnDataset(UserType userType) {
         return switch (userType) {
-            case REGULAR_USER -> List.of(
+            case AUTHENTICATED -> List.of(
                     new SearchResult(
                             "dataset",
                             3,
@@ -818,7 +860,7 @@ public abstract class OmeroServer {
                             null
                     )
             );
-            case PUBLIC_USER -> List.of(
+            case UNAUTHENTICATED -> List.of(
                     new SearchResult(
                             "dataset",
                             1,
@@ -838,6 +880,7 @@ public abstract class OmeroServer {
                             null
                     )
             );
+            case ADMIN -> List.of();
         };
     }
 
@@ -851,24 +894,20 @@ public abstract class OmeroServer {
         }
     }
 
-    private static Client createValidClient(Credentials credentials) {
-        Client client = null;
-        int attempt = 0;
+    private static Group getSystemGroup() {
+        return new Group(0, "system");
+    }
 
-        do {
-            try {
-                client = Client.createOrGet(getWebServerURI(), credentials);
-            } catch (Exception e) {
-                logger.debug("Client creation attempt {} of {} failed", attempt, CLIENT_CREATION_ATTEMPTS - 1, e);
-            }
-        } while (client != null && ++attempt < CLIENT_CREATION_ATTEMPTS);
+    private static Group getUserGroup() {
+        return new Group(1, "user");
+    }
 
-        if (client == null) {
-            throw new IllegalStateException("Client creation failed");
-        } else {
-            client.getPixelAPI(MsPixelBufferApi.class).setPort(getMsPixelBufferApiPort(), true);
-            return client;
-        }
+    private static Group getGuestGroup() {
+        return new Group(2, "guest");
+    }
+
+    private static Group getPublicGroup() {
+        return new Group(3, "public-data");
     }
 
     private static Group getGroup1() {
@@ -883,24 +922,36 @@ public abstract class OmeroServer {
         return new Group(6, "group3");
     }
 
-    private static Group getPublicGroup() {
-        return new Group(3, "public-data");
+    private static Owner getRootUser() {
+        return new Owner(0, "root", "", "root", "", "", "root");
     }
 
-    private static Owner getUser1() {
-        return new Owner(3, "user1", "", "user1", "", "", "user1");
+    private static Owner getGuestUser() {
+        return new Owner(1, "Guest", "", "Account", "", "", "guest");
     }
 
-    private static Owner getUser2() {
-        return new Owner(4, "user2", "", "user2", "", "", "user2");
-    }
-
-    private static Owner getUser() {
-        return new Owner(6, "user", "", "user", "", "", "user");
+    private static Owner getAdminUser() {
+        return new Owner(2, "admin", "", "admin", "", "", "admin");
     }
 
     private static Owner getPublicUser() {
-        return new Owner(2, "public", "", "access", "", "", "public");
+        return new Owner(3, "public", "", "access", "", "", "public");
+    }
+
+    private static Owner getUser1() {
+        return new Owner(4, "user1", "", "user1", "", "", "user1");
+    }
+
+    private static Owner getUser2() {
+        return new Owner(5, "user2", "", "user2", "", "", "user2");
+    }
+
+    private static Owner getUser3() {
+        return new Owner(6, "user3", "", "user3", "", "", "user3");
+    }
+
+    private static Owner getUser() {
+        return new Owner(7, "user", "", "user", "", "", "user");
     }
 
     private static Owner getOwnerOfEntity(ServerEntity serverEntity) {
@@ -969,7 +1020,7 @@ public abstract class OmeroServer {
     }
 
     private static ImageType getImageType(Image image) {
-        Map<Function<Credentials.UserType, Image>, ImageType> imageToType = Map.of(
+        Map<Function<UserType, Image>, ImageType> imageToType = Map.of(
                 OmeroServer::getRGBImage, ImageType.RGB,
                 OmeroServer::getUint8Image, ImageType.UINT8,
                 OmeroServer::getUint16Image, ImageType.UINT16,
@@ -981,7 +1032,7 @@ public abstract class OmeroServer {
         );
 
         for (var entry: imageToType.entrySet()) {
-            if (Arrays.stream(Credentials.UserType.values())
+            if (Arrays.stream(UserType.values())
                     .map(entry.getKey())
                     .anyMatch(image::equals)) {
                 return entry.getValue();
