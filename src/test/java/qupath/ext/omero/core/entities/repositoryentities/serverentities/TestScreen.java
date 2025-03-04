@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
 
@@ -21,7 +20,7 @@ public class TestScreen extends OmeroServer {
 
     abstract static class GenericClient {
 
-        protected static Credentials.UserType userType;
+        protected static UserType userType;
         protected static Client client;
         protected static Screen screen;
 
@@ -71,7 +70,7 @@ public class TestScreen extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            userType = Credentials.UserType.PUBLIC_USER;
+            userType = UserType.UNAUTHENTICATED;
             client = OmeroServer.createClient(userType);
             Server server = client.getServer().get();
 
@@ -91,7 +90,7 @@ public class TestScreen extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            userType = Credentials.UserType.REGULAR_USER;
+            userType = UserType.AUTHENTICATED;
             client = OmeroServer.createClient(userType);
             Server server = client.getServer().get();
 

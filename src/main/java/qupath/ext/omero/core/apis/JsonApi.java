@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -52,6 +53,7 @@ class JsonApi {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonApi.class);
     private static final String OWNERS_URL_KEY = "url:experimenters";
+    private static final String GROUPS_URL_KEY = "url:experimentergroups";
     private static final String PROJECTS_URL_KEY = "url:projects";
     private static final String DATASETS_URL_KEY = "url:datasets";
     private static final String IMAGES_URL_KEY = "url:images";
@@ -83,9 +85,7 @@ class JsonApi {
     private final String serverUri;
     private final int port;
     private final String token;
-    private final Group defaultGroup;
-    private final long userId;
-    private final String sessionUuid;
+    private final LoginResponse loginResponse;
 
     /**
      * Create a JSON API client. This will send a few requests to get basic information on the server and
@@ -125,17 +125,15 @@ class JsonApi {
 
         this.token = tokenRequest.get();
         if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
-            LoginResponse loginResponse = login(this.requestSender, credentials, this.urls, serverInformation.getServerId().getAsInt(), token);
-            this.defaultGroup = loginResponse.group();
-            this.userId = loginResponse.userId();
-            this.sessionUuid = loginResponse.sessionUuid();
-
-            logger.debug("Created JSON API with authenticated user of ID {} and default group {}", userId, defaultGroup);
+            this.loginResponse = login(this.requestSender, credentials, this.urls, serverInformation.getServerId().getAsInt(), token);
+            logger.debug(
+                    "Created JSON API with authenticated {} user of ID {} and default group {}",
+                    loginResponse.isAdmin() ? "admin" : "non admin",
+                    loginResponse.userId(),
+                    loginResponse.group()
+            );
         } else {
-            this.defaultGroup = null;
-            this.userId = -1;
-            sessionUuid = null;
-
+            this.loginResponse = null;
             logger.debug("Created JSON API with unauthenticated user");
         }
     }
@@ -177,24 +175,31 @@ class JsonApi {
     }
 
     /**
-     * @return the user ID of the connected user, or -1 if no authentication was performed
+     * @return the user ID of the connected user, or an empty Optional if no authentication was performed
      */
-    public long getUserId() {
-        return userId;
+    public Optional<Long> getUserId() {
+        return Optional.ofNullable(loginResponse).map(LoginResponse::userId);
     }
 
     /**
-     * @return the default group of the connected user, or null if no authentication was performed
+     * @return the default group of the connected user, or an empty Optional if no authentication was performed
      */
-    public Group getDefaultGroup() {
-        return defaultGroup;
+    public Optional<Group> getDefaultGroup() {
+        return Optional.ofNullable(loginResponse).map(LoginResponse::group);
     }
 
     /**
-     * @return the session UUID of the current connection, or null if no authentication was performed
+     * @return the session UUID of the current connection, or an empty Optional if no authentication was performed
      */
-    public String getSessionUuid() {
-        return sessionUuid;
+    public Optional<String> getSessionUuid() {
+        return Optional.ofNullable(loginResponse).map(LoginResponse::sessionUuid);
+    }
+
+    /**
+     * @return whether the connected user is an administrator, or an empty Optional if no authentication was performed
+     */
+    public Optional<Boolean> isAdmin() {
+        return Optional.ofNullable(loginResponse).map(LoginResponse::isAdmin);
     }
 
     /**
@@ -206,20 +211,33 @@ class JsonApi {
     }
 
     /**
-     * Attempt to retrieve all groups of a user. This doesn't include the system and user groups.
-     * <p>
+     * Attempt to retrieve all groups of a user or of the server.
+     * <ul>
+     *     <li>
+     *         When retrieving the groups of a user, private groups won't be populated by their members (excluding the provided user).
+     *         Also, the 'system' and 'user' groups won't be included.
+     *     </li>
+     *     <li>When retrieving all groups of the server, private groups will be populated by all their members.</li>
+     * </ul>
+     *
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if a request failed for example).
      *
-     * @param userId the ID of the user that belong to the returned groups
+     * @param userId the ID of the user that belong to the returned groups. Can be negative to retrieve all groups
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all groups of the provided user
      */
     public CompletableFuture<List<Group>> getGroups(long userId) {
-        logger.debug("Getting groups of user with ID {}", userId);
+        boolean retrieveAllGroups = userId < 0;
+
+        if (retrieveAllGroups) {
+            logger.debug("Getting all groups");
+        } else {
+            logger.debug("Getting groups of user with ID {}", userId);
+        }
 
         URI uri;
         try {
-            uri = new URI(String.format(GROUPS_OF_USER_URL, urls.get(OWNERS_URL_KEY), userId));
+            uri = new URI(retrieveAllGroups ? urls.get(GROUPS_URL_KEY) : String.format(GROUPS_OF_USER_URL, urls.get(OWNERS_URL_KEY), userId));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -227,21 +245,26 @@ class JsonApi {
         return requestSender.getPaginated(uri).thenApplyAsync(jsonElements -> {
             List<Group> groups = jsonElements.stream()
                     .map(jsonElement -> gson.fromJson(jsonElement, Group.class))
-                    .filter(group -> !GROUPS_TO_EXCLUDE.contains(group.getName()))
                     .toList();
+            List<Group> filteredGroups = groups.stream()
+                    .filter(group -> retrieveAllGroups || !GROUPS_TO_EXCLUDE.contains(group.getName()))
+                    .toList();
+            logger.debug("Groups {} filtered to {} retrieved", groups, filteredGroups);
 
-            for (Group group: groups) {
+            for (Group group: filteredGroups) {
                 URI experimenterLink = URI.create(group.getExperimentersLink());
+                List<Owner> owners = requestSender.getPaginated(experimenterLink).join().stream()
+                        .map(jsonElement -> gson.fromJson(jsonElement, Owner.class))
+                        .toList();
 
-                group.setOwners(
-                        requestSender.getPaginated(experimenterLink).join().stream()
-                                .map(jsonElement -> gson.fromJson(jsonElement, Owner.class))
-                                .filter(owner -> !group.isPrivate() || owner.id() == userId)
-                                .toList()
+                group.setOwners(owners.stream()
+                        .filter(owner -> retrieveAllGroups || !group.isPrivate() || owner.id() == userId)
+                        .toList()
                 );
+                logger.debug("Owners {} have been filtered to {} and assigned to {}", owners, group.getOwners(), group);
             }
 
-            return groups;
+            return filteredGroups;
         });
     }
 

@@ -9,10 +9,11 @@ import qupath.lib.io.GsonTools;
  * Reads the response from a login request.
  *
  * @param group the default group of the user
- * @param userId the user ID of the user
+ * @param userId the ID of the user
  * @param sessionUuid the session UUID of the user
+ * @param isAdmin whether the user is an administrator
  */
-public record LoginResponse(Group group, long userId, String sessionUuid) {
+public record LoginResponse(Group group, long userId, String sessionUuid, boolean isAdmin) {
 
     /**
      * Parse a server authentication response.
@@ -39,6 +40,11 @@ public record LoginResponse(Group group, long userId, String sessionUuid) {
                     "'sessionUuid' text not found in %s", eventContext
             ));
         }
+        if (!eventContext.has("isAdmin") || !eventContext.get("isAdmin").isJsonPrimitive()) {
+            throw new IllegalArgumentException(String.format(
+                    "'isAdmin' text not found in %s", eventContext
+            ));
+        }
 
         Group group;
         try {
@@ -50,7 +56,8 @@ public record LoginResponse(Group group, long userId, String sessionUuid) {
         return new LoginResponse(
                 group,
                 eventContext.get("userId").getAsJsonPrimitive().getAsNumber().intValue(),
-                eventContext.get("sessionUuid").getAsString()
+                eventContext.get("sessionUuid").getAsString(),
+                eventContext.get("isAdmin").getAsBoolean()
         );
     }
 }

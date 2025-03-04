@@ -15,7 +15,7 @@ import java.net.URI;
 
 public class TestOmeroImageServerBuilder extends OmeroServer {
 
-    private static final Credentials.UserType userType = Credentials.UserType.PUBLIC_USER;
+    private static final UserType userType = UserType.UNAUTHENTICATED;
 
     abstract static class GenericImage {
 
@@ -28,7 +28,11 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
             try (ImageServer<BufferedImage> server = new OmeroImageServerBuilder().buildServer(
                     imageURI,
                     "--pixelAPI", "Pixel Buffer Microservice",
-                    "--usertype", userType.name()
+                    "--usertype", switch (userType) {
+                        case UNAUTHENTICATED -> Credentials.UserType.PUBLIC_USER.name();
+                        case AUTHENTICATED -> Credentials.UserType.REGULAR_USER.name();
+                        case ADMIN -> null;
+                    }
             )) {
                 Assertions.assertNotNull(server);
             } catch (Exception e) {
@@ -42,7 +46,11 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
 
             ImageServerBuilder.UriImageSupport<BufferedImage> imageSupport = new OmeroImageServerBuilder().checkImageSupport(
                     imageURI,
-                    "--usertype", userType.name()
+                    "--usertype", switch (userType) {
+                        case UNAUTHENTICATED -> Credentials.UserType.PUBLIC_USER.name();
+                        case AUTHENTICATED -> Credentials.UserType.REGULAR_USER.name();
+                        case ADMIN -> null;
+                    }
             );
 
             Assertions.assertEquals(imageURI, imageSupport.getBuilders().getFirst().getURIs().iterator().next());

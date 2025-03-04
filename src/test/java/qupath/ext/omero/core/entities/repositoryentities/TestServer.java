@@ -4,11 +4,9 @@ import org.junit.jupiter.api.*;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -19,7 +17,7 @@ public class TestServer extends OmeroServer {
 
     abstract static class GenericClient {
 
-        protected static Credentials.UserType userType;
+        protected static UserType userType;
         protected static Client client;
         protected static Server server;
 
@@ -79,7 +77,7 @@ public class TestServer extends OmeroServer {
 
         @Test
         void Check_Groups() {
-            List<Group> expectedGroups = new ArrayList<>(OmeroServer.getGroups(userType));
+            List<Group> expectedGroups = OmeroServer.getGroups(userType);
 
             List<Group> groups = server.getGroups();
 
@@ -88,7 +86,7 @@ public class TestServer extends OmeroServer {
 
         @Test
         void Check_Owners() {
-            List<Owner> expectedOwners = new ArrayList<>(OmeroServer.getOwners(userType));
+            List<Owner> expectedOwners = OmeroServer.getOwners(userType);
 
             List<Owner> owners = server.getOwners();
 
@@ -101,7 +99,7 @@ public class TestServer extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            userType = Credentials.UserType.PUBLIC_USER;
+            userType = UserType.UNAUTHENTICATED;
             client = OmeroServer.createClient(userType);
             server = client.getServer().get();
         }
@@ -112,7 +110,18 @@ public class TestServer extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
-            userType = Credentials.UserType.REGULAR_USER;
+            userType = UserType.AUTHENTICATED;
+            client = OmeroServer.createClient(userType);
+            server = client.getServer().get();
+        }
+    }
+
+    @Nested
+    class AdminClient extends GenericClient {
+
+        @BeforeAll
+        static void createClient() throws ExecutionException, InterruptedException {
+            userType = UserType.ADMIN;
             client = OmeroServer.createClient(userType);
             server = client.getServer().get();
         }

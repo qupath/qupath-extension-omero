@@ -4,7 +4,6 @@ import org.junit.jupiter.api.*;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
 import java.util.List;
@@ -16,7 +15,7 @@ public class TestImage extends OmeroServer {
 
     abstract static class GenericImage {
 
-        protected static final Credentials.UserType userType = Credentials.UserType.PUBLIC_USER;
+        protected static final UserType userType = UserType.UNAUTHENTICATED;
         protected static Client client;
         protected static Image image;
 

@@ -50,6 +50,16 @@ public class TestLoginResponse {
         Assertions.assertEquals(expectedGroup, loginResponse.group());
     }
 
+    @Test
+    void Check_Is_Admin() {
+        JsonObject serverResponse = getServerResponse();
+        boolean expectedIsAdmin = false;
+
+        LoginResponse loginResponse = LoginResponse.parseServerAuthenticationResponse(serverResponse);
+
+        Assertions.assertEquals(expectedIsAdmin, loginResponse.isAdmin());
+    }
+
     private static JsonObject getServerResponse() {
         return JsonParser.parseString(
                 """
@@ -58,7 +68,8 @@ public class TestLoginResponse {
                         "userId": 15,
                         "userName": "username",
                         "@id": 54,
-                        "sessionUuid": "86cdf82c-8df9-11ee-b9d1-0242ac120002"
+                        "sessionUuid": "86cdf82c-8df9-11ee-b9d1-0242ac120002",
+                        "isAdmin": False
                     }
                 }
                 """
