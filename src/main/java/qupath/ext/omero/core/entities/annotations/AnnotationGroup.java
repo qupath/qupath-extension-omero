@@ -5,7 +5,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.Strictness;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
@@ -23,7 +22,6 @@ public class AnnotationGroup {
 
     private static final Logger logger = LoggerFactory.getLogger(AnnotationGroup.class);
     private static final Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer())
-            .setStrictness(Strictness.LENIENT)
             .create();
     private final Map<Class<? extends Annotation>, List<Annotation>> annotations;
 

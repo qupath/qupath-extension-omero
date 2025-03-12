@@ -6,7 +6,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import com.google.gson.Strictness;
 import com.google.gson.reflect.TypeToken;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
@@ -538,7 +537,6 @@ class JsonApi {
         }
 
         Gson gson = new GsonBuilder().registerTypeAdapter(Shape.class, new Shape.GsonShapeDeserializer())
-                .setStrictness(Strictness.LENIENT)
                 .create();
 
         return requestSender.getPaginated(uri).thenApply(jsonElements -> jsonElements.stream()

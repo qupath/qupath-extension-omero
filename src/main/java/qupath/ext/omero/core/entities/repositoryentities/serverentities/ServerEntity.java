@@ -6,7 +6,6 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import com.google.gson.Strictness;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +88,6 @@ public abstract class ServerEntity implements RepositoryEntity {
      */
     public static ServerEntity createFromJsonElement(JsonElement jsonElement, URI uri) {
         return new GsonBuilder().registerTypeAdapter(ServerEntity.class, new ServerEntityDeserializer(uri))
-                .setStrictness(Strictness.LENIENT)
                 .create()
                 .fromJson(jsonElement, ServerEntity.class);
     }
