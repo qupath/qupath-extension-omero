@@ -30,6 +30,7 @@ import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.LinkCellFactory;
+import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TextCellFactory;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TypeCellFactory;
 import qupath.fx.dialogs.Dialogs;
 
@@ -211,15 +212,19 @@ public class AdvancedSearch extends Stage {
         typeColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue()));
         nameColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().name()));
         acquiredColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().dateAcquired() == null ?
-                DATE_FORMAT.format(n.getValue().dateAcquired()) : ""
+                "" : DATE_FORMAT.format(n.getValue().dateAcquired())
         ));
         importedColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().dateImported() == null ?
-                DATE_FORMAT.format(n.getValue().dateImported()) : ""
+                "" : DATE_FORMAT.format(n.getValue().dateImported())
         ));
         groupColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().group()));
         linkColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue()));
 
         typeColumn.setCellFactory(n -> new TypeCellFactory(apisHandler));
+        nameColumn.setCellFactory(n -> new TextCellFactory());
+        acquiredColumn.setCellFactory(n -> new TextCellFactory());
+        importedColumn.setCellFactory(n -> new TextCellFactory());
+        groupColumn.setCellFactory(n -> new TextCellFactory());
         linkColumn.setCellFactory(n -> new LinkCellFactory());
 
         initOwner(ownerWindow);
@@ -257,12 +262,12 @@ public class AdvancedSearch extends Stage {
             }
         });
 
-        typeColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        nameColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        acquiredColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        importedColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        groupColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        linkColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
+        typeColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        nameColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        acquiredColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        importedColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        groupColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        linkColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
 
         getScene().addEventFilter(
                 KeyEvent.KEY_PRESSED,
