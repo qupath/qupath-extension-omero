@@ -228,12 +228,6 @@ public class AdvancedSearch extends Stage {
     }
 
     private void setUpListeners() {
-        addEventHandler(KeyEvent.KEY_PRESSED, e -> {
-            if (e.getCode() == KeyCode.ESCAPE) {
-                close();
-            }
-        });
-
         importImage.textProperty().bind(Bindings.createStringBinding(
                 () -> results.getSelectionModel().getSelectedItems().size() == 1 ?
                         resources.getString("Browser.ServerBrowser.AdvancedSearch.import") + " " + results.getSelectionModel().getSelectedItems().getFirst().getName() :
@@ -254,6 +248,20 @@ public class AdvancedSearch extends Stage {
         importedColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
         groupColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
         linkColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
+
+        getScene().addEventFilter(
+                KeyEvent.KEY_PRESSED,
+                keyEvent -> {
+                    switch (keyEvent.getCode()) {
+                        case ENTER:
+                            onSearchClicked(null);
+                            break;
+                        case ESCAPE:
+                            close();
+                            break;
+                    }
+                }
+        );
     }
 
     private void importSelectedImages() {
