@@ -3,6 +3,7 @@ package qupath.ext.omero.gui.browser.advancedsearch.cellfactories;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TableCell;
+import javafx.scene.control.Tooltip;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.lib.gui.QuPathGUI;
 
@@ -26,6 +27,7 @@ public class LinkCellFactory extends TableCell<SearchResult, SearchResult> {
 
         if (item != null && !empty) {
             hyperlink.setText(item.link());
+            hyperlink.setTooltip(new Tooltip(item.link()));
             hyperlink.setOnAction(e -> QuPathGUI.openInBrowser(item.link()));
             setGraphic(hyperlink);
         }
