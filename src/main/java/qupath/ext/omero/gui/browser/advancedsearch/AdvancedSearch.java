@@ -74,9 +74,9 @@ public class AdvancedSearch extends Stage {
     @FXML
     private CheckBox screens;
     @FXML
-    private ComboBox<Owner> owner;
-    @FXML
     private ComboBox<Group> group;
+    @FXML
+    private ComboBox<Owner> owner;
     @FXML
     private Button search;
     @FXML
@@ -178,22 +178,8 @@ public class AdvancedSearch extends Stage {
     private void initUI(Stage ownerWindow) throws IOException {
         UiUtilities.loadFXML(this, AdvancedSearch.class.getResource("advanced_search.fxml"));
 
-        owner.getItems().setAll(server.getOwners());
-        owner.getItems().add(Owner.getAllMembersOwner());
-        owner.getSelectionModel().select(server.getConnectedOwner());
-        owner.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Owner owner) {
-                return owner == null ? "" : owner.getFullName();
-            }
-            @Override
-            public Owner fromString(String string) {
-                return null;
-            }
-        });
-
-        group.getItems().setAll(server.getGroups());
-        group.getItems().add(Group.getAllGroupsGroup());
+        group.getItems().setAll(Group.getAllGroupsGroup());
+        group.getItems().addAll(server.getGroups());
         group.getSelectionModel().select(server.getDefaultGroup());
         group.setConverter(new StringConverter<>() {
             @Override
@@ -203,6 +189,20 @@ public class AdvancedSearch extends Stage {
 
             @Override
             public Group fromString(String string) {
+                return null;
+            }
+        });
+
+        owner.getItems().setAll(Owner.getAllMembersOwner());
+        owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
+        owner.getSelectionModel().select(server.getConnectedOwner());
+        owner.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Owner owner) {
+                return owner == null ? "" : owner.getFullName();
+            }
+            @Override
+            public Owner fromString(String string) {
                 return null;
             }
         });
@@ -228,6 +228,22 @@ public class AdvancedSearch extends Stage {
     }
 
     private void setUpListeners() {
+        group.getSelectionModel().selectedItemProperty().addListener((p, o, n) -> {
+            owner.getItems().setAll(Owner.getAllMembersOwner());
+
+            if (n == null) {
+                owner.getSelectionModel().select(null);
+            } else {
+                if (n.equals(Group.getAllGroupsGroup())) {
+                    owner.getItems().addAll(server.getOwners());
+                    owner.getSelectionModel().select(Owner.getAllMembersOwner());
+                } else {
+                    owner.getItems().addAll(n.getOwners());
+                    owner.getSelectionModel().selectFirst();
+                }
+            }
+        });
+
         importImage.textProperty().bind(Bindings.createStringBinding(
                 () -> results.getSelectionModel().getSelectedItems().size() == 1 ?
                         resources.getString("Browser.ServerBrowser.AdvancedSearch.import") + " " + results.getSelectionModel().getSelectedItems().getFirst().name() :

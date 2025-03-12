@@ -65,24 +65,24 @@
                             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                             <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                         </rowConstraints>
-                        <Label text="%Browser.ServerBrowser.AdvancedSearch.ownedBy">
-                            <tooltip>
-                                <Tooltip text="%Browser.ServerBrowser.AdvancedSearch.dataOwnedBy" />
-                            </tooltip>
-                        </Label>
-                        <Label text="%Browser.ServerBrowser.AdvancedSearch.groupLabel" GridPane.rowIndex="1">
+                        <Label text="%Browser.ServerBrowser.AdvancedSearch.groupLabel">
                             <tooltip>
                                 <Tooltip text="%Browser.ServerBrowser.AdvancedSearch.dataFromGroup" />
                             </tooltip>
                         </Label>
-                        <ComboBox fx:id="owner" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1">
+                        <ComboBox fx:id="group" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1">
                             <tooltip>
-                                <Tooltip text="%Browser.ServerBrowser.AdvancedSearch.dataOwnedBy" />
+                                <Tooltip text="%Browser.ServerBrowser.AdvancedSearch.dataFromGroup" />
                             </tooltip>
                         </ComboBox>
-                        <ComboBox fx:id="group" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                        <Label text="%Browser.ServerBrowser.AdvancedSearch.ownedBy" GridPane.rowIndex="1">
                             <tooltip>
-                                <Tooltip text="%Browser.ServerBrowser.AdvancedSearch.dataFromGroup" />
+                                <Tooltip text="%Browser.ServerBrowser.AdvancedSearch.dataOwnedBy" />
+                            </tooltip>
+                        </Label>
+                        <ComboBox fx:id="owner" maxWidth="1.7976931348623157E308" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                            <tooltip>
+                                <Tooltip text="%Browser.ServerBrowser.AdvancedSearch.dataOwnedBy" />
                             </tooltip>
                         </ComboBox>
                     </GridPane>
