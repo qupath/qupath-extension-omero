@@ -85,12 +85,17 @@ public class LoginForm extends Stage {
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
 
+        boolean focusSet = false;
+
         if (webServerUri == null) {
             List<ServerPreference> preferences = PreferencesManager.getServerPreferences();
             url.setText(preferences.isEmpty() ?
                     DEFAULT_URL :
                     preferences.getLast().webServerUri().toString()
             );
+
+            url.requestFocus();
+            focusSet = true;
         } else {
             url.setText(webServerUri.toString());
             url.setDisable(true);
@@ -101,6 +106,10 @@ public class LoginForm extends Stage {
 
             if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
                 username.setText(credentials.username());
+
+                if (!focusSet) {
+                    password.requestFocus();
+                }
             }
         }
 
