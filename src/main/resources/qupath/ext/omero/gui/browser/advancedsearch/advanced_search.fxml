@@ -92,7 +92,7 @@
                     </HBox>
                     <Button fx:id="importImage" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onImportButtonClicked" text="%Browser.ServerBrowser.AdvancedSearch.importImage" />
                 </VBox>
-                <TableView fx:id="results" HBox.hgrow="ALWAYS">
+                <TableView fx:id="results" styleClass="search-results" HBox.hgrow="ALWAYS">
                     <columns>
                         <TableColumn fx:id="typeColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.type" />
                         <TableColumn fx:id="nameColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.name" />
