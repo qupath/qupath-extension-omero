@@ -101,9 +101,6 @@
                         <TableColumn fx:id="groupColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.group" />
                         <TableColumn fx:id="linkColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.link" />
                     </columns>
-                    <padding>
-                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                    </padding>
                 </TableView>
             </HBox>
         </Scene>

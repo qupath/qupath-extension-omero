@@ -17,3 +17,8 @@
 .header {
     -fx-font-weight: bold;
 }
+
+.table-cell {
+    -fx-alignment: center;
+    -fx-padding: 2 5 2 5;
+}
