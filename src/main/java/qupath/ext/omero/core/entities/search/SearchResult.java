@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.entities.search;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
@@ -23,8 +22,16 @@ import java.util.regex.Pattern;
  * <p>
  * This class can create usable results from an HTML search query response
  * (usually from {@code https://omero-server/webclient/load_searching/form}).
+ *
+ * @param type the type of the object (e.g. dataset, image)
+ * @param id the id of the object
+ * @param name the name of the object
+ * @param group the group name whose object belongs to
+ * @param link a URL linking to the object
+ * @param dateAcquired the date this object was acquired. Can be null
+ * @param dateImported the date this object was imported. Can be null
  */
-public class SearchResult {
+public record SearchResult(String type, int id, String name, Date dateAcquired, Date dateImported, String group, String link) {
 
     private static final Logger logger = LoggerFactory.getLogger(SearchResult.class);
     private static final DateFormat OMERO_DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy hh:mm:ss Z");
@@ -33,44 +40,6 @@ public class SearchResult {
     private static final Pattern DATE_PATTERN = Pattern.compile("<td class=\"date\" data-isodate='(.+?)'></td>");
     private static final Pattern GROUP_PATTERN = Pattern.compile("<td class=\"group\">(.+?)</td>");
     private static final Pattern LINK_PATTERN = Pattern.compile("<td><a href=\"(.+?)\"");
-    private final String type;
-    private final int id;
-    private final String name;
-    private final Date dateAcquired;
-    private final Date dateImported;
-    private final String group;
-    private final String link;
-
-    /**
-     * Creates a new search result corresponding to an OMERO object.
-     * You should rather use {@link #createFromHTMLResponse(String, URI)}
-     * to create search results.
-     *
-     * @param type the type of the object (e.g. dataset, image)
-     * @param id the id of the object
-     * @param name the name of the object
-     * @param group the group name whose object belongs to
-     * @param link a URL linking to the object
-     * @param dateAcquired the date this object was acquired
-     * @param dateImported the date this object was imported
-     */
-    public SearchResult(
-            String type,
-            int id,
-            String name,
-            String group,
-            String link,
-            @Nullable Date dateAcquired,
-            @Nullable Date dateImported
-    ) {
-        this.type = type;
-        this.id = id;
-        this.name = name;
-        this.dateAcquired = dateAcquired;
-        this.dateImported = dateImported;
-        this.group = group;
-        this.link = link;
-    }
 
     @Override
     public boolean equals(Object obj) {
@@ -119,10 +88,10 @@ public class SearchResult {
                         rowMatcher.group(1),
                         Integer.parseInt(rowMatcher.group(2)),
                         findPatternInText(DESCRIPTION_PATTERN, row).orElse("-"),
-                        findPatternInText(GROUP_PATTERN, row).orElse("-"),
-                        serverURI + findPatternInText(LINK_PATTERN, row).orElse(""),
                         acquiredDate,
-                        importedDate
+                        importedDate,
+                        findPatternInText(GROUP_PATTERN, row).orElse("-"),
+                        serverURI + findPatternInText(LINK_PATTERN, row).orElse("")
                 ));
             } catch (Exception e) {
                 logger.warn("Could not parse search result.", e);
@@ -130,11 +99,6 @@ public class SearchResult {
         }
 
         return searchResults;
-    }
-
-    @Override
-    public String toString() {
-        return String.format("Search result: %s of ID %d and name %s", type, id, name);
     }
 
     /**
@@ -156,50 +120,6 @@ public class SearchResult {
         } else {
             return Optional.empty();
         }
-    }
-
-    /**
-     * @return the ID of the result
-     */
-    public int getId() {
-        return id;
-    }
-
-    /**
-     * @return the name of the result
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * @return the date the result was acquired, or an empty Optional
-     * if the date couldn't be retrieved
-     */
-    public Optional<Date> getDateAcquired() {
-        return Optional.ofNullable(dateAcquired);
-    }
-
-    /**
-     * @return the date the result was imported, or an empty Optional
-     * if the date couldn't be retrieved
-     */
-    public Optional<Date> getDateImported() {
-        return Optional.ofNullable(dateImported);
-    }
-
-    /**
-     * @return the group name of the result
-     */
-    public String getGroupName() {
-        return group;
-    }
-
-    /**
-     * @return a link to open the result in a web browser
-     */
-    public String getLink() {
-        return link;
     }
 
     private static Optional<String> findPatternInText(Pattern pattern, String text) {

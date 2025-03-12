@@ -12,6 +12,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class TestSearchResult {
@@ -53,7 +54,7 @@ public class TestSearchResult {
     void Check_Results_Ids() {
         List<SearchResult> searchResults = createSearchResults();
 
-        List<Integer> resultsTypes = searchResults.stream().map(SearchResult::getId).toList();
+        List<Integer> resultsTypes = searchResults.stream().map(SearchResult::id).toList();
 
         Assertions.assertArrayEquals(new Integer[] {12546, 12547, 12548}, resultsTypes.toArray());
     }
@@ -62,7 +63,7 @@ public class TestSearchResult {
     void Check_Results_Names() {
         List<SearchResult> searchResults = createSearchResults();
 
-        List<String> resultsNames = searchResults.stream().map(SearchResult::getName).toList();
+        List<String> resultsNames = searchResults.stream().map(SearchResult::name).toList();
 
         Assertions.assertArrayEquals(new String[] {
                 "CMU-1.tiff [0]",
@@ -76,9 +77,8 @@ public class TestSearchResult {
         List<SearchResult> searchResults = createSearchResults();
 
         List<Date> resultsAcquiredDates = searchResults.stream()
-                .map(SearchResult::getDateAcquired)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .map(SearchResult::dateAcquired)
+                .filter(Objects::nonNull)
                 .toList();
 
         Assertions.assertArrayEquals(new Date[] {
@@ -93,9 +93,8 @@ public class TestSearchResult {
         List<SearchResult> searchResults = createSearchResults();
 
         List<Date> resultsImportedDates = searchResults.stream()
-                .map(SearchResult::getDateImported)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
+                .map(SearchResult::dateImported)
+                .filter(Objects::nonNull)
                 .toList();
 
         Assertions.assertArrayEquals(new Date[]{
@@ -109,7 +108,7 @@ public class TestSearchResult {
     void Check_Results_Groups() {
         List<SearchResult> searchResults = createSearchResults();
 
-        List<String> resultsGroups = searchResults.stream().map(SearchResult::getGroupName).toList();
+        List<String> resultsGroups = searchResults.stream().map(SearchResult::group).toList();
 
         for (String resultGroup: resultsGroups) {
             Assertions.assertEquals("MVM", resultGroup);
@@ -120,7 +119,7 @@ public class TestSearchResult {
     void Check_Results_Links() {
         List<SearchResult> searchResults = createSearchResults();
 
-        List<String> resultsLinks = searchResults.stream().map(SearchResult::getLink).toList();
+        List<String> resultsLinks = searchResults.stream().map(SearchResult::link).toList();
 
         Assertions.assertArrayEquals(new String[]{
                 "https://omero-czi-cpw.mvm.ed.ac.uk/webclient/?show=image-12546",

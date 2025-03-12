@@ -210,14 +210,14 @@ public class AdvancedSearch extends Stage {
         results.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
         typeColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue()));
-        nameColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().getName()));
-        acquiredColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().getDateAcquired().isPresent() ?
-                DATE_FORMAT.format(n.getValue().getDateAcquired().get()) : ""
+        nameColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().name()));
+        acquiredColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().dateAcquired() == null ?
+                DATE_FORMAT.format(n.getValue().dateAcquired()) : ""
         ));
-        importedColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().getDateImported().isPresent() ?
-                DATE_FORMAT.format(n.getValue().getDateImported().get()) : ""
+        importedColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().dateImported() == null ?
+                DATE_FORMAT.format(n.getValue().dateImported()) : ""
         ));
-        groupColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().getGroupName()));
+        groupColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().group()));
         linkColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue()));
 
         typeColumn.setCellFactory(n -> new TypeCellFactory(apisHandler));
@@ -230,7 +230,7 @@ public class AdvancedSearch extends Stage {
     private void setUpListeners() {
         importImage.textProperty().bind(Bindings.createStringBinding(
                 () -> results.getSelectionModel().getSelectedItems().size() == 1 ?
-                        resources.getString("Browser.ServerBrowser.AdvancedSearch.import") + " " + results.getSelectionModel().getSelectedItems().getFirst().getName() :
+                        resources.getString("Browser.ServerBrowser.AdvancedSearch.import") + " " + results.getSelectionModel().getSelectedItems().getFirst().name() :
                         resources.getString("Browser.ServerBrowser.AdvancedSearch.importObjects"),
                 results.getSelectionModel().getSelectedItems()
         ));
@@ -266,7 +266,7 @@ public class AdvancedSearch extends Stage {
 
     private void importSelectedImages() {
         UiUtilities.openImages(results.getSelectionModel().getSelectedItems().stream()
-                .map(SearchResult::getLink)
+                .map(SearchResult::link)
                 .toList()
         );
     }

@@ -27,7 +27,7 @@ public class LinkCellFactory extends TableCell<SearchResult, SearchResult> {
         setGraphic(null);
 
         if (item != null && !empty) {
-            button.setOnAction(e -> QuPathGUI.openInBrowser(item.getLink()));
+            button.setOnAction(e -> QuPathGUI.openInBrowser(item.link()));
             setGraphic(button);
         }
     }

@@ -69,7 +69,7 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
 
             Class<? extends RepositoryEntity> type = item.getType().get();
             if (type.equals(Image.class)) {
-                apisHandler.getThumbnail(item.getId()).whenComplete((thumbnail, error) -> {
+                apisHandler.getThumbnail(item.id()).whenComplete((thumbnail, error) -> {
                     if (error == null) {
                         Platform.runLater(() -> {
                             WritableImage image = UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
@@ -89,7 +89,7 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
                 apisHandler.getOmeroIcon(type).whenComplete((icon, error) -> Platform.runLater(() -> {
                     if (error == null) {
                         UiUtilities.paintBufferedImageOnCanvas(icon, canvas);
-                        tooltip.setText(item.getName());
+                        tooltip.setText(item.name());
                     } else {
                         logger.error("Error while retrieving icon", error);
 
