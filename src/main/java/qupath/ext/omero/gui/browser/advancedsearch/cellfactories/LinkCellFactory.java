@@ -1,23 +1,22 @@
 package qupath.ext.omero.gui.browser.advancedsearch.cellfactories;
 
-import javafx.scene.control.Button;
+import javafx.scene.control.Hyperlink;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TableCell;
-import qupath.ext.omero.Utils;
+import javafx.scene.control.Tooltip;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.lib.gui.QuPathGUI;
-
-import java.util.ResourceBundle;
 
 /**
  * Cell factory that displays a button that opens the link of a search result in a browser.
  */
 public class LinkCellFactory extends TableCell<SearchResult, SearchResult> {
 
-    private static final ResourceBundle resources = Utils.getResources();
-    private final Button button;
+    private final Hyperlink hyperlink;
 
     public LinkCellFactory() {
-        button = new Button(resources.getString("Browser.ServerBrowser.AdvancedSearch.link"));
+        hyperlink = new Hyperlink();
+        hyperlink.setTextOverrun(OverrunStyle.LEADING_WORD_ELLIPSIS);
     }
 
     @Override
@@ -27,8 +26,10 @@ public class LinkCellFactory extends TableCell<SearchResult, SearchResult> {
         setGraphic(null);
 
         if (item != null && !empty) {
-            button.setOnAction(e -> QuPathGUI.openInBrowser(item.getLink()));
-            setGraphic(button);
+            hyperlink.setText(item.link());
+            hyperlink.setTooltip(new Tooltip(item.link()));
+            hyperlink.setOnAction(e -> QuPathGUI.openInBrowser(item.link()));
+            setGraphic(hyperlink);
         }
     }
 }

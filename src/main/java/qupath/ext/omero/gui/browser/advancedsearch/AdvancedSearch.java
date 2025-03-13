@@ -15,7 +15,6 @@ import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
@@ -31,6 +30,7 @@ import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.LinkCellFactory;
+import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TextCellFactory;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TypeCellFactory;
 import qupath.fx.dialogs.Dialogs;
 
@@ -74,9 +74,9 @@ public class AdvancedSearch extends Stage {
     @FXML
     private CheckBox screens;
     @FXML
-    private ComboBox<Owner> owner;
-    @FXML
     private ComboBox<Group> group;
+    @FXML
+    private ComboBox<Owner> owner;
     @FXML
     private Button search;
     @FXML
@@ -178,22 +178,8 @@ public class AdvancedSearch extends Stage {
     private void initUI(Stage ownerWindow) throws IOException {
         UiUtilities.loadFXML(this, AdvancedSearch.class.getResource("advanced_search.fxml"));
 
-        owner.getItems().setAll(server.getOwners());
-        owner.getItems().add(Owner.getAllMembersOwner());
-        owner.getSelectionModel().select(server.getConnectedOwner());
-        owner.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Owner owner) {
-                return owner == null ? "" : owner.getFullName();
-            }
-            @Override
-            public Owner fromString(String string) {
-                return null;
-            }
-        });
-
-        group.getItems().setAll(server.getGroups());
-        group.getItems().add(Group.getAllGroupsGroup());
+        group.getItems().setAll(Group.getAllGroupsGroup());
+        group.getItems().addAll(server.getGroups());
         group.getSelectionModel().select(server.getDefaultGroup());
         group.setConverter(new StringConverter<>() {
             @Override
@@ -207,20 +193,38 @@ public class AdvancedSearch extends Stage {
             }
         });
 
+        owner.getItems().setAll(Owner.getAllMembersOwner());
+        owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
+        owner.getSelectionModel().select(server.getConnectedOwner());
+        owner.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Owner owner) {
+                return owner == null ? "" : owner.getFullName();
+            }
+            @Override
+            public Owner fromString(String string) {
+                return null;
+            }
+        });
+
         results.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
         typeColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue()));
-        nameColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().getName()));
-        acquiredColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().getDateAcquired().isPresent() ?
-                DATE_FORMAT.format(n.getValue().getDateAcquired().get()) : ""
+        nameColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().name()));
+        acquiredColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().dateAcquired() == null ?
+                "" : DATE_FORMAT.format(n.getValue().dateAcquired())
         ));
-        importedColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().getDateImported().isPresent() ?
-                DATE_FORMAT.format(n.getValue().getDateImported().get()) : ""
+        importedColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().dateImported() == null ?
+                "" : DATE_FORMAT.format(n.getValue().dateImported())
         ));
-        groupColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().getGroupName()));
+        groupColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().group()));
         linkColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue()));
 
         typeColumn.setCellFactory(n -> new TypeCellFactory(apisHandler));
+        nameColumn.setCellFactory(n -> new TextCellFactory());
+        acquiredColumn.setCellFactory(n -> new TextCellFactory());
+        importedColumn.setCellFactory(n -> new TextCellFactory());
+        groupColumn.setCellFactory(n -> new TextCellFactory());
         linkColumn.setCellFactory(n -> new LinkCellFactory());
 
         initOwner(ownerWindow);
@@ -228,15 +232,25 @@ public class AdvancedSearch extends Stage {
     }
 
     private void setUpListeners() {
-        addEventHandler(KeyEvent.KEY_PRESSED, e -> {
-            if (e.getCode() == KeyCode.ESCAPE) {
-                close();
+        group.getSelectionModel().selectedItemProperty().addListener((p, o, n) -> {
+            owner.getItems().setAll(Owner.getAllMembersOwner());
+
+            if (n == null) {
+                owner.getSelectionModel().select(null);
+            } else {
+                if (n.equals(Group.getAllGroupsGroup())) {
+                    owner.getItems().addAll(server.getOwners());
+                    owner.getSelectionModel().select(Owner.getAllMembersOwner());
+                } else {
+                    owner.getItems().addAll(n.getOwners());
+                    owner.getSelectionModel().selectFirst();
+                }
             }
         });
 
         importImage.textProperty().bind(Bindings.createStringBinding(
                 () -> results.getSelectionModel().getSelectedItems().size() == 1 ?
-                        resources.getString("Browser.ServerBrowser.AdvancedSearch.import") + " " + results.getSelectionModel().getSelectedItems().getFirst().getName() :
+                        resources.getString("Browser.ServerBrowser.AdvancedSearch.import") + " " + results.getSelectionModel().getSelectedItems().getFirst().name() :
                         resources.getString("Browser.ServerBrowser.AdvancedSearch.importObjects"),
                 results.getSelectionModel().getSelectedItems()
         ));
@@ -248,17 +262,31 @@ public class AdvancedSearch extends Stage {
             }
         });
 
-        typeColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        nameColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        acquiredColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        importedColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        groupColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
-        linkColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.16));
+        typeColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        nameColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        acquiredColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        importedColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        groupColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+        linkColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
+
+        getScene().addEventFilter(
+                KeyEvent.KEY_PRESSED,
+                keyEvent -> {
+                    switch (keyEvent.getCode()) {
+                        case ENTER:
+                            onSearchClicked(null);
+                            break;
+                        case ESCAPE:
+                            close();
+                            break;
+                    }
+                }
+        );
     }
 
     private void importSelectedImages() {
         UiUtilities.openImages(results.getSelectionModel().getSelectedItems().stream()
-                .map(SearchResult::getLink)
+                .map(SearchResult::link)
                 .toList()
         );
     }

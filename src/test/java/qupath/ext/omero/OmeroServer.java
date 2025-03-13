@@ -824,37 +824,37 @@ public abstract class OmeroServer {
                             "dataset",
                             3,
                             "dataset1",
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(3))).getName(),
-                            "/webclient/?show=dataset-3",
                             null,
-                            null
+                            null,
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(3))).getName(),
+                            "/webclient/?show=dataset-3"
                     ),
                     new SearchResult(
                             "dataset",
                             4,
                             "dataset2",
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(4))).getName(),
-                            "/webclient/?show=dataset-4",
                             null,
-                            null
+                            null,
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(4))).getName(),
+                            "/webclient/?show=dataset-4"
                     ),
                     new SearchResult(
                             "dataset",
                             5,
                             "orphaned_dataset1",
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(5))).getName(),
-                            "/webclient/?show=dataset-5",
                             null,
-                            null
+                            null,
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(5))).getName(),
+                            "/webclient/?show=dataset-5"
                     ),
                     new SearchResult(
                             "dataset",
                             6,
                             "orphaned_dataset2",
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(6))).getName(),
-                            "/webclient/?show=dataset-6",
                             null,
-                            null
+                            null,
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(6))).getName(),
+                            "/webclient/?show=dataset-6"
                     )
             );
             case UNAUTHENTICATED -> List.of(
@@ -862,19 +862,19 @@ public abstract class OmeroServer {
                             "dataset",
                             1,
                             "dataset",
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(1))).getName(),
-                            "/webclient/?show=dataset-1",
                             null,
-                            null
+                            null,
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(1))).getName(),
+                            "/webclient/?show=dataset-1"
                     ),
                     new SearchResult(
                             "dataset",
                             2,
                             "orphaned_dataset",
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(2))).getName(),
-                            "/webclient/?show=dataset-2",
                             null,
-                            null
+                            null,
+                            Objects.requireNonNull(getGroupOfEntity(new Dataset(2))).getName(),
+                            "/webclient/?show=dataset-2"
                     )
             );
             case ADMIN -> List.of();
