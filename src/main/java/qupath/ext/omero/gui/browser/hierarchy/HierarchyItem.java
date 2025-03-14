@@ -22,6 +22,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEn
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -36,27 +37,20 @@ import java.util.function.Predicate;
  */
 public class HierarchyItem extends TreeItem<RepositoryEntity> {
 
+    private static final Map<Class<? extends RepositoryEntity>, Integer> CLASS_ORDER = Map.of(
+            Project.class, 1,
+            Dataset.class, 2,
+            Screen.class, 3,
+            Plate.class, 4,
+            OrphanedFolder.class, 5
+    );
     private final ObservableList<TreeItem<RepositoryEntity>> children = FXCollections.observableArrayList();
     private final FilteredList<TreeItem<RepositoryEntity>> filteredChildren = new FilteredList<>(children);
     private final ObservableList<TreeItem<RepositoryEntity>> sortedChildren = new SortedList<>(
             filteredChildren,
-            (item1, item2) -> {
-                Map<Class<? extends RepositoryEntity>, Integer> classValues = Map.of(
-                        Project.class, 1,
-                        Dataset.class, 2,
-                        Screen.class, 3,
-                        Plate.class, 4,
-                        OrphanedFolder.class, 5     // display entities in that order
-                );
-
-                int classComparison = classValues.getOrDefault(item1.getValue().getClass(), 0) -
-                        classValues.getOrDefault(item2.getValue().getClass(), 0);
-                if (classComparison != 0) {
-                    return classComparison;
-                }
-
-                return item1.getValue().getLabel().compareTo(item2.getValue().getLabel());
-            }
+            Comparator
+                    .comparingInt((TreeItem<RepositoryEntity> item) -> CLASS_ORDER.getOrDefault(item.getValue().getClass(), 0))
+                    .thenComparing(item -> item.getValue().getLabel())
     );  // not converted to local variable because otherwise it might get deleted by the garbage collector
     private boolean computed = false;
 
