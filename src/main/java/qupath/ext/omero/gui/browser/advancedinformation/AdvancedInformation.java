@@ -76,7 +76,7 @@ public class AdvancedInformation extends Stage {
         
         formPane.addRow(resources.getString("Browser.ServerBrowser.AdvancedInformation.id"), String.valueOf(serverEntity.getId()));
         formPane.addRow(resources.getString("Browser.ServerBrowser.AdvancedInformation.owner"), serverEntity.getOwner().getFullName());
-        formPane.addRow(resources.getString("Browser.ServerBrowser.AdvancedInformation.group"), serverEntity.getGroup().getName());
+        formPane.addRow(resources.getString("Browser.ServerBrowser.AdvancedInformation.group"), serverEntity.getGroupName());
 
         if (serverEntity instanceof Image image) {
             int startingIndex = 4;  // The first image attributes are already used before
