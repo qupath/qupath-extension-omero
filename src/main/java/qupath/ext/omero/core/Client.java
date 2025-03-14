@@ -330,13 +330,13 @@ public class Client implements AutoCloseable {
     }
 
     /**
+     * Returns a set of image URIs of this server which have been opened in this session.
+     * This class does not automatically detect if new images are opened, so this function
+     * actually only returns the URIs given to {@link #addOpenedImage(URI) addOpenedImage}.
      * <p>
-     *     Returns a set of image URIs of this server which have been opened in this session.
-     *     This class does not automatically detect if new images are opened, so this function
-     *     actually only returns the URIs given to {@link #addOpenedImage(URI) addOpenedImage}.
-     * </p>
-     * <p>This function returns an unmodifiable list, use {@link #addOpenedImage(URI) addOpenedImage} to update its state.</p>
-     * <p>This list may be updated from any thread.</p>
+     * This function returns an unmodifiable list, use {@link #addOpenedImage(URI) addOpenedImage} to update its state.
+     * <p>
+     * This set may be updated from any thread.
      *
      * @return a set of image URIs
      */
