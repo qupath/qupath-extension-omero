@@ -94,7 +94,7 @@ public class Screen extends ServerEntity {
             case 1 -> String.valueOf(getId());
             case 2 -> description == null || description.isEmpty() ? "-" : description;
             case 3 -> getOwner().getFullName();
-            case 4 -> getGroup().getName();
+            case 4 -> getGroupName();
             case 5 -> String.valueOf(childCount);
             default -> "";
         };

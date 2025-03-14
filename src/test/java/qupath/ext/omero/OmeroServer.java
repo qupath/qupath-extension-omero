@@ -347,6 +347,38 @@ public abstract class OmeroServer {
         };
     }
 
+    protected static Group getGroupOfEntity(ServerEntity serverEntity) {
+        return switch (serverEntity) {
+            case Image image -> switch ((int) image.getId()) {
+                case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 -> getPublicGroup();
+                case 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 46 -> getGroup1();
+                case 41, 42, 43, 44, 45 -> getGroup2();
+                default -> null;
+            };
+            case Project project -> switch ((int) project.getId()) {
+                case 1 -> getPublicGroup();
+                case 2 -> getGroup1();
+                default -> null;
+            };
+            case Dataset dataset -> switch ((int) dataset.getId()) {
+                case 1, 2 -> getPublicGroup();
+                case 3, 4, 5, 6 -> getGroup1();
+                default -> null;
+            };
+            case Screen screen -> switch ((int) screen.getId()) {
+                case 1 -> getPublicGroup();
+                case 2, 3 -> getGroup1();
+                default -> null;
+            };
+            case Plate plate -> switch ((int) plate.getId()) {
+                case 1, 2 -> getPublicGroup();
+                case 3, 4, 5, 6 -> getGroup1();
+                default -> null;
+            };
+            case null, default -> null;
+        };
+    }
+
     protected static List<Owner> getOwners(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> List.of(
@@ -375,6 +407,39 @@ public abstract class OmeroServer {
             case AUTHENTICATED -> getUser();
             case UNAUTHENTICATED -> getPublicUser();
             case ADMIN -> getAdminUser();
+        };
+    }
+
+    protected static Owner getOwnerOfEntity(ServerEntity serverEntity) {
+        return switch (serverEntity) {
+            case Image image -> switch ((int) image.getId()) {
+                case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 -> getPublicUser();
+                case 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 -> getUser1();
+                case 41, 42, 43, 44, 45 -> getUser2();
+                case 46 -> getUser();
+                default -> null;
+            };
+            case Project project -> switch ((int) project.getId()) {
+                case 1 -> getPublicUser();
+                case 2 -> getUser1();
+                default -> null;
+            };
+            case Dataset dataset -> switch ((int) dataset.getId()) {
+                case 1, 2 -> getPublicUser();
+                case 3, 4, 5, 6 -> getUser1();
+                default -> null;
+            };
+            case Screen screen -> switch ((int) screen.getId()) {
+                case 1 -> getPublicUser();
+                case 2, 3 -> getUser1();
+                default -> null;
+            };
+            case Plate plate -> switch ((int) plate.getId()) {
+                case 1, 2 -> getPublicUser();
+                case 3, 4, 5, 6 -> getUser1();
+                default -> null;
+            };
+            case null, default -> null;
         };
     }
 
@@ -949,71 +1014,6 @@ public abstract class OmeroServer {
 
     private static Owner getUser() {
         return new Owner(7, "user", "", "user", "", "", "user");
-    }
-
-    private static Owner getOwnerOfEntity(ServerEntity serverEntity) {
-        return switch (serverEntity) {
-            case Image image -> switch ((int) image.getId()) {
-                case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 -> getPublicUser();
-                case 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 -> getUser1();
-                case 41, 42, 43, 44, 45 -> getUser2();
-                case 46 -> getUser();
-                default -> null;
-            };
-            case Project project -> switch ((int) project.getId()) {
-                case 1 -> getPublicUser();
-                case 2 -> getUser1();
-                default -> null;
-            };
-            case Dataset dataset -> switch ((int) dataset.getId()) {
-                case 1, 2 -> getPublicUser();
-                case 3, 4, 5, 6 -> getUser1();
-                default -> null;
-            };
-            case Screen screen -> switch ((int) screen.getId()) {
-                case 1 -> getPublicUser();
-                case 2, 3 -> getUser1();
-                default -> null;
-            };
-            case Plate plate -> switch ((int) plate.getId()) {
-                case 1, 2 -> getPublicUser();
-                case 3, 4, 5, 6 -> getUser1();
-                default -> null;
-            };
-            case null, default -> null;
-        };
-    }
-
-    private static Group getGroupOfEntity(ServerEntity serverEntity) {
-        return switch (serverEntity) {
-            case Image image -> switch ((int) image.getId()) {
-                case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 -> getPublicGroup();
-                case 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 46 -> getGroup1();
-                case 41, 42, 43, 44, 45 -> getGroup2();
-                default -> null;
-            };
-            case Project project -> switch ((int) project.getId()) {
-                case 1 -> getPublicGroup();
-                case 2 -> getGroup1();
-                default -> null;
-            };
-            case Dataset dataset -> switch ((int) dataset.getId()) {
-                case 1, 2 -> getPublicGroup();
-                case 3, 4, 5, 6 -> getGroup1();
-                default -> null;
-            };
-            case Screen screen -> switch ((int) screen.getId()) {
-                case 1 -> getPublicGroup();
-                case 2, 3 -> getGroup1();
-                default -> null;
-            };
-            case Plate plate -> switch ((int) plate.getId()) {
-                case 1, 2 -> getPublicGroup();
-                case 3, 4, 5, 6 -> getGroup1();
-                default -> null;
-            };
-            case null, default -> null;
-        };
     }
 
     private static ImageType getImageType(Image image) {
