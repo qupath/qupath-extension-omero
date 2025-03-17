@@ -4,7 +4,7 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
@@ -88,41 +88,50 @@ public class AnnotationSender implements DataTransporter {
         try {
             waitingWindow = new WaitingWindow(
                     quPath.getStage(),
-                    resources.getString("DataTransporters.AnnotationsSender.retrievingServer")
+                    resources.getString("DataTransporters.AnnotationsSender.retrievingOwners")
             );
         } catch (IOException e) {
-            logger.error("Error while creating the waiting window");
+            logger.error("Error while creating the waiting window", e);
             return;
         }
         waitingWindow.show();
 
         omeroImageServer.getClient().getServer()
+                .thenApply(server -> {
+                    long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroupId();
+
+                    return server.getGroups().stream()
+                            .filter(group -> group.getId() == groupId)
+                            .findAny()
+                            .orElseThrow(() -> new NoSuchElementException(String.format("Cannot find group with ID %d", groupId)))
+                            .getOwners();
+                })
                 .exceptionally(error -> {
-                    logger.error("Cannot get server information on {}", omeroImageServer.getURIs(), error);
+                    logger.error("Cannot get owners having access to the image {}", omeroImageServer.getURIs(), error);
                     return null;
                 })
-                .thenAccept(server -> Platform.runLater(() -> {
+                .thenAccept(owners -> Platform.runLater(() -> {
                     waitingWindow.close();
 
-                    if (server == null) {
+                    if (owners == null) {
                         Dialogs.showErrorMessage(
                                 resources.getString("DataTransporters.AnnotationsSender.serverError"),
                                 MessageFormat.format(
-                                        resources.getString("DataTransporters.AnnotationsSender.cannotGetServerInformation"),
+                                        resources.getString("DataTransporters.AnnotationsSender.cannotRetrieveOwners"),
                                         omeroImageServer.getURIs()
                                 )
                         );
                     } else {
-                        sendAnnotations(omeroImageServer, server, viewer);
+                        sendAnnotations(omeroImageServer, owners, viewer);
                     }
                 }));
     }
 
-    private void sendAnnotations(OmeroImageServer omeroImageServer, Server server, QuPathViewer viewer) {
+    private void sendAnnotations(OmeroImageServer omeroImageServer, List<Owner> owners, QuPathViewer viewer) {
         SendAnnotationForm annotationForm;
         try {
             annotationForm = new SendAnnotationForm(
-                    server.getOwners(),
+                    owners,
                     quPath.getProject() != null,
                     !viewer.getImageData().getHierarchy().getAnnotationObjects().isEmpty(),
                     !viewer.getImageData().getHierarchy().getDetectionObjects().isEmpty()
@@ -174,7 +183,7 @@ public class AnnotationSender implements DataTransporter {
                     resources.getString("DataTransporters.AnnotationsSender.sendingAnnotations")
             );
         } catch (IOException e) {
-            logger.error("Error while creating the waiting window");
+            logger.error("Error while creating the waiting window", e);
             return;
         }
         waitingWindow.show();

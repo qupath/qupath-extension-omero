@@ -4,7 +4,7 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportAnnotationForm;
@@ -19,6 +19,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.ResourceBundle;
 
 /**
@@ -70,7 +71,7 @@ public class AnnotationImporter implements DataTransporter {
         try {
             waitingWindow = new WaitingWindow(
                     quPath.getStage(),
-                    resources.getString("DataTransporters.AnnotationsImporter.retrievingServer")
+                    resources.getString("DataTransporters.AnnotationsImporter.retrievingOwners")
             );
         } catch (IOException e) {
             logger.error("Error while creating the waiting window", e);
@@ -79,31 +80,40 @@ public class AnnotationImporter implements DataTransporter {
         waitingWindow.show();
 
         omeroImageServer.getClient().getServer()
+                .thenApply(server -> {
+                    long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroupId();
+
+                    return server.getGroups().stream()
+                            .filter(group -> group.getId() == groupId)
+                            .findAny()
+                            .orElseThrow(() -> new NoSuchElementException(String.format("Cannot find group with ID %d", groupId)))
+                            .getOwners();
+                })
                 .exceptionally(error -> {
-                    logger.error("Cannot get server information on {}", omeroImageServer.getURIs(), error);
+                    logger.error("Cannot get owners having access to the image {}", omeroImageServer.getURIs(), error);
                     return null;
                 })
-                .thenAccept(server -> Platform.runLater(() -> {
+                .thenAccept(owners -> Platform.runLater(() -> {
                     waitingWindow.close();
 
-                    if (server == null) {
+                    if (owners == null) {
                         Dialogs.showErrorMessage(
                                 resources.getString("DataTransporters.AnnotationsImporter.serverError"),
                                 MessageFormat.format(
-                                        resources.getString("DataTransporters.AnnotationsImporter.cannotGetServerInformation"),
+                                        resources.getString("DataTransporters.AnnotationsImporter.cannotRetrieveOwners"),
                                         omeroImageServer.getURIs()
                                 )
                         );
                     } else {
-                        importAnnotations(omeroImageServer, server, viewer);
+                        importAnnotations(omeroImageServer, owners, viewer);
                     }
                 }));
     }
 
-    private void importAnnotations(OmeroImageServer omeroImageServer, Server server, QuPathViewer viewer) {
+    private void importAnnotations(OmeroImageServer omeroImageServer, List<Owner> owners, QuPathViewer viewer) {
         ImportAnnotationForm annotationForm;
         try {
-            annotationForm = new ImportAnnotationForm(server.getOwners());
+            annotationForm = new ImportAnnotationForm(owners);
         } catch (IOException e) {
             logger.error("Error when creating the annotation form", e);
             Dialogs.showErrorMessage(
