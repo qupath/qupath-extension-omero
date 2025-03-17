@@ -525,7 +525,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(19);
             case UNAUTHENTICATED -> new Image(1);
-            case ADMIN -> null;
+            case ADMIN -> throw new NullPointerException();
         };
     }
 
@@ -533,7 +533,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(41);
             case UNAUTHENTICATED -> new Image(2);
-            case ADMIN -> null;
+            case ADMIN -> throw new NullPointerException();
         };
     }
 
@@ -541,7 +541,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(42);
             case UNAUTHENTICATED -> new Image(3);
-            case ADMIN -> null;
+            case ADMIN -> throw new NullPointerException();
         };
     }
 
@@ -549,7 +549,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(43);
             case UNAUTHENTICATED -> new Image(4);
-            case ADMIN -> null;
+            case ADMIN -> throw new NullPointerException();
         };
     }
 
@@ -557,7 +557,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(44);
             case UNAUTHENTICATED -> new Image(5);
-            case ADMIN -> null;
+            case ADMIN -> throw new NullPointerException();
         };
     }
 
@@ -565,7 +565,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(20);
             case UNAUTHENTICATED -> new Image(6);
-            case ADMIN -> null;
+            case ADMIN -> throw new NullPointerException();
         };
     }
 
@@ -585,7 +585,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(45);
             case UNAUTHENTICATED -> new Image(7);
-            case ADMIN -> null;
+            case ADMIN -> throw new NullPointerException();
         };
     }
 
@@ -593,7 +593,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(46);
             case UNAUTHENTICATED -> new Image(8);
-            case ADMIN -> null;
+            case ADMIN -> throw new NullPointerException();
         };
     }
 

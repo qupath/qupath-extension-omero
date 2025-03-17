@@ -236,6 +236,13 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
+     * See {@link JsonApi#isConnectedUserOwnerOfGroup(long)}.
+     */
+    public boolean isConnectedUserOwnerOfGroup(long groupId) {
+        return jsonApi.isConnectedUserOwnerOfGroup(groupId);
+    }
+
+    /**
      * Performs a request to the specified URI to determine if it is reachable
      * and returns a 200 status code. The request will follow redirections and
      * use session cookies.

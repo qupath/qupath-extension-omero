@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.shapes.Shape;
@@ -100,11 +101,18 @@ public class AnnotationSender implements DataTransporter {
                 .thenApply(server -> {
                     long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroupId();
 
-                    return server.getGroups().stream()
-                            .filter(group -> group.getId() == groupId)
+                    Group group = server.getGroups().stream()
+                            .filter(g -> g.getId() == groupId)
                             .findAny()
-                            .orElseThrow(() -> new NoSuchElementException(String.format("Cannot find group with ID %d", groupId)))
-                            .getOwners();
+                            .orElseThrow(() -> new NoSuchElementException(String.format("Cannot find group with ID %d", groupId)));
+
+                    return switch (group.getPermissionLevel()) {
+                        case UNKNOWN, PRIVATE, READ_ONLY -> List.of(server.getConnectedOwner());
+                        case READ_ANNOTATE -> omeroImageServer.getClient().getApisHandler().isConnectedUserOwnerOfGroup(groupId) ?
+                                group.getOwners() :
+                                List.of(server.getConnectedOwner());
+                        case READ_WRITE -> group.getOwners();
+                    };
                 })
                 .exceptionally(error -> {
                     logger.error("Cannot get owners having access to the image {}", omeroImageServer.getURIs(), error);
@@ -307,7 +315,7 @@ public class AnnotationSender implements DataTransporter {
 
     private static CompletableFuture<Void> getSendMeasurementsRequest(
             QuPathGUI quPath,
-            Class<? extends qupath.lib.objects.PathObject> exportType,
+            Class<? extends PathObject> exportType,
             OmeroImageServer omeroImageServer
     ) {
         if (quPath.getProject() == null) {

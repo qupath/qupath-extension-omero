@@ -198,6 +198,13 @@ public class TestApisHandler extends OmeroServer {
         abstract void Check_Is_Admin();
 
         @Test
+        void Check_Is_Connected_User_Owner_Of_Group() {
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+
+            Assertions.assertFalse(apisHandler.isConnectedUserOwnerOfGroup(groupId));
+        }
+
+        @Test
         void Check_Base_URL_Reachable() {
             URI serverURI = URI.create(OmeroServer.getWebServerURI());
 
@@ -1007,6 +1014,7 @@ public class TestApisHandler extends OmeroServer {
             Assertions.assertNotNull(sessionUuid);
         }
 
+        @Test
         @Override
         void Check_Is_Admin() {
             boolean isAdmin = apisHandler.isAdmin().orElseThrow();
@@ -1027,6 +1035,7 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
+        @Test
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException {
             Namespace namespace = new Namespace(randomString());              // random so that it is not affected by other tests
@@ -1062,6 +1071,7 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
+        @Test
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException {
             Namespace namespace = new Namespace(randomString());              // random so that it is not affected by other tests
@@ -1097,6 +1107,7 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
+        @Test
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException {
             Namespace existingNamespace = new Namespace(randomString());          // random so that it is not affected by other tests
@@ -1133,6 +1144,7 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
+        @Test
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException {
             Namespace existingNamespace = new Namespace(randomString());          // random so that it is not affected by other tests

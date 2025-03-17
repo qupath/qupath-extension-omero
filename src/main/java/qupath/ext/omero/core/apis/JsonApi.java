@@ -202,6 +202,21 @@ class JsonApi {
     }
 
     /**
+     * Indicate whether the connected user is an owner (or leader) of the group with the provided ID.
+     * If no authentication was performed, false is returned.
+     *
+     * @param groupId the ID of the group to check ownership
+     * @return whether the connected user is an owner of the provided group
+     */
+    public boolean isConnectedUserOwnerOfGroup(long groupId) {
+        if (loginResponse == null) {
+            return false;
+        } else {
+            return loginResponse.ownedGroupIds().contains(groupId);
+        }
+    }
+
+    /**
      * @return the number of OMERO entities (e.g. datasets, images) currently being loaded by the API.
      * This property may be updated from any thread
      */
