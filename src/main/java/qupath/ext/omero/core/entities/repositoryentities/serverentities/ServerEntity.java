@@ -108,7 +108,7 @@ public abstract class ServerEntity implements RepositoryEntity {
     /**
      * @return the ID of the group owning this entity
      */
-    public int getGroupId() {
+    public long getGroupId() {
         return group.getId();
     }
 

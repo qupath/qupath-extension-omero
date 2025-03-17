@@ -1,9 +1,14 @@
 package qupath.ext.omero.core.entities;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.lib.io.GsonTools;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Reads the response from a login request.
@@ -12,8 +17,9 @@ import qupath.lib.io.GsonTools;
  * @param userId the ID of the user
  * @param sessionUuid the session UUID of the user
  * @param isAdmin whether the user is an administrator
+ * @param ownedGroupIds the IDs of all groups the user is an owner (or leader) of
  */
-public record LoginResponse(Group group, long userId, String sessionUuid, boolean isAdmin) {
+public record LoginResponse(Group group, long userId, String sessionUuid, boolean isAdmin, List<Long> ownedGroupIds) {
 
     /**
      * Parse a server authentication response.
@@ -46,6 +52,12 @@ public record LoginResponse(Group group, long userId, String sessionUuid, boolea
             ));
         }
 
+        if (!eventContext.has("leaderOfGroups") || !eventContext.get("leaderOfGroups").isJsonArray()) {
+            throw new IllegalArgumentException(String.format(
+                    "'leaderOfGroups' array not found in %s", eventContext
+            ));
+        }
+
         Group group;
         try {
             group = GsonTools.getInstance().fromJson(eventContext, Group.class);
@@ -57,7 +69,25 @@ public record LoginResponse(Group group, long userId, String sessionUuid, boolea
                 group,
                 eventContext.get("userId").getAsJsonPrimitive().getAsNumber().intValue(),
                 eventContext.get("sessionUuid").getAsString(),
-                eventContext.get("isAdmin").getAsBoolean()
+                eventContext.get("isAdmin").getAsBoolean(),
+                getOwnedGroupIds(eventContext.get("leaderOfGroups").getAsJsonArray())
         );
+    }
+
+    private static List<Long> getOwnedGroupIds(JsonArray leaderOfGroups) {
+        List<Long> ownedGroupIds = new ArrayList<>();
+
+        for (JsonElement jsonElement: leaderOfGroups) {
+            if (!jsonElement.isJsonPrimitive()) {
+                throw new IllegalArgumentException(String.format("The %s element in %s is not a JSON primitive", jsonElement, leaderOfGroups));
+            }
+            try {
+                ownedGroupIds.add(jsonElement.getAsLong());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException(e);
+            }
+        }
+
+        return ownedGroupIds;
     }
 }

@@ -4,7 +4,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.entities.permissions.Group;
+
+import java.util.List;
 
 public class TestLoginResponse {
 
@@ -60,6 +63,16 @@ public class TestLoginResponse {
         Assertions.assertEquals(expectedIsAdmin, loginResponse.isAdmin());
     }
 
+    @Test
+    void Check_Owned_Group_Ids() {
+        JsonObject serverResponse = getServerResponse();
+        List<Long> expectedOwnedGroupIds = List.of(354L, 675L);
+
+        LoginResponse loginResponse = LoginResponse.parseServerAuthenticationResponse(serverResponse);
+
+        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedOwnedGroupIds, loginResponse.ownedGroupIds());
+    }
+
     private static JsonObject getServerResponse() {
         return JsonParser.parseString(
                 """
@@ -69,7 +82,8 @@ public class TestLoginResponse {
                         "userName": "username",
                         "@id": 54,
                         "sessionUuid": "86cdf82c-8df9-11ee-b9d1-0242ac120002",
-                        "isAdmin": False
+                        "isAdmin": False,
+                        "leaderOfGroups": [354, 675]
                     }
                 }
                 """

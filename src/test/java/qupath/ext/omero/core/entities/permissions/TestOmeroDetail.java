@@ -8,31 +8,32 @@ public class TestOmeroDetail {
 
     @Test
     void Check_Empty() {
+        PermissionLevel expectedLevel = PermissionLevel.UNKNOWN;
         OmeroDetail omeroDetail = new Gson().fromJson("{}", OmeroDetail.class);
 
-        boolean canReadGroup = omeroDetail.canReadGroup();
+        PermissionLevel level = omeroDetail.getPermissionLevel();
 
-        Assertions.assertFalse(canReadGroup);
+        Assertions.assertEquals(expectedLevel, level);
     }
 
     @Test
-    void Check_Latest_Version_URL() {
-        boolean expectedCanReadGroup = true;
-        OmeroDetail omeroDetail = createOmeroDetail();
-
-        boolean canReadGroup = omeroDetail.canReadGroup();
-
-        Assertions.assertEquals(expectedCanReadGroup, canReadGroup);
-    }
-
-    private OmeroDetail createOmeroDetail() {
-        String json = """
+    void Check_Permission() {
+        PermissionLevel expectedLevel = PermissionLevel.READ_ANNOTATE;
+        OmeroDetail omeroDetail = new Gson().fromJson(
+                """
                 {
                     "permissions": {
-                        "isGroupRead": true
+                        "isGroupWrite": false,
+                        "isGroupRead": true,
+                        "isGroupAnnotate": true
                     }
                 }
-                """;
-        return new Gson().fromJson(json, OmeroDetail.class);
+                """,
+                OmeroDetail.class
+        );
+
+        PermissionLevel level = omeroDetail.getPermissionLevel();
+
+        Assertions.assertEquals(expectedLevel, level);
     }
 }

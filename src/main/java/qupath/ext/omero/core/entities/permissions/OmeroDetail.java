@@ -8,10 +8,13 @@ class OmeroDetail {
     private Permissions permissions;
 
     /**
-     * @return whether the permission allow reading from other members of the group.
-     * This will be false if the "permissions" object is null
+     * @return the permission level contained in this object
      */
-    public boolean canReadGroup() {
-        return permissions != null && permissions.isGroupRead();
+    public PermissionLevel getPermissionLevel() {
+        if (permissions == null) {
+            return PermissionLevel.UNKNOWN;
+        } else {
+            return permissions.getPermissionLevel();
+        }
     }
 }

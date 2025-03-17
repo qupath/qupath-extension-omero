@@ -213,7 +213,8 @@ class JsonApi {
      * Attempt to retrieve all groups of a user or of the server.
      * <ul>
      *     <li>
-     *         When retrieving the groups of a user, private groups won't be populated by their members (excluding the provided user).
+     *         When retrieving the groups of a user, private groups won't be populated by their members (excluding the provided user),
+     *         unless the provided user is the connected user and this user is an owner of the group.
      *         Also, the 'system' and 'user' groups won't be included.
      *     </li>
      *     <li>When retrieving all groups of the server, private groups will be populated by all their members.</li>
@@ -257,7 +258,22 @@ class JsonApi {
                         .toList();
 
                 group.setOwners(owners.stream()
-                        .filter(owner -> retrieveAllGroups || !group.isPrivate() || owner.id() == userId)
+                        .filter(owner -> {
+                            if (retrieveAllGroups) {
+                                return true;
+                            } else if (loginResponse != null && userId == loginResponse.userId()) {
+                                return switch (group.getPermissionLevel()) {
+                                    case PRIVATE -> owner.id() == userId || loginResponse.ownedGroupIds().contains(group.getId());
+                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
+                                    case UNKNOWN -> owner.id() == userId;
+                                };
+                            } else {
+                                return switch (group.getPermissionLevel()) {
+                                    case PRIVATE, UNKNOWN -> owner.id() == userId;
+                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
+                                };
+                            }
+                        })
                         .toList()
                 );
                 logger.debug("Owners {} have been filtered to {} and assigned to {}", owners, group.getOwners(), group);
