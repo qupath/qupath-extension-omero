@@ -126,6 +126,16 @@ public class TestShape {
         Assertions.assertEquals("999:713", id);
     }
 
+    @Test
+    void Check_Owner_Full_Name() {
+        String expectedOwnerFullName = "first middle last";
+        Shape shape = createShape();
+
+        String ownerFullName = shape.getOwnerFullName().orElse("");
+
+        Assertions.assertEquals(expectedOwnerFullName, ownerFullName);
+    }
+
     private Shape createShape() {
         String json = """
                 {
@@ -133,7 +143,14 @@ public class TestShape {
                     "text": "Annotation:Stroma:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:dfa7dfb2-fd32-4c05-bbba-d9fbab4d454f",
                     "StrokeColor": -16776961,
                     "Locked": false,
-                    "oldId": "454:713"
+                    "oldId": "454:713",
+                    "omero:details:": {
+                        "owner": {
+                            "FirstName": "first",
+                            "MiddleName": "middle",
+                            "LastName": "last"
+                        }
+                    }
                 }
                 """;    // -16776961 is the integer representation of the red color in the BGR format
         return new Gson().fromJson(json, ShapeImplementation.class);

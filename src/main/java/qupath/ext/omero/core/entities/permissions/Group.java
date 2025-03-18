@@ -16,7 +16,7 @@ public class Group {
     @SerializedName(value = "@id", alternate={"groupId"}) private final long id;
     @SerializedName(value = "Name", alternate={"groupName"}) private final String name;
     @SerializedName(value = "url:experimenters") private String experimentersLink;
-    @SerializedName(value = "omero:details") private OmeroDetail omeroDetail;
+    @SerializedName(value = "omero:details") private OmeroDetails omeroDetails;
     private List<Owner> owners;
 
     /**
@@ -81,10 +81,10 @@ public class Group {
      * @return the permission level of this group
      */
     public PermissionLevel getPermissionLevel() {
-        if (omeroDetail == null) {
+        if (omeroDetails == null) {
             return PermissionLevel.UNKNOWN;
         } else {
-            return omeroDetail.getPermissionLevel();
+            return omeroDetails.getPermissionLevel();
         }
     }
 

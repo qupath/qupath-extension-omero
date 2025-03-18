@@ -4,7 +4,6 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportAnnotationForm;
@@ -19,7 +18,7 @@ import qupath.lib.objects.hierarchy.PathObjectHierarchy;
 import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -71,7 +70,7 @@ public class AnnotationImporter implements DataTransporter {
         try {
             waitingWindow = new WaitingWindow(
                     quPath.getStage(),
-                    resources.getString("DataTransporters.AnnotationsImporter.retrievingOwners")
+                    resources.getString("DataTransporters.AnnotationsImporter.retrievingAnnotations")
             );
         } catch (IOException e) {
             logger.error("Error while creating the waiting window", e);
@@ -79,81 +78,55 @@ public class AnnotationImporter implements DataTransporter {
         }
         waitingWindow.show();
 
-        omeroImageServer.getClient().getServer()
-                .thenApply(server -> {
-                    long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroupId();
-
-                    return server.getGroups().stream()
-                            .filter(group -> group.getId() == groupId)
-                            .findAny()
-                            .orElseThrow(() -> new NoSuchElementException(String.format("Cannot find group with ID %d", groupId)))
-                            .getOwners();
-                })
-                .exceptionally(error -> {
-                    logger.error("Cannot get owners having access to the image {}", omeroImageServer.getURIs(), error);
-                    return null;
-                })
-                .thenAccept(owners -> Platform.runLater(() -> {
-                    waitingWindow.close();
-
-                    if (owners == null) {
-                        Dialogs.showErrorMessage(
-                                resources.getString("DataTransporters.AnnotationsImporter.serverError"),
-                                MessageFormat.format(
-                                        resources.getString("DataTransporters.AnnotationsImporter.cannotRetrieveOwners"),
-                                        omeroImageServer.getURIs()
-                                )
-                        );
-                    } else {
-                        importAnnotations(omeroImageServer, owners, viewer);
-                    }
-                }));
-    }
-
-    private void importAnnotations(OmeroImageServer omeroImageServer, List<Owner> owners, QuPathViewer viewer) {
-        ImportAnnotationForm annotationForm;
-        try {
-            annotationForm = new ImportAnnotationForm(owners);
-        } catch (IOException e) {
-            logger.error("Error when creating the annotation form", e);
-            Dialogs.showErrorMessage(
-                    resources.getString("DataTransporters.AnnotationsImporter.importAnnotations"),
-                    e.getLocalizedMessage()
-            );
-            return;
-        }
-
-        boolean confirmed = Dialogs.showConfirmDialog(
-                resources.getString("DataTransporters.AnnotationsImporter.importAnnotations"),
-                annotationForm
-        );
-        if (!confirmed) {
-            return;
-        }
-
-        WaitingWindow waitingWindow;
-        try {
-            waitingWindow = new WaitingWindow(
-                    quPath.getStage(),
-                    resources.getString("DataTransporters.AnnotationsImporter.importingAnnotations")
-            );
-        } catch (IOException e) {
-            logger.error("Error while creating the waiting window", e);
-            return;
-        }
-        waitingWindow.show();
-
-        omeroImageServer.getClient().getApisHandler().getShapes(omeroImageServer.getId(), annotationForm.getSelectedOwner().id()).thenAccept(shapes -> Platform.runLater(() -> {
+        omeroImageServer.getClient().getApisHandler().getShapes(omeroImageServer.getId(), -1).whenComplete((shapes, error) -> Platform.runLater(() -> {
             waitingWindow.close();
 
-            if (shapes.isEmpty()) {
+            if (error != null) {
+                logger.error("Cannot retrieve shapes of image with ID {}", omeroImageServer.getId(), error);
+
+                Dialogs.showErrorMessage(
+                        resources.getString("DataTransporters.AnnotationsImporter.annotationImportError"),
+                        MessageFormat.format(
+                                resources.getString("DataTransporters.AnnotationsImporter.cannotRetrieveAnnotations"),
+                                omeroImageServer.getURIs()
+                        )
+                );
+                return;
+            }
+
+            logger.debug("Got shapes {} from image with ID {}", shapes, omeroImageServer.getId());
+
+            List<String> ownerNames = shapes.stream()
+                    .map(Shape::getOwnerFullName)
+                    .flatMap(Optional::stream)
+                    .toList();
+            if (ownerNames.isEmpty()) {
                 Dialogs.showErrorMessage(
                         resources.getString("DataTransporters.AnnotationsImporter.noAnnotations"),
                         resources.getString("DataTransporters.AnnotationsImporter.noAnnotationsFound")
                 );
                 return;
             }
-            List<PathObject> pathObjects = Shape.createPathObjects(shapes);
+
+            ImportAnnotationForm annotationForm;
+            try {
+                annotationForm = new ImportAnnotationForm(ownerNames);
+            } catch (IOException e) {
+                logger.error("Error when creating the annotation form", e);
+                return;
+            }
+
+            boolean confirmed = Dialogs.showConfirmDialog(
+                    resources.getString("DataTransporters.AnnotationsImporter.importAnnotations"),
+                    annotationForm
+            );
+            if (!confirmed) {
+                return;
+            }
+
+            List<PathObject> pathObjects = Shape.createPathObjects(shapes.stream()
+                    .filter(shape -> shape.getOwnerFullName().isPresent() && annotationForm.getSelectedOwner().contains(shape.getOwnerFullName().get()))
+                    .toList());
 
             PathObjectHierarchy hierarchy = viewer.getImageData().getHierarchy();
             StringBuilder message = new StringBuilder();
