@@ -17,7 +17,10 @@
 /opt/omero/server/venv3/bin/omero user add user1 user1 user1 --group-name group1 -P password_user1
 /opt/omero/server/venv3/bin/omero user add user2 user2 user2 --group-name group2 -P password_user2
 /opt/omero/server/venv3/bin/omero user add user3 user3 user3 --group-name group3 -P password_user3
-/opt/omero/server/venv3/bin/omero user add user user user --group-name group1 group2 group3 -P password_user
+/opt/omero/server/venv3/bin/omero user add user user user --group-name group1 group2 -P password_user
+
+# Add user to group3 and set owner
+/opt/omero/server/venv3/bin/omero group adduser --name group3 user --as-owner
 
 # Connect as public user
 /opt/omero/server/venv3/bin/omero login public@localhost:4064 -w password_public

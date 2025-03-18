@@ -169,7 +169,7 @@ public abstract class OmeroServer {
                     .withNetwork(Network.SHARED)
                     .withNetworkAliases("redis")
                     .withLogConsumer(frame ->
-                            logger.debug(String.format("Redis container: %s", frame.getUtf8String()))
+                            logger.debug("Redis container: {}", frame.getUtf8String())
                     );
 
             // See https://hub.docker.com/r/openmicroscopy/omero-web-standalone
@@ -379,6 +379,13 @@ public abstract class OmeroServer {
         };
     }
 
+    protected static List<Group> getGroupsOwnedByUser(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> List.of();
+            case AUTHENTICATED -> List.of(getGroup3());
+        };
+    }
+
     protected static List<Owner> getOwners(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> List.of(
@@ -525,7 +532,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(19);
             case UNAUTHENTICATED -> new Image(1);
-            case ADMIN -> throw new NullPointerException();
+            case ADMIN -> null;
         };
     }
 
@@ -533,7 +540,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(41);
             case UNAUTHENTICATED -> new Image(2);
-            case ADMIN -> throw new NullPointerException();
+            case ADMIN -> null;
         };
     }
 
@@ -541,7 +548,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(42);
             case UNAUTHENTICATED -> new Image(3);
-            case ADMIN -> throw new NullPointerException();
+            case ADMIN -> null;
         };
     }
 
@@ -549,7 +556,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(43);
             case UNAUTHENTICATED -> new Image(4);
-            case ADMIN -> throw new NullPointerException();
+            case ADMIN -> null;
         };
     }
 
@@ -557,7 +564,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(44);
             case UNAUTHENTICATED -> new Image(5);
-            case ADMIN -> throw new NullPointerException();
+            case ADMIN -> null;
         };
     }
 
@@ -565,7 +572,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(20);
             case UNAUTHENTICATED -> new Image(6);
-            case ADMIN -> throw new NullPointerException();
+            case ADMIN -> null;
         };
     }
 
@@ -585,7 +592,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(45);
             case UNAUTHENTICATED -> new Image(7);
-            case ADMIN -> throw new NullPointerException();
+            case ADMIN -> null;
         };
     }
 
@@ -593,7 +600,7 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> new Image(46);
             case UNAUTHENTICATED -> new Image(8);
-            case ADMIN -> throw new NullPointerException();
+            case ADMIN -> null;
         };
     }
 
