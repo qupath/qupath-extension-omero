@@ -127,6 +127,7 @@ public class KeyValuesImporter implements DataTransporter {
                                 .stream()
                                 .map(Annotation::getNamespace)
                                 .flatMap(Optional::stream)
+                                .distinct()
                                 .toList()
                         );
                     } catch (IOException e) {
