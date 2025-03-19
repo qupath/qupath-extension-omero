@@ -13,19 +13,19 @@ public class Group {
 
     private static final ResourceBundle resources = Utils.getResources();
     private static final Group ALL_GROUPS = new Group(-1, resources.getString("Entities.Permissions.Group.allGroups"));
-    @SerializedName(value = "@id", alternate={"groupId"}) private final int id;
+    @SerializedName(value = "@id", alternate={"groupId"}) private final long id;
     @SerializedName(value = "Name", alternate={"groupName"}) private final String name;
     @SerializedName(value = "url:experimenters") private String experimentersLink;
-    @SerializedName(value = "omero:details") private OmeroDetail omeroDetail;
+    @SerializedName(value = "omero:details") private OmeroDetails omeroDetails;
     private List<Owner> owners;
 
     /**
      * Creates an empty group only defined by its name and ID.
      *
-     * @param id  the ID of the group
-     * @param name  the name of the group
+     * @param id the ID of the group
+     * @param name the name of the group
      */
-    public Group(int id, String name) {
+    public Group(long id, String name) {
         this.id = id;
         this.name = name;
     }
@@ -46,7 +46,7 @@ public class Group {
 
     @Override
     public int hashCode() {
-        return Integer.hashCode(id);
+        return Long.hashCode(id);
     }
 
     /**
@@ -59,7 +59,7 @@ public class Group {
     /**
      * @return the ID of the group, or 0 if not found
      */
-    public int getId() {
+    public long getId() {
         return id;
     }
 
@@ -78,10 +78,14 @@ public class Group {
     }
 
     /**
-     * @return whether this group is private (each member can only see its own data)
+     * @return the permission level of this group
      */
-    public boolean isPrivate() {
-        return omeroDetail == null || !omeroDetail.canReadGroup();
+    public PermissionLevel getPermissionLevel() {
+        if (omeroDetails == null) {
+            return PermissionLevel.UNKNOWN;
+        } else {
+            return omeroDetails.getPermissionLevel();
+        }
     }
 
     /**

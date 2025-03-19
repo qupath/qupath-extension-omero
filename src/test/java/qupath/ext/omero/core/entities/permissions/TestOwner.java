@@ -10,7 +10,7 @@ public class TestOwner {
     void Check_Owner_ID() {
         Owner owner = createOwnerFromJSON();
 
-        int id = owner.id();
+        long id = owner.id();
 
         Assertions.assertEquals(20, id);
     }

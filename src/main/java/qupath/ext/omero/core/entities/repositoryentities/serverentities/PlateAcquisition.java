@@ -96,7 +96,7 @@ public class PlateAcquisition extends ServerEntity {
             case 0 -> name == null || name.isEmpty() ? "-" : name;
             case 1 -> String.valueOf(getId());
             case 2 -> getOwner().getFullName();
-            case 3 -> getGroup().getName();
+            case 3 -> getGroupName();
             case 4 -> startTime == 0 ? "-" : new Date(startTime).toString();
             default -> "";
         };

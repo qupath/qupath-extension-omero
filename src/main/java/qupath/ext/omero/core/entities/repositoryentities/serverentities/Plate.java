@@ -102,7 +102,7 @@ public class Plate extends ServerEntity {
             case 0 -> name == null || name.isEmpty() ? "-" : name;
             case 1 -> String.valueOf(getId());
             case 2 -> getOwner().getFullName();
-            case 3 -> getGroup().getName();
+            case 3 -> getGroupName();
             case 4 -> String.valueOf(columns);
             case 5 -> String.valueOf(rows);
             default -> "";

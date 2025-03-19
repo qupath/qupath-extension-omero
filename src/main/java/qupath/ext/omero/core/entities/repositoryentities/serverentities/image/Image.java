@@ -113,7 +113,7 @@ public class Image extends ServerEntity {
             case 0 -> name == null || name.isEmpty() ? "-" : name;
             case 1 -> String.valueOf(getId());
             case 2 -> getOwner().getFullName();
-            case 3 -> getGroup().getName();
+            case 3 -> getGroupName();
             case 4 -> acquisitionDate == 0 ? "-" : new Date(acquisitionDate).toString();
             case 5 -> getImageDimensions().map(d -> d[0] + " px").orElse("-");
             case 6 -> getImageDimensions().map(d -> d[1] + " px").orElse("-");

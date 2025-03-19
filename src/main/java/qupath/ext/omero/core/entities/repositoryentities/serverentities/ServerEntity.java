@@ -44,6 +44,19 @@ public abstract class ServerEntity implements RepositoryEntity {
         return Long.hashCode(id);
     }
 
+    /**
+     * Creates a server entity from a JSON element.
+     *
+     * @param jsonElement the JSON element supposed to represent a server entity
+     * @param uri the URI of the corresponding web server
+     * @return a server entity
+     * @throws JsonSyntaxException when the provided json element is not a valid JSON representation of a server entity
+     */
+    public static ServerEntity createFromJsonElement(JsonElement jsonElement, URI uri) {
+        return new GsonBuilder().registerTypeAdapter(ServerEntity.class, new ServerEntityDeserializer(uri))
+                .create()
+                .fromJson(jsonElement, ServerEntity.class);
+    }
 
     /**
      * Indicates if this entity belongs to the provided group and owner.
@@ -79,20 +92,6 @@ public abstract class ServerEntity implements RepositoryEntity {
     public abstract int getNumberOfAttributes();
 
     /**
-     * Creates a server entity from a JSON element.
-     *
-     * @param jsonElement the JSON element supposed to represent a server entity
-     * @param uri the URI of the corresponding web server
-     * @return a server entity
-     * @throws JsonSyntaxException when the provided json element is not a valid JSON representation of a server entity
-     */
-    public static ServerEntity createFromJsonElement(JsonElement jsonElement, URI uri) {
-        return new GsonBuilder().registerTypeAdapter(ServerEntity.class, new ServerEntityDeserializer(uri))
-                .create()
-                .fromJson(jsonElement, ServerEntity.class);
-    }
-
-    /**
      * @return the OMERO ID associated with this entity
      */
     public long getId() {
@@ -107,10 +106,17 @@ public abstract class ServerEntity implements RepositoryEntity {
     }
 
     /**
-     * @return the OMERO group of this entity
+     * @return the ID of the group owning this entity
      */
-    public Group getGroup() {
-        return group;
+    public long getGroupId() {
+        return group.getId();
+    }
+
+    /**
+     * @return the name of the group owning this entity
+     */
+    public String getGroupName() {
+        return group.getName();
     }
 
     private record ServerEntityDeserializer(URI uri) implements JsonDeserializer<ServerEntity> {

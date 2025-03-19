@@ -173,7 +173,7 @@ public class IceApi implements PixelApi {
                 }
             }
 
-            long groupId = apisHandler.getImage(imageId).get().getGroup().getId();
+            long groupId = apisHandler.getImage(imageId).get().getGroupId();
 
             closeReadersWithDifferentGroups(imageId, groupId);
 

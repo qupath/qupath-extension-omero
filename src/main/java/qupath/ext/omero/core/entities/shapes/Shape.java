@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.entities.permissions.OmeroDetails;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -51,7 +52,8 @@ public abstract class Shape {
     @SerializedName(value = "Locked", alternate = "locked") private Boolean locked;
     @SerializedName(value = "FillColor", alternate = "fillColor") private int fillColor;
     @SerializedName(value = "StrokeColor", alternate = "strokeColor") private Integer strokeColor;
-    @SerializedName(value = "oldId") private String oldId = "-1:-1";
+    private String oldId = "-1:-1";
+    @SerializedName(value = "omero:details") private OmeroDetails omeroDetails;
     private transient UUID uuid;
 
     protected Shape(String type) {
@@ -186,6 +188,13 @@ public abstract class Shape {
      */
     public String getOldId() {
         return oldId;
+    }
+
+    /**
+     * @return the full name of the owner owning this shape, or an empty Optional if not found
+     */
+    public Optional<String> getOwnerFullName() {
+        return Optional.ofNullable(omeroDetails).flatMap(OmeroDetails::getOwnerFullName);
     }
 
     /**

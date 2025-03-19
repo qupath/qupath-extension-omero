@@ -14,10 +14,14 @@
    </HBox>
    <HBox alignment="CENTER_LEFT" spacing="10.0">
       <CheckBox fx:id="deleteExistingAnnotations" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendAnnotations.deleteExistingAnnotations" />
-      <ChoiceBox fx:id="owner" prefWidth="150.0" />
+      <ChoiceBox fx:id="ownerAnnotations" prefWidth="150.0" />
    </HBox>
    <Pane prefHeight="20.0" />
-   <CheckBox fx:id="deleteExistingMeasurements" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendAnnotations.deleteExistingMeasurements" />
+   <HBox alignment="CENTER_LEFT" spacing="10.0">
+      <CheckBox fx:id="deleteExistingMeasurements" mnemonicParsing="false" selected="true"
+                text="%DataTransporters.Forms.SendAnnotations.deleteExistingMeasurements"/>
+      <ChoiceBox fx:id="ownerMeasurements" prefWidth="150.0"/>
+   </HBox>
    <Label text="%DataTransporters.Forms.SendAnnotations.send" />
    <CheckBox fx:id="sendAnnotationMeasurements" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendAnnotations.annotationMeasurements" />
    <CheckBox fx:id="sendDetectionMeasurements" mnemonicParsing="false" selected="true" text="%DataTransporters.Forms.SendAnnotations.detectionMeasurements" />

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
 
@@ -29,6 +30,33 @@ public class TestScreen extends OmeroServer {
             if (client != null) {
                 client.close();
             }
+        }
+
+        @Test
+        void Check_Owner() {
+            Owner expectedOwner = OmeroServer.getOwnerOfEntity(screen);
+
+            Owner owner = screen.getOwner();
+
+            Assertions.assertEquals(expectedOwner, owner);
+        }
+
+        @Test
+        void Check_Group_Id() {
+            long expectedGroupId = OmeroServer.getGroupOfEntity(screen).getId();
+
+            long groupId = screen.getGroupId();
+
+            Assertions.assertEquals(expectedGroupId, groupId);
+        }
+
+        @Test
+        void Check_Group_Name() {
+            String expectedGroupName = OmeroServer.getGroupOfEntity(screen).getName();
+
+            String groupName = screen.getGroupName();
+
+            Assertions.assertEquals(expectedGroupName, groupName);
         }
 
         @Test

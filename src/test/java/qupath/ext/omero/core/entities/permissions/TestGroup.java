@@ -11,20 +11,20 @@ public class TestGroup {
 
     @Test
     void Check_Id() {
-        int expectedId = 20;
+        long expectedId = 20;
         Group group = createGroup();
 
-        int id = group.getId();
+        long id = group.getId();
 
         Assertions.assertEquals(expectedId, id);
     }
 
     @Test
     void Check_Id_When_Group_Empty() {
-        int expectedId = 0;
+        long expectedId = 0;
         Group group = new Gson().fromJson("{}", Group.class);
 
-        int id = group.getId();
+        long id = group.getId();
 
         Assertions.assertEquals(expectedId, id);
     }
@@ -70,23 +70,23 @@ public class TestGroup {
     }
 
     @Test
-    void Check_Private() {
-        boolean expectedIsPrivate = false;
+    void Check_Permission_Level() {
+        PermissionLevel expectedLevel = PermissionLevel.READ_ONLY;
         Group group = createGroup();
 
-        boolean isPrivate = group.isPrivate();
+        PermissionLevel level = group.getPermissionLevel();
 
-        Assertions.assertEquals(expectedIsPrivate, isPrivate);
+        Assertions.assertEquals(expectedLevel, level);
     }
 
     @Test
-    void Check_Private_When_Group_Empty() {
-        boolean expectedIsPrivate = true;
+    void Check_Permission_Level_When_Empty() {
+        PermissionLevel expectedLevel = PermissionLevel.UNKNOWN;
         Group group = new Gson().fromJson("{}", Group.class);
 
-        boolean isPrivate = group.isPrivate();
+        PermissionLevel level = group.getPermissionLevel();
 
-        Assertions.assertEquals(expectedIsPrivate, isPrivate);
+        Assertions.assertEquals(expectedLevel, level);
     }
 
     @Test
@@ -127,7 +127,9 @@ public class TestGroup {
                     "url:experimenters": "http://group.com",
                     "omero:details": {
                         "permissions": {
-                            "isGroupRead": true
+                            "isGroupWrite": false,
+                            "isGroupRead": true,
+                            "isGroupAnnotate": false
                         }
                     }
                 }

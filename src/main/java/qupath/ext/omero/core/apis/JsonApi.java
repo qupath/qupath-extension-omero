@@ -202,6 +202,21 @@ class JsonApi {
     }
 
     /**
+     * Indicate whether the connected user is an owner (or leader) of the group with the provided ID.
+     * If no authentication was performed, false is returned.
+     *
+     * @param groupId the ID of the group to check ownership
+     * @return whether the connected user is an owner of the provided group
+     */
+    public boolean isConnectedUserOwnerOfGroup(long groupId) {
+        if (loginResponse == null) {
+            return false;
+        } else {
+            return loginResponse.ownedGroupIds().contains(groupId);
+        }
+    }
+
+    /**
      * @return the number of OMERO entities (e.g. datasets, images) currently being loaded by the API.
      * This property may be updated from any thread
      */
@@ -213,7 +228,8 @@ class JsonApi {
      * Attempt to retrieve all groups of a user or of the server.
      * <ul>
      *     <li>
-     *         When retrieving the groups of a user, private groups won't be populated by their members (excluding the provided user).
+     *         When retrieving the groups of a user, private groups won't be populated by their members (excluding the provided user),
+     *         unless the provided user is the connected user and this user is an owner of the group.
      *         Also, the 'system' and 'user' groups won't be included.
      *     </li>
      *     <li>When retrieving all groups of the server, private groups will be populated by all their members.</li>
@@ -257,7 +273,22 @@ class JsonApi {
                         .toList();
 
                 group.setOwners(owners.stream()
-                        .filter(owner -> retrieveAllGroups || !group.isPrivate() || owner.id() == userId)
+                        .filter(owner -> {
+                            if (retrieveAllGroups) {
+                                return true;
+                            } else if (loginResponse != null && userId == loginResponse.userId()) {
+                                return switch (group.getPermissionLevel()) {
+                                    case PRIVATE -> owner.id() == userId || loginResponse.ownedGroupIds().contains(group.getId());
+                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
+                                    case UNKNOWN -> owner.id() == userId;
+                                };
+                            } else {
+                                return switch (group.getPermissionLevel()) {
+                                    case PRIVATE, UNKNOWN -> owner.id() == userId;
+                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
+                                };
+                            }
+                        })
                         .toList()
                 );
                 logger.debug("Owners {} have been filtered to {} and assigned to {}", owners, group.getOwners(), group);

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.*;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
 import java.util.List;
@@ -24,6 +25,42 @@ public class TestImage extends OmeroServer {
             if (client != null) {
                 client.close();
             }
+        }
+
+        @Test
+        void Check_Id() {
+            long expectedId = getImageId();
+
+            long id = image.getId();
+
+            Assertions.assertEquals(expectedId, id);
+        }
+
+        @Test
+        void Check_Owner() {
+            Owner expectedOwner = OmeroServer.getOwnerOfEntity(image);
+
+            Owner owner = image.getOwner();
+
+            Assertions.assertEquals(expectedOwner, owner);
+        }
+
+        @Test
+        void Check_Group_Id() {
+            long expectedGroupId = OmeroServer.getGroupOfEntity(image).getId();
+
+            long groupId = image.getGroupId();
+
+            Assertions.assertEquals(expectedGroupId, groupId);
+        }
+
+        @Test
+        void Check_Group_Name() {
+            String expectedGroupName = OmeroServer.getGroupOfEntity(image).getName();
+
+            String groupName = image.getGroupName();
+
+            Assertions.assertEquals(expectedGroupName, groupName);
         }
 
         @Test
@@ -71,6 +108,8 @@ public class TestImage extends OmeroServer {
 
             Assertions.assertEquals(expectedDatasetsUrl, datasetsUrl);
         }
+
+        protected abstract long getImageId();
     }
 
     @Nested
@@ -81,6 +120,11 @@ public class TestImage extends OmeroServer {
             client = OmeroServer.createClient(userType);
             image = client.getApisHandler().getImage(OmeroServer.getRGBImage(userType).getId()).get();
         }
+
+        @Override
+        protected long getImageId() {
+            return OmeroServer.getRGBImage(userType).getId();
+        }
     }
 
     @Nested
@@ -90,6 +134,11 @@ public class TestImage extends OmeroServer {
         static void createClient() throws ExecutionException, InterruptedException {
             client = OmeroServer.createClient(userType);
             image = client.getApisHandler().getImage(OmeroServer.getComplexImage(userType).getId()).get();
+        }
+
+        @Override
+        protected long getImageId() {
+            return OmeroServer.getComplexImage(userType).getId();
         }
     }
 }

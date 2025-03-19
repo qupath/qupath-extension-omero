@@ -198,6 +198,9 @@ public class TestApisHandler extends OmeroServer {
         abstract void Check_Is_Admin();
 
         @Test
+        abstract void Check_Is_Connected_User_Owner_Of_Group();
+
+        @Test
         void Check_Base_URL_Reachable() {
             URI serverURI = URI.create(OmeroServer.getWebServerURI());
 
@@ -833,6 +836,14 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         @Override
+        void Check_Is_Connected_User_Owner_Of_Group() {
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+
+            Assertions.assertFalse(apisHandler.isConnectedUserOwnerOfGroup(groupId));
+        }
+
+        @Test
+        @Override
         void Check_Key_Value_Pairs_Sent() {
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> keyValues = Map.of(
@@ -942,7 +953,7 @@ public class TestApisHandler extends OmeroServer {
         void Check_Shapes_Deleted() {
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
 
-            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId, -1).get());
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId, List.of()).get());
         }
 
         @Test
@@ -1007,11 +1018,21 @@ public class TestApisHandler extends OmeroServer {
             Assertions.assertNotNull(sessionUuid);
         }
 
+        @Test
         @Override
         void Check_Is_Admin() {
             boolean isAdmin = apisHandler.isAdmin().orElseThrow();
 
             Assertions.assertFalse(isAdmin);
+        }
+
+
+        @Test
+        @Override
+        void Check_Is_Connected_User_Owner_Of_Group() {
+            long groupId = OmeroServer.getGroupsOwnedByUser(userType).getFirst().getId();
+
+            Assertions.assertTrue(apisHandler.isConnectedUserOwnerOfGroup(groupId));
         }
 
         @Test
@@ -1027,6 +1048,7 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
+        @Test
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException {
             Namespace namespace = new Namespace(randomString());              // random so that it is not affected by other tests
@@ -1062,6 +1084,7 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
+        @Test
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Same_Namespace() throws ExecutionException, InterruptedException {
             Namespace namespace = new Namespace(randomString());              // random so that it is not affected by other tests
@@ -1097,6 +1120,7 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
+        @Test
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException {
             Namespace existingNamespace = new Namespace(randomString());          // random so that it is not affected by other tests
@@ -1133,6 +1157,7 @@ public class TestApisHandler extends OmeroServer {
             );
         }
 
+        @Test
         @Override
         void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException {
             Namespace existingNamespace = new Namespace(randomString());          // random so that it is not affected by other tests
@@ -1318,7 +1343,7 @@ public class TestApisHandler extends OmeroServer {
             List<Shape> shapes = List.of(new Rectangle(10, 10, 100, 100), new Line(20, 20, 50, 50));
             apisHandler.addShapes(imageId, shapes).get();
 
-            apisHandler.deleteShapes(imageId, userId).get();
+            apisHandler.deleteShapes(imageId, List.of(userId)).get();
 
             Assertions.assertTrue(apisHandler.getShapes(imageId, userId).get().isEmpty());
         }
@@ -1334,7 +1359,7 @@ public class TestApisHandler extends OmeroServer {
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, apisHandler.getShapes(imageId, userId).get());
 
-            apisHandler.deleteShapes(imageId, userId).get();
+            apisHandler.deleteShapes(imageId, List.of(userId)).get();
         }
 
         @Test
@@ -1358,12 +1383,13 @@ public class TestApisHandler extends OmeroServer {
         @Test
         @Override
         void Check_Existing_Attachments_Deleted() throws ExecutionException, InterruptedException {
+            String ownerFullName = OmeroServer.getConnectedOwner(userType).getFullName();
             Image image = OmeroServer.getAnnotableImage(userType);
             apisHandler.sendAttachment(image.getId(), image.getClass(),"annotations1.csv", "test1").get();
             apisHandler.sendAttachment(image.getId(), image.getClass(),"annotations2.csv", "test2").get();
             apisHandler.sendAttachment(image.getId(), image.getClass(),"annotations3.csv", "test3").get();
 
-            Assertions.assertDoesNotThrow(() -> apisHandler.deleteAttachments(image.getId(), image.getClass()).get());
+            Assertions.assertDoesNotThrow(() -> apisHandler.deleteAttachments(image.getId(), image.getClass(), List.of(ownerFullName)).get());
         }
 
         private static String randomString() {

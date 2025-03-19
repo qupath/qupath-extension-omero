@@ -236,6 +236,13 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
+     * See {@link JsonApi#isConnectedUserOwnerOfGroup(long)}.
+     */
+    public boolean isConnectedUserOwnerOfGroup(long groupId) {
+        return jsonApi.isConnectedUserOwnerOfGroup(groupId);
+    }
+
+    /**
      * Performs a request to the specified URI to determine if it is reachable
      * and returns a 200 status code. The request will follow redirections and
      * use session cookies.
@@ -768,12 +775,17 @@ public class ApisHandler implements AutoCloseable {
      * if the request failed for example).
      *
      * @param imageId the ID of the image containing the shapes to delete
-     * @param userId the ID of the user that should own the shapes to delete. Can be negative or equal to 0 to delete
-     *               all shapes of the image
+     * @param userIds the list of IDs of the users that should own the shapes to delete
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Void> deleteShapes(long imageId, long userId) {
-        return getShapes(imageId, userId).thenCompose(shapesToRemove -> iViewerApi.deleteShapes(imageId, shapesToRemove, jsonApi.getToken()));
+    public CompletableFuture<Void> deleteShapes(long imageId, List<Long> userIds) {
+        return CompletableFuture
+                .supplyAsync(() -> userIds.stream()
+                        .map(userId -> getShapes(imageId, userId))
+                        .map(CompletableFuture::join)
+                        .flatMap(List::stream)
+                        .toList()
+                ).thenCompose(shapes -> iViewerApi.deleteShapes(imageId, shapes, jsonApi.getToken()));
     }
 
     /**
@@ -803,9 +815,9 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#deleteAttachments(long, Class)}.
+     * See {@link WebclientApi#deleteAttachments(long, Class, List)}.
      */
-    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
-        return webclientApi.deleteAttachments(entityId, entityClass);
+    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass, List<String> ownerFullNames) {
+        return webclientApi.deleteAttachments(entityId, entityClass, ownerFullNames);
     }
 }
