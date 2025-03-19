@@ -21,6 +21,7 @@ import javafx.scene.shape.Circle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -296,6 +297,9 @@ public class UiUtilities {
                             }
 
                             List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+                                    .filter(mapAnnotation ->
+                                            mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(Namespace.getDefaultNamespace())
+                                    )
                                     .map(MapAnnotation::getPairs)
                                     .flatMap(List::stream)
                                     .toList();
