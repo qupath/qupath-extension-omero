@@ -53,7 +53,7 @@ public class TestOmeroDetails {
                 {
                     "owner": {
                         "FirstName": "first",
-                        "MiddleName": "middle"
+                        "MiddleName": "middle",
                         "LastName": "last"
                     },
                     "permissions": {

@@ -134,7 +134,8 @@ public class Server implements RepositoryEntity {
 
     /**
      * @return an unmodifiable list of owners belonging to groups the connected owner belong to,
-     * or all owners of the server if the connected user is an admin
+     * or all owners of the server if the connected user is an admin. Note that non-visible owners
+     * (for example owners of private groups) are not included
      */
     public List<Owner> getOwners() {
         return owners;

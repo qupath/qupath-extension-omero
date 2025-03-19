@@ -391,6 +391,7 @@ public abstract class OmeroServer {
             case AUTHENTICATED -> List.of(
                     getUser1(),
                     getUser2(),
+                    getUser3(),
                     getUser()
             );
             case UNAUTHENTICATED -> List.of(

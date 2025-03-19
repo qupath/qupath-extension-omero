@@ -144,7 +144,7 @@ public class TestShape {
                     "StrokeColor": -16776961,
                     "Locked": false,
                     "oldId": "454:713",
-                    "omero:details:": {
+                    "omero:details": {
                         "owner": {
                             "FirstName": "first",
                             "MiddleName": "middle",
