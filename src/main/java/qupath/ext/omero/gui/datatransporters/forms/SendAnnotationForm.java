@@ -1,6 +1,7 @@
 package qupath.ext.omero.gui.datatransporters.forms;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
@@ -28,9 +29,11 @@ public class SendAnnotationForm extends VBox {
     @FXML
     private CheckBox deleteExistingAnnotations;
     @FXML
-    private ChoiceBox<Owner> owner;
+    private ChoiceBox<Owner> ownerAnnotations;
     @FXML
     private CheckBox deleteExistingMeasurements;
+    @FXML
+    private ChoiceBox<Owner> ownerMeasurements;
     @FXML
     private CheckBox sendAnnotationMeasurements;
     @FXML
@@ -53,23 +56,8 @@ public class SendAnnotationForm extends VBox {
         selectedAnnotationChoice.getItems().setAll(ONLY_SELECTED_ANNOTATIONS, ALL_ANNOTATIONS);
         selectedAnnotationChoice.getSelectionModel().select(ALL_ANNOTATIONS);
 
-        owner.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Owner object) {
-                return object == null ? "" : object.getFullName();
-            }
-
-            @Override
-            public Owner fromString(String string) {
-                return null;
-            }
-        });
-        if (owners.size() > 1) {
-            owner.getItems().add(Owner.getAllMembersOwner());
-        }
-        owner.getItems().addAll(owners);
-        owner.getSelectionModel().selectFirst();
-        owner.disableProperty().bind(Bindings.not(deleteExistingAnnotations.selectedProperty()));
+        setUpOwnerChoiceBox(ownerAnnotations, deleteExistingAnnotations.selectedProperty());
+        setUpOwnerChoiceBox(ownerMeasurements, deleteExistingMeasurements.selectedProperty());
 
         deleteExistingMeasurements.setSelected(projectOpened);
 
@@ -98,16 +86,8 @@ public class SendAnnotationForm extends VBox {
      * @return the list of owners whose OMERO annotations should be deleted (if {@link #deleteExistingAnnotations()} is
      * true). Can be empty if no owners were provided to this form
      */
-    public List<Owner> getSelectedOwners() {
-        if (owners.size() > 1 && owner.getSelectionModel().getSelectedIndex() == 0) {
-            return owners;
-        } else {
-            if (owner.getValue() == null) {
-                return List.of();
-            } else {
-                return List.of(owner.getValue());
-            }
-        }
+    public List<Owner> getSelectedOwnersOfDeletedAnnotations() {
+        return getSelectedOwners(ownerAnnotations);
     }
 
     /**
@@ -115,6 +95,14 @@ public class SendAnnotationForm extends VBox {
      */
     public boolean deleteExistingMeasurements() {
         return deleteExistingMeasurements.isSelected();
+    }
+
+    /**
+     * @return the list of owners whose OMERO measurements should be deleted (if {@link #deleteExistingMeasurements()} is
+     * true). Can be empty if no owners were provided to this form
+     */
+    public List<Owner> getSelectedOwnersOfDeletedMeasurements() {
+        return getSelectedOwners(ownerMeasurements);
     }
 
     /**
@@ -129,5 +117,39 @@ public class SendAnnotationForm extends VBox {
      */
     public boolean sendDetectionMeasurements() {
         return sendDetectionMeasurements.isSelected();
+    }
+
+    private void setUpOwnerChoiceBox(ChoiceBox<Owner> choiceBox, ReadOnlyBooleanProperty enableProperty) {
+        choiceBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(Owner object) {
+                return object == null ? "" : object.getFullName();
+            }
+
+            @Override
+            public Owner fromString(String string) {
+                return null;
+            }
+        });
+
+        if (owners.size() > 1) {
+            choiceBox.getItems().add(Owner.getAllMembersOwner());
+        }
+        choiceBox.getItems().addAll(owners);
+        choiceBox.getSelectionModel().selectFirst();
+
+        choiceBox.disableProperty().bind(Bindings.not(enableProperty));
+    }
+
+    private List<Owner> getSelectedOwners(ChoiceBox<Owner> choiceBox) {
+        if (owners.size() > 1 && choiceBox.getSelectionModel().getSelectedIndex() == 0) {
+            return owners;
+        } else {
+            if (choiceBox.getValue() == null) {
+                return List.of();
+            } else {
+                return List.of(choiceBox.getValue());
+            }
+        }
     }
 }

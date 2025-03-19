@@ -522,7 +522,7 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * Delete all attachments added from QuPath of an OMERO entity.
+     * Delete attachments belonging to a list of users added from QuPath of an OMERO entity.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
@@ -530,17 +530,21 @@ class WebclientApi implements AutoCloseable {
      * @param entityId the ID of the entity whose attachments should be deleted
      * @param entityClass the class of the entity whose attachments should be deleted.
      *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}
+     * @param ownerFullNames the full names of the owners that should own the attachments to remove
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
      */
-    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
+    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass, List<String> ownerFullNames) {
         logger.debug("Deleting all attachments added from QuPath to the {} with ID {}", entityClass, entityId);
 
         return getAnnotations(entityId, entityClass).thenApply(annotationGroup ->
                 annotationGroup.getAnnotationsOfClass(FileAnnotation.class).stream()
-                        .filter(annotation -> annotation.getFilename().isPresent() && annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER))
+                        .filter(annotation -> ownerFullNames.contains(annotation.getOwnerFullName()) &&
+                                annotation.getFilename().isPresent() &&
+                                annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER)
+                        )
                         .map(Annotation::getId)
                         .toList()
         ).thenAcceptAsync(attachmentIds -> {

@@ -815,9 +815,9 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#deleteAttachments(long, Class)}.
+     * See {@link WebclientApi#deleteAttachments(long, Class, List)}.
      */
-    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass) {
-        return webclientApi.deleteAttachments(entityId, entityClass);
+    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass, List<String> ownerFullNames) {
+        return webclientApi.deleteAttachments(entityId, entityClass, ownerFullNames);
     }
 }
