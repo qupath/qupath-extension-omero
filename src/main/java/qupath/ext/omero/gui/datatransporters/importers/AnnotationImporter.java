@@ -99,6 +99,7 @@ public class AnnotationImporter implements DataTransporter {
             List<String> ownerNames = shapes.stream()
                     .map(Shape::getOwnerFullName)
                     .flatMap(Optional::stream)
+                    .distinct()
                     .toList();
             if (ownerNames.isEmpty()) {
                 Dialogs.showErrorMessage(

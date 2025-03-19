@@ -30,22 +30,30 @@ public class ImportAnnotationForm extends VBox {
      *
      * @param ownerNames the names of the owners that own some annotations to import
      * @throws IOException if an error occurs while creating the form
+     * @throws IllegalArgumentException if the provided list is empty
      */
     public ImportAnnotationForm(List<String> ownerNames) throws IOException {
+        if (ownerNames.isEmpty()) {
+            throw new IllegalArgumentException("The provided list of owner names is empty");
+        }
+
         this.ownerNames = ownerNames;
 
         UiUtilities.loadFXML(this, ImportAnnotationForm.class.getResource("import_annotation_form.fxml"));
 
-        owner.getItems().add(resources.getString("DataTransporters.Forms.ImportAnnotations.all"));
+        if (ownerNames.size() > 1) {
+            owner.getItems().add(resources.getString("DataTransporters.Forms.ImportAnnotations.all"));
+        }
         owner.getItems().addAll(ownerNames);
         owner.getSelectionModel().selectFirst();
     }
 
     /**
-     * @return the full names of the owners that should own the annotations to import
+     * @return the full names of the owners that should own the annotations to import. This is
+     * guaranteed not to be empty
      */
     public List<String> getSelectedOwner() {
-        if (owner.getSelectionModel().getSelectedIndex() == 0) {
+        if (ownerNames.size() > 1 && owner.getSelectionModel().getSelectedIndex() == 0) {
             return ownerNames;
         } else {
             return List.of(owner.getValue());
