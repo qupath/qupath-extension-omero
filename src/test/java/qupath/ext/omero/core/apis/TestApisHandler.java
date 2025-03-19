@@ -953,7 +953,7 @@ public class TestApisHandler extends OmeroServer {
         void Check_Shapes_Deleted() {
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
 
-            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId, -1).get());
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId, List.of()).get());
         }
 
         @Test
@@ -1343,7 +1343,7 @@ public class TestApisHandler extends OmeroServer {
             List<Shape> shapes = List.of(new Rectangle(10, 10, 100, 100), new Line(20, 20, 50, 50));
             apisHandler.addShapes(imageId, shapes).get();
 
-            apisHandler.deleteShapes(imageId, userId).get();
+            apisHandler.deleteShapes(imageId, List.of(userId)).get();
 
             Assertions.assertTrue(apisHandler.getShapes(imageId, userId).get().isEmpty());
         }
@@ -1359,7 +1359,7 @@ public class TestApisHandler extends OmeroServer {
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, apisHandler.getShapes(imageId, userId).get());
 
-            apisHandler.deleteShapes(imageId, userId).get();
+            apisHandler.deleteShapes(imageId, List.of(userId)).get();
         }
 
         @Test

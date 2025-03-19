@@ -11,7 +11,7 @@ import java.util.stream.Stream;
 /**
  * An OMERO owner represents a person that own OMERO entities.
  */
-public record Owner(@SerializedName(value = "@id", alternate = "id") int id,
+public record Owner(@SerializedName(value = "@id", alternate = "id") long id,
                     @SerializedName(value = "FirstName") String firstName,
                     @SerializedName(value = "MiddleName") String middleName,
                     @SerializedName(value = "LastName") String lastName,
@@ -41,7 +41,7 @@ public record Owner(@SerializedName(value = "@id", alternate = "id") int id,
 
     @Override
     public int hashCode() {
-        return Integer.hashCode(id);
+        return Long.hashCode(id);
     }
 
     @Override
@@ -58,7 +58,7 @@ public record Owner(@SerializedName(value = "@id", alternate = "id") int id,
      * @return the ID of the owner, or 0 if not found
      */
     @Override
-    public int id() {
+    public long id() {
         return id;
     }
 

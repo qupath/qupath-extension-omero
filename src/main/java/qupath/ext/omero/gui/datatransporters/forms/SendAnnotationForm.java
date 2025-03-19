@@ -22,6 +22,7 @@ public class SendAnnotationForm extends VBox {
     private static final ResourceBundle resources = Utils.getResources();
     private static final String ONLY_SELECTED_ANNOTATIONS = resources.getString("DataTransporters.Forms.SendAnnotations.onlySelectedAnnotations");
     private static final String ALL_ANNOTATIONS = resources.getString("DataTransporters.Forms.SendAnnotations.allAnnotations");
+    private final List<Owner> owners;
     @FXML
     private ChoiceBox<String> selectedAnnotationChoice;
     @FXML
@@ -45,6 +46,8 @@ public class SendAnnotationForm extends VBox {
      * @throws IOException when an error occurs while creating the form
      */
     public SendAnnotationForm(List<Owner> owners, boolean projectOpened, boolean annotationsExist, boolean detectionExist) throws IOException {
+        this.owners = owners;
+
         UiUtilities.loadFXML(this, SendAnnotationForm.class.getResource("send_annotation_form.fxml"));
 
         selectedAnnotationChoice.getItems().setAll(ONLY_SELECTED_ANNOTATIONS, ALL_ANNOTATIONS);
@@ -61,7 +64,9 @@ public class SendAnnotationForm extends VBox {
                 return null;
             }
         });
-        owner.getItems().add(Owner.getAllMembersOwner());
+        if (owners.size() > 1) {
+            owner.getItems().add(Owner.getAllMembersOwner());
+        }
         owner.getItems().addAll(owners);
         owner.getSelectionModel().selectFirst();
         owner.disableProperty().bind(Bindings.not(deleteExistingAnnotations.selectedProperty()));
@@ -90,11 +95,19 @@ public class SendAnnotationForm extends VBox {
     }
 
     /**
-     * @return the owner whose OMERO annotations should be deleted (if {@link #deleteExistingAnnotations()} is
-     * true). It can be {@link Owner#getAllMembersOwner()}
+     * @return the list of owners whose OMERO annotations should be deleted (if {@link #deleteExistingAnnotations()} is
+     * true). Can be empty if no owners were provided to this form
      */
-    public Owner getSelectedOwner() {
-        return owner.getValue();
+    public List<Owner> getSelectedOwners() {
+        if (owners.size() > 1 && owner.getSelectionModel().getSelectedIndex() == 0) {
+            return owners;
+        } else {
+            if (owner.getValue() == null) {
+                return List.of();
+            } else {
+                return List.of(owner.getValue());
+            }
+        }
     }
 
     /**

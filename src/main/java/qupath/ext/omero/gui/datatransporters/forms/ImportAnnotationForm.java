@@ -28,9 +28,9 @@ public class ImportAnnotationForm extends VBox {
     /**
      * Creates the annotation form.
      *
-     * @param ownerNames the names of the owners that own some annotations to import
+     * @param ownerNames the names of the owners that own some annotations to import. Must be non-empty
      * @throws IOException if an error occurs while creating the form
-     * @throws IllegalArgumentException if the provided list is empty
+     * @throws IllegalArgumentException if the provided list of owner names is empty
      */
     public ImportAnnotationForm(List<String> ownerNames) throws IOException {
         if (ownerNames.isEmpty()) {

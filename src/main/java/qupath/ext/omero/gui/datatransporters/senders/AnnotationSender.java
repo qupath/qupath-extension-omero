@@ -174,7 +174,10 @@ public class AnnotationSender implements DataTransporter {
         if (annotationForm.deleteExistingAnnotations()) {
             deletionRequests.put(
                     Request.DELETE_EXISTING_ANNOTATIONS,
-                    omeroImageServer.getClient().getApisHandler().deleteShapes(omeroImageServer.getId(), annotationForm.getSelectedOwner().id())
+                    omeroImageServer.getClient().getApisHandler().deleteShapes(
+                            omeroImageServer.getId(),
+                            annotationForm.getSelectedOwners().stream().map(Owner::id).toList()
+                    )
             );
         }
         if (annotationForm.deleteExistingMeasurements()) {
