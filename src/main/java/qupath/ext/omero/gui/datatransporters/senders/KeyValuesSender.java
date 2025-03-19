@@ -90,7 +90,7 @@ public class KeyValuesSender implements DataTransporter {
                     resources.getString("DataTransporters.KeyValuesSender.gettingExistingNamespaces")
             );
         } catch (IOException e) {
-            logger.error("Error while creating the waiting window");
+            logger.error("Error while creating the waiting window", e);
             return;
         }
         waitingWindow.show();
@@ -112,6 +112,7 @@ public class KeyValuesSender implements DataTransporter {
                             annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
                                     .map(Annotation::getNamespace)
                                     .flatMap(Optional::stream)
+                                    .distinct()
                                     .toList()
                     ));
                 });
@@ -136,6 +137,14 @@ public class KeyValuesSender implements DataTransporter {
             return;
         }
 
+        if (sendKeyValuePairsForm.getKeyValuePairsToSend().isEmpty()) {
+            Dialogs.showErrorMessage(
+                    resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                    resources.getString("DataTransporters.KeyValuesSender.noKeyValueSelected")
+            );
+            return;
+        }
+
         WaitingWindow waitingWindow;
         try {
             waitingWindow = new WaitingWindow(
@@ -143,7 +152,7 @@ public class KeyValuesSender implements DataTransporter {
                     resources.getString("DataTransporters.KeyValuesSender.sendingKeyValues")
             );
         } catch (IOException e) {
-            logger.error("Error while creating the waiting window");
+            logger.error("Error while creating the waiting window", e);
             return;
         }
         waitingWindow.show();

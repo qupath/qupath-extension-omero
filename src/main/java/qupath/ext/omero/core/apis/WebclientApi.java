@@ -28,8 +28,10 @@ import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
@@ -355,37 +357,41 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return removeAndReturnExistingMapAnnotationsOfNamespace(uri, imageId, namespace).thenApply(existingAnnotations -> {
-            List<MapAnnotation.Pair> pairsToSend = new ArrayList<>();
-            for (MapAnnotation annotation: existingAnnotations) {
-                pairsToSend.addAll(annotation.getPairs());
-            }
-            for (var entry: keyValues.entrySet()) {
-                if (replaceExisting) {
-                    pairsToSend.removeAll(pairsToSend.stream().filter(pair -> pair.key().equals(entry.getKey())).toList());
-                }
-                pairsToSend.add(new MapAnnotation.Pair(entry.getKey(), entry.getValue()));
-            }
-            return pairsToSend;
-        }).thenCompose(pairsToSend -> requestSender.post(
-                uri,
-                String.format(
-                        "image=%d&ns=%s&mapAnnotation=%s",
-                        imageId,
-                        namespace.name(),
-                        URLEncoder.encode(
-                                pairsToSend.stream()
-                                        .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
-                                        .collect(Collectors.joining(",", "[", "]")),
-                                StandardCharsets.UTF_8
-                        )
-                ).getBytes(StandardCharsets.UTF_8),
-                String.format("%s/webclient/", host),
-                token
-        )).thenAccept(rawResponse -> {
-            Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
-            if (response == null || !response.containsKey("annId")) {
-                throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
+        CompletableFuture<List<MapAnnotation.Pair>> pairsToSend = replaceExisting ?
+                replaceExistingPairsAndReturnPairsNotSent(uri, imageId, namespace, keyValues) :
+                CompletableFuture.completedFuture(keyValues.entrySet().stream()
+                        .map(entry -> new MapAnnotation.Pair(entry.getKey(), entry.getValue()))
+                        .toList()
+                );
+
+        return pairsToSend.thenCompose(pairs -> {
+            if (pairs.isEmpty()) {
+                logger.debug("No more KVP to send to image with ID {}", imageId);
+                return CompletableFuture.completedFuture(null);
+            } else {
+                logger.debug("Creating new KVP {} with namespace {} for image with ID {}", pairs, namespace, imageId);
+
+                return requestSender.post(
+                        uri,
+                        String.format(
+                                "image=%d&ns=%s&mapAnnotation=%s",
+                                imageId,
+                                namespace.name(),
+                                URLEncoder.encode(
+                                        pairs.stream()
+                                                .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
+                                                .collect(Collectors.joining(",", "[", "]")),
+                                        StandardCharsets.UTF_8
+                                )
+                        ).getBytes(StandardCharsets.UTF_8),
+                        String.format("%s/webclient/", host),
+                        token
+                ).thenAccept(rawResponse -> {
+                    Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+                    if (response == null || !response.containsKey("annId")) {
+                        throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
+                    }
+                });
             }
         });
     }
@@ -635,28 +641,63 @@ class WebclientApi implements AutoCloseable {
         }
     }
 
-    private CompletableFuture<List<MapAnnotation>> removeAndReturnExistingMapAnnotationsOfNamespace(URI uri, long imageId, Namespace namespace) {
+    private CompletableFuture<List<MapAnnotation.Pair>> replaceExistingPairsAndReturnPairsNotSent(
+            URI uri,
+            long imageId,
+            Namespace namespace,
+            Map<String, String> keyValues
+    ) {
         return getAnnotations(imageId, Image.class).thenApply(annotationGroup -> {
             List<MapAnnotation> existingAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
                     .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(namespace))
                     .toList();
+            logger.debug("Got map annotations {} for image with ID {}. Replacing all pairs with keys in {}", existingAnnotations, imageId, keyValues);
 
-            List<CompletableFuture<String>> requests = existingAnnotations.stream()
-                    .map(Annotation::getId)
-                    .map(id -> String.format("image=%d&annId=%d&mapAnnotation=\"\"", imageId, id))
-                    .map(body -> requestSender.post(
+            Set<String> keysSent = new HashSet<>();
+
+            for (MapAnnotation mapAnnotation : existingAnnotations) {
+                List<MapAnnotation.Pair> pairsToSend = new ArrayList<>();
+                boolean pairReplaced = false;
+
+                for (MapAnnotation.Pair pair : mapAnnotation.getPairs()) {
+                    if (keyValues.containsKey(pair.key())) {
+                        pairReplaced = true;
+                        pairsToSend.add(new MapAnnotation.Pair(pair.key(), keyValues.get(pair.key())));
+
+                        keysSent.add(pair.key());
+                    } else {
+                        pairsToSend.add(pair);
+                    }
+                }
+
+                if (pairReplaced) {
+                    logger.debug("Keys of {} found in {}. Resending this annotation with the following pairs: {}", keyValues, mapAnnotation, pairsToSend);
+
+                    requestSender.post(
                             uri,
-                            body.getBytes(StandardCharsets.UTF_8),
+                            String.format(
+                                    "image=%d&annId=%d&mapAnnotation=%s",
+                                    imageId,
+                                    mapAnnotation.getId(),
+                                    URLEncoder.encode(
+                                            pairsToSend.stream()
+                                                    .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
+                                                    .collect(Collectors.joining(",", "[", "]")),
+                                            StandardCharsets.UTF_8
+                                    )
+                            ).getBytes(StandardCharsets.UTF_8),
                             String.format("%s/webclient/", host),
                             token
-                    ))
-                    .toList();
-
-            for (CompletableFuture<String> request: requests) {
-                request.join();
+                    ).join();
+                } else {
+                    logger.debug("No keys of {} found in {}. Skipping this annotation", keyValues, mapAnnotation);
+                }
             }
 
-            return existingAnnotations;
+            return keyValues.entrySet().stream()
+                    .filter(entry -> !keysSent.contains(entry.getKey()))
+                    .map(entry -> new MapAnnotation.Pair(entry.getKey(), entry.getValue()))
+                    .toList();
         });
     }
 }
