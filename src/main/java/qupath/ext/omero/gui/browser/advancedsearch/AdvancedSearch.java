@@ -236,14 +236,19 @@ public class AdvancedSearch extends Stage {
             owner.getItems().setAll(Owner.getAllMembersOwner());
 
             if (n == null) {
-                owner.getSelectionModel().select(null);
+                owner.getSelectionModel().selectFirst();
             } else {
                 if (n.equals(Group.getAllGroupsGroup())) {
                     owner.getItems().addAll(server.getOwners());
                     owner.getSelectionModel().select(Owner.getAllMembersOwner());
                 } else {
                     owner.getItems().addAll(n.getOwners());
-                    owner.getSelectionModel().selectFirst();
+
+                    if (n.getOwners().contains(server.getConnectedOwner())) {
+                        owner.getSelectionModel().select(server.getConnectedOwner());
+                    } else {
+                        owner.getSelectionModel().selectFirst();
+                    }
                 }
             }
         });
