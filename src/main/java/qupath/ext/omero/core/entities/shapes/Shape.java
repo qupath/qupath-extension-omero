@@ -96,7 +96,7 @@ public abstract class Shape {
     /**
      * Create a list of shapes from a path object.
      *
-     * @param pathObject  the path object that represents one or more shapes
+     * @param pathObject the path object that represents one or more shapes
      * @param fillColor whether to fill the shapes with colors
      * @return a list of shapes corresponding to this path object
      */
@@ -206,7 +206,7 @@ public abstract class Shape {
      * Link this shape with a path object.
      * <p>
      * Its text will be formatted as {@code Type:Class1&Class2:ObjectID:ParentID},
-     * for example {@code Annotation:NoClass:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:NoParent}
+     * for example {@code Annotation:Unclassified:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:NoParent}
      * or {@code Detection:Stroma:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:205037ff-7dd7-4549-89d8-a4e3cbf61294}.
      *
      * @param pathObject the path object that should correspond to this shape
@@ -216,7 +216,7 @@ public abstract class Shape {
         this.text = String.format(
                 "%s:%s:%s:%s",
                 pathObject.isDetection() ? "Detection" : "Annotation",
-                pathObject.getPathClass() == null ? "NoClass" : pathObject.getPathClass().toString().replaceAll(":","&"),
+                pathObject.getPathClass() == null ? PathClass.NULL_CLASS.toString() : pathObject.getPathClass().toString().replaceAll(":","&"),
                 pathObject.getID().toString(),
                 pathObject.getParent() == null ? "NoParent" : pathObject.getParent().getID().toString()
         );
@@ -344,11 +344,13 @@ public abstract class Shape {
 
         pathObject.setID(uuids.getFirst());
 
-        if (strokeColors.getFirst() != null)
+        if (strokeColors.getFirst() != null) {
             pathObject.setColor(strokeColors.getFirst() >> 8);
+        }
 
-        if (locked.getFirst() != null)
+        if (locked.getFirst() != null) {
             pathObject.setLocked(locked.getFirst());
+        }
 
         return pathObject;
     }
@@ -367,11 +369,17 @@ public abstract class Shape {
 
     private PathClass getPathClass() {
         if (text != null && text.split(":").length > 1 && !text.split(":")[1].isBlank()) {
-            return PathClass.fromCollection(Arrays.stream(text.split(":")[1].split("&")).toList());
-        } else {
-            logger.debug("Path class not found in {}. Returning NoClass", text);
+            List<String> names = Arrays.stream(text.split(":")[1].split("&")).toList();
 
-            return PathClass.fromString("NoClass");
+            if (names.size() == 1 && names.getFirst().equals(PathClass.NULL_CLASS.toString())) {
+                return PathClass.NULL_CLASS;
+            } else {
+                return PathClass.fromCollection(names);
+            }
+        } else {
+            logger.debug("Path class not found in {}. Returning {}", text, PathClass.NULL_CLASS);
+
+            return PathClass.NULL_CLASS;
         }
     }
 
