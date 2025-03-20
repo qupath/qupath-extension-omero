@@ -90,7 +90,7 @@ public class Image extends ServerEntity {
 
     @Override
     public String getLabel() {
-        return name == null ? "-" : name;
+        return name == null ? String.format("Image %d", id) : name;
     }
 
     @Override

@@ -73,7 +73,7 @@ public class PlateAcquisition extends ServerEntity {
 
     @Override
     public String getLabel() {
-        return this.name == null ? "-" : this.name;
+        return this.name == null ? String.format("Run %d", id) : this.name;
     }
 
     @Override

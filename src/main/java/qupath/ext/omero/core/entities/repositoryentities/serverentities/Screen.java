@@ -70,7 +70,7 @@ public class Screen extends ServerEntity {
 
     @Override
     public String getLabel() {
-        return String.format("%s (%d)", name == null ? "-" : name, childCount);
+        return String.format("%s (%d)", name == null ? String.format("Screen %d", id) : name, childCount);
     }
 
     @Override

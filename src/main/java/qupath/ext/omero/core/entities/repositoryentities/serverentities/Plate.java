@@ -79,7 +79,7 @@ public class Plate extends ServerEntity {
 
     @Override
     public String getLabel() {
-        return name == null ? "-" : name;
+        return name == null ? String.format("Plate %d", id) : name;
     }
 
     @Override

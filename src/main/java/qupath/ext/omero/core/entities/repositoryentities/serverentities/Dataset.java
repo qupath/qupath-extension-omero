@@ -73,7 +73,7 @@ public class Dataset extends ServerEntity {
 
     @Override
     public String getLabel() {
-        return String.format("%s (%d)", name == null ? "-" : name, childCount);
+        return String.format("%s (%d)", name == null ? String.format("Dataset %d", id) : name, childCount);
     }
 
     @Override
