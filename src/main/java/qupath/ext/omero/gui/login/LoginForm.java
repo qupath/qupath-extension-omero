@@ -168,7 +168,7 @@ public class LoginForm extends Stage {
         executor.execute(() -> {
             try {
                 Credentials credentials = publicUser.isSelected() ? new Credentials() : new Credentials(username.getText(), getPassword());
-                Client client = Client.createOrGet(url.getText(), credentials);
+                Client client = Client.createOrGet(url.getText(), credentials, Utils::displayPingErrorDialogIfUiPresent);
                 onClientCreated.accept(client);
 
                 Platform.runLater(() -> {

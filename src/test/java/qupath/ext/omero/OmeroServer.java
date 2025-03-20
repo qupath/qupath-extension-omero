@@ -287,7 +287,7 @@ public abstract class OmeroServer {
 
         do {
             try {
-                client = Client.createOrGet(getWebServerURI(), credentials);
+                client = Client.createOrGet(getWebServerURI(), credentials, null);
             } catch (Exception e) {
                 logger.debug("Client creation attempt {} of {} failed", attempt, CLIENT_CREATION_ATTEMPTS - 1, e);
             }

@@ -82,7 +82,7 @@ public class TestClient extends OmeroServer {
         int attempt = 0;
         do {
             try {
-                client = Client.createOrGet(OmeroServer.getWebServerURI(), new Credentials());
+                client = Client.createOrGet(OmeroServer.getWebServerURI(), new Credentials(), null);
             } catch (Exception e) {
                 if (attempt == numberOfAttempts-1) {
                     throw new RuntimeException(e);
@@ -102,7 +102,8 @@ public class TestClient extends OmeroServer {
         Assertions.assertDoesNotThrow(() -> {
             Client client = Client.createOrGet(
                     OmeroServer.getWebServerURI(),
-                    new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                    new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                    null
             );
             client.close();
         });
@@ -115,7 +116,8 @@ public class TestClient extends OmeroServer {
         Assertions.assertDoesNotThrow(() -> {
             Client client = Client.createOrGet(
                     OmeroServer.getWebServerURI(),
-                    new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                    new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                    null
             );
             client.close();
         });
@@ -128,7 +130,8 @@ public class TestClient extends OmeroServer {
         Assertions.assertThrows(Exception.class, () -> {
             try (Client client = Client.createOrGet(
                     OmeroServer.getWebServerURI(),
-                    new Credentials("incorrect_username", OmeroServer.getPassword(userType).toCharArray())
+                    new Credentials("incorrect_username", OmeroServer.getPassword(userType).toCharArray()),
+                    null
             )) {}
         });
     }
@@ -140,7 +143,8 @@ public class TestClient extends OmeroServer {
         Assertions.assertThrows(Exception.class, () -> {
             try (Client client = Client.createOrGet(
                     OmeroServer.getWebServerURI(),
-                    new Credentials(OmeroServer.getUsername(userType), "incorrect_password".toCharArray())
+                    new Credentials(OmeroServer.getUsername(userType), "incorrect_password".toCharArray()),
+                    null
             )) {}
         });
     }
@@ -152,7 +156,8 @@ public class TestClient extends OmeroServer {
         Assertions.assertThrows(Exception.class, () -> {
             try (Client client = Client.createOrGet(
                     "invalid_uri",
-                    new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                    new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                    null
             )) {}
         });
     }
@@ -163,7 +168,8 @@ public class TestClient extends OmeroServer {
         URI uri = URI.create(OmeroServer.getWebServerURI());
         Client expectedClient = Client.createOrGet(
                 uri.toString(),
-                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                null
         );
 
         Client client = Client.getClientFromURI(uri).orElse(null);
@@ -179,7 +185,8 @@ public class TestClient extends OmeroServer {
         URI uri = URI.create(OmeroServer.getWebServerURI());
         Client removedClient = Client.createOrGet(
                 uri.toString(),
-                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                null
         );
 
         removedClient.close();
@@ -193,7 +200,8 @@ public class TestClient extends OmeroServer {
         UserType userType = UserType.AUTHENTICATED;
         Client client = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
-                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                null
         );
         List<Client> expectedClients = List.of(client);
 
@@ -209,7 +217,8 @@ public class TestClient extends OmeroServer {
         UserType userType = UserType.AUTHENTICATED;
         Client client = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
-                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                null
         );
         List<Client> expectedClients = List.of();
 
@@ -223,12 +232,14 @@ public class TestClient extends OmeroServer {
         UserType userType = UserType.AUTHENTICATED;
         Client expectedClient = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
-                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                null
         );
 
         Client client = Client.createOrGet(
                 OmeroServer.getWebServerURI(),
-                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray())
+                new Credentials(OmeroServer.getUsername(userType), OmeroServer.getPassword(userType).toCharArray()),
+                null
         );
 
         Assertions.assertEquals(expectedClient, client);
@@ -243,7 +254,8 @@ public class TestClient extends OmeroServer {
                 new Credentials(
                         OmeroServer.getUsername(UserType.AUTHENTICATED),
                         OmeroServer.getPassword(UserType.AUTHENTICATED).toCharArray()
-                )
+                ),
+                null
         );
 
         Client client = Client.createOrGet(
@@ -251,7 +263,8 @@ public class TestClient extends OmeroServer {
                 new Credentials(
                         OmeroServer.getUsername(UserType.UNAUTHENTICATED),
                         OmeroServer.getPassword(UserType.UNAUTHENTICATED).toCharArray()
-                )
+                ),
+                null
         );
 
         TestUtilities.assertCollectionsEqualsWithoutOrder(List.of(client), Client.getClients());
@@ -263,7 +276,8 @@ public class TestClient extends OmeroServer {
     void Check_Existing_Unauthenticated_Client_Disconnected() throws Exception {
         Client.createOrGet(
                 OmeroServer.getWebServerURI(),
-                new Credentials()
+                new Credentials(),
+                null
         );
 
         Client client = Client.createOrGet(
@@ -271,7 +285,8 @@ public class TestClient extends OmeroServer {
                 new Credentials(
                         OmeroServer.getUsername(UserType.UNAUTHENTICATED),
                         OmeroServer.getPassword(UserType.UNAUTHENTICATED).toCharArray()
-                )
+                ),
+                null
         );
 
         TestUtilities.assertCollectionsEqualsWithoutOrder(List.of(client), Client.getClients());

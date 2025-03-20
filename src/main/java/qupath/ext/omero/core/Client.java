@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * A class representing a connection to an OMERO web server.
@@ -52,6 +53,7 @@ public class Client implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private static final int PING_DELAY_SECONDS = 60;
+    private static final int MAX_NUMBER_OF_PING_ATTEMPTS = 3;
     private static final ObservableList<Client> clients = FXCollections.observableArrayList();
     private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final ObservableList<PixelApi> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelApis);
@@ -63,7 +65,7 @@ public class Client implements AutoCloseable {
     private ScheduledExecutorService pingScheduler;
     private CompletableFuture<Server> server;
 
-    private Client(URI webServerUri, Credentials credentials) throws ExecutionException, InterruptedException, URISyntaxException {
+    private Client(URI webServerUri, Credentials credentials, Consumer<Client> onPingFailed) throws ExecutionException, InterruptedException, URISyntaxException {
         this.apisHandler = new ApisHandler(webServerUri, credentials);
         this.allPixelApis = List.of(
                 new WebApi(apisHandler),
@@ -72,24 +74,58 @@ public class Client implements AutoCloseable {
         );
 
         if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
-            pingScheduler = Executors.newScheduledThreadPool(1);
+            pingScheduler = Executors.newScheduledThreadPool(
+                    1,
+                    runnable -> new Thread(runnable, String.format("ping-to-%s", apisHandler.getWebServerURI()))
+            );
             pingScheduler.scheduleAtFixedRate(
-                    () -> apisHandler.ping().exceptionally(error -> {
-                        logger.error("Ping failed. Closing connection to {}", Client.this.apisHandler.getWebServerURI(), error);
+                    () -> {
+                        int attempt = 0;
+                        while (attempt < MAX_NUMBER_OF_PING_ATTEMPTS) {
+                            try {
+                                apisHandler.ping().get();
+                                return;
+                            } catch (InterruptedException | ExecutionException error) {
+                                if (error instanceof InterruptedException) {
+                                    Thread.currentThread().interrupt();
+                                }
 
-                        try {
-                            Client.this.close();
-                        } catch (Exception e) {
-                            logger.error("Error while closing {}", Client.this.apisHandler.getWebServerURI(), e);
+                                if (attempt < MAX_NUMBER_OF_PING_ATTEMPTS-1) {
+                                    logger.debug(
+                                            "Ping attempt {}/{} to {} failed",
+                                            attempt,
+                                            MAX_NUMBER_OF_PING_ATTEMPTS-1,
+                                            apisHandler.getWebServerURI(),
+                                            error
+                                    );
+                                } else {
+                                    logger.error(
+                                            "Ping attempt {}/{} to {} failed. Closing connection",
+                                            attempt,
+                                            MAX_NUMBER_OF_PING_ATTEMPTS-1,
+                                            apisHandler.getWebServerURI(),
+                                            error
+                                    );
+
+                                    try {
+                                        Client.this.close();
+                                    } catch (Exception e) {
+                                        logger.error("Error while closing {}", Client.this.apisHandler.getWebServerURI(), e);
+
+                                        if (e instanceof InterruptedException) {
+                                            Thread.currentThread().interrupt();
+                                        }
+                                    }
+
+                                    if (onPingFailed != null) {
+                                        onPingFailed.accept(this);
+                                    }
+                                }
+                            }
+                            attempt++;
                         }
-
-                        if (error instanceof InterruptedException) {
-                            Thread.currentThread().interrupt();
-                        }
-
-                        return null;
-                    }),
-                    0,
+                    },
+                    PING_DELAY_SECONDS,
                     PING_DELAY_SECONDS,
                     TimeUnit.SECONDS
             );
@@ -121,6 +157,9 @@ public class Client implements AutoCloseable {
      *
      * @param url the URL to the OMERO web server to connect to
      * @param credentials the credentials to use for the authentication
+     * @param onPingFailed a function that will be called after a ping fails. In that situation, the connection to the server will
+     *                     automatically be closed, so this parameter allows to display some information to the user. This function
+     *                     may be called from any thread. Can be null
      * @return a connection to the provided server
      * @throws URISyntaxException if a link to the server cannot be created
      * @throws ExecutionException if a request to the server fails or if a response does not contain expected elements.
@@ -129,7 +168,7 @@ public class Client implements AutoCloseable {
      * @throws IllegalArgumentException if the server doesn't return all necessary information on it, or if the root account
      * was used to log in
      */
-    public static Client createOrGet(String url, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
+    public static Client createOrGet(String url, Credentials credentials, Consumer<Client> onPingFailed) throws URISyntaxException, ExecutionException, InterruptedException {
         URI webServerURI = getServerURI(new URI(url));
 
         synchronized (Client.class) {
@@ -162,7 +201,7 @@ public class Client implements AutoCloseable {
                 logger.debug("No client of {} found. Creating new one", webServerURI);
             }
 
-            return new Client(webServerURI, credentials);
+            return new Client(webServerURI, credentials, onPingFailed);
         }
     }
 

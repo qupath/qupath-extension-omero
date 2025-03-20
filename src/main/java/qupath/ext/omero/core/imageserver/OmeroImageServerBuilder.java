@@ -2,6 +2,7 @@ package qupath.ext.omero.core.imageserver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
@@ -241,7 +242,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             logger.debug("Public user type found in arguments. Using it to connect");
 
             try {
-                return Optional.of(Client.createOrGet(uri.toString(), new Credentials()));
+                return Optional.of(Client.createOrGet(uri.toString(), new Credentials(), Utils::displayPingErrorDialogIfUiPresent));
             } catch (Exception e) {
                 logger.debug("Cannot create client of {}", uri, e);
 
@@ -257,7 +258,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
                 if (password.isPresent()) {
                     logger.debug("Password found in arguments. Using it and the username {} to connect", username.get());
-                    return Optional.of(Client.createOrGet(uri.toString(), new Credentials(username.get(), password.get().toCharArray())));
+                    return Optional.of(Client.createOrGet(
+                            uri.toString(),
+                            new Credentials(username.get(), password.get().toCharArray()),
+                            Utils::displayPingErrorDialogIfUiPresent
+                    ));
                 } else {
                     logger.debug("Password not found in arguments. Prompting credentials with user {}...", username.get());
                     return getClientFromUserPrompt(uri, username.get());
@@ -349,7 +354,8 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             try {
                 return Optional.of(Client.createOrGet(
                         uri.toString(),
-                        CommandLineAuthenticator.authenticate(uri, username)
+                        CommandLineAuthenticator.authenticate(uri, username),
+                        Utils::displayPingErrorDialogIfUiPresent
                 ));
             } catch (Exception e) {
                 logger.debug("Cannot create client of {}", uri, e);
