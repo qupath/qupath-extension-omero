@@ -1,10 +1,5 @@
 package qupath.ext.omero;
 
-import qupath.ext.omero.core.Client;
-import qupath.ext.omero.gui.UiUtilities;
-import qupath.fx.dialogs.Dialogs;
-
-import java.text.MessageFormat;
 import java.util.ResourceBundle;
 
 /**
@@ -23,17 +18,5 @@ public class Utils {
      */
     public static ResourceBundle getResources() {
         return resources;
-    }
-
-    public static void displayPingErrorDialogIfUiPresent(Client client) {
-        if (UiUtilities.usingGUI()) {
-            Dialogs.showErrorMessage(
-                    resources.getString("Utils.connectionError"),
-                    MessageFormat.format(
-                            resources.getString("Utils.connectionClosed"),
-                            client.getApisHandler().getWebServerURI()
-                    )
-            );
-        }
     }
 }

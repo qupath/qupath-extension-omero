@@ -21,6 +21,7 @@ import javafx.scene.shape.Circle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
@@ -37,6 +38,7 @@ import qupath.lib.projects.ProjectImageEntry;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
@@ -183,6 +185,25 @@ public class UiUtilities {
                     logger.debug("Skipping automatic import of key-value pairs and parent dataset information");
                 }
             }
+        }
+    }
+
+    /**
+     * Display an error dialog informing the user that the provided connection was interrupted because
+     * some pings failed. This function can be called from any thread. The dialog will only be created
+     * if {@link #usingGUI()} is true.
+     *
+     * @param client the client whose connection was closed because of a failing ping
+     */
+    public static void displayPingErrorDialogIfUiPresent(Client client) {
+        if (usingGUI()) {
+            Dialogs.showErrorMessage(
+                    resources.getString("Utils.connectionError"),
+                    MessageFormat.format(
+                            resources.getString("Utils.connectionClosed"),
+                            client.getApisHandler().getWebServerURI()
+                    )
+            );
         }
     }
 

@@ -2,7 +2,6 @@ package qupath.ext.omero.core.imageserver;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
@@ -242,7 +241,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             logger.debug("Public user type found in arguments. Using it to connect");
 
             try {
-                return Optional.of(Client.createOrGet(uri.toString(), new Credentials(), Utils::displayPingErrorDialogIfUiPresent));
+                return Optional.of(Client.createOrGet(uri.toString(), new Credentials(), UiUtilities::displayPingErrorDialogIfUiPresent));
             } catch (Exception e) {
                 logger.debug("Cannot create client of {}", uri, e);
 
@@ -261,7 +260,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     return Optional.of(Client.createOrGet(
                             uri.toString(),
                             new Credentials(username.get(), password.get().toCharArray()),
-                            Utils::displayPingErrorDialogIfUiPresent
+                            UiUtilities::displayPingErrorDialogIfUiPresent
                     ));
                 } else {
                     logger.debug("Password not found in arguments. Prompting credentials with user {}...", username.get());
@@ -355,7 +354,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 return Optional.of(Client.createOrGet(
                         uri.toString(),
                         CommandLineAuthenticator.authenticate(uri, username),
-                        Utils::displayPingErrorDialogIfUiPresent
+                        UiUtilities::displayPingErrorDialogIfUiPresent
                 ));
             } catch (Exception e) {
                 logger.debug("Cannot create client of {}", uri, e);

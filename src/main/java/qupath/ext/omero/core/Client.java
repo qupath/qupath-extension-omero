@@ -223,7 +223,7 @@ public class Client implements AutoCloseable {
             }
         }
         if (pingScheduler != null) {
-            pingScheduler.close();
+            pingScheduler.shutdown();
         }
         apisHandler.close();
 
