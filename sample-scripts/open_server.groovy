@@ -10,7 +10,7 @@ import qupath.lib.images.servers.*
 def serverURL = "https://idr.openmicroscopy.org/"
 def credentials = new Credentials()                                                     // to skip authentication and use the public account
 //def credentials = new Credentials("some_username", "some_password".toCharArray())     // to authenticate with a regular account
-def client = Client.createOrGet(serverURL, credentials)
+def client = Client.createOrGet(serverURL, credentials, null)
 
 // List projects of the OMERO server
 def projects = client.getApisHandler().getProjects().get()

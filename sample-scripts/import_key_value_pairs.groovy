@@ -40,7 +40,7 @@ def annotationGroup = omeroServer.getClient().getApisHandler().getAnnotations(om
 def mapAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
 
 // Get the key value pairs of the list of map annotations
-def keyValues = MapAnnotation.getCombinedValues(mapAnnotations)
+def keyValues = mapAnnotations.collect { mapAnnotation -> mapAnnotation.getPairs()}.flatten()
 
 // Delete all existing key value pairs if necessary
 if (deleteExistingKeyValuePairs) {
@@ -48,9 +48,9 @@ if (deleteExistingKeyValuePairs) {
 }
 
 // Set and replace (if necessary) key value pairs of the QuPath image by the ones from OMERO
-for (Map.Entry<String, String> entry : keyValues.entrySet()) {
-    if (replaceExistingKeyValuesPairs || !projectEntry.containsMetadata(entry.getKey())) {
-        projectEntry.putMetadataValue(entry.getKey(), entry.getValue())
+for (MapAnnotation.Pair pair : keyValues) {
+    if (replaceExistingKeyValuesPairs || !projectEntry.containsMetadata(pair.key())) {
+        projectEntry.putMetadataValue(pair.key(), pair.value())
     }
 }
 

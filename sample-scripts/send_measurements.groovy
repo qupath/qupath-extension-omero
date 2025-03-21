@@ -5,7 +5,7 @@ import qupath.lib.objects.*
 
 /*
  * This script send the annotation and detections measurements of the current image to the OMERO server as attachments.
- * Existing attachments can be deleted.
+ * Existing attachments of specific users can be deleted.
  *
  * A QuPath project and an OMERO image must be currently opened in QuPath through the QuPath GUI or
  * through the command line (see the open_image_from_command_line.groovy script).
@@ -13,6 +13,7 @@ import qupath.lib.objects.*
 
 // Parameters
 def deleteExistingAttachments = true
+def fullNamesOfUsersWhoseAttachmentsShouldBeDeleted = ["some user"]     // the full name is a combination of first name, middle name and last name
 def sendAnnotationMeasurements = true
 def sendDetectionMeasurements = true
 
@@ -37,7 +38,7 @@ def omeroServer = (OmeroImageServer) server
 
 // Delete existing attachment
 if (deleteExistingAttachments) {
-    omeroServer.getClient().getApisHandler().deleteAttachments(omeroServer.getId(), Image.class).get()
+    omeroServer.getClient().getApisHandler().deleteAttachments(omeroServer.getId(), Image.class, fullNamesOfUsersWhoseAttachmentsShouldBeDeleted).get()
 
     println "Existing attachments deleted"
 }

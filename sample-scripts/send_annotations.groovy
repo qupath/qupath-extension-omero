@@ -24,10 +24,7 @@ def annotations = getAnnotationObjects()
 def fillAnnotationColors = true
 omeroServer.getClient().getApisHandler().addShapes(
         omeroServer.getId(),
-        annotations.stream()
-                .map(pathObject -> Shape.createFromPathObject(pathObject, fillAnnotationColors))
-                .flatMap(List::stream)
-                .toList()
+        annotations.collect { pathObject -> Shape.createFromPathObject(pathObject, fillAnnotationColors)}.flatten()
 ).get()
 
 println "Annotations sent"

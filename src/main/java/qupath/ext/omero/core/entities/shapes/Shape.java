@@ -337,9 +337,17 @@ public abstract class Shape {
 
         PathObject pathObject;
         if (types.getFirst().equals("Detection")) {
-            pathObject = PathObjects.createDetectionObject(createRoi(shapes), pathClasses.getFirst());
+            if (pathClasses.getFirst().equals(PathClass.NULL_CLASS)) {
+                pathObject = PathObjects.createDetectionObject(createRoi(shapes));
+            } else {
+                pathObject = PathObjects.createDetectionObject(createRoi(shapes), pathClasses.getFirst());
+            }
         } else {
-            pathObject = PathObjects.createAnnotationObject(createRoi(shapes), pathClasses.getFirst());
+            if (pathClasses.getFirst().equals(PathClass.NULL_CLASS)) {
+                pathObject = PathObjects.createAnnotationObject(createRoi(shapes));
+            } else {
+                pathObject = PathObjects.createAnnotationObject(createRoi(shapes), pathClasses.getFirst());
+            }
         }
 
         pathObject.setID(uuids.getFirst());
