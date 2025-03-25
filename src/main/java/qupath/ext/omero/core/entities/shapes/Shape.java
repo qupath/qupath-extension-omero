@@ -287,13 +287,6 @@ public abstract class Shape {
     }
 
     /**
-     * @return the color of this shape (can be null)
-     */
-    protected Integer getStrokeColor() {
-        return strokeColor;
-    }
-
-    /**
      * @return whether this shape should be locked (can be null)
      */
     protected Boolean getLocked() {
@@ -326,13 +319,11 @@ public abstract class Shape {
         List<PathClass> pathClasses = shapes.stream().map(Shape::getPathClass).distinct().toList();
         List<String> types = shapes.stream().map(Shape::getType).distinct().toList();
         List<UUID> uuids = shapes.stream().map(Shape::getQuPathId).distinct().toList();
-        List<Integer> strokeColors = shapes.stream().map(Shape::getStrokeColor).distinct().toList();
         List<Boolean> locked = shapes.stream().map(Shape::getLocked).distinct().toList();
 
         warnIfDuplicateAttribute(shapes, pathClasses, "class");
         warnIfDuplicateAttribute(shapes, types, "type (annotation/detection)");
         warnIfDuplicateAttribute(shapes, uuids, "UUID");
-        warnIfDuplicateAttribute(shapes, strokeColors, "color");
         warnIfDuplicateAttribute(shapes, locked, "locked");
 
         PathObject pathObject;
@@ -351,10 +342,6 @@ public abstract class Shape {
         }
 
         pathObject.setID(uuids.getFirst());
-
-        if (strokeColors.getFirst() != null) {
-            pathObject.setColor(strokeColors.getFirst() >> 8);
-        }
 
         if (locked.getFirst() != null) {
             pathObject.setLocked(locked.getFirst());
