@@ -320,10 +320,10 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     .map(client -> {
                         try {
                             client.getApisHandler().getImage(imageId).get();
-                            logger.debug("Client {} can access image with ID {}. Using it", client, imageId);
+                            logger.debug("{} can access image with ID {}. Using it", client, imageId);
                             return client;
                         } catch (ExecutionException | InterruptedException e) {
-                            logger.debug("Client {} cannot access image with ID {}. Skipping it", client, imageId, e);
+                            logger.debug("{} cannot access image with ID {}. Skipping it", client, imageId, e);
                             return null;
                         }
                     })

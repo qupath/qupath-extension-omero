@@ -24,6 +24,7 @@ import qupath.fx.dialogs.Dialogs;
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -97,6 +98,21 @@ class Connection extends VBox {
 
         initUI();
         setUpListeners();
+    }
+
+    /**
+     * @return the client displayed by this pane, or an empty Optional if {@link Connection#Connection(Stage, URI, Consumer)} was
+     * used to create the pane
+     */
+    public Optional<Client> getClient() {
+        return Optional.ofNullable(client);
+    }
+
+    /**
+     * @return the URI of the server displayed by this pane
+     */
+    public URI getServerURI() {
+        return serverURI;
     }
 
     @FXML
@@ -254,13 +270,19 @@ class Connection extends VBox {
                         )
                 ));
 
-                imagesContainer.getChildren().clear();
-                for (URI uri: client.getOpenedImagesURIs()) {
+                if (change.wasAdded()) {
                     try {
-                        imagesContainer.getChildren().add(new Image(client.getApisHandler(), uri));
+                        imagesContainer.getChildren().add(new Image(client.getApisHandler(), change.getElementAdded()));
                     } catch (IOException e) {
                         logger.error("Error while creating image pane", e);
                     }
+                }
+                if (change.wasRemoved()) {
+                    imagesContainer.getChildren().removeAll(imagesContainer.getChildren().stream()
+                            .filter(node -> node instanceof Image)
+                            .map(node -> (Image) node)
+                            .filter(image -> image.getImageUri().equals(change.getElementRemoved()))
+                            .toList());
                 }
             }));
         }

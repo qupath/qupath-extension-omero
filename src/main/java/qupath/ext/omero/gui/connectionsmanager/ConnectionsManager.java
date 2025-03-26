@@ -1,13 +1,13 @@
 package qupath.ext.omero.gui.connectionsmanager;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.core.preferences.ServerPreference;
@@ -15,9 +15,7 @@ import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.HashSet;
-import java.util.ResourceBundle;
-import java.util.Set;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -29,10 +27,11 @@ import java.util.function.Consumer;
 public class ConnectionsManager extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionsManager.class);
-    private static final ResourceBundle resources = Utils.getResources();
     private final Consumer<Client> openClientBrowser;
     @FXML
     private VBox container;
+    @FXML
+    private Label noClients;
 
     /**
      * Creates the connection manager window.
@@ -61,33 +60,51 @@ public class ConnectionsManager extends Stage {
     private void setUpListeners() {
         Client.addListenerToClients(() -> Platform.runLater(this::populate));
         PreferencesManager.addListenerToServerPreferences(() -> Platform.runLater(this::populate));
+
+        noClients.visibleProperty().bind(Bindings.isEmpty(container.getChildren()));
+        noClients.managedProperty().bind(noClients.visibleProperty());
     }
 
     private void populate() {
-        container.getChildren().clear();
+        List<Client> clients = Client.getClients();
+        List<URI> serverPreferenceUris = PreferencesManager.getServerPreferences().stream().map(ServerPreference::webServerUri).toList();
 
-        Set<URI> urisAdded = new HashSet<>();
-        for (Client client: Client.getClients()) {
-            try {
-                container.getChildren().add(new Connection(this, client, openClientBrowser));
-                urisAdded.add(client.getApisHandler().getWebServerURI());
-            } catch (IOException e) {
-                logger.error("Error while creating connection pane", e);
-            }
-        }
+        container.getChildren().removeAll(container.getChildren().stream()
+                .filter(node -> node instanceof Connection)
+                .map(node -> (Connection) node)
+                .filter(connection -> connection.getClient()
+                        .map(client -> !clients.contains(client))
+                        .orElse(!serverPreferenceUris.contains(connection.getServerURI()) ||
+                                clients.stream().map(client -> client.getApisHandler().getWebServerURI()).toList().contains(connection.getServerURI())
+                        )
+                )
+                .toList()
+        );
 
-        for (ServerPreference serverPreference: PreferencesManager.getServerPreferences()) {
-            if (!urisAdded.contains(serverPreference.webServerUri())) {
+        for (Client client: clients) {
+            if (container.getChildren().stream()
+                    .filter(node -> node instanceof Connection)
+                    .map(node -> (Connection) node)
+                    .noneMatch(connection -> client.equals(connection.getClient().orElse(null)))) {
                 try {
-                    container.getChildren().add(new Connection(this, serverPreference.webServerUri(), openClientBrowser));
+                    container.getChildren().add(new Connection(this, client, openClientBrowser));
                 } catch (IOException e) {
                     logger.error("Error while creating connection pane", e);
                 }
             }
         }
 
-        if (container.getChildren().isEmpty()) {
-            container.getChildren().add(new Label(resources.getString("ConnectionsManager.ConnectionManager.noClients")));
+        for (URI uri: serverPreferenceUris) {
+            if (container.getChildren().stream()
+                    .filter(node -> node instanceof Connection)
+                    .map(node -> (Connection) node)
+                    .noneMatch(connection -> uri.equals(connection.getServerURI()))) {
+                try {
+                    container.getChildren().add(new Connection(this, uri, openClientBrowser));
+                } catch (IOException e) {
+                    logger.error("Error while creating connection pane", e);
+                }
+            }
         }
 
         sizeToScene();

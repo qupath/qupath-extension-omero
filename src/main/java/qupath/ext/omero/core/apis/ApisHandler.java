@@ -299,7 +299,7 @@ public class ApisHandler implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the list described above
      */
     public CompletableFuture<List<URI>> getImagesURIFromEntityURI(URI entityURI) {
-        logger.debug("Find image URIs indicated by {}", entityURI);
+        logger.debug("Finding image URIs indicated by {}...", entityURI);
 
         String entityURL = URLDecoder.decode(entityURI.toString(), StandardCharsets.UTF_8);
 

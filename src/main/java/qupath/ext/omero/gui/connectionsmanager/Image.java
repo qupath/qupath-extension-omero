@@ -24,6 +24,7 @@ class Image extends HBox {
 
     private static final Logger logger = LoggerFactory.getLogger(Image.class);
     private static final ResourceBundle resources = Utils.getResources();
+    private final URI imageUri;
     @FXML
     private Label name;
     @FXML
@@ -37,6 +38,9 @@ class Image extends HBox {
      * @throws IOException if an error occurs while creating the window
      */
     public Image(ApisHandler apisHandler, URI imageUri) throws IOException {
+        this.imageUri = imageUri;
+        logger.debug("Creating image label of {}", imageUri);
+
         UiUtilities.loadFXML(this, Image.class.getResource("image.fxml"));
 
         var imageID = ApisHandler.parseEntityId(imageUri);
@@ -58,16 +62,25 @@ class Image extends HBox {
                             Platform.runLater(() -> UiUtilities.paintBufferedImageOnCanvas(thumbnail, this.thumbnail));
                         }
                     });
+        } else {
+            logger.debug("Cannot find image ID in {}. This image label won't show any image", imageUri);
         }
 
         apisHandler.isLinkReachable(imageUri, RequestSender.RequestType.GET).whenComplete((v, error) -> {
             if (error == null) {
                 setStatus(imageUri.toString(), true);
             } else {
-                logger.debug("Cannot reach {}", imageUri, error);
+                logger.debug("Cannot reach {}. Considering this image not reachable", imageUri, error);
                 setStatus(resources.getString("ConnectionsManager.Image.unreachableImage"), false);
             }
         });
+    }
+
+    /**
+     * @return the URI of the image shown
+     */
+    public URI getImageUri() {
+        return imageUri;
     }
 
     private void setStatus(String text, boolean isActive) {
