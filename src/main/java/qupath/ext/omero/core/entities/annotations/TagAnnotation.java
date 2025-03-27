@@ -53,7 +53,7 @@ public class TagAnnotation extends Annotation {
     }
 
     /**
-     * @return the actual tag of the annotation
+     * @return the actual tag of the annotation, or an empty Optional if not found
      */
     public Optional<String> getValue() {
         return Optional.ofNullable(textValue);

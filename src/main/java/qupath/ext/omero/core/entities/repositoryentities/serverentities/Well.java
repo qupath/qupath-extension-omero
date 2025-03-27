@@ -8,7 +8,7 @@ import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.ResourceBundle;
 
 /**
@@ -29,6 +29,10 @@ public class Well extends ServerEntity {
     @SerializedName(value = "WellSamples") private List<WellSample> wellSamples;
     @SerializedName(value = "Column") private int column;
     @SerializedName(value = "Row") private int row;
+    private record WellSample(
+            @SerializedName(value = "Image") Image image,
+            @SerializedName(value = "PlateAcquisition") PlateAcquisition plateAcquisition
+    ) {}
 
     /**
      * Creates an empty well only defined by its ID.
@@ -40,8 +44,8 @@ public class Well extends ServerEntity {
     @Override
     public boolean hasChildren() {
         return wellSamples != null && !wellSamples.stream()
-                .map(WellSample::getImage)
-                .flatMap(Optional::stream)
+                .map(WellSample::image)
+                .filter(Objects::nonNull)
                 .toList().isEmpty();
     }
 
@@ -112,28 +116,14 @@ public class Well extends ServerEntity {
         return wellSamples == null ? List.of() : wellSamples.stream()
                 .filter(wellSample -> {
                     if (withPlateAcquisition) {
-                        return wellSample.plateAcquisitionExists();
+                        return wellSample.plateAcquisition() != null;
                     } else {
-                        return !wellSample.plateAcquisitionExists();
+                        return wellSample.plateAcquisition() == null;
                     }
                 })
-                .map(WellSample::getImage)
-                .flatMap(Optional::stream)
+                .map(WellSample::image)
+                .filter(Objects::nonNull)
                 .map(Image::getId)
                 .toList();
-    }
-
-    private static class WellSample {
-
-        @SerializedName(value = "Image") private Image image;
-        @SerializedName(value = "PlateAcquisition") private PlateAcquisition plateAcquisition;
-
-        public Optional<Image> getImage() {
-            return Optional.ofNullable(image);
-        }
-
-        public boolean plateAcquisitionExists() {
-            return plateAcquisition != null;
-        }
     }
 }

@@ -1,20 +1,13 @@
 package qupath.ext.omero.core.entities.annotations.annotationsentities;
 
-import java.util.Objects;
-
 /**
  * An OMERO experimenter represents a person working on an OMERO entity.
+ *
+ * @param id the unique ID of this experimenter, or 0 if not indicated
+ * @param firstName the first name of this experimenter, or an empty String if not indicated
+ * @param lastName the last name of this experimenter, or an empty String if not found
  */
-public class Experimenter {
-
-    private int id;
-    private String firstName;
-    private String lastName;
-
-    @Override
-    public String toString() {
-        return String.format("Experimenter %s with ID %d", getFullName(), id);
-    }
+public record Experimenter(int id, String firstName, String lastName) {
 
     @Override
     public boolean equals(Object obj) {
@@ -30,34 +23,23 @@ public class Experimenter {
         return Integer.hashCode(id);
     }
 
-    /**
-     * @return the unique ID of this experimenter, or 0 if not found
-     */
-    public int getId() {
-        return id;
+    @Override
+    public String firstName() {
+        return firstName == null ? "": firstName;
     }
 
-    /**
-     * @return the first name of this experimenter, or an empty String if not found
-     */
-    public String getFirstName() {
-        return Objects.toString(firstName, "");
-    }
-
-    /**
-     * @return the last name of this experimenter, or an empty String if not found
-     */
-    public String getLastName() {
-        return Objects.toString(lastName, "");
+    @Override
+    public String lastName() {
+        return lastName == null ? "" : lastName;
     }
 
     /**
      * @return the full name (first name last name) of this experimenter,
      * or an empty String if not found
      */
-    public String getFullName() {
-        String firstName = getFirstName();
-        String lastName = getLastName();
+    public String fullName() {
+        String firstName = firstName();
+        String lastName = lastName();
 
         if (!firstName.isEmpty() && !lastName.isEmpty()) {
             return firstName + " " + lastName;

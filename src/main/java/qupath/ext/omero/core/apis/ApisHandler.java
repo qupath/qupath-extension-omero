@@ -271,12 +271,14 @@ public class ApisHandler implements AutoCloseable {
                 String idValue = matcher.group(1);
                 try {
                     long id = Long.parseLong(idValue);
-                    logger.debug("Found ID {} in {}", id, uri);
+                    logger.debug("Found ID {} in {} with pattern {}", id, uri, pattern);
 
                     return Optional.of(id);
                 } catch (NumberFormatException e) {
-                    logger.debug("Found entity ID {} but it is not an integer", idValue, e);
+                    logger.debug("Found entity ID {} in {} with pattern {} but it is not an integer", idValue, uri, pattern, e);
                 }
+            } else {
+                logger.debug("No ID found with pattern {} for uri {}", pattern, uri);
             }
         }
 
@@ -295,39 +297,39 @@ public class ApisHandler implements AutoCloseable {
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request or the conversion failed for example).
      *
-     * @param entityURI the URI of the entity whose images should be retrieved. It can be URL encoded
+     * @param entityUri the URI of the entity whose images should be retrieved. It can be URL encoded
      * @return a CompletableFuture (that may complete exceptionally) with the list described above
      */
-    public CompletableFuture<List<URI>> getImagesURIFromEntityURI(URI entityURI) {
-        logger.debug("Finding image URIs indicated by {}...", entityURI);
+    public CompletableFuture<List<URI>> getImagesURIFromEntityURI(URI entityUri) {
+        logger.debug("Finding image URIs indicated by {}...", entityUri);
 
-        String entityURL = URLDecoder.decode(entityURI.toString(), StandardCharsets.UTF_8);
+        String entityUrl = URLDecoder.decode(entityUri.toString(), StandardCharsets.UTF_8);
 
-        if (projectPattern.matcher(entityURL).find()) {
-            logger.debug("{} refers to a project", entityURI);
+        if (projectPattern.matcher(entityUrl).find()) {
+            logger.debug("{} refers to a project", entityUri);
 
-            return parseEntityId(entityURI)
+            return parseEntityId(entityUri)
                     .map(this::getImagesURIOfProject)
                     .orElse(CompletableFuture.failedFuture(new IllegalArgumentException(
-                            String.format("The provided URI %s was detected as a project but no ID was found", entityURL)
+                            String.format("The provided URI %s was detected as a project but no ID was found", entityUrl)
                     )));
-        } else if (datasetPattern.matcher(entityURL).find()) {
-            logger.debug("{} refers to a dataset", entityURI);
+        } else if (datasetPattern.matcher(entityUrl).find()) {
+            logger.debug("{} refers to a dataset", entityUri);
 
-            return parseEntityId(entityURI)
+            return parseEntityId(entityUri)
                     .map(this::getImagesURIOfDataset)
                     .orElse(CompletableFuture.failedFuture(new IllegalArgumentException(
-                            String.format("The provided URI %s was detected as a dataset but no ID was found", entityURL)
+                            String.format("The provided URI %s was detected as a dataset but no ID was found", entityUrl)
                     )));
-        } else if (imagePatterns.stream().anyMatch(pattern -> pattern.matcher(entityURL).find())) {
-            logger.debug("{} refers to an image", entityURI);
+        } else if (imagePatterns.stream().anyMatch(pattern -> pattern.matcher(entityUrl).find())) {
+            logger.debug("{} refers to an image", entityUri);
 
-            return CompletableFuture.completedFuture(List.of(entityURI));
+            return CompletableFuture.completedFuture(List.of(entityUri));
         } else {
-            logger.debug("{} doesn't refer to a project, dataset, or image", entityURI);
+            logger.debug("{} doesn't refer to a project, dataset, or image", entityUri);
 
             return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The provided URI %s does not represent a project, dataset, or image", entityURL)
+                    String.format("The provided URI %s does not represent a project, dataset, or image", entityUrl)
             ));
         }
     }
@@ -337,40 +339,6 @@ public class ApisHandler implements AutoCloseable {
      */
     public CompletableFuture<BufferedImage> getImage(URI uri) {
         return requestSender.getImage(uri);
-    }
-
-    /**
-     * Returns a list of image URIs contained in the dataset identified by the provided ID.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param datasetID the ID of the dataset the returned images must belong to
-     * @return a CompletableFuture (that may complete exceptionally) with a list of URIs of images contained in the dataset
-     */
-    public CompletableFuture<List<URI>> getImagesURIOfDataset(long datasetID) {
-        return getImages(datasetID).thenApply(images -> images.stream()
-                .map(this::getItemURI)
-                .map(URI::create)
-                .toList()
-        );
-    }
-
-    /**
-     * Returns a list of image URIs contained in the project identified by the provided ID.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param projectID the ID of the project the returned images must belong to
-     * @return a CompletableFuture (that may complete exceptionally) with a list of URIs of images contained in the project
-     */
-    public CompletableFuture<List<URI>> getImagesURIOfProject(long projectID) {
-        return getDatasets(projectID).thenApplyAsync(datasets -> datasets.stream()
-                .map(dataset -> getImagesURIOfDataset(dataset.getId()))
-                .map(CompletableFuture::join)
-                .flatMap(List::stream)
-                .toList());
     }
 
     /**
@@ -405,7 +373,10 @@ public class ApisHandler implements AutoCloseable {
      * See {@link WebclientApi#getOrphanedImagesIds()}.
      */
     public synchronized CompletableFuture<List<Long>> getOrphanedImagesIds() {
+        logger.debug("Getting orphaned image IDs");
+
         if (orphanedImagesIds == null) {
+            logger.debug("Orphaned image IDs not cached. Retrieving them");
             orphanedImagesIds = webclientApi.getOrphanedImagesIds();
         }
 
@@ -443,8 +414,8 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link JsonApi#getDatasets(long)}.
      */
-    public CompletableFuture<List<Dataset>> getDatasets(long projectID) {
-        return jsonApi.getDatasets(projectID);
+    public CompletableFuture<List<Dataset>> getDatasets(long projectId) {
+        return jsonApi.getDatasets(projectId);
     }
 
     /**
@@ -457,9 +428,14 @@ public class ApisHandler implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the parent dataset of the provided image
      */
     public CompletableFuture<Dataset> getDatasetOwningImage(long imageId) {
+        logger.debug("Getting dataset owning image with ID {}", imageId);
+
         return getImage(imageId)
                 .thenApply(image -> image.getDatasetsUrl().orElseThrow())
-                .thenCompose(datasetUrl -> requestSender.getPaginated(URI.create(datasetUrl)))
+                .thenCompose(datasetUrl -> {
+                    logger.debug("Got dataset URL {}. Sending request to it to get dataset", datasetUrl);
+                    return requestSender.getPaginated(URI.create(datasetUrl));
+                })
                 .thenApply(jsonElements -> jsonElements.stream()
                         .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
                         .toList()
@@ -476,25 +452,34 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link JsonApi#getImages(long)}.
      */
-    public CompletableFuture<List<Image>> getImages(long datasetID) {
-        return jsonApi.getImages(datasetID);
+    public CompletableFuture<List<Image>> getImages(long datasetId) {
+        return jsonApi.getImages(datasetId);
     }
 
     /**
      * See {@link JsonApi#getImage(long)}.
      * Images are cached.
      */
-    public CompletableFuture<Image> getImage(long imageID) {
+    public CompletableFuture<Image> getImage(long imageId) {
+        logger.debug("Getting image with ID {}", imageId);
+
         CompletableFuture<Image> request;
         try {
-            request = imagesCache.get(imageID, () -> jsonApi.getImage(imageID));
+            request = imagesCache.get(
+                    imageId,
+                    () -> {
+                        logger.debug("Image with ID {} not in cache. Retrieving it", imageId);
+                        return jsonApi.getImage(imageId);
+                    }
+            );
         } catch (ExecutionException e) {
             return CompletableFuture.failedFuture(e);
         }
 
         return request.whenComplete((image, error) -> {
             if (image == null) {
-                metadataCache.invalidate(imageID);
+                logger.debug("Request to get image of ID {} failed. Invalidating cache entry", imageId, error);
+                metadataCache.invalidate(imageId);
             }
         });
     }
@@ -510,6 +495,8 @@ public class ApisHandler implements AutoCloseable {
      *                 be possible to add elements to this list
      */
     public void populateOrphanedImagesIntoList(List<Image> children) {
+        logger.debug("Populating orphaned images into list");
+
         synchronized (this) {
             areOrphanedImagesLoading.set(true);
         }
@@ -559,29 +546,29 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link JsonApi#getPlates(long)}.
      */
-    public CompletableFuture<List<Plate>> getPlates(long screenID) {
-        return jsonApi.getPlates(screenID);
+    public CompletableFuture<List<Plate>> getPlates(long screenId) {
+        return jsonApi.getPlates(screenId);
     }
 
     /**
      * See {@link JsonApi#getPlateAcquisitions(long)}.
      */
-    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateID) {
-        return jsonApi.getPlateAcquisitions(plateID);
+    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId) {
+        return jsonApi.getPlateAcquisitions(plateId);
     }
 
     /**
      * See {@link JsonApi#getWellsFromPlate(long)}.
      */
-    public CompletableFuture<List<Well>> getWellsFromPlate(long plateID) {
-        return jsonApi.getWellsFromPlate(plateID);
+    public CompletableFuture<List<Well>> getWellsFromPlate(long plateId) {
+        return jsonApi.getWellsFromPlate(plateId);
     }
 
     /**
      * See {@link JsonApi#getWellsFromPlateAcquisition(long,int)}.
      */
-    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionID, int wellSampleIndex) {
-        return jsonApi.getWellsFromPlateAcquisition(plateAcquisitionID, wellSampleIndex);
+    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, int wellSampleIndex) {
+        return jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, wellSampleIndex);
     }
 
     /**
@@ -641,12 +628,16 @@ public class ApisHandler implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getOmeroIcon(Class<? extends RepositoryEntity> type) {
+        logger.debug("Getting OMERO icon {}", type);
+
         CompletableFuture<BufferedImage> request;
 
         try {
             request = omeroIconsCache.get(
                     type,
                     () -> {
+                        logger.debug("OMERO icon {} not in cache. Retrieving it", type);
+
                         if (type.equals(Project.class)) {
                             return webGatewayApi.getProjectIcon();
                         } else if (type.equals(Dataset.class)) {
@@ -674,6 +665,7 @@ public class ApisHandler implements AutoCloseable {
 
         return request.whenComplete((icon, error) -> {
             if (icon == null) {
+                logger.debug("Request to get OMERO icon {} failed. Invalidating cache entry", type, error);
                 omeroIconsCache.invalidate(type);
             }
         });
@@ -683,22 +675,27 @@ public class ApisHandler implements AutoCloseable {
      * {@link #getThumbnail(long, int)} with a size of
      * {@link #THUMBNAIL_SIZE}.
      */
-    public CompletableFuture<BufferedImage> getThumbnail(long id) {
-        return getThumbnail(id, THUMBNAIL_SIZE);
+    public CompletableFuture<BufferedImage> getThumbnail(long imageId) {
+        return getThumbnail(imageId, THUMBNAIL_SIZE);
     }
 
     /**
      * See {@link WebGatewayApi#getThumbnail(long, int)}.
      * Thumbnails are cached in a cache of size {@link #THUMBNAIL_CACHE_SIZE}.
      */
-    public CompletableFuture<BufferedImage> getThumbnail(long id, int size) {
-        IdSizeWrapper key = new IdSizeWrapper(id, size);
+    public CompletableFuture<BufferedImage> getThumbnail(long imageId, int size) {
+        logger.debug("Getting thumbnail of image with ID {} and size {}", imageId, size);
+
+        IdSizeWrapper key = new IdSizeWrapper(imageId, size);
 
         CompletableFuture<BufferedImage> request;
         try {
             request = thumbnailsCache.get(
                     key,
-                    () -> webGatewayApi.getThumbnail(id, size)
+                    () -> {
+                        logger.debug("Thumbnail of image with ID {} and size {} not in cache. Retrieving it", imageId, size);
+                        return webGatewayApi.getThumbnail(imageId, size);
+                    }
             );
         } catch (ExecutionException e) {
             return CompletableFuture.failedFuture(e);
@@ -706,6 +703,7 @@ public class ApisHandler implements AutoCloseable {
 
         return request.whenComplete((thumbnail, error) -> {
             if (thumbnail == null) {
+                logger.debug("Request to get thumbnail of image with ID {} and size {} failed. Invalidating cache entry", imageId, size, error);
                 thumbnailsCache.invalidate(key);
             }
         });
@@ -715,17 +713,26 @@ public class ApisHandler implements AutoCloseable {
      * See {@link WebGatewayApi#getImageMetadata(long)}.
      * Metadata is cached in a cache of size {@link #METADATA_CACHE_SIZE}.
      */
-    public CompletableFuture<ImageServerMetadata> getImageMetadata(long id) {
+    public CompletableFuture<ImageServerMetadata> getImageMetadata(long imageId) {
+        logger.debug("Getting metadata of image with ID {}", imageId);
+
         CompletableFuture<ImageServerMetadata> request;
         try {
-            request = metadataCache.get(id, () -> webGatewayApi.getImageMetadata(id));
+            request = metadataCache.get(
+                    imageId,
+                    () -> {
+                        logger.debug("Metadata of image with ID {} not in cache. Retrieving it", imageId);
+                        return webGatewayApi.getImageMetadata(imageId);
+                    }
+            );
         } catch (ExecutionException e) {
             return CompletableFuture.failedFuture(e);
         }
 
         return request.whenComplete((metadata, error) -> {
             if (metadata == null) {
-                metadataCache.invalidate(id);
+                logger.debug("Request to get metadata of image with ID {} failed. Invalidating cache entry", imageId, error);
+                metadataCache.invalidate(imageId);
             }
         });
     }
@@ -747,18 +754,24 @@ public class ApisHandler implements AutoCloseable {
      * See {@link WebGatewayApi#changeChannelColors(long, List, List)}.
      */
     public CompletableFuture<Void> changeChannelColors(long imageID, List<Integer> newChannelColors) {
-        return getImageSettings(imageID).thenCompose(imageSettings ->
-                webGatewayApi.changeChannelColors(imageID, newChannelColors, imageSettings.getChannelSettings())
-        );
+        logger.debug("Changing channel colors of image with ID {} to {}", imageID, newChannelColors);
+
+        return getImageSettings(imageID).thenCompose(imageSettings -> {
+            logger.debug("Got image settings {} from image with ID {}. Now changing channel colors to {}", imageSettings, imageID, newChannelColors);
+            return webGatewayApi.changeChannelColors(imageID, newChannelColors, imageSettings.getChannelSettings());
+        });
     }
 
     /**
      * See {@link WebGatewayApi#changeChannelDisplayRanges(long, List, List)}.
      */
     public CompletableFuture<Void> changeChannelDisplayRanges(long imageID, List<ChannelSettings> newChannelSettings) {
-        return getImageSettings(imageID).thenCompose(imageSettings ->
-                webGatewayApi.changeChannelDisplayRanges(imageID, newChannelSettings, imageSettings.getChannelSettings())
-        );
+        logger.debug("Changing channel display ranges of image with ID {} to {}", imageID, newChannelSettings);
+
+        return getImageSettings(imageID).thenCompose(imageSettings -> {
+            logger.debug("Got image settings {} from image with ID {}. Now changing channel display ranges to {}", imageSettings, imageID, newChannelSettings);
+            return webGatewayApi.changeChannelDisplayRanges(imageID, newChannelSettings, imageSettings.getChannelSettings());
+        });
     }
 
     /**
@@ -779,13 +792,17 @@ public class ApisHandler implements AutoCloseable {
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
     public CompletableFuture<Void> deleteShapes(long imageId, List<Long> userIds) {
-        return CompletableFuture
-                .supplyAsync(() -> userIds.stream()
+        logger.debug("Deleting shapes of image with ID {} belonging to users with ID {}", imageId, userIds);
+
+        return CompletableFuture.supplyAsync(() -> userIds.stream()
                         .map(userId -> getShapes(imageId, userId))
                         .map(CompletableFuture::join)
                         .flatMap(List::stream)
                         .toList()
-                ).thenCompose(shapes -> iViewerApi.deleteShapes(imageId, shapes, jsonApi.getToken()));
+        ).thenCompose(shapes -> {
+            logger.debug("Got shapes {} belonging to users with ID {} for image with ID {}. Deleting them now", shapes, userIds, imageId);
+            return iViewerApi.deleteShapes(imageId, shapes, jsonApi.getToken());
+        });
     }
 
     /**
@@ -819,5 +836,26 @@ public class ApisHandler implements AutoCloseable {
      */
     public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass, List<String> ownerFullNames) {
         return webclientApi.deleteAttachments(entityId, entityClass, ownerFullNames);
+    }
+
+    private CompletableFuture<List<URI>> getImagesURIOfProject(long projectID) {
+        logger.debug("Finding image URIs contained in project with ID {}", projectID);
+
+        return getDatasets(projectID).thenApply(datasets -> datasets.stream()
+                .map(dataset -> getImagesURIOfDataset(dataset.getId()))
+                .map(CompletableFuture::join)
+                .flatMap(List::stream)
+                .toList()
+        );
+    }
+
+    public CompletableFuture<List<URI>> getImagesURIOfDataset(long datasetID) {
+        logger.debug("Finding image URIs contained in dataset with ID {}", datasetID);
+
+        return getImages(datasetID).thenApply(images -> images.stream()
+                .map(this::getItemURI)
+                .map(URI::create)
+                .toList()
+        );
     }
 }

@@ -84,10 +84,10 @@ public abstract class Shape {
                 if (type.equalsIgnoreCase(Label.TYPE))
                     return context.deserialize(json, Label.class);
 
-                logger.warn("Unsupported type {}", type);
+                logger.warn("Unsupported type {} to convert to shape", type);
                 return null;
             } catch (Exception e) {
-                logger.error("Could not deserialize {}", json, e);
+                logger.error("Could not deserialize {} to shape", json, e);
                 return null;
             }
         }
@@ -101,28 +101,53 @@ public abstract class Shape {
      * @return a list of shapes corresponding to this path object
      */
     public static List<? extends Shape> createFromPathObject(PathObject pathObject, boolean fillColor) {
+        logger.debug("Creating shapes from path object {} and fill color {}", pathObject, fillColor);
+
         ROI roi = pathObject.getROI();
-
         if (roi instanceof RectangleROI) {
-            return List.of(new Rectangle(pathObject, fillColor));
-        } else if (roi instanceof EllipseROI) {
-            return List.of(new Ellipse(pathObject, fillColor));
-        } else if (roi instanceof LineROI lineRoi) {
-            return List.of(new Line(pathObject, lineRoi, fillColor));
-        } else if (roi instanceof PolylineROI) {
-            return List.of(new Polyline(pathObject, fillColor));
-        } else if (roi instanceof PolygonROI) {
-            return List.of(new Polygon(pathObject, pathObject.getROI(), fillColor));
-        } else if (roi instanceof PointsROI) {
-            return Point.create(pathObject, fillColor);
-        } else if (roi instanceof GeometryROI) {
-            logger.warn("OMERO shapes do not support holes. MultiPolygon will be split for OMERO compatibility.");
+            Rectangle rectangle = new Rectangle(pathObject, fillColor);
+            logger.debug("{} is a rectangle, so returning a single rectangle {}", pathObject, rectangle);
 
-            return RoiTools.splitROI(RoiTools.fillHoles(roi)).stream()
+            return List.of(rectangle);
+        } else if (roi instanceof EllipseROI) {
+            Ellipse ellipse = new Ellipse(pathObject, fillColor);
+            logger.debug("{} is an ellipse, so returning a single ellipse {}", pathObject, ellipse);
+
+            return List.of(ellipse);
+        } else if (roi instanceof LineROI lineRoi) {
+            Line line = new Line(pathObject, lineRoi, fillColor);
+            logger.debug("{} is a line, so returning a single line {}", pathObject, line);
+
+            return List.of(line);
+        } else if (roi instanceof PolylineROI) {
+            Polyline polyline = new Polyline(pathObject, fillColor);
+            logger.debug("{} is a polyline, so returning a single polyline {}", pathObject, polyline);
+
+            return List.of(polyline);
+        } else if (roi instanceof PolygonROI) {
+            Polygon polygon = new Polygon(pathObject, pathObject.getROI(), fillColor);
+            logger.debug("{} is a polygon, so returning a single polygon {}", pathObject, polygon);
+
+            return List.of(polygon);
+        } else if (roi instanceof PointsROI) {
+            List<Point> points = Point.create(pathObject, fillColor);
+            logger.debug("{} is a list of points, so returning a list of points {}", pathObject, points);
+
+            return points;
+        } else if (roi instanceof GeometryROI) {
+            List<Polygon> polygons = RoiTools.splitROI(RoiTools.fillHoles(roi)).stream()
                     .map(r -> new Polygon(pathObject, r, fillColor))
                     .toList();
+            logger.warn(
+                    "{} is a geometry, so splitting it to convert it to a list of polygons {}." +
+                            "Note that potential holes will be filled because OMERO shapes do not support holes",
+                    pathObject,
+                    polygons
+            );
+
+            return polygons;
         } else {
-            logger.warn("Unsupported type: {}", roi.getRoiName());
+            logger.warn("Unsupported path object {}. Cannot convert it to a shape", pathObject);
             return List.of();
         }
     }

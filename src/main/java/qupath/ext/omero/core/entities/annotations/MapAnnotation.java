@@ -71,7 +71,7 @@ public class MapAnnotation extends Annotation {
                     if (value.size() > 1) {
                         return new Pair(value.get(0), value.get(1));
                     } else {
-                        logger.debug("The size of {} is less than two. Cannot create entry", value);
+                        logger.debug("The size of {} is less than two. Cannot create entry for map annotation {}", value, this);
                         return null;
                     }
                 })

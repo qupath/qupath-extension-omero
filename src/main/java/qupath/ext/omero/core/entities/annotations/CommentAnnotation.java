@@ -53,7 +53,7 @@ public class CommentAnnotation extends Annotation {
     }
 
     /**
-     * @return the actual comment of the annotation
+     * @return the actual comment of the annotation, or an empty Optional if not found
      */
     public Optional<String> getValue() {
         return Optional.ofNullable(textValue);

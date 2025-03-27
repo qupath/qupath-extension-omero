@@ -19,7 +19,6 @@ import qupath.ext.omero.core.entities.permissions.Owner;
  * @param owner the owner that the results should belong to
  */
 public record SearchQuery(
-
         String query,
         boolean searchOnName,
         boolean searchOnDescription,

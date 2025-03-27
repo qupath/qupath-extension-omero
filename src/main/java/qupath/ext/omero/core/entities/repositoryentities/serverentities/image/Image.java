@@ -115,26 +115,25 @@ public class Image extends ServerEntity {
             case 2 -> getOwner().getFullName();
             case 3 -> getGroupName();
             case 4 -> acquisitionDate == 0 ? "-" : new Date(acquisitionDate).toString();
-            case 5 -> getImageDimensions().map(d -> d[0] + " px").orElse("-");
-            case 6 -> getImageDimensions().map(d -> d[1] + " px").orElse("-");
+            case 5 -> Optional.ofNullable(pixels)
+                    .map(PixelInfo::width)
+                    .map(width -> String.format("%d px", width))
+                    .orElse("-");
+            case 6 -> Optional.ofNullable(pixels)
+                    .map(PixelInfo::height)
+                    .map(height -> String.format("%d px", height))
+                    .orElse("-");
             case 7 -> {
-                var dimensions = getImageDimensions();
-                var pixelType = getPixelType();
+                var pixelsOptional = Optional.ofNullable(pixels);
+                var pixelType = pixelsOptional.map(PixelInfo::imageType).map(ImageType::value);
 
-                if (dimensions.isPresent() && pixelType.isPresent()) {
+                if (pixelsOptional.isPresent() && pixelType.isPresent()) {
                     var quPathPixelType = ApisHandler.getPixelType(pixelType.get());
 
                     if (quPathPixelType.isPresent()) {
-                        int width = dimensions.get()[0];
-                        int height = dimensions.get()[1];
-                        int bytesPerPixel = quPathPixelType.get().getBytesPerPixel();
-                        int nChannels = dimensions.get()[2];
-                        int zSlices = dimensions.get()[3];
-                        int timePoints = dimensions.get()[4];
-
-                        double size = width / 1024.0 * height / 1024.0 *
-                                bytesPerPixel * nChannels *
-                                zSlices * timePoints;
+                        double size = pixelsOptional.get().width() / 1024.0 * pixelsOptional.get().height() / 1024.0 *
+                                quPathPixelType.get().getBytesPerPixel() * pixelsOptional.get().numberOfChannels() *
+                                pixelsOptional.get().sizeZ() * pixelsOptional.get().numberOfTimePoints();
                         String unit = "MB";
                         if (size > 1000) {
                             size /= 1024;
@@ -145,13 +144,31 @@ public class Image extends ServerEntity {
                 }
                 yield "-";
             }
-            case 8 -> getImageDimensions().map(d -> String.valueOf(d[2])).orElse("-");
-            case 9 -> getImageDimensions().map(d -> String.valueOf(d[3])).orElse("-");
-            case 10 -> getImageDimensions().map(d -> String.valueOf(d[4])).orElse("-");
-            case 11 -> getPhysicalSizeX().map(x -> x.getValue() + " " + x.getSymbol().orElse("")).orElse("-");
-            case 12 -> getPhysicalSizeY().map(x -> x.getValue() + " " + x.getSymbol().orElse("")).orElse("-");
-            case 13 -> getPhysicalSizeZ().map(x -> x.getValue() + " " + x.getSymbol().orElse("")).orElse("-");
-            case 14 -> getPixelType().orElse("-");
+            case 8 -> Optional.ofNullable(pixels)
+                    .map(PixelInfo::sizeZ)
+                    .map(String::valueOf)
+                    .orElse("-");
+            case 9 -> Optional.ofNullable(pixels)
+                    .map(PixelInfo::numberOfChannels)
+                    .map(String::valueOf)
+                    .orElse("-");
+            case 10 -> Optional.ofNullable(pixels)
+                    .map(PixelInfo::numberOfTimePoints)
+                    .map(String::valueOf)
+                    .orElse("-");
+            case 11 -> Optional.ofNullable(pixels)
+                    .map(PixelInfo::physicalSizeX)
+                    .map(x -> x.value() + " " + x.symbol())
+                    .orElse("-");
+            case 12 -> Optional.ofNullable(pixels)
+                    .map(PixelInfo::physicalSizeY)
+                    .map(y -> y.value() + " " + y.symbol())
+                    .orElse("-");
+            case 13 -> Optional.ofNullable(pixels)
+                    .map(PixelInfo::physicalSizeZ)
+                    .map(z -> z.value() + " " + z.symbol())
+                    .orElse("-");
+            case 14 -> Optional.ofNullable(pixels).map(PixelInfo::imageType).map(ImageType::value).orElse("-");
             default -> "";
         };
     }
@@ -202,30 +219,6 @@ public class Image extends ServerEntity {
         return Optional.ofNullable(datasetsUrl);
     }
 
-    private Optional<int[]> getImageDimensions() {
-        if (pixels == null) {
-            return Optional.empty();
-        } else {
-            return Optional.of(pixels.getImageDimensions());
-        }
-    }
-
-    private Optional<String> getPixelType() {
-        return pixels == null ? Optional.empty() : pixels.getPixelType();
-    }
-
-    private Optional<PhysicalSize> getPhysicalSizeX() {
-        return pixels == null ? Optional.empty() : pixels.getPhysicalSizeX();
-    }
-
-    private Optional<PhysicalSize> getPhysicalSizeY() {
-        return pixels == null ? Optional.empty() : pixels.getPhysicalSizeY();
-    }
-
-    private Optional<PhysicalSize> getPhysicalSizeZ() {
-        return pixels == null ? Optional.empty() : pixels.getPhysicalSizeZ();
-    }
-
     private synchronized void setUpSupported() {
         if (isSupported == null) {
             if (webServerURI == null) {
@@ -261,7 +254,9 @@ public class Image extends ServerEntity {
             isSupported.set(false);
             unsupportedReasons.add(UnsupportedReason.PIXEL_API_UNAVAILABLE);
         } else {
-            if (!getPixelType()
+            if (!Optional.ofNullable(pixels)
+                    .map(PixelInfo::imageType)
+                    .map(ImageType::value)
                     .flatMap(ApisHandler::getPixelType)
                     .map(pixelType -> selectedPixelAPI.get().canReadImage(pixelType))
                     .orElse(false)
@@ -270,8 +265,9 @@ public class Image extends ServerEntity {
                 unsupportedReasons.add(UnsupportedReason.PIXEL_TYPE);
             }
 
-            if (!getImageDimensions()
-                    .map(imageDimensions -> selectedPixelAPI.get().canReadImage(imageDimensions[3]))
+            if (!Optional.ofNullable(pixels)
+                    .map(PixelInfo::numberOfChannels)
+                    .map(c -> selectedPixelAPI.get().canReadImage(c))
                     .orElse(false)
             ) {
                 isSupported.set(false);

@@ -90,8 +90,8 @@ public class AdvancedInformation extends Stage {
     }
 
     private void setAnnotationPanes(AnnotationGroup annotationGroup) throws IOException {
-        for (var omeroAnnotationType: annotationGroup.getAnnotations().keySet()) {
-            List<Annotation> annotationList = annotationGroup.getAnnotations().get(omeroAnnotationType);
+        for (var omeroAnnotationType: annotationGroup.annotations().keySet()) {
+            List<Annotation> annotationList = annotationGroup.annotations().get(omeroAnnotationType);
             TitledPane pane = null;
 
             if (omeroAnnotationType.equals(TagAnnotation.class)) {

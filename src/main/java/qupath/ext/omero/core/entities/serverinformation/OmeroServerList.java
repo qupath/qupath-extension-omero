@@ -12,6 +12,11 @@ import java.util.OptionalInt;
 public class OmeroServerList {
 
     @SerializedName("data") private List<OmeroServerInfo> serverInfos;
+    private record OmeroServerInfo(
+            @SerializedName("id") int id,
+            @SerializedName("host") String host,
+            @SerializedName("port") int port
+    ) {}
 
     @Override
     public String toString() {
@@ -26,7 +31,7 @@ public class OmeroServerList {
         if (serverInfos == null || serverInfos.isEmpty()) {
             return OptionalInt.empty();
         } else {
-            return OptionalInt.of(serverInfos.getFirst().getId());
+            return OptionalInt.of(serverInfos.getFirst().id());
         }
     }
 
@@ -38,7 +43,7 @@ public class OmeroServerList {
         if (serverInfos == null || serverInfos.isEmpty()) {
             return Optional.empty();
         } else {
-            return Optional.of(serverInfos.getFirst().getHost());
+            return Optional.ofNullable(serverInfos.getFirst().host());
         }
     }
 
@@ -50,31 +55,7 @@ public class OmeroServerList {
         if (serverInfos == null || serverInfos.isEmpty()) {
             return OptionalInt.empty();
         } else {
-            return OptionalInt.of(serverInfos.getFirst().getPort());
-        }
-    }
-
-    private static class OmeroServerInfo {
-
-        @SerializedName("id") private int id;
-        @SerializedName("host") private String host;
-        @SerializedName("port") private int port;
-
-        @Override
-        public String toString() {
-            return String.format("ID: %d, host: %s, port: %d", id, host, port);
-        }
-
-        public int getId() {
-            return id;
-        }
-
-        public String getHost() {
-            return host;
-        }
-
-        public int getPort() {
-            return port;
+            return OptionalInt.of(serverInfos.getFirst().port());
         }
     }
 }

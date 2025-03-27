@@ -9,7 +9,6 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
-import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -129,15 +128,17 @@ public class Screen extends ServerEntity {
             Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
 
-                client.getApisHandler().getPlates(getId())
-                        .exceptionally(error -> {
-                            logger.error("Error while retrieving plates", error);
-                            return List.of();
-                        })
-                        .thenAccept(plates -> {
-                            children.addAll(plates);
-                            isPopulating = false;
-                        });
+                client.getApisHandler().getPlates(id).whenComplete((plates, error) -> {
+                    isPopulating = false;
+
+                    if (plates == null) {
+                        logger.error("Error while retrieving children plates of {}", this, error);
+                        return;
+                    }
+
+                    logger.debug("Got plates {} as children of {}", plates, this);
+                    children.addAll(plates);
+                });
             }, () -> logger.warn(
                     "Could not find the web client corresponding to {}. Impossible to get the children of this screen ({}).",
                     webServerURI,

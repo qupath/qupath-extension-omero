@@ -4,27 +4,61 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
-
 public class TestPixelInfo {
 
     @Test
     void Check_Empty() {
-        PixelInfo pixelInfo = new Gson().fromJson("{}", PixelInfo.class);
-
-        Optional<String> symbol = pixelInfo.getPixelType();
-
-        Assertions.assertTrue(symbol.isEmpty());
+        Assertions.assertDoesNotThrow(() -> new Gson().fromJson("{}", PixelInfo.class));
     }
 
     @Test
-    void Check_Dimensions() {
+    void Check_Width() {
         PixelInfo pixelInfo = createPixelInfo();
-        int[] expectedDimensions = new int[] {1234, 789, 12, 3, 2};
+        int expectedWidth = 1234;
 
-        int[] dimensions = pixelInfo.getImageDimensions();
+        int width = pixelInfo.width();
 
-        Assertions.assertArrayEquals(expectedDimensions, dimensions);
+        Assertions.assertEquals(expectedWidth, width);
+    }
+
+    @Test
+    void Check_Height() {
+        PixelInfo pixelInfo = createPixelInfo();
+        int expectedHeight = 789;
+
+        int height = pixelInfo.height();
+
+        Assertions.assertEquals(expectedHeight, height);
+    }
+
+    @Test
+    void Check_Size_Z() {
+        PixelInfo pixelInfo = createPixelInfo();
+        int expectedSizeZ = 12;
+
+        int sizeZ = pixelInfo.sizeZ();
+
+        Assertions.assertEquals(expectedSizeZ, sizeZ);
+    }
+
+    @Test
+    void Check_Number_Of_Channels() {
+        PixelInfo pixelInfo = createPixelInfo();
+        int expectedNumberOfChannels = 3;
+
+        int numberOfChannels = pixelInfo.numberOfChannels();
+
+        Assertions.assertEquals(expectedNumberOfChannels, numberOfChannels);
+    }
+
+    @Test
+    void Check_Number_Of_Time_Points() {
+        PixelInfo pixelInfo = createPixelInfo();
+        int expectedNumberOfTimePoints = 2;
+
+        int numberOfTimePoints = pixelInfo.numberOfTimePoints();
+
+        Assertions.assertEquals(expectedNumberOfTimePoints, numberOfTimePoints);
     }
 
     @Test
@@ -32,7 +66,7 @@ public class TestPixelInfo {
         PixelInfo pixelInfo = createPixelInfo();
         PhysicalSize expectedPhysicalSizeX = new PhysicalSize("μm", 45.63);
 
-        PhysicalSize physicalSizeX = pixelInfo.getPhysicalSizeX().orElse(null);
+        PhysicalSize physicalSizeX = pixelInfo.physicalSizeX();
 
         Assertions.assertEquals(expectedPhysicalSizeX, physicalSizeX);
     }
@@ -42,7 +76,7 @@ public class TestPixelInfo {
         PixelInfo pixelInfo = createPixelInfo();
         PhysicalSize expectedPhysicalSizeY = new PhysicalSize("μm", 87.2);
 
-        PhysicalSize physicalSizeY = pixelInfo.getPhysicalSizeY().orElse(null);
+        PhysicalSize physicalSizeY = pixelInfo.physicalSizeY();
 
         Assertions.assertEquals(expectedPhysicalSizeY, physicalSizeY);
     }
@@ -52,7 +86,7 @@ public class TestPixelInfo {
         PixelInfo pixelInfo = createPixelInfo();
         PhysicalSize expectedPhysicalSizeZ = new PhysicalSize("mm", 1.2);
 
-        PhysicalSize physicalSizeZ = pixelInfo.getPhysicalSizeZ().orElse(null);
+        PhysicalSize physicalSizeZ = pixelInfo.physicalSizeZ();
 
         Assertions.assertEquals(expectedPhysicalSizeZ, physicalSizeZ);
     }
@@ -62,7 +96,7 @@ public class TestPixelInfo {
         PixelInfo pixelInfo = createPixelInfo();
         String expectedPixelType = "float";
 
-        String pixelType = pixelInfo.getPixelType().orElse("");
+        String pixelType = pixelInfo.imageType().value();
 
         Assertions.assertEquals(expectedPixelType, pixelType);
     }

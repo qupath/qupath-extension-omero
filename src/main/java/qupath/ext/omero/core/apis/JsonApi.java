@@ -97,7 +97,7 @@ class JsonApi {
      * @throws ExecutionException if a request to the server fails or if a response does not contain expected elements.
      * This can happen if the server is unreachable or if the authentication fails for example
      * @throws InterruptedException if the running thread is interrupted
-     * @throws IllegalArgumentException if the server doesn't return all necessary information on it
+     * @throws IllegalArgumentException if the server doesn't return all necessary information
      */
     public JsonApi(URI webServerUri, RequestSender requestSender, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
         this.webServerUri = webServerUri;
@@ -124,7 +124,7 @@ class JsonApi {
 
         this.token = tokenRequest.get();
         if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
-            this.loginResponse = login(this.requestSender, credentials, this.urls, serverInformation.getServerId().getAsInt(), token);
+            this.loginResponse = login(this.requestSender, credentials, this.urls, serverInformation.getServerId().getAsInt(), token).get();
             logger.debug(
                     "Created JSON API with authenticated {} user of ID {} and default group {}",
                     loginResponse.isAdmin() ? "admin" : "non admin",
@@ -209,11 +209,7 @@ class JsonApi {
      * @return whether the connected user is an owner of the provided group
      */
     public boolean isConnectedUserOwnerOfGroup(long groupId) {
-        if (loginResponse == null) {
-            return false;
-        } else {
-            return loginResponse.ownedGroupIds().contains(groupId);
-        }
+        return loginResponse != null && loginResponse.ownedGroupIds().contains(groupId);
     }
 
     /**
@@ -245,7 +241,7 @@ class JsonApi {
         boolean retrieveAllGroups = userId < 0;
 
         if (retrieveAllGroups) {
-            logger.debug("Getting all groups");
+            logger.debug("Getting all groups of the server");
         } else {
             logger.debug("Getting groups of user with ID {}", userId);
         }
@@ -437,6 +433,7 @@ class JsonApi {
                     .map(serverEntity -> (Image) serverEntity)
                     .toList()
             );
+            logger.debug("{} orphaned images retrieved", batch.size());
 
             synchronized (this) {
                 numberOfOrphanedImagesLoaded.set(numberOfOrphanedImagesLoaded.get() + batch.size());
@@ -554,14 +551,14 @@ class JsonApi {
      * was found with the provided ID
      */
     public CompletableFuture<List<Shape>> getShapes(long imageId, long userId) {
-        logger.debug("Getting shapes of image with ID {}", imageId);
-
         URI uri;
         try {
             if (userId > 0) {
                 uri = new URI(String.format(ROIS_URL, webServerUri, imageId, "&owner=" + userId));
+                logger.debug("Getting shapes belonging to user with ID {} of image with ID {}", userId, imageId);
             } else {
                 uri = new URI(String.format(ROIS_URL, webServerUri, imageId, ""));
+                logger.debug("Getting all shapes of image with ID {}", imageId);
             }
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
@@ -600,8 +597,8 @@ class JsonApi {
         );
     }
 
-    private static Map<String, String> getUrls(RequestSender requestSender, URI apiURI) throws ExecutionException, InterruptedException, URISyntaxException {
-        OmeroApi omeroAPI = requestSender.getAndConvert(apiURI, OmeroApi.class).get();
+    private static Map<String, String> getUrls(RequestSender requestSender, URI apiUri) throws ExecutionException, InterruptedException, URISyntaxException {
+        OmeroApi omeroAPI = requestSender.getAndConvert(apiUri, OmeroApi.class).get();
 
         if (omeroAPI.getLatestVersionURL().isPresent()) {
             return requestSender.getAndConvert(new URI(omeroAPI.getLatestVersionURL().get()), new TypeToken<Map<String, String>>() {}).get();
@@ -611,57 +608,63 @@ class JsonApi {
     }
 
     private static CompletableFuture<String> getToken(RequestSender requestSender, Map<String, String> urls) {
-        String token = TOKEN_URL_KEY;
-
-        if (urls.containsKey(token)) {
-            URI uri;
-            try {
-                uri = new URI(urls.get(token));
-            } catch (URISyntaxException e) {
-                return CompletableFuture.failedFuture(e);
-            }
-
-            return requestSender.getAndConvert(uri, new TypeToken<Map<String, String>>() {}).thenApply(response -> {
-                if (response.containsKey("data")) {
-                    return response.get("data");
-                } else {
-                    throw new IllegalArgumentException(String.format("'data' field not found in %s", response));
-                }
-            });
-        } else {
+        if (!urls.containsKey(TOKEN_URL_KEY)) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The %s token was not found in %s", token, urls)
+                    String.format("The %s token was not found in %s", TOKEN_URL_KEY, urls)
             ));
         }
+
+        URI uri;
+        try {
+            uri = new URI(urls.get(TOKEN_URL_KEY));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        return requestSender.getAndConvert(uri, new TypeToken<Map<String, String>>() {}).thenApply(response -> {
+            if (response.containsKey("data")) {
+                return response.get("data");
+            } else {
+                throw new IllegalArgumentException(String.format("'data' field not found in %s", response));
+            }
+        });
     }
 
     private static CompletableFuture<OmeroServerList> getServerInformation(RequestSender requestSender, Map<String, String> urls) {
-        String token = SERVERS_URL_KEY;
-
-        if (urls.containsKey(token)) {
-            try {
-                return requestSender.getAndConvert(new URI(urls.get(token)), OmeroServerList.class);
-            } catch (URISyntaxException e) {
-                return CompletableFuture.failedFuture(e);
-            }
-        } else {
+        if (!urls.containsKey(SERVERS_URL_KEY)) {
             return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The %s token was not found in %s", token, urls)
+                    String.format("The %s token was not found in %s", SERVERS_URL_KEY, urls)
             ));
+        }
+
+        try {
+            return requestSender.getAndConvert(new URI(urls.get(SERVERS_URL_KEY)), OmeroServerList.class);
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
-    private static LoginResponse login(
+    private static CompletableFuture<LoginResponse> login(
             RequestSender requestSender,
             Credentials credentials,
             Map<String, String> urls,
             int serverID,
             String token
-    ) throws URISyntaxException, ExecutionException, InterruptedException {
-        URI uri = new URI(urls.get(LOGIN_URL_KEY));
+    ) {
+        if (!urls.containsKey(LOGIN_URL_KEY)) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    String.format("The %s token was not found in %s", LOGIN_URL_KEY, urls)
+            ));
+        }
+
+        URI uri;
+        try {
+            uri = new URI(urls.get(LOGIN_URL_KEY));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
 
         char[] encodedPassword = ApiUtilities.urlEncode(credentials.password());
-
         byte[] body = ApiUtilities.concatAndConvertToBytes(
                 String.join("&", "server=" + serverID, "username=" + credentials.username(), "password=").toCharArray(),
                 encodedPassword
@@ -676,7 +679,7 @@ class JsonApi {
                     Arrays.fill(body, (byte) 0);    // clear password
                 })
                 .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
-                .thenApply(LoginResponse::parseServerAuthenticationResponse).get();
+                .thenApply(LoginResponse::parseServerAuthenticationResponse);
     }
 
     private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(String url, Class<T> type) {

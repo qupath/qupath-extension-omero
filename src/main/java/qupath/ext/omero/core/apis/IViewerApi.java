@@ -37,23 +37,23 @@ class IViewerApi {
         """;
     private static final String ROIS_REFERER_URL = "%s/iviewer/?images=%d";
     private static final String IMAGE_SETTINGS_URL = "%s/iviewer/image_data/%d/";
-    private final URI host;
+    private final URI webServerUri;
     private final RequestSender requestSender;
 
     /**
      * Creates an iviewer client.
      *
-     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param webServerUri the URL to the OMERO web server to connect to
      * @param requestSender the request sender to use
      */
-    public IViewerApi(URI host, RequestSender requestSender) {
-        this.host = host;
+    public IViewerApi(URI webServerUri, RequestSender requestSender) {
+        this.webServerUri = webServerUri;
         this.requestSender = requestSender;
     }
 
     @Override
     public String toString() {
-        return String.format("IViewer API of %s", host);
+        return String.format("IViewer API of %s", webServerUri);
     }
 
     /**
@@ -72,23 +72,27 @@ class IViewerApi {
 
         URI uri;
         try {
-            uri = new URI(String.format(ROIS_URL, host));
+            uri = new URI(String.format(ROIS_URL, webServerUri));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
 
+        String body = String.format(
+                ROIS_BODY,
+                imageId,
+                shapesToRemove.size(),
+                shapesToRemove.stream()
+                        .map(shape -> String.format("\"%s\":[\"%s\"]", shape.getOldId().split(":")[0], shape.getOldId()))
+                        .collect(Collectors.joining(",")),
+                ""
+        );
+        String referer = String.format(ROIS_REFERER_URL, webServerUri, imageId);
+        logger.debug("Sending body {} with referer {} to remove shapes {} from image with ID {}", body, referer, shapesToRemove, imageId);
+
         return requestSender.post(
                 uri,
-                String.format(
-                        ROIS_BODY,
-                        imageId,
-                        shapesToRemove.size(),
-                        shapesToRemove.stream()
-                                .map(shape -> String.format("\"%s\":[\"%s\"]", shape.getOldId().split(":")[0], shape.getOldId()))
-                                .collect(Collectors.joining(",")),
-                        ""
-                ),
-                String.format(ROIS_REFERER_URL, host, imageId),
+                body,
+                referer,
                 token
         ).thenAccept(response -> {
             if (response.toLowerCase().contains("error")) {
@@ -113,24 +117,27 @@ class IViewerApi {
 
         URI uri;
         try {
-            uri = new URI(String.format(ROIS_URL, host));
+            uri = new URI(String.format(ROIS_URL, webServerUri));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
 
         Gson gson = new Gson();
         List<String> roisToAdd = shapesToAdd.stream().map(gson::toJson).toList();
+        String body = String.format(
+                ROIS_BODY,
+                imageId,
+                roisToAdd.size(),
+                "",
+                String.join(", ", roisToAdd)
+        );
+        String referer = String.format(ROIS_REFERER_URL, webServerUri, imageId);
+        logger.debug("Sending body {} with referer {} to add shapes {} to image with ID {}", body, referer, shapesToAdd, imageId);
 
         return requestSender.post(
                 uri,
-                String.format(
-                        ROIS_BODY,
-                        imageId,
-                        roisToAdd.size(),
-                        "",
-                        String.join(", ", roisToAdd)
-                ),
-                String.format(ROIS_REFERER_URL, host, imageId),
+                body,
+                referer,
                 token
         ).thenAccept(response -> {
             if (response.toLowerCase().contains("error")) {
@@ -153,7 +160,7 @@ class IViewerApi {
 
         try {
             return requestSender.getAndConvert(
-                    new URI(String.format(IMAGE_SETTINGS_URL, host, imageId)),
+                    new URI(String.format(IMAGE_SETTINGS_URL, webServerUri, imageId)),
                     ImageSettings.class
             );
         } catch (URISyntaxException e) {

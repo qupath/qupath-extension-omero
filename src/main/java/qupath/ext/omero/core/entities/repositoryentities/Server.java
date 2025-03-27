@@ -52,12 +52,14 @@ public class Server implements RepositoryEntity {
                     "The server didn't return any group for user with ID %d", userId
             ));
         }
+        logger.debug("Got groups {} for server", groups);
 
         this.owners = this.groups.stream()
                 .map(Group::getOwners)
                 .flatMap(List::stream)
                 .distinct()
                 .toList();
+        logger.debug("Got owners {} for server", owners);
 
         this.connectedOwner = this.owners.stream()
                 .filter(owner -> owner.id() == userId)
@@ -67,6 +69,7 @@ public class Server implements RepositoryEntity {
                         userId,
                         this.owners
                 )));
+        logger.debug("Got connected owner {} for server", connectedOwner);
 
         this.defaultGroup = apisHandler.getDefaultGroup()
                 .map(group -> {
@@ -83,6 +86,7 @@ public class Server implements RepositoryEntity {
                     }
                 })
                 .orElse(this.groups.getFirst());
+        logger.debug("Got default group {} for server", defaultGroup);
 
         populate(apisHandler);
     }
@@ -147,33 +151,38 @@ public class Server implements RepositoryEntity {
         populateChildren(apisHandler.getOrphanedDatasets(), "orphaned datasets");
         populateChildren(apisHandler.getOrphanedPlates(), "orphaned plates");
 
-        OrphanedFolder.create(apisHandler)
-                .exceptionally(error -> {
-                    logger.error("Error while creating orphaned folder", error);
-                    return null;
-                })
-                .thenAccept(orphanedFolder -> {
-                    synchronized (this) {
-                        childrenTypesPopulated++;
-                    }
+        OrphanedFolder.create(apisHandler).whenComplete(((orphanedFolder, error) -> {
+            synchronized (this) {
+                childrenTypesPopulated++;
+            }
 
-                    if (orphanedFolder != null && orphanedFolder.hasChildren()) {
-                        children.add(orphanedFolder);
-                    }
-                });
+            if (orphanedFolder == null) {
+                logger.error("Error while creating orphaned folder of server", error);
+                return;
+            }
+
+            if (orphanedFolder.hasChildren()) {
+                logger.debug("Got orphaned folder {}. Adding it to the children of the server", orphanedFolder);
+                children.add(orphanedFolder);
+            } else {
+                logger.debug("Got orphaned folder {} but it doesn't have children, so it is not added to the children of the server", orphanedFolder);
+            }
+        }));
     }
 
     private <T extends RepositoryEntity> void populateChildren(CompletableFuture<List<T>> request, String name) {
-        request
-                .exceptionally(error -> {
-                    logger.error("Error while retrieving {}", name, error);
-                    return List.of();
-                })
-                .thenAccept(newChildren -> {
-                    synchronized (this) {
-                        childrenTypesPopulated++;
-                    }
-                    children.addAll(newChildren);
-                });
+        request.whenComplete((children, error) -> {
+            synchronized (this) {
+                childrenTypesPopulated++;
+            }
+
+            if (children == null) {
+                logger.error("Error while retrieving children {} of server", name, error);
+                return;
+            }
+
+            logger.debug("Got {} {} as children of server", name, children);
+            this.children.addAll(children);
+        });
     }
 }

@@ -350,28 +350,6 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Image_URI_Of_Project() throws ExecutionException, InterruptedException {
-            Project project = OmeroServer.getProjects(userType).getLast();
-            long projectID = project.getId();
-            List<URI> expectedURIs = OmeroServer.getDatasetsInProject(project).stream()
-                    .map(OmeroServer::getImagesInDataset)
-                    .flatMap(List::stream)
-                    .map(OmeroServer::getImageURI)
-                    .toList();
-
-            List<URI> uris = apisHandler.getImagesURIOfProject(projectID).get();
-
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedURIs, uris);
-        }
-
-        @Test
-        void Check_Image_URI_Of_Invalid_Project() {
-            long projectID = -1;
-
-            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.getImagesURIOfProject(projectID).get());
-        }
-
-        @Test
         void Check_Image_URI() {
             Image image = OmeroServer.getRGBImage(userType);
             String expectedURI = OmeroServer.getImageURI(image).toString();

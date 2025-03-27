@@ -60,38 +60,29 @@ public class FileAnnotation extends Annotation {
      * @return the name of the attached file, or an empty Optional if it was not found
      */
     public Optional<String> getFilename() {
-        if (file == null) {
-            return Optional.empty();
-        } else {
-            return Optional.ofNullable(file.get("name"));
-        }
+        return Optional.ofNullable(file).map(f -> f.get("name"));
     }
 
     /**
      * @return the MIME type of the attached file, or an empty Optional if it was not found
      */
     public Optional<String> getMimeType() {
-        if (file == null) {
-            return Optional.empty();
-        } else {
-            return Optional.ofNullable(file.get("mimetype"));
-        }
+        return Optional.ofNullable(file).map(f -> f.get("mimetype"));
     }
 
     /**
      * @return the size of the attached file in bytes, or an empty Optional if it was not found
      */
     public Optional<Long> getFileSize() {
-        if (file == null || file.get("size") == null) {
-            return Optional.empty();
-        } else {
-            String size = file.get("size");
-            try {
-                return Optional.of(Long.parseLong(size));
-            } catch (NumberFormatException e) {
-                logger.warn("Cannot convert {} to a number in file annotation", size, e);
-                return Optional.empty();
-            }
-        }
+        return Optional.ofNullable(file)
+                .map(f -> f.get("size"))
+                .map(size -> {
+                    try {
+                        return Long.parseLong(size);
+                    } catch (NumberFormatException e) {
+                        logger.warn("Cannot convert {} to a number in file annotation {}. Cannot retrieve file size", size, this, e);
+                        return null;
+                    }
+                });
     }
 }

@@ -11,6 +11,7 @@ import java.util.Optional;
 public class OmeroApi {
 
     @SerializedName("data") private List<OmeroAPIVersion> versions;
+    private record OmeroAPIVersion(@SerializedName("url:base") String versionURL) {}
 
     @Override
     public String toString() {
@@ -25,21 +26,7 @@ public class OmeroApi {
         if (versions == null || versions.isEmpty()) {
             return Optional.empty();
         } else {
-            return versions.getLast().getVersionURL();
-        }
-    }
-
-    private static class OmeroAPIVersion {
-
-        @SerializedName("url:base") private String versionURL;
-
-        @Override
-        public String toString() {
-            return String.format("Version URL: %s", versionURL);
-        }
-
-        public Optional<String> getVersionURL() {
-            return Optional.ofNullable(versionURL);
+            return Optional.ofNullable(versions.getLast().versionURL());
         }
     }
 }
