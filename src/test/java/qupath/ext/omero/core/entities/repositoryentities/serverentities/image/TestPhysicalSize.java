@@ -4,8 +4,6 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
-
 public class TestPhysicalSize {
 
     @Test

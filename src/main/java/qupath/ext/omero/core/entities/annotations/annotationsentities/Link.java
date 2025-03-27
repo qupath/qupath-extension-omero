@@ -2,9 +2,6 @@ package qupath.ext.omero.core.entities.annotations.annotationsentities;
 
 import qupath.ext.omero.core.entities.permissions.Owner;
 
-import java.util.Objects;
-import java.util.Optional;
-
 /**
  * An OMERO link indicates which owner added an OMERO annotation to an OMERO entity.
  *
