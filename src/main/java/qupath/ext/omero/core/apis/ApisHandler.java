@@ -496,7 +496,7 @@ public class ApisHandler implements AutoCloseable {
         }
 
         getOrphanedImagesIds()
-                .thenAccept(orphanedImageIds -> jsonApi.populateOrphanedImagesIntoList(children, orphanedImageIds))
+                .thenAcceptAsync(orphanedImageIds -> jsonApi.populateOrphanedImagesIntoList(children, orphanedImageIds))
                 .whenComplete((v, error) -> {
                     synchronized (this) {
                         areOrphanedImagesLoading.set(false);

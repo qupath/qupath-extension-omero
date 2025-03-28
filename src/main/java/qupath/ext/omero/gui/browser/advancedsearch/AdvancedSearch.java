@@ -106,6 +106,7 @@ public class AdvancedSearch extends Stage {
      * @throws IOException if an error occurs while creating the window
      */
     public AdvancedSearch(Stage ownerWindow, ApisHandler apisHandler, Server server) throws IOException {
+        logger.debug("Creating advanced search window for {}", server);
         this.apisHandler = apisHandler;
         this.server = server;
 
@@ -153,6 +154,7 @@ public class AdvancedSearch extends Stage {
             search.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.search"));
 
             if (error == null) {
+                logger.debug("Got results {} from search", searchResults);
                 results.getItems().setAll(searchResults);
             } else {
                 logger.error("Error when searching", error);

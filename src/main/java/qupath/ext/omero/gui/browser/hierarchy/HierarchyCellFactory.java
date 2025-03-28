@@ -74,9 +74,9 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
             setGraphic(iconCanvas);
             setIcon(repositoryEntity.getClass(), iconCanvas);
 
-            Tooltip tooltip = new Tooltip();
-
             setText(repositoryEntity.getLabel());
+
+            Tooltip tooltip = new Tooltip();
             tooltip.setText(repositoryEntity.getLabel());
 
             if (repositoryEntity instanceof Image image) {
@@ -95,16 +95,16 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
 
     private void setIcon(Class<? extends RepositoryEntity> type, Canvas iconCanvas) {
         if (ACCEPTED_ICONS_TYPES.contains(type)) {
-            apisHandler.getOmeroIcon(type)
-                    .exceptionally(error -> {
-                        logger.error("Error while retrieving icon", error);
-                        return null;
-                    })
-                    .thenAccept(icon -> Platform.runLater(() -> {
-                        if (icon != null) {
-                            UiUtilities.paintBufferedImageOnCanvas(icon, iconCanvas);
-                        }
-                    }));
+            apisHandler.getOmeroIcon(type).whenComplete((icon, error) -> Platform.runLater(() -> {
+                if (icon == null) {
+                    logger.error("Error while retrieving icon {}", type, error);
+                } else {
+                    logger.debug("Got icon {} for {}. Setting it to graphic", icon, type);
+                    UiUtilities.paintBufferedImageOnCanvas(icon, iconCanvas);
+                }
+            }));
+        } else {
+            logger.warn("Can set icon for {} because it doesn't exist", type);
         }
     }
 }

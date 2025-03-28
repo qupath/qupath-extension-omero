@@ -37,6 +37,7 @@ import qupath.lib.projects.ProjectImageEntry;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.List;
@@ -146,7 +147,9 @@ public class UiUtilities {
      * import the key-value pairs of the OMERO image to the metadata of the project entry, as
      * well as the ID and the name of the parent dataset.
      *
-     * @param uris the URIs of the images to open
+     * @param uris the URIs of the images to open. They don't have to point to images, they can point
+     *             to datasets for example in which case all children images of the dataset will be
+     *             imported (same for other entities, see {@link qupath.ext.omero.core.apis.ApisHandler#getImagesURIFromEntityURI(URI)})
      */
     public static void openImages(List<String> uris) {
         if (uris.isEmpty()) {

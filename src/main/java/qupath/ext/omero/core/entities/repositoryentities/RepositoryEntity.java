@@ -22,7 +22,7 @@ public interface RepositoryEntity {
      * <p>
      * This list may be updated from any thread.
      *
-     * @return an unmodifiable list of children of this element
+     * @return an unmodifiable observable list of children of this element
      */
     ObservableList<? extends RepositoryEntity> getChildren();
 
