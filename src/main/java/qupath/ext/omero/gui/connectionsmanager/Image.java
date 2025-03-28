@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
@@ -39,11 +40,10 @@ class Image extends HBox {
      */
     public Image(ApisHandler apisHandler, URI imageUri) throws IOException {
         this.imageUri = imageUri;
-        logger.debug("Creating image label of {}", imageUri);
 
         UiUtilities.loadFXML(this, Image.class.getResource("image.fxml"));
 
-        var imageID = ApisHandler.parseEntityId(imageUri);
+        var imageID = ApisHandler.parseEntity(imageUri).map(ServerEntity::getId);
         if (imageID.isPresent()) {
             apisHandler.getImage(imageID.get())
                     .whenComplete((image, error) -> {
@@ -63,7 +63,7 @@ class Image extends HBox {
                         }
                     });
         } else {
-            logger.debug("Cannot find image ID in {}. This image label won't show any image", imageUri);
+            logger.warn("Cannot find image ID in {}. This image label won't show any image", imageUri);
         }
 
         apisHandler.isLinkReachable(imageUri, RequestSender.RequestType.GET).whenComplete((v, error) -> {

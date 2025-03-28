@@ -221,7 +221,7 @@ class Browser extends Stage {
             RepositoryEntity selectedObject = selectedItem == null ? null : selectedItem.getValue();
 
             if (selectedObject instanceof Image image && image.isSupported().get()) {
-                UiUtilities.openImages(List.of(client.getApisHandler().getItemURI(image)));
+                UiUtilities.openImages(List.of(client.getApisHandler().getEntityUri(image)));
             }
         }
     }
@@ -261,7 +261,7 @@ class Browser extends Stage {
     private void onOpenInBrowserMenuClicked(ActionEvent ignoredEvent) {
         var selectedItem = hierarchy.getSelectionModel().getSelectedItem();
         if (selectedItem != null && selectedItem.getValue() instanceof ServerEntity serverEntity) {
-            QuPathGUI.openInBrowser(client.getApisHandler().getItemURI(serverEntity));
+            QuPathGUI.openInBrowser(client.getApisHandler().getEntityUri(serverEntity));
         }
     }
 
@@ -270,7 +270,7 @@ class Browser extends Stage {
         List<String> URIs = hierarchy.getSelectionModel().getSelectedItems().stream()
                 .map(item -> {
                     if (item.getValue() instanceof ServerEntity serverEntity) {
-                        return client.getApisHandler().getItemURI(serverEntity);
+                        return client.getApisHandler().getEntityUri(serverEntity);
                     } else {
                         return null;
                     }
@@ -332,7 +332,7 @@ class Browser extends Stage {
                         })
                         .filter(Objects::nonNull)
                         .map(serverEntity ->
-                                client.getApisHandler().getItemURI(serverEntity)
+                                client.getApisHandler().getEntityUri(serverEntity)
                         )
                         .toList()
         );

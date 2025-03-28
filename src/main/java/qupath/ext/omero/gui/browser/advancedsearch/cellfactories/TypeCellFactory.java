@@ -69,22 +69,20 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
 
             Class<? extends RepositoryEntity> type = item.getType().get();
             if (type.equals(Image.class)) {
-                apisHandler.getThumbnail(item.id()).whenComplete((thumbnail, error) -> {
+                apisHandler.getThumbnail(item.id()).whenComplete((thumbnail, error) -> Platform.runLater( () -> {
                     if (error == null) {
-                        Platform.runLater(() -> {
-                            WritableImage image = UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+                        WritableImage image = UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
 
-                            ImageView imageView = new ImageView(image);
-                            imageView.setFitHeight(TOOLTIP_IMAGE_SIZE);
-                            imageView.setPreserveRatio(true);
-                            tooltip.setGraphic(imageView);
-                        });
+                        ImageView imageView = new ImageView(image);
+                        imageView.setFitHeight(TOOLTIP_IMAGE_SIZE);
+                        imageView.setPreserveRatio(true);
+                        tooltip.setGraphic(imageView);
                     } else {
                         logger.error("Error when retrieving thumbnail of {}", item, error);
 
                         tooltip.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.TypeCellFactory.couldNotRetrieveIcon"));
                     }
-                });
+                }));
             } else {
                 apisHandler.getOmeroIcon(type).whenComplete((icon, error) -> Platform.runLater(() -> {
                     if (error == null) {

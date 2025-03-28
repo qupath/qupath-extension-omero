@@ -14,6 +14,9 @@ public class LinkCellFactory extends TableCell<SearchResult, SearchResult> {
 
     private final Hyperlink hyperlink;
 
+    /**
+     * Create the cell factory.
+     */
     public LinkCellFactory() {
         hyperlink = new Hyperlink();
         hyperlink.setTextOverrun(OverrunStyle.LEADING_WORD_ELLIPSIS);

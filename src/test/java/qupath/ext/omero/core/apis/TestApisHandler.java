@@ -209,65 +209,62 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_OMERO_Id_On_Project() {
-            long expectedID = 201;
-            URI uri = URI.create(String.format(
-                    "http://localhost:4080/webclient/?show=project-%d",
-                    expectedID
-            ));
+            Project expectedProject = new Project(201);
+            URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=project-%d", expectedProject.getId()));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
+            ServerEntity project = ApisHandler.parseEntity(uri).orElse(null);
 
-            Assertions.assertEquals(expectedID, id);
+            Assertions.assertEquals(expectedProject, project);
         }
 
         @Test
         void Check_OMERO_Id_On_Dataset() {
-            long expectedID = 1157;
-            URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=dataset-%d", expectedID));
+            Dataset expectedDataset = new Dataset(1157);
+            URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=dataset-%d", expectedDataset.getId()));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
+            ServerEntity dataset = ApisHandler.parseEntity(uri).orElse(null);
 
-            Assertions.assertEquals(expectedID, id);
+            Assertions.assertEquals(expectedDataset, dataset);
         }
 
         @Test
         void Check_OMERO_Id_On_Webclient_Image() {
-            long expectedID = 12546;
-            URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=image-%d", expectedID));
+            Image expectedImage = new Image(12546);
+            URI uri = URI.create(String.format("http://localhost:4080/webclient/?show=image-%d", expectedImage.getId()));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
+            ServerEntity image = ApisHandler.parseEntity(uri).orElse(null);
 
-            Assertions.assertEquals(expectedID, id);
+            Assertions.assertEquals(expectedImage, image);
         }
 
         @Test
         void Check_OMERO_Id_On_Webclient_Image_Alternate() {
-            long expectedID = 12546;
-            URI uri = URI.create(String.format("http://localhost:4080/webclient/img_detail/%d/?dataset=1157", expectedID));
+            Image expectedImage = new Image(12546);
+            URI uri = URI.create(String.format("http://localhost:4080/webclient/img_detail/%d/?dataset=1157", expectedImage.getId()));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
+            ServerEntity image = ApisHandler.parseEntity(uri).orElse(null);
 
-            Assertions.assertEquals(expectedID, id);
+            Assertions.assertEquals(expectedImage, image);
         }
 
         @Test
         void Check_OMERO_Id_On_WebGateway_Image() {
-            long expectedID = 12546;
-            URI uri = URI.create(String.format("http://localhost:4080/webgateway/img_detail/%d/?dataset=1157", expectedID));
+            Image expectedImage = new Image(12546);
+            URI uri = URI.create(String.format("http://localhost:4080/webgateway/img_detail/%d/?dataset=1157", expectedImage.getId()));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
+            ServerEntity image = ApisHandler.parseEntity(uri).orElse(null);
 
-            Assertions.assertEquals(expectedID, id);
+            Assertions.assertEquals(expectedImage, image);
         }
 
         @Test
         void Check_OMERO_Id_On_IViewer_Image() {
-            long expectedID = 12546;
-            URI uri = URI.create(String.format("http://localhost:4080/iviewer/?images=%d&dataset=1157", expectedID));
+            Image expectedImage = new Image(12546);
+            URI uri = URI.create(String.format("http://localhost:4080/iviewer/?images=%d&dataset=1157", expectedImage.getId()));
 
-            long id = ApisHandler.parseEntityId(uri).orElse(-1L);
+            ServerEntity image = ApisHandler.parseEntity(uri).orElse(null);
 
-            Assertions.assertEquals(expectedID, id);
+            Assertions.assertEquals(expectedImage, image);
         }
 
         @Test
@@ -354,7 +351,7 @@ public class TestApisHandler extends OmeroServer {
             Image image = OmeroServer.getRGBImage(userType);
             String expectedURI = OmeroServer.getImageURI(image).toString();
 
-            String uri = apisHandler.getItemURI(image);
+            String uri = apisHandler.getEntityUri(image);
 
             Assertions.assertEquals(expectedURI, uri);
         }
@@ -364,7 +361,7 @@ public class TestApisHandler extends OmeroServer {
             Dataset dataset = OmeroServer.getDatasets(userType).getLast();
             String expectedURI = OmeroServer.getDatasetURI(dataset).toString();
 
-            String uri = apisHandler.getItemURI(dataset);
+            String uri = apisHandler.getEntityUri(dataset);
 
             Assertions.assertEquals(expectedURI, uri);
         }
@@ -374,7 +371,7 @@ public class TestApisHandler extends OmeroServer {
             Project project = OmeroServer.getProjects(userType).getLast();
             String expectedURI = OmeroServer.getProjectURI(project).toString();
 
-            String uri = apisHandler.getItemURI(project);
+            String uri = apisHandler.getEntityUri(project);
 
             Assertions.assertEquals(expectedURI, uri);
         }
@@ -384,7 +381,7 @@ public class TestApisHandler extends OmeroServer {
             ServerEntity serverEntity = new ServerEntityImplementation();
 
             Assertions.assertThrows(IllegalArgumentException.class, () ->
-                    apisHandler.getItemURI(serverEntity)
+                    apisHandler.getEntityUri(serverEntity)
             );
         }
 

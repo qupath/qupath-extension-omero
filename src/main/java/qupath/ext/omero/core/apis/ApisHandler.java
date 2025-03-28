@@ -43,6 +43,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -76,20 +77,6 @@ public class ApisHandler implements AutoCloseable {
     private static final Pattern iviewerImagePattern = Pattern.compile("/iviewer/\\?images=(\\d+)");
     private static final Pattern datasetPattern = Pattern.compile("/webclient/\\?show=dataset-(\\d+)");
     private static final Pattern projectPattern = Pattern.compile("/webclient/\\?show=project-(\\d+)");
-    private static final List<Pattern> allPatterns = List.of(
-            webclientImagePattern,
-            webclientImagePatternAlternate,
-            webgatewayImagePattern,
-            iviewerImagePattern,
-            datasetPattern,
-            projectPattern
-    );
-    private static final List<Pattern> imagePatterns = List.of(
-            webclientImagePattern,
-            webclientImagePatternAlternate,
-            webgatewayImagePattern,
-            iviewerImagePattern
-    );
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
     private final Cache<Long, CompletableFuture<Image>> imagesCache = CacheBuilder.newBuilder()
             .build();
@@ -256,33 +243,49 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * Parse the OMERO entity ID from a URI.
+     * Parse an OMERO server entity from a URI. The returned entity will be empty except for its ID.
+     * In other words, this function returns an entity ID and an entity class.
      *
-     * @param uri the URI that is supposed to contain the ID. It can be URL encoded
-     * @return the entity ID, or an empty Optional if it was not found
+     * @param uri the URI that is supposed to contain the entity. It can be URL encoded
+     * @return the entity (whose only correct attribute is its ID), or an empty Optional if it was not found
      */
-    public static Optional<Long> parseEntityId(URI uri) {
-        logger.debug("Finding entity ID in {}...", uri);
+    public static Optional<ServerEntity> parseEntity(URI uri) {
+        logger.debug("Finding entity in {}...", uri);
 
-        for (Pattern pattern : allPatterns) {
-            Matcher matcher = pattern.matcher(URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8));
+        Map<Pattern, Function<Long, ServerEntity>> entityCreator = Map.of(
+                projectPattern, Project::new,
+                datasetPattern, Dataset::new,
+                webclientImagePattern, Image::new,
+                webclientImagePatternAlternate, Image::new,
+                webgatewayImagePattern, Image::new,
+                iviewerImagePattern, Image::new
+        );
+        String entityUrl = URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
+
+        for (var entry: entityCreator.entrySet()) {
+            Matcher matcher = entry.getKey().matcher(entityUrl);
 
             if (matcher.find()) {
                 String idValue = matcher.group(1);
                 try {
-                    long id = Long.parseLong(idValue);
-                    logger.debug("Found ID {} in {} with pattern {}", id, uri, pattern);
-
-                    return Optional.of(id);
+                    ServerEntity serverEntity = entry.getValue().apply(Long.parseLong(idValue));
+                    logger.debug(
+                            "Found {} with ID {} in {} with matcher {}",
+                            serverEntity.getClass(),
+                            serverEntity.getId(),
+                            entityUrl,
+                            matcher
+                    );
+                    return Optional.of(serverEntity);
                 } catch (NumberFormatException e) {
-                    logger.debug("Found entity ID {} in {} with pattern {} but it is not an integer", idValue, uri, pattern, e);
+                    logger.debug("Found entity ID {} in {} with matcher {} but it is not an integer. Skipping it", idValue, entityUrl, matcher, e);
                 }
             } else {
-                logger.debug("No ID found with pattern {} for uri {}", pattern, uri);
+                logger.debug("Entity not found in {} with matcher {}", entityUrl, matcher);
             }
         }
 
-        logger.debug("No ID was found in {}", uri);
+        logger.debug("Entity not found in {}", entityUrl);
         return Optional.empty();
     }
 
@@ -303,35 +306,26 @@ public class ApisHandler implements AutoCloseable {
     public CompletableFuture<List<URI>> getImagesURIFromEntityURI(URI entityUri) {
         logger.debug("Finding image URIs indicated by {}...", entityUri);
 
-        String entityUrl = URLDecoder.decode(entityUri.toString(), StandardCharsets.UTF_8);
+        Map<Class<? extends ServerEntity>, Function<Long, CompletableFuture<List<URI>>>> classToUrisProvider = Map.of(
+                Project.class, this::getImagesURIOfProject,
+                Dataset.class, this::getImagesURIOfDataset,
+                Image.class, entityId -> CompletableFuture.completedFuture(List.of(entityUri))
+        );
 
-        if (projectPattern.matcher(entityUrl).find()) {
-            logger.debug("{} refers to a project", entityUri);
-
-            return parseEntityId(entityUri)
-                    .map(this::getImagesURIOfProject)
-                    .orElse(CompletableFuture.failedFuture(new IllegalArgumentException(
-                            String.format("The provided URI %s was detected as a project but no ID was found", entityUrl)
-                    )));
-        } else if (datasetPattern.matcher(entityUrl).find()) {
-            logger.debug("{} refers to a dataset", entityUri);
-
-            return parseEntityId(entityUri)
-                    .map(this::getImagesURIOfDataset)
-                    .orElse(CompletableFuture.failedFuture(new IllegalArgumentException(
-                            String.format("The provided URI %s was detected as a dataset but no ID was found", entityUrl)
-                    )));
-        } else if (imagePatterns.stream().anyMatch(pattern -> pattern.matcher(entityUrl).find())) {
-            logger.debug("{} refers to an image", entityUri);
-
-            return CompletableFuture.completedFuture(List.of(entityUri));
-        } else {
-            logger.debug("{} doesn't refer to a project, dataset, or image", entityUri);
-
-            return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The provided URI %s does not represent a project, dataset, or image", entityUrl)
-            ));
-        }
+        return parseEntity(entityUri).map(entity -> {
+            for (var entry: classToUrisProvider.entrySet()) {
+                if (entity.getClass().equals(entry.getKey())) {
+                    logger.debug("{} refers to a {}. Retrieving all images URIs belonging to it", entityUri, entry.getClass());
+                    return entry.getValue().apply(entity.getId());
+                } else {
+                    logger.debug("{} does no refer to a {}. Skipping it", entityUri, entry.getClass());
+                }
+            }
+            logger.debug("{} does not refer to anything that contains image URIs", entityUri);
+            return null;
+        }).orElse(CompletableFuture.failedFuture(new IllegalArgumentException(
+                String.format("The provided URI %s does not represent a project, dataset, or image", entityUri)
+        )));
     }
 
     /**
@@ -342,10 +336,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#getEntityURI(ServerEntity)}.
+     * See {@link WebclientApi#getEntityUri(ServerEntity)}.
      */
-    public String getItemURI(ServerEntity entity) {
-        return webclientApi.getEntityURI(entity);
+    public String getEntityUri(ServerEntity entity) {
+        return webclientApi.getEntityUri(entity);
     }
 
     /**
@@ -853,7 +847,7 @@ public class ApisHandler implements AutoCloseable {
         logger.debug("Finding image URIs contained in dataset with ID {}", datasetID);
 
         return getImages(datasetID).thenApply(images -> images.stream()
-                .map(this::getItemURI)
+                .map(this::getEntityUri)
                 .map(URI::create)
                 .toList()
         );

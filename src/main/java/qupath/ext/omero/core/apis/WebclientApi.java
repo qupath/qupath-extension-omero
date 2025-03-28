@@ -131,12 +131,13 @@ class WebclientApi implements AutoCloseable {
      * Returns a link of the OMERO.web client pointing to a server entity.
      *
      * @param entity the entity to have a link to. Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *               {@link Screen}, {@link Plate} or {@link PlateAcquisition}
+     *               {@link Screen}, {@link Plate} or {@link PlateAcquisition}. Only the ID and the class of
+     *               the entity will be used
      * @return a URL pointing to the server entity
      * @throws IllegalArgumentException if the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
      */
-    public String getEntityURI(ServerEntity entity) {
+    public String getEntityUri(ServerEntity entity) {
         if (!TYPE_TO_URI_LABEL.containsKey(entity.getClass())) {
             throw new IllegalArgumentException(String.format(
                     "The provided item (%s) is not an image, dataset, project, screen, plate, or plate acquisition.",

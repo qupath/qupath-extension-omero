@@ -51,6 +51,7 @@ public class AdvancedSearch extends Stage {
     private static final Logger logger = LoggerFactory.getLogger(AdvancedSearch.class);
     private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
     private static final ResourceBundle resources = Utils.getResources();
+    private static final int PROGRESS_INDICATOR_SIZE = 30;
     private final ApisHandler apisHandler;
     private final Server server;
     @FXML
@@ -120,8 +121,8 @@ public class AdvancedSearch extends Stage {
             ((CheckBox) object).setSelected(true);
         }
 
-        owner.getSelectionModel().selectFirst();
-        group.getSelectionModel().selectFirst();
+        group.getSelectionModel().select(server.getDefaultGroup());
+        owner.getSelectionModel().select(server.getConnectedOwner());
 
         results.getItems().clear();
     }
@@ -129,8 +130,7 @@ public class AdvancedSearch extends Stage {
     @FXML
     private void onSearchClicked(ActionEvent ignoredEvent) {
         ProgressIndicator progressIndicator = new ProgressIndicator();
-        progressIndicator.setPrefSize(30, 30);
-        progressIndicator.setMinSize(30, 30);
+        progressIndicator.setPrefSize(PROGRESS_INDICATOR_SIZE, PROGRESS_INDICATOR_SIZE);
 
         search.setGraphic(progressIndicator);
         search.setText(null);
@@ -148,26 +148,23 @@ public class AdvancedSearch extends Stage {
                 screens.isSelected(),
                 group.getSelectionModel().getSelectedItem(),
                 owner.getSelectionModel().getSelectedItem()
-        )).handle((searchResults, error) -> {
-            Platform.runLater(() -> {
-                search.setGraphic(null);
-                search.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.search"));
+        )).whenComplete((searchResults, error) -> Platform.runLater(() -> {
+            search.setGraphic(null);
+            search.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.search"));
 
-                if (error == null) {
-                    results.getItems().setAll(searchResults);
-                } else {
-                    logger.error("Error when searching", error);
-                    Dialogs.showErrorNotification(
-                            resources.getString("Browser.ServerBrowser.AdvancedSearch.search"),
-                            MessageFormat.format(
-                                    resources.getString("Browser.ServerBrowser.AdvancedSearch.errorOccurred"),
-                                    error.getLocalizedMessage()
-                            )
-                    );
-                }
-            });
-            return null;
-        });
+            if (error == null) {
+                results.getItems().setAll(searchResults);
+            } else {
+                logger.error("Error when searching", error);
+                Dialogs.showErrorNotification(
+                        resources.getString("Browser.ServerBrowser.AdvancedSearch.search"),
+                        MessageFormat.format(
+                                resources.getString("Browser.ServerBrowser.AdvancedSearch.errorOccurred"),
+                                error.getLocalizedMessage()
+                        )
+                );
+            }
+        }));
     }
 
     @FXML

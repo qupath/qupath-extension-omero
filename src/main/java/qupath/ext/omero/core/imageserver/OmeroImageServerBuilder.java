@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
+import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
@@ -327,7 +328,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<Client> getExistingClient(URI uri) {
-        return ApisHandler.parseEntityId(uri).flatMap(imageId -> {
+        return ApisHandler.parseEntity(uri).flatMap(entity -> {
             List<Client> clients = Client.getClients();
             logger.debug("Finding if existing client belonging to {} can access {}", clients, uri);
 
@@ -335,11 +336,14 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     .filter(client -> client.getApisHandler().getWebServerURI().getHost().equals(uri.getHost()))
                     .map(client -> {
                         try {
-                            client.getApisHandler().getImage(imageId).get();
-                            logger.debug("{} can access image with ID {}. Using it", client, imageId);
+                            client.getApisHandler().isLinkReachable(
+                                    new URI(client.getApisHandler().getEntityUri(entity)),
+                                    RequestSender.RequestType.GET
+                            ).get();
+                            logger.debug("{} can access entity with ID {}. Using it", client, entity.getId());
                             return client;
-                        } catch (ExecutionException | InterruptedException e) {
-                            logger.debug("{} cannot access image with ID {}. Skipping it", client, imageId, e);
+                        } catch (ExecutionException | InterruptedException | URISyntaxException e) {
+                            logger.debug("{} cannot access entity with ID {}. Skipping it", client, entity.getId(), e);
                             return null;
                         }
                     })
