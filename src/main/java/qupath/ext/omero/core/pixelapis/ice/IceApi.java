@@ -35,10 +35,10 @@ import java.util.concurrent.ExecutionException;
  */
 public class IceApi implements PixelApi {
 
+    private static final Logger logger = LoggerFactory.getLogger(IceApi.class);
     private static final String NAME = "Ice";
     private static final String ADDRESS_PARAMETER = "--serverAddress";
     private static final String PORT_PARAMETER = "--serverPort";
-    private static final Logger logger = LoggerFactory.getLogger(IceApi.class);
     private static final boolean gatewayAvailable;
     private final Map<Long, IceReader> readers = new HashMap<>();
     private final ApisHandler apisHandler;
@@ -67,6 +67,8 @@ public class IceApi implements PixelApi {
      * @param apisHandler the apis handler owning this API
      */
     public IceApi(ApisHandler apisHandler) {
+        logger.debug("Creating ICE API with {}", apisHandler);
+
         this.apisHandler = apisHandler;
         this.serverAddress = new SimpleStringProperty(
                 PreferencesManager.getIceAddress(apisHandler.getWebServerURI()).orElse("")
@@ -138,20 +140,20 @@ public class IceApi implements PixelApi {
      */
     @Override
     public PixelApiReader createReader(long imageId, ImageServerMetadata metadata, List<String> args) throws ExecutionException, InterruptedException {
+        logger.debug("Getting or creating ICE reader to open image with ID {} with args {}", imageId, args);
+
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        ArgsUtils.findArgInList(ADDRESS_PARAMETER, args)
-                .ifPresent(this::setServerAddress);
-        ArgsUtils.findArgInList(PORT_PARAMETER, args)
-                .ifPresent(port -> {
-                    try {
-                        setServerPort(Integer.parseInt(port));
-                    } catch (IllegalArgumentException e) {
-                        logger.warn("Can't use provided server port {}", port, e);
-                    }
-                });
+        ArgsUtils.findArgInList(ADDRESS_PARAMETER, args).ifPresent(this::setServerAddress);
+        ArgsUtils.findArgInList(PORT_PARAMETER, args).ifPresent(port -> {
+            try {
+                setServerPort(Integer.parseInt(port));
+            } catch (IllegalArgumentException e) {
+                logger.warn("Can't use provided ICE server port {}", port, e);
+            }
+        });
 
         synchronized (this) {
             if (gatewayWrapper == null) {
@@ -171,6 +173,8 @@ public class IceApi implements PixelApi {
                 } catch (Exception e) {
                     throw new ExecutionException(e);
                 }
+            } else {
+                logger.debug("Gateway not null, using it");
             }
 
             long groupId = apisHandler.getImage(imageId).get().getGroupId();
@@ -178,15 +182,20 @@ public class IceApi implements PixelApi {
             closeReadersWithDifferentGroups(imageId, groupId);
 
             try {
-                return readers.computeIfAbsent(imageId, i -> {
-                    logger.debug("No reader for image with ID {} found. Creating one...", i);
+                if (readers.containsKey(imageId)) {
+                    logger.debug("Reader for image with ID {} found. Using it", imageId);
+                    return readers.get(imageId);
+                } else {
+                    logger.debug("No reader for image with ID {} found. Creating one...", imageId);
 
                     try {
-                        return new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels());
+                        IceReader reader = new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels());
+                        readers.put(imageId, reader);
+                        return reader;
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-                });
+                }
             } catch (RuntimeException e) {
                 throw new ExecutionException(e);
             }
@@ -214,6 +223,8 @@ public class IceApi implements PixelApi {
 
     @Override
     public synchronized void close() throws Exception {
+        logger.debug("Closing ICE API of {}", apisHandler);
+
         if (gatewayWrapper != null) {
             gatewayWrapper.close();
         }

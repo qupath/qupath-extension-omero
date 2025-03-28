@@ -1,5 +1,5 @@
 /**
- * <p>The OMERO extension enable accessing images hosted on an OMERO server.</p>
+ * The OMERO extension enable accessing images hosted on an OMERO server.
  * <ul>
  *     <li>
  *         The {@link qupath.ext.omero.gui GUI} package contains user interface elements of the extension.

@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Reads the response from a login request.
+ * Parse the response from a login request.
  *
  * @param group the default group of the user
  * @param userId the ID of the user
@@ -31,30 +31,30 @@ public record LoginResponse(Group group, long userId, String sessionUuid, boolea
     public static LoginResponse parseServerAuthenticationResponse(JsonObject serverResponse) {
         if (!serverResponse.has("eventContext") || !serverResponse.get("eventContext").isJsonObject()) {
             throw new IllegalArgumentException(String.format(
-                    "'eventContext' JSON object not found in %s", serverResponse
+                    "'eventContext' JSON object not found in %s. Cannot parse login response", serverResponse
             ));
         }
         JsonObject eventContext = serverResponse.get("eventContext").getAsJsonObject();
 
         if (!eventContext.has("userId") || !eventContext.get("userId").isJsonPrimitive() || !eventContext.getAsJsonPrimitive("userId").isNumber()) {
             throw new IllegalArgumentException(String.format(
-                    "'userId' number not found in %s", eventContext
+                    "'userId' number not found in %s. Cannot set ID of connected user", eventContext
             ));
         }
         if (!eventContext.has("sessionUuid") || !eventContext.get("sessionUuid").isJsonPrimitive()) {
             throw new IllegalArgumentException(String.format(
-                    "'sessionUuid' text not found in %s", eventContext
+                    "'sessionUuid' text not found in %s. Cannot set session UUID", eventContext
             ));
         }
         if (!eventContext.has("isAdmin") || !eventContext.get("isAdmin").isJsonPrimitive()) {
             throw new IllegalArgumentException(String.format(
-                    "'isAdmin' text not found in %s", eventContext
+                    "'isAdmin' text not found in %s. Cannot determine if the connected user is an admin", eventContext
             ));
         }
 
         if (!eventContext.has("leaderOfGroups") || !eventContext.get("leaderOfGroups").isJsonArray()) {
             throw new IllegalArgumentException(String.format(
-                    "'leaderOfGroups' array not found in %s", eventContext
+                    "'leaderOfGroups' array not found in %s. Cannot find the IDs of all groups the connected user is an owner of", eventContext
             ));
         }
 
@@ -79,7 +79,11 @@ public record LoginResponse(Group group, long userId, String sessionUuid, boolea
 
         for (JsonElement jsonElement: leaderOfGroups) {
             if (!jsonElement.isJsonPrimitive()) {
-                throw new IllegalArgumentException(String.format("The %s element in %s is not a JSON primitive", jsonElement, leaderOfGroups));
+                throw new IllegalArgumentException(String.format(
+                        "The %s element in %s is not a JSON primitive. Cannot find the IDs of all groups the connected user is an owner of",
+                        jsonElement,
+                        leaderOfGroups
+                ));
             }
             try {
                 ownedGroupIds.add(jsonElement.getAsLong());

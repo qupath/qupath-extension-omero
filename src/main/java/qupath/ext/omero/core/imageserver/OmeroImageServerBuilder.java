@@ -112,6 +112,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     .map(uri -> createServerBuilder(uri, clientArgsWrapper.get()))
                     .flatMap(Optional::stream)
                     .toList();
+            logger.debug("Got builders {} for {}", builders, entityURI);
 
             return UriImageSupport.createInstance(
                     this.getClass(),
@@ -159,18 +160,20 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
     private static Optional<ClientPixelApiArgsWrapper> getClientAndPixelApi(URI uri, List<String> args) {
         if (!ACCEPTED_SCHEMES.contains(uri.getScheme())) {
-            logger.debug("{} doesn't contain one of the required schemes: {}", uri, ACCEPTED_SCHEMES);
+            logger.debug("{} doesn't contain one of the required schemes: {}. Cannot open image with OMERO image server", uri, ACCEPTED_SCHEMES);
             return Optional.empty();
         }
 
         try {
             return getClient(uri, args).map(client -> {
+                logger.debug("Got client {} to open {}", client, uri);
+
                 PixelApi pixelApi = getPixelAPIFromArgs(client, args).orElse(null);
                 if (pixelApi == null) {
                     pixelApi = client.getSelectedPixelApi().get();
 
                     if (pixelApi == null) {
-                        logger.debug("No supplied pixel API and no selected pixel API");
+                        logger.debug("No supplied pixel API and no selected pixel API. Can't open {}", uri);
                         return null;
                     } else {
                         logger.debug("No pixel API was found in the arguments, so {} was selected to read {}", pixelApi.getName(), uri);
@@ -200,6 +203,8 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<ServerBuilder<BufferedImage>> createServerBuilder(URI uri, ClientPixelApiArgsWrapper clientPixelApiArgsWrapper) {
+        logger.debug("Creating server builder for {} with {}", uri, clientPixelApiArgsWrapper);
+
         try (OmeroImageServer imageServer = new OmeroImageServer(
                 uri,
                 clientPixelApiArgsWrapper.client,
@@ -224,9 +229,14 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<Client> getClient(URI uri, List<String> args) throws URISyntaxException, ExecutionException, InterruptedException {
+        logger.debug("Getting or creating client to open {} with args {}", uri, args);
+
         Optional<Client> existingClient = getExistingClient(uri);
         if (existingClient.isPresent()) {
+            logger.debug("Found existing client {} to open {}", existingClient.get(), uri);
             return existingClient;
+        } else {
+            logger.debug("No existing client found to open {}. Creating new one", uri);
         }
 
         Optional<Credentials.UserType> userType = ArgsUtils.findArgInList(USERTYPE_ARG, args)
@@ -252,6 +262,8 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 return Optional.empty();
             }
         } else {
+            logger.debug("User type not found or not equal to public user. Using username/password to connect");
+
             if (username.isPresent()) {
                 logger.debug("Username {} found in arguments", username.get());
 
@@ -274,6 +286,8 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<PixelApi> getPixelAPIFromArgs(Client client, List<String> args) {
+        logger.debug("Getting pixel API from args {}", args);
+
         String pixelAPIName = null;
         int i = 0;
         while (i < args.size()-1) {
@@ -286,10 +300,12 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         if (pixelAPIName == null) {
             logger.debug("Pixel API not found in arguments");
         } else {
+            logger.debug("Pixel API {} found in argument. Determining if it actually exists with {}", pixelAPIName, client);
+
             for (PixelApi pixelAPI: client.getAllPixelApis()) {
                 if (pixelAPI.getName().equalsIgnoreCase(pixelAPIName)) {
                     if (pixelAPI.isAvailable().get()) {
-                        logger.debug("Pixel API '{}' found from arguments", pixelAPIName);
+                        logger.debug("Pixel API '{}' found from arguments and exists with {}", pixelAPI, client);
                     } else {
                         logger.warn(
                                 "The provided pixel API ({}) was found but is not available at the moment. This may cause issues when using it",
@@ -301,7 +317,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 }
             }
             logger.warn(
-                    "The provided pixel API ({}) was not recognized among the pixel APIs of this client ({}). Another one will be used.",
+                    "The provided pixel API ({}) was not recognized among the pixel APIs of this client ({}). Another one will be used",
                     pixelAPIName,
                     client.getAllPixelApis()
             );
@@ -334,7 +350,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
     private static Optional<Client> getClientFromUserPrompt(URI uri, String username) {
         if (UiUtilities.usingGUI()) {
-            logger.debug("Prompting credentials from GUI");
+            logger.debug("Prompting credentials from GUI to connect to {}", uri);
 
             return FXUtils.callOnApplicationThread(() -> {
                 LoginForm loginForm = new LoginForm(
@@ -348,7 +364,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 return loginForm.getCreatedClient();
             });
         } else {
-            logger.debug("Prompting credentials from command line");
+            logger.debug("Prompting credentials from command line to connect to {}", uri);
 
             try {
                 return Optional.of(Client.createOrGet(

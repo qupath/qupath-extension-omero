@@ -42,6 +42,13 @@ import java.util.stream.Collectors;
 public abstract class Shape {
 
     private static final Logger logger = LoggerFactory.getLogger(Shape.class);
+    private static final String ANNOTATION = "Annotation";
+    private static final String DETECTION = "Detection";
+    private static final String NO_PARENT = "NoParent";
+    private static final String TEXT_DELIMITER = ":";
+    private static final String CLASS_DELIMITER = "&";
+    private static final String POINT_DELIMITER = " ";
+    private static final String POINT_COORDINATE_DELIMITER = ",";
     protected static String TYPE_URL = "http://www.openmicroscopy.org/Schemas/OME/2016-06#";
     @SerializedName(value = "@type") private String type;
     @SerializedName(value = "@id") private int id;
@@ -161,6 +168,8 @@ public abstract class Shape {
      * @return a list of PathObjects corresponding to the provided shapes
      */
     public static List<PathObject> createPathObjects(List<? extends Shape> shapes) {
+        logger.debug("Creating path objects from shapes {}", shapes);
+
         List<UUID> uuids = shapes.stream()
                 .map(Shape::getQuPathId)
                 .distinct()
@@ -182,6 +191,7 @@ public abstract class Shape {
             idToPathObject.put(uuid, createPathObject(shapesWithUuid));
             idToParentId.put(uuid, parentUuid.isEmpty() ? null : parentUuid.getFirst());
         }
+        logger.debug("Got ID to parent ID {} and ID to path objects {}", idToParentId, idToPathObject);
 
         List<PathObject> pathObjects = new ArrayList<>();
         for (Map.Entry<UUID, UUID> entry: idToParentId.entrySet()) {
@@ -191,6 +201,7 @@ public abstract class Shape {
                 pathObjects.add(idToPathObject.get(entry.getKey()));
             }
         }
+        logger.debug("Returning path objects {} (that may have children)", pathObjects);
 
         return pathObjects;
     }
@@ -239,11 +250,16 @@ public abstract class Shape {
      */
     protected void linkWithPathObject(PathObject pathObject, boolean fillColor) {
         this.text = String.format(
-                "%s:%s:%s:%s",
-                pathObject.isDetection() ? "Detection" : "Annotation",
-                pathObject.getPathClass() == null ? PathClass.NULL_CLASS.toString() : pathObject.getPathClass().toString().replaceAll(":","&"),
+                "%s%s%s%s%s%s%s",
+                pathObject.isDetection() ? DETECTION : ANNOTATION,
+                TEXT_DELIMITER,
+                pathObject.getPathClass() == null ?
+                        PathClass.NULL_CLASS.toString() :
+                        pathObject.getPathClass().toString().replaceAll(":", CLASS_DELIMITER),
+                TEXT_DELIMITER,
                 pathObject.getID().toString(),
-                pathObject.getParent() == null ? "NoParent" : pathObject.getParent().getID().toString()
+                TEXT_DELIMITER,
+                pathObject.getParent() == null ? NO_PARENT : pathObject.getParent().getID().toString()
         );
 
         int color = pathObject.getPathClass() == null ? PathPrefs.colorDefaultObjectsProperty().get() : pathObject.getPathClass().getColor();
@@ -259,9 +275,9 @@ public abstract class Shape {
      * @return a list of points corresponding to the input
      */
     protected static List<Point2> parseStringPoints(String pointsString) {
-        return Arrays.stream(pointsString.split(" "))
+        return Arrays.stream(pointsString.split(POINT_DELIMITER))
                 .map(pointStr -> {
-                    String[] point = pointStr.split(",");
+                    String[] point = pointStr.split(POINT_COORDINATE_DELIMITER);
                     if (point.length > 1) {
                         return new Point2(Double.parseDouble(point[0]), Double.parseDouble(point[1]));
                     } else {
@@ -273,20 +289,20 @@ public abstract class Shape {
     }
 
     /**
-     * @return the ImagePlane corresponding to this shape
-     */
-    protected ImagePlane getPlane() {
-        return c == null ? ImagePlane.getPlane(z, t) : ImagePlane.getPlaneWithChannel(c, z, t);
-    }
-
-    /**
      * Converts the specified list of {@code Point2}s into an OMERO-friendly string
      * @return string of points
      */
     protected static String pointsToString(List<Point2> points) {
         return points.stream()
-                .map(point -> point.getX() + "," + point.getY())
-                .collect(Collectors.joining (" "));
+                .map(point -> String.format("%f%s%f", point.getX(), POINT_COORDINATE_DELIMITER, point.getY()))
+                .collect(Collectors.joining(POINT_DELIMITER));
+    }
+
+    /**
+     * @return the ImagePlane corresponding to this shape
+     */
+    protected ImagePlane getPlane() {
+        return c == null ? ImagePlane.getPlane(z, t) : ImagePlane.getPlaneWithChannel(c, z, t);
     }
 
     /**
@@ -295,8 +311,8 @@ public abstract class Shape {
      */
     protected UUID getQuPathId() {
         if (this.uuid == null) {
-            if (text != null && text.split(":").length > 2) {
-                String uuid = text.split(":")[2];
+            if (text != null && text.split(TEXT_DELIMITER).length > 2) {
+                String uuid = text.split(TEXT_DELIMITER)[2];
                 try {
                     this.uuid = UUID.fromString(uuid);
                 } catch (IllegalArgumentException e) {
@@ -319,8 +335,8 @@ public abstract class Shape {
     }
 
     private Optional<UUID> getQuPathParentId() {
-        if (text != null && text.split(":").length > 3) {
-            String uuid = text.split(":")[3];
+        if (text != null && text.split(TEXT_DELIMITER).length > 3) {
+            String uuid = text.split(TEXT_DELIMITER)[3];
             try {
                 return Optional.of(UUID.fromString(uuid));
             } catch (IllegalArgumentException e) {
@@ -337,6 +353,8 @@ public abstract class Shape {
     }
 
     private static PathObject createPathObject(List<? extends Shape> shapes) {
+        logger.debug("Creating single path object from shapes {}", shapes);
+
         if (shapes.isEmpty()) {
             return null;
         }
@@ -352,7 +370,7 @@ public abstract class Shape {
         warnIfDuplicateAttribute(shapes, locked, "locked");
 
         PathObject pathObject;
-        if (types.getFirst().equals("Detection")) {
+        if (types.getFirst().equals(DETECTION)) {
             if (pathClasses.getFirst().equals(PathClass.NULL_CLASS)) {
                 pathObject = PathObjects.createDetectionObject(createRoi(shapes));
             } else {
@@ -371,6 +389,7 @@ public abstract class Shape {
         if (locked.getFirst() != null) {
             pathObject.setLocked(locked.getFirst());
         }
+        logger.debug("Created path object {} from shapes {}", pathObject, shapes);
 
         return pathObject;
     }
@@ -388,8 +407,8 @@ public abstract class Shape {
     }
 
     private PathClass getPathClass() {
-        if (text != null && text.split(":").length > 1 && !text.split(":")[1].isBlank()) {
-            List<String> names = Arrays.stream(text.split(":")[1].split("&")).toList();
+        if (text != null && text.split(TEXT_DELIMITER).length > 1 && !text.split(TEXT_DELIMITER)[1].isBlank()) {
+            List<String> names = Arrays.stream(text.split(TEXT_DELIMITER)[1].split(CLASS_DELIMITER)).toList();
 
             if (names.size() == 1 && names.getFirst().equals(PathClass.NULL_CLASS.toString())) {
                 return PathClass.NULL_CLASS;
@@ -404,12 +423,12 @@ public abstract class Shape {
     }
 
     private String getType() {
-        if (text != null && text.split(":").length > 0 && !text.split(":")[0].isBlank()) {
-            return text.split(":")[0];
+        if (text != null && text.split(TEXT_DELIMITER).length > 0 && !text.split(TEXT_DELIMITER)[0].isBlank()) {
+            return text.split(TEXT_DELIMITER)[0];
         } else {
-            logger.debug("Type not found in {}. Returning Annotation", text);
+            logger.debug("Type not found in {}. Returning {}", text, ANNOTATION);
 
-            return "Annotation";
+            return ANNOTATION;
         }
     }
 

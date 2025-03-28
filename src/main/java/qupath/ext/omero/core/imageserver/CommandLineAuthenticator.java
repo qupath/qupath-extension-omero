@@ -1,5 +1,7 @@
 package qupath.ext.omero.core.imageserver;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
 
 import java.net.URI;
@@ -9,6 +11,7 @@ import java.net.URI;
  */
 class CommandLineAuthenticator {
 
+    private static final Logger logger = LoggerFactory.getLogger(CommandLineAuthenticator.class);
     private CommandLineAuthenticator() {
         throw new AssertionError("This class is not instantiable.");
     }
@@ -31,9 +34,13 @@ class CommandLineAuthenticator {
         System.out.printf("Please provide the credentials to connect to %s%n", webServerUri);
 
         if (username == null) {
+            logger.debug("Prompting username/password to connect to {}", webServerUri);
+
             System.out.print("Username (empty if the public user should be used): ");
             username = System.console().readLine();
         } else {
+            logger.debug("Prompting password to connect to {} with username {}", webServerUri, username);
+
             System.out.printf("Username: %s%n", username);
         }
 
@@ -44,8 +51,10 @@ class CommandLineAuthenticator {
         }
 
         if (username != null && !username.isBlank() && password != null) {
+            logger.debug("Username and password detected. Assuming authentication with the provided credentials");
             return new Credentials(username, password);
         } else {
+            logger.debug("Username/password not detected. Assuming no authentication should be performed");
             return new Credentials();
         }
     }

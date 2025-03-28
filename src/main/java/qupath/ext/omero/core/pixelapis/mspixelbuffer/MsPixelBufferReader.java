@@ -30,7 +30,7 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.IntStream;
 
 /**
- * Read pixel values using the <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO Pixel Data Microservice</a>.
+ * Read pixel values using the <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO pixel buffer microservice</a>.
  */
 class MsPixelBufferReader implements PixelApiReader {
 
@@ -45,7 +45,7 @@ class MsPixelBufferReader implements PixelApiReader {
     private final int numberOfLevels;
 
     /**
-     * Create a new MsPixelBuffer reader.
+     * Create a new pixel buffer microservice reader.
      *
      * @param host the URI from which this microservice is available
      * @param apisHandler the apis handler to use when sending requests
@@ -69,11 +69,13 @@ class MsPixelBufferReader implements PixelApiReader {
         this.numberOfChannels = channels.size();
         this.colorModel = ColorModelFactory.createColorModel(pixelType, channels);
         this.numberOfLevels = numberOfLevels;
+
+        logger.debug("Created pixel buffer microservice reader for {}", host);
     }
 
     @Override
     public BufferedImage readTile(TileRequest tileRequest) throws IOException {
-        logger.debug("Reading tile {} from MS pixel buffer API", tileRequest);
+        logger.debug("Reading tile {} from pixel buffer microservice API", tileRequest);
 
         // OMERO expects resolutions to be specified in reverse order
         int level = numberOfLevels - tileRequest.getLevel() - 1;
@@ -92,6 +94,7 @@ class MsPixelBufferReader implements PixelApiReader {
         } catch (CompletionException e) {
             throw new IOException(e);
         }
+        logger.debug("Got images {} for {}. Combining them", images, tileRequest);
 
         if (numberOfChannels == 1 && pixelType.equals(PixelType.UINT8)) {
             return images.getFirst();
@@ -120,12 +123,14 @@ class MsPixelBufferReader implements PixelApiReader {
     }
 
     @Override
-    public void close() {}
+    public void close() {
+        logger.debug("Closing pixel buffer microservice reader of image with ID {}", imageID);
+    }
 
     @Override
     public String toString() {
         return String.format(
-                "Ms pixel buffer reader for image %d of %s",
+                "Pixel buffer microservice reader for image %d of %s",
                 imageID,
                 host
         );
@@ -189,7 +194,7 @@ class MsPixelBufferReader implements PixelApiReader {
                 }
                 yield  new DataBufferDouble(doubleArray, doubleArray[0].length);
             }
-            default -> throw new UnsupportedOperationException("Unsupported pixel type " + pixelType);
+            default -> throw new UnsupportedOperationException(String.format("Unsupported pixel type: %s ", pixelType));
         };
     }
 }

@@ -113,6 +113,8 @@ class IceReader implements PixelApiReader {
             default -> throw new IllegalArgumentException("Unsupported pixel type " + pixelsData.getPixelType());
         };
         colorModel = ColorModelFactory.createColorModel(pixelType, channels);
+
+        logger.debug("Created ICE reader for image with ID {}", imageId);
     }
 
     @Override
