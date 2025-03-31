@@ -71,6 +71,8 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
             if (type.equals(Image.class)) {
                 apisHandler.getThumbnail(item.id()).whenComplete((thumbnail, error) -> Platform.runLater( () -> {
                     if (error == null) {
+                        logger.debug("Got thumbnail {} for image with ID {}. Setting it to type cell", thumbnail, item.id());
+
                         WritableImage image = UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
 
                         ImageView imageView = new ImageView(image);
@@ -78,7 +80,7 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
                         imageView.setPreserveRatio(true);
                         tooltip.setGraphic(imageView);
                     } else {
-                        logger.error("Error when retrieving thumbnail of {}", item, error);
+                        logger.error("Error when retrieving thumbnail of {}. Cannot set graphic of type cell", item, error);
 
                         tooltip.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.TypeCellFactory.couldNotRetrieveIcon"));
                     }
@@ -86,10 +88,12 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
             } else {
                 apisHandler.getOmeroIcon(type).whenComplete((icon, error) -> Platform.runLater(() -> {
                     if (error == null) {
+                        logger.debug("Got OMERO icon {} for {}. Setting it to type cell", icon, type);
+
                         UiUtilities.paintBufferedImageOnCanvas(icon, canvas);
                         tooltip.setText(item.name());
                     } else {
-                        logger.error("Error while retrieving icon", error);
+                        logger.error("Error while retrieving icon for {}. Cannot set graphic of type cell", type, error);
 
                         tooltip.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.TypeCellFactory.couldNotRetrieveIcon"));
                     }

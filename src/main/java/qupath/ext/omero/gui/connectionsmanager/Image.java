@@ -16,6 +16,7 @@ import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -32,45 +33,50 @@ class Image extends HBox {
     private Canvas thumbnail;
 
     /**
-     * Creates an Image label.
+     * Creates an image label.
      *
      * @param apisHandler the apis handler to use when making requests
      * @param imageUri the URI of the image
      * @throws IOException if an error occurs while creating the window
      */
     public Image(ApisHandler apisHandler, URI imageUri) throws IOException {
+        logger.debug("Creating image label for {}", imageUri);
         this.imageUri = imageUri;
 
         UiUtilities.loadFXML(this, Image.class.getResource("image.fxml"));
 
-        var imageID = ApisHandler.parseEntity(imageUri).map(ServerEntity::getId);
-        if (imageID.isPresent()) {
-            apisHandler.getImage(imageID.get())
-                    .whenComplete((image, error) -> {
-                        if (image == null) {
-                            logger.error("Error when retrieving image of ID {}", imageID.get(), error);
-                        } else {
-                            Platform.runLater(() -> name.setText(image.getLabel()));
-                        }
-                    });
+        Optional<Long> imageId = ApisHandler.parseEntity(imageUri).map(ServerEntity::getId);
+        if (imageId.isPresent()) {
+            logger.debug("Found image ID {} in {}. Fetching image label and thumbnail", imageId.get(), imageUri);
 
-            apisHandler.getThumbnail(imageID.get(), (int) thumbnail.getWidth())
-                    .whenComplete((thumbnail, error) -> {
-                        if (thumbnail == null) {
-                            logger.error("Error when retrieving thumbnail", error);
-                        } else {
-                            Platform.runLater(() -> UiUtilities.paintBufferedImageOnCanvas(thumbnail, this.thumbnail));
-                        }
-                    });
+            apisHandler.getImage(imageId.get()).whenComplete((image, error) -> {
+                if (image == null) {
+                    logger.error("Error when retrieving image of ID {}. Cannot set label", imageId.get(), error);
+                } else {
+                    logger.debug("Got {} when retrieving image of ID {}. Setting label", image, imageId);
+                    Platform.runLater(() -> name.setText(image.getLabel()));
+                }
+            });
+
+            apisHandler.getThumbnail(imageId.get(), (int) thumbnail.getWidth()).whenComplete((thumbnail, error) -> {
+                if (thumbnail == null) {
+                    logger.error("Error when retrieving thumbnail of ID {}. Cannot set thumbnail", imageId, error);
+                } else {
+                    logger.debug("Got thumbnail {} of image with ID {}. Setting thumbnail", thumbnail, imageId);
+                    Platform.runLater(() -> UiUtilities.paintBufferedImageOnCanvas(thumbnail, this.thumbnail));
+                }
+            });
         } else {
             logger.warn("Cannot find image ID in {}. This image label won't show any image", imageUri);
         }
 
+        logger.debug("Checking if {} is reachable", imageUri);
         apisHandler.isLinkReachable(imageUri, RequestSender.RequestType.GET).whenComplete((v, error) -> {
             if (error == null) {
+                logger.debug("Image {} reachable", imageUri);
                 setStatus(imageUri.toString(), true);
             } else {
-                logger.debug("Cannot reach {}. Considering this image not reachable", imageUri, error);
+                logger.debug("Cannot reach {}. Considering the image not reachable", imageUri, error);
                 setStatus(resources.getString("ConnectionsManager.Image.unreachableImage"), false);
             }
         });

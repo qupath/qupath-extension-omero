@@ -74,17 +74,16 @@ class BrowserModel {
         selectedOwner = new SimpleObjectProperty<>(server.getConnectedOwner());
         selectedGroup = new SimpleObjectProperty<>(server.getDefaultGroup());
 
-        client.getApisHandler().getOrphanedImagesIds()
-                .handle((orphanedImageIds, error) -> {
-                    if (error == null) {
-                        return orphanedImageIds.size();
-                    } else {
-                        logger.error("Error when retrieving orphanedImages ids", error);
-                        return 0;
-                    }
-                }).thenAccept(numberOfOrphanedImages -> Platform.runLater(() ->
-                    this.numberOfOrphanedImages.set(numberOfOrphanedImages))
-                );
+        client.getApisHandler().getOrphanedImagesIds().handle((orphanedImageIds, error) -> {
+            if (error == null) {
+                return orphanedImageIds.size();
+            } else {
+                logger.error("Error when retrieving orphanedImages ids", error);
+                return 0;
+            }
+        }).thenAccept(numberOfOrphanedImages -> Platform.runLater(() ->
+                        this.numberOfOrphanedImages.set(numberOfOrphanedImages))
+        );
     }
 
     /**

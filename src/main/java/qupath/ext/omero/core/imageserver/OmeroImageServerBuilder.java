@@ -336,11 +336,10 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     .filter(client -> client.getApisHandler().getWebServerURI().getHost().equals(uri.getHost()))
                     .map(client -> {
                         try {
-                            client.getApisHandler().isLinkReachable(
-                                    new URI(client.getApisHandler().getEntityUri(entity)),
-                                    RequestSender.RequestType.GET
-                            ).get();
-                            logger.debug("{} can access entity with ID {}. Using it", client, entity.getId());
+                            URI entityUri = new URI(client.getApisHandler().getEntityUri(entity));
+                            client.getApisHandler().isLinkReachable(entityUri, RequestSender.RequestType.GET).get();
+
+                            logger.debug("{} is reachable. {} can access entity with ID {}. Using it", entityUri, client, entity.getId());
                             return client;
                         } catch (ExecutionException | InterruptedException | URISyntaxException e) {
                             logger.debug("{} cannot access entity with ID {}. Skipping it", client, entity.getId(), e);

@@ -92,6 +92,17 @@ public class Server implements RepositoryEntity {
     }
 
     @Override
+    public String toString() {
+        return String.format(
+                "Server containing groups %s, owners %s, connected owner %s and default group %s",
+                groups,
+                owners,
+                connectedOwner,
+                defaultGroup
+        );
+    }
+
+    @Override
     public boolean hasChildren() {
         return true;
     }

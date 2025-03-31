@@ -52,6 +52,8 @@ class Settings extends Stage {
      * @throws IOException if an error occurs while creating the window
      */
     public Settings(Stage ownerWindow, Client client) throws IOException {
+        logger.debug("Creating settings window for {}", client);
+
         this.msPixelBufferApi = client.getPixelAPI(MsPixelBufferApi.class);
         this.webApi = client.getPixelAPI(WebApi.class);
         this.iceApi = client.getPixelAPI(IceApi.class);
@@ -64,6 +66,8 @@ class Settings extends Stage {
      * Reset the text fields of this window to the values of the pixel APIs
      */
     public void resetEntries() {
+        logger.debug("Resetting entries to values of pixel APIs");
+
         msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferApi.getPort().get()));
         webJpegQuality.setText(String.valueOf(webApi.getJpegQuality().get()));
         omeroAddress.setText(iceApi.getServerAddress().get());
@@ -90,16 +94,18 @@ class Settings extends Stage {
         webJpegQuality.setTextFormatter(new TextFormatter<>(floatFilter));
         webJpegQuality.rightProperty().bind(Bindings.createObjectBinding(
                 () -> {
+                    logger.trace("Setting right icon for web JPEG quality");
                     try {
                         float quality = Float.parseFloat(webJpegQuality.getText());
                         if (quality >= 0 && quality <= 1) {
+                            logger.trace("Web JPEG quality {} between 0 and 1. No error icon to display", quality);
                             return null;
                         } else {
-                            logger.debug("JPEG quality {} not between 0 and 1", quality);
+                            logger.trace("JPEG quality {} not between 0 and 1. Showing error icon", quality);
                             return new Label("❌");
                         }
                     } catch (NumberFormatException e) {
-                        logger.debug("Cannot convert JPEG quality {} to float", webJpegQuality.getText(), e);
+                        logger.trace("Cannot convert JPEG quality {} to float. Showing error icon", webJpegQuality.getText(), e);
                         return new Label("❌");
                     }
                 },
@@ -136,9 +142,11 @@ class Settings extends Stage {
                 keyEvent -> {
                     switch (keyEvent.getCode()) {
                         case ENTER:
+                            logger.debug("Enter key pressed. Saving settings");
                             onOKClicked(null);
                             break;
                         case ESCAPE:
+                            logger.debug("Escape key pressed. Closing settings window");
                             close();
                             break;
                     }
@@ -147,6 +155,8 @@ class Settings extends Stage {
     }
 
     private boolean save() {
+        logger.debug("Saving settings");
+
         try {
             webApi.setJpegQuality(Float.parseFloat(webJpegQuality.getText()));
         } catch (IllegalArgumentException e) {
@@ -184,6 +194,7 @@ class Settings extends Stage {
             return false;
         }
 
+        logger.debug("Settings saved");
         Dialogs.showInfoNotification(
                 resources.getString("Browser.ServerBrowser.Settings.saved"),
                 resources.getString("Browser.ServerBrowser.Settings.parametersSaved")

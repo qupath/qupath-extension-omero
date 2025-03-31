@@ -130,6 +130,8 @@ public class AdvancedSearch extends Stage {
 
     @FXML
     private void onSearchClicked(ActionEvent ignoredEvent) {
+        logger.debug("Search started");
+
         ProgressIndicator progressIndicator = new ProgressIndicator();
         progressIndicator.setPrefSize(PROGRESS_INDICATOR_SIZE, PROGRESS_INDICATOR_SIZE);
 
@@ -171,6 +173,7 @@ public class AdvancedSearch extends Stage {
 
     @FXML
     private void onImportButtonClicked(ActionEvent ignoredEvent) {
+        logger.debug("Import button clicked. Importing selected images");
         importSelectedImages();
     }
 
@@ -262,6 +265,7 @@ public class AdvancedSearch extends Stage {
 
         results.setOnMouseClicked(mouseEvent -> {
             if (mouseEvent.getClickCount() == 2) {
+                logger.debug("Double click on results detected. Importing selected images");
                 importSelectedImages();
             }
         });
@@ -278,9 +282,11 @@ public class AdvancedSearch extends Stage {
                 keyEvent -> {
                     switch (keyEvent.getCode()) {
                         case ENTER:
+                            logger.debug("Enter key pressed. Starting search");
                             onSearchClicked(null);
                             break;
                         case ESCAPE:
+                            logger.debug("Escape key pressed. Closing advanced search window");
                             close();
                             break;
                     }

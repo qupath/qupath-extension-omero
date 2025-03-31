@@ -77,7 +77,7 @@ class Browser extends Stage {
     private static final ResourceBundle resources = Utils.getResources();
     private final Client client;
     private final Server server;
-    private final Consumer<Client> openClientBrowser;
+    private final Consumer<Client> onClientCreated;
     private final BrowserModel browserModel;
     @FXML
     private Label serverHost;
@@ -136,13 +136,16 @@ class Browser extends Stage {
      * @param owner the owner of this window
      * @param client the client which will be used by this browser to retrieve data from the corresponding OMERO server
      * @param server the server of the client
-     * @param openClientBrowser a function that will be called to request opening the browser of a client
+     * @param onClientCreated a function that will be called if this browser creates a new client. It will be called from
+     *                        the JavaFX Application Thread
      * @throws IOException if an error occurs while creating the browser
      */
-    public Browser(Stage owner, Client client, Server server, Consumer<Client> openClientBrowser) throws IOException {
+    public Browser(Stage owner, Client client, Server server, Consumer<Client> onClientCreated) throws IOException {
+        logger.debug("Creating browser for {}", client);
+
         this.client = client;
         this.server = server;
-        this.openClientBrowser = openClientBrowser;
+        this.onClientCreated = onClientCreated;
         this.browserModel = new BrowserModel(client, server);
 
         UiUtilities.loadFXML(this, Browser.class.getResource("browser.fxml"));
@@ -161,12 +164,16 @@ class Browser extends Stage {
             return;
         }
 
+        logger.debug("Login button clicked. Creating login form with no credentials");
         try {
             new LoginForm(
                     this,
                     client.getApisHandler().getWebServerURI(),
                     null,
-                    client -> Platform.runLater(() -> openClientBrowser.accept(client))
+                    client -> Platform.runLater(() -> {
+                        logger.debug("Client {} created from login button of browser", client);
+                        onClientCreated.accept(client);
+                    })
             ).show();
         } catch (IOException e) {
             logger.error("Error while creating the login server form", e);
@@ -183,12 +190,16 @@ class Browser extends Stage {
             return;
         }
 
+        logger.debug("Logout button clicked. Creating login form with public user credentials");
         try {
             new LoginForm(
                     this,
                     client.getApisHandler().getWebServerURI(),
                     new Credentials(),
-                    client -> Platform.runLater(() -> openClientBrowser.accept(client))
+                    client -> Platform.runLater(() -> {
+                        logger.debug("Client {} created from logout button of browser", client);
+                        onClientCreated.accept(client);
+                    })
             ).show();
         } catch (IOException e) {
             logger.error("Error while creating the login server form", e);
@@ -198,13 +209,15 @@ class Browser extends Stage {
     @FXML
     private void onSettingsClicked(ActionEvent ignoredEvent) {
         if (settings == null) {
+            logger.debug("Settings window not created. Creating and showing it");
             try {
                 settings = new Settings(this, client);
-
             } catch (IOException e) {
                 logger.error("Error while creating the settings window", e);
             }
         } else {
+            logger.debug("Settings window created. Showing it");
+
             if (settings.isShowing()) {
                 settings.requestFocus();
             } else {
@@ -221,6 +234,7 @@ class Browser extends Stage {
             RepositoryEntity selectedObject = selectedItem == null ? null : selectedItem.getValue();
 
             if (selectedObject instanceof Image image && image.isSupported().get()) {
+                logger.debug("Double click on tree detected while {} is selected and supported. Opening it", image);
                 UiUtilities.openImages(List.of(client.getApisHandler().getEntityUri(image)));
             }
         }
@@ -231,42 +245,47 @@ class Browser extends Stage {
         var selectedItem = hierarchy.getSelectionModel().getSelectedItem();
 
         if (selectedItem != null && selectedItem.getValue() instanceof ServerEntity serverEntity) {
-            client.getApisHandler().getAnnotations(serverEntity.getId(), serverEntity.getClass())
-                    .exceptionally(error -> {
-                        logger.error("Error while retrieving annotations", error);
+            logger.debug("More info menu clicked on {}. Fetching annotations of it", serverEntity);
 
-                        Platform.runLater(() -> Dialogs.showErrorMessage(
-                                resources.getString("Browser.ServerBrowser.cantDisplayInformation"),
-                                MessageFormat.format(
-                                        resources.getString("Browser.ServerBrowser.errorWhenFetchingInformation"),
-                                        serverEntity.getLabel(),
-                                        error.getLocalizedMessage()
-                                )
-                        ));
+            client.getApisHandler().getAnnotations(serverEntity.getId(), serverEntity.getClass()).whenComplete((annotations, error) -> Platform.runLater(() -> {
+                if (annotations == null) {
+                    logger.error("Error while retrieving annotations of {}. Cannot open advanced information window", serverEntity, error);
 
-                        return null;
-                    }).thenAccept(annotations -> Platform.runLater(() -> {
-                        if (annotations != null) {
-                            try {
-                                new AdvancedInformation(this, serverEntity, annotations);
-                            } catch (IOException e) {
-                                logger.error("Error while creating the advanced information window", e);
-                            }
-                        }
-                    }));
+                    Dialogs.showErrorMessage(
+                            resources.getString("Browser.ServerBrowser.cantDisplayInformation"),
+                            MessageFormat.format(
+                                    resources.getString("Browser.ServerBrowser.errorWhenFetchingInformation"),
+                                    serverEntity.getLabel(),
+                                    error.getLocalizedMessage()
+                            )
+                    );
+                    return;
+                }
+
+                logger.debug("Got annotations {} for {}. Opening advanced information window", annotations, serverEntity);
+                try {
+                    new AdvancedInformation(this, serverEntity, annotations);
+                } catch (IOException e) {
+                    logger.error("Error while creating the advanced information window", e);
+                }
+            }));
         }
     }
 
     @FXML
     private void onOpenInBrowserMenuClicked(ActionEvent ignoredEvent) {
         var selectedItem = hierarchy.getSelectionModel().getSelectedItem();
+
         if (selectedItem != null && selectedItem.getValue() instanceof ServerEntity serverEntity) {
+            logger.debug("Open in browser menu clicked on {}. Opening it", serverEntity);
             QuPathGUI.openInBrowser(client.getApisHandler().getEntityUri(serverEntity));
         }
     }
 
     @FXML
     private void onCopyToClipboardMenuClicked(ActionEvent ignoredEvent) {
+        logger.debug("Copy to clipboard menu clicked on {}. Getting URIs of them", hierarchy.getSelectionModel().getSelectedItems());
+
         List<String> URIs = hierarchy.getSelectionModel().getSelectedItems().stream()
                 .map(item -> {
                     if (item.getValue() instanceof ServerEntity serverEntity) {
@@ -278,25 +297,28 @@ class Browser extends Stage {
                 .filter(Objects::nonNull)
                 .toList();
 
-        if (!URIs.isEmpty()) {
-            ClipboardContent content = new ClipboardContent();
-            if (URIs.size() == 1) {
-                content.putString(URIs.getFirst());
-            } else {
-                content.putString("[" + String.join(", ", URIs) + "]");
-            }
-            Clipboard.getSystemClipboard().setContent(content);
-
-            Dialogs.showInfoNotification(
-                    resources.getString("Browser.ServerBrowser.copyURIToClipboard"),
-                    resources.getString("Browser.ServerBrowser.uriSuccessfullyCopied")
-            );
-        } else {
+        if (URIs.isEmpty()) {
+            logger.debug("No URI found. Nothing will be copied to clipboard");
             Dialogs.showWarningNotification(
                     resources.getString("Browser.ServerBrowser.copyURIToClipboard"),
                     resources.getString("Browser.ServerBrowser.itemNeedsSelected")
             );
+            return;
         }
+
+        ClipboardContent content = new ClipboardContent();
+        if (URIs.size() == 1) {
+            content.putString(URIs.getFirst());
+        } else {
+            content.putString("[" + String.join(", ", URIs) + "]");
+        }
+        Clipboard.getSystemClipboard().setContent(content);
+        logger.debug("{} copied to clipboard", content);
+
+        Dialogs.showInfoNotification(
+                resources.getString("Browser.ServerBrowser.copyURIToClipboard"),
+                resources.getString("Browser.ServerBrowser.uriSuccessfullyCopied")
+        );
     }
 
     @FXML
@@ -305,14 +327,16 @@ class Browser extends Stage {
     }
 
     @FXML
-    private void onAdvancedClicked(ActionEvent ignoredEvent) {
+    private void onAdvancedSearchClicked(ActionEvent ignoredEvent) {
         if (advancedSearch == null) {
+            logger.debug("Advanced search button clicked but advanced search window doesn't exist. Creating and showing it");
             try {
                 advancedSearch = new AdvancedSearch(this, client.getApisHandler(), server);
             } catch (IOException e) {
                 logger.error("Error while creating the settings window", e);
             }
         } else {
+            logger.debug("Advanced search button clicked and advanced search window already exists. Showing it");
             advancedSearch.show();
             advancedSearch.requestFocus();
         }
@@ -320,6 +344,8 @@ class Browser extends Stage {
 
     @FXML
     private void onImportButtonClicked(ActionEvent ignoredEvent) {
+        logger.debug("Import button clicked. Opening server entities in selected items {}", hierarchy.getSelectionModel().getSelectedItems());
+
         UiUtilities.openImages(
                 hierarchy.getSelectionModel().getSelectedItems().stream()
                         .map(TreeItem::getValue)
@@ -552,16 +578,17 @@ class Browser extends Stage {
 
         var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
         if (selectedItems.size() == 1 && selectedItems.getFirst() != null && selectedItems.getFirst().getValue() instanceof Image image) {
-            client.getApisHandler().getThumbnail(image.getId())
-                    .exceptionally(error -> {
-                        logger.error("Error when retrieving thumbnail", error);
-                        return null;
-                    })
-                    .thenAccept(thumbnail -> Platform.runLater(() -> {
-                        if (thumbnail != null) {
-                            UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
-                        }
-                    }));
+            logger.debug("One image {} is selected. Fetching its thumbnail", image);
+
+            client.getApisHandler().getThumbnail(image.getId()).whenComplete((thumbnail, error) -> Platform.runLater(() ->{
+                if (thumbnail == null) {
+                    logger.error("Error when retrieving thumbnail of {}. Cannot update canvas", image, error);
+                    return;
+                }
+
+                logger.debug("Got thumbnail {} for {}. Updating canvas with it", thumbnail, image);
+                UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+            }));
         }
     }
 
@@ -570,10 +597,12 @@ class Browser extends Stage {
 
         var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
         if (selectedItems.size() == 1 && selectedItems.getFirst() != null && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
+            logger.debug("One server entity {} selected. Updating description", serverEntity);
             description.getItems().setAll(
                     IntStream.rangeClosed(0, serverEntity.getNumberOfAttributes()).boxed().collect(Collectors.toList())
             );
         } else {
+            logger.debug("Zero or more than one server entity selected. Clearing description");
             description.getItems().clear();
         }
     }
@@ -594,13 +623,16 @@ class Browser extends Stage {
         importImage.setDisable(importableEntities.isEmpty());
 
         if (importableEntities.isEmpty()) {
+            logger.debug("No importable entity selected. Disabling import button");
             importImage.setText(resources.getString("Browser.ServerBrowser.cantImportSelectedToQuPath"));
         } else if (importableEntities.size() == 1) {
+            logger.debug("One importable entity selected {}. Enabling import button", importableEntities.getFirst());
             importImage.setText(MessageFormat.format(
                     resources.getString("Browser.ServerBrowser.importToQuPath"),
                     importableEntities.getFirst().getLabel()
             ));
         } else {
+            logger.debug("Several importable entity selected {}. Enabling import button", importableEntities);
             importImage.setText(resources.getString("Browser.ServerBrowser.importSelectedToQuPath"));
         }
     }

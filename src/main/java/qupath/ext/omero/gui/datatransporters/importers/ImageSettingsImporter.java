@@ -42,6 +42,7 @@ public class ImageSettingsImporter implements DataTransporter {
      * @param quPath the quPath window
      */
     public ImageSettingsImporter(QuPathGUI quPath) {
+        logger.debug("Creating image settings importer for {}", quPath);
         this.quPath = quPath;
     }
 
@@ -57,8 +58,9 @@ public class ImageSettingsImporter implements DataTransporter {
 
     @Override
     public void transportData() {
-        QuPathViewer viewer = quPath.getViewer();
+        logger.debug("Attempting to import image settings from OMERO");
 
+        QuPathViewer viewer = quPath.getViewer();
         if (!(viewer.getServer() instanceof OmeroImageServer omeroImageServer)) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
@@ -84,6 +86,7 @@ public class ImageSettingsImporter implements DataTransporter {
         );
         List<ImageSettingsForm.Choice> selectedChoices = imageSettingsForm.getSelectedChoices();
         if (!confirmed || selectedChoices.isEmpty()) {
+            logger.debug("Importing image settings dialog not confirmed or no choice selected. Not importing image settings");
             return;
         }
 
@@ -99,19 +102,20 @@ public class ImageSettingsImporter implements DataTransporter {
         }
         waitingWindow.show();
 
-        omeroImageServer.getClient().getApisHandler().getImageSettings(omeroImageServer.getId()).exceptionally(error -> {
-            logger.error("Error while retrieving image settings", error);
-            return null;
-        }).thenAccept(imageSettings -> Platform.runLater(() -> {
+        logger.debug("Getting image settings from image with ID {}", omeroImageServer.getId());
+        omeroImageServer.getClient().getApisHandler().getImageSettings(omeroImageServer.getId()).whenComplete((imageSettings, error) -> Platform.runLater(() -> {
             waitingWindow.close();
 
             if (imageSettings == null) {
+                logger.error("Error while retrieving image settings. Cannot import image settings", error);
+
                 Dialogs.showErrorMessage(
                         resources.getString("DataTransporters.ImageSettingsImporter.importImageSettings"),
                         resources.getString("DataTransporters.ImageSettingsImporter.couldNotGetImage")
                 );
                 return;
             }
+            logger.debug("Got image settings {} for image with ID {}", imageSettings, omeroImageServer.getId());
 
             StringBuilder successMessage = new StringBuilder();
             StringBuilder errorMessage = new StringBuilder();
@@ -180,51 +184,70 @@ public class ImageSettingsImporter implements DataTransporter {
         }));
     }
 
+    @Override
+    public String toString() {
+        return String.format("Image settings importer for %s", quPath);
+    }
+
     private static boolean changeImageName(QuPathGUI quPath, ImageData<BufferedImage> imageData, String imageName) {
         Project<BufferedImage> project = quPath.getProject();
 
-        if (project != null && project.getEntry(imageData) != null) {
+        if (project == null || project.getEntry(imageData) == null) {
+            logger.warn("Current project null or project entry of {} null. Cannot change image name", imageData);
+
+            return false;
+        } else {
+            logger.debug("Changing image name of {} to {}", project.getEntry(imageData), imageName);
+
             project.getEntry(imageData).setImageName(imageName);
             return true;
-        } else {
-            return false;
         }
     }
 
     private static boolean changeChannelNames(OmeroImageServer omeroImageServer, QuPathViewer viewer, List<ChannelSettings> channelSettings) {
         List<ImageChannel> channels = omeroImageServer.getMetadata().getChannels();
-        List<String> newChannelNames = channelSettings.stream().map(ChannelSettings::name).toList();
 
-        if (channels.size() == newChannelNames.size()) {
+        if (channels.size() == channelSettings.size()) {
+            List<ImageChannel> newChannels = IntStream.range(0, channels.size())
+                    .mapToObj(i -> ImageChannel.getInstance(channelSettings.get(i).name(), channels.get(i).getColor()))
+                    .toList();
+            logger.debug("Updating channel names from {} to {}", channels, newChannels);
+
             viewer.getImageData().updateServerMetadata(new ImageServerMetadata.Builder(omeroImageServer.getMetadata())
-                    .channels(IntStream.range(0, channels.size())
-                            .mapToObj(i -> ImageChannel.getInstance(newChannelNames.get(i), channels.get(i).getColor()))
-                            .toList()
-                    )
+                    .channels(newChannels)
                     .build()
             );
             return true;
         } else {
+            logger.warn(
+                    "The number of channels returned by OMERO {} doesn't match the number of channels of the image {}. Cannot change channel names",
+                    channelSettings,
+                    channels
+            );
             return false;
         }
     }
 
     private static boolean changeChannelColors(OmeroImageServer omeroImageServer, QuPathViewer viewer, List<ChannelSettings> channelSettings) {
         List<ImageChannel> channels = omeroImageServer.getMetadata().getChannels();
-        List<Integer> newChannelColors = channelSettings.stream()
-                .map(ChannelSettings::rgbColor)
-                .toList();
 
-        if (channels.size() == newChannelColors.size()) {
+        if (channels.size() == channelSettings.size()) {
+            List<ImageChannel> newChannels = IntStream.range(0, channels.size())
+                    .mapToObj(i -> ImageChannel.getInstance(channels.get(i).getName(), channelSettings.get(i).rgbColor()))
+                    .toList();
+            logger.debug("Updating channel colors from {} to {}", channels, newChannels);
+
             viewer.getImageData().updateServerMetadata(new ImageServerMetadata.Builder(omeroImageServer.getMetadata())
-                    .channels(IntStream.range(0, channels.size())
-                            .mapToObj(i -> ImageChannel.getInstance(channels.get(i).getName(), newChannelColors.get(i)))
-                            .toList()
-                    )
+                    .channels(newChannels)
                     .build()
             );
             return true;
         } else {
+            logger.warn(
+                    "The number of channels returned by OMERO {} doesn't match the number of channels of the image {}. Cannot change channel colors",
+                    channelSettings,
+                    channels
+            );
             return false;
         }
     }
@@ -235,6 +258,13 @@ public class ImageSettingsImporter implements DataTransporter {
 
         if (channels.size() == channelSettings.size()) {
             for (int i=0; i<channels.size(); i++) {
+                logger.debug(
+                        "Setting min display of {} to {} and max to {}",
+                        channels.get(i),
+                        channelSettings.get(i).minDisplayRange(),
+                        channelSettings.get(i).maxDisplayRange()
+                );
+
                 display.setMinMaxDisplay(
                         channels.get(i),
                         (float) channelSettings.get(i).minDisplayRange(),
@@ -243,6 +273,11 @@ public class ImageSettingsImporter implements DataTransporter {
             }
             return true;
         } else {
+            logger.warn(
+                    "The number of channels returned by OMERO {} doesn't match the number of channels of the image {}. Cannot change channel display ranges",
+                    channelSettings,
+                    channels
+            );
             return false;
         }
     }

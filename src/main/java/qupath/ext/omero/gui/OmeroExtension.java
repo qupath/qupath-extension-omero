@@ -4,6 +4,8 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.scene.control.SeparatorMenuItem;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.gui.browser.BrowseMenu;
 import qupath.ext.omero.gui.datatransporters.DataTransporterMenu;
@@ -36,6 +38,7 @@ import java.util.ResourceBundle;
  */
 public class OmeroExtension implements QuPathExtension {
 
+	private static final Logger logger = LoggerFactory.getLogger(OmeroExtension.class);
 	private static final ResourceBundle resources = Utils.getResources();
 	private static final BooleanProperty autoKvpImportProperty = PathPrefs.createPersistentPreference(
 			"omero_ext.auto_kvp_import",
@@ -46,6 +49,7 @@ public class OmeroExtension implements QuPathExtension {
 	@Override
 	public synchronized void installExtension(QuPathGUI quPath) {
 		if (browseMenu == null) {
+			logger.debug("Installing OMERO extension");
 			browseMenu = new BrowseMenu(quPath.getStage());
 
 			MenuTools.addMenuItems(quPath.getMenu("Extensions", false),

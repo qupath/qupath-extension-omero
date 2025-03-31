@@ -16,6 +16,7 @@ import qupath.ext.omero.gui.login.LoginForm;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ResourceBundle;
 
@@ -38,6 +39,7 @@ public class BrowseMenu extends Menu {
      * @param owner the window owning this menu
      */
     public BrowseMenu(Stage owner) {
+        logger.debug("Creating browse menu");
         this.owner = owner;
 
         initUI();
@@ -58,6 +60,7 @@ public class BrowseMenu extends Menu {
 
         newServerItem.setOnAction(ignoredEvent -> {
             if (loginForm == null) {
+                logger.debug("Login form not created. Creating and showing it");
                 try {
                     loginForm = new LoginForm(
                             owner,
@@ -70,6 +73,7 @@ public class BrowseMenu extends Menu {
                     logger.error("Error while creating the login server form", e);
                 }
             } else {
+                logger.debug("Login form already created. Showing it");
                 loginForm.show();
                 loginForm.requestFocus();
             }
@@ -83,9 +87,14 @@ public class BrowseMenu extends Menu {
     }
 
     private void createURIItems() {
+        List<ServerPreference> serverPreferences = PreferencesManager.getServerPreferences();
+        logger.debug("Resetting URI items to show {}", serverPreferences);
+
         getItems().clear();
 
-        for (ServerPreference serverPreference: PreferencesManager.getServerPreferences()) {
+        for (ServerPreference serverPreference: serverPreferences) {
+            logger.debug("Adding URI item for {}", serverPreference.webServerUri());
+
             BrowserCommand browserCommand = getBrowserCommand(serverPreference.webServerUri());
 
             MenuItem clientMenuItem = new MenuItem(serverPreference.webServerUri().toString());

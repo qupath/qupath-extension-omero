@@ -6,6 +6,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
@@ -16,6 +18,7 @@ import java.io.IOException;
  */
 public class WaitingWindow extends Stage {
 
+    private static final Logger logger = LoggerFactory.getLogger(WaitingWindow.class);
     private final Runnable onCancelClicked;
     @FXML
     private Label label;
@@ -33,6 +36,7 @@ public class WaitingWindow extends Stage {
      * @throws IOException if an error occurs while getting the FXML file of this window
      */
     public WaitingWindow(Stage owner, String label, Runnable onCancelClicked) throws IOException {
+        logger.debug("Creating waiting window for {}", label);
         this.onCancelClicked = onCancelClicked;
 
         UiUtilities.loadFXML(this, WaitingWindow.class.getResource("waiting_window.fxml"));
@@ -62,6 +66,7 @@ public class WaitingWindow extends Stage {
 
     @FXML
     private void onCancelClicked(ActionEvent ignored) {
+        logger.debug("Cancel button clicked. Closing waiting window");
         close();
 
         if (onCancelClicked != null) {

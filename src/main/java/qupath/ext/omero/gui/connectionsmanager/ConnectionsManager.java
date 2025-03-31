@@ -37,10 +37,12 @@ public class ConnectionsManager extends Stage {
      * Creates the connection manager window.
      *
      * @param owner the stage that should own this window
-     * @param openClientBrowser a function that will be called to request opening the browser of a client
+     * @param openClientBrowser a function that will be called to request opening the browser of a client. It will be
+     *                          called from the JavaFX Application Thread
      * @throws IOException if an error occurs while creating the window
      */
     public ConnectionsManager(Stage owner, Consumer<Client> openClientBrowser) throws IOException {
+        logger.debug("Creating connections manager window");
         this.openClientBrowser = openClientBrowser;
 
         initUI(owner);
@@ -68,8 +70,9 @@ public class ConnectionsManager extends Stage {
     private void populate() {
         List<Client> clients = Client.getClients();
         List<URI> serverPreferenceUris = PreferencesManager.getServerPreferences().stream().map(ServerPreference::webServerUri).toList();
+        logger.debug("Populating {} and {} to connection manager children {}", clients, serverPreferenceUris, container.getChildren());
 
-        container.getChildren().removeAll(container.getChildren().stream()
+        List<Connection> connectionsToRemove = container.getChildren().stream()
                 .filter(node -> node instanceof Connection)
                 .map(node -> (Connection) node)
                 .filter(connection -> connection.getClient()
@@ -78,8 +81,9 @@ public class ConnectionsManager extends Stage {
                                 clients.stream().map(client -> client.getApisHandler().getWebServerURI()).toList().contains(connection.getServerURI())
                         )
                 )
-                .toList()
-        );
+                .toList();
+        container.getChildren().removeAll(connectionsToRemove);
+        logger.debug("Removed connections {}", connectionsToRemove.stream().map(Connection::getServerURI).toList());
 
         for (Client client: clients) {
             if (container.getChildren().stream()
@@ -88,6 +92,7 @@ public class ConnectionsManager extends Stage {
                     .noneMatch(connection -> client.equals(connection.getClient().orElse(null)))) {
                 try {
                     container.getChildren().add(new Connection(this, client, openClientBrowser));
+                    logger.debug("Added connection with client {}", client);
                 } catch (IOException e) {
                     logger.error("Error while creating connection pane", e);
                 }
@@ -101,6 +106,7 @@ public class ConnectionsManager extends Stage {
                     .noneMatch(connection -> uri.equals(connection.getServerURI()))) {
                 try {
                     container.getChildren().add(new Connection(this, uri, openClientBrowser));
+                    logger.debug("Added connection with URI {}", uri);
                 } catch (IOException e) {
                     logger.error("Error while creating connection pane", e);
                 }

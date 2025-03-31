@@ -85,7 +85,7 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
                 try {
                     tooltip.setGraphic(new ImageTooltip(image, apisHandler));
                 } catch (IOException e) {
-                    logger.error("Error while creating image tooltip", e);
+                    logger.error("Error while creating image tooltip of {}", repositoryEntity, e);
                 }
             }
 
@@ -97,7 +97,7 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
         if (ACCEPTED_ICONS_TYPES.contains(type)) {
             apisHandler.getOmeroIcon(type).whenComplete((icon, error) -> Platform.runLater(() -> {
                 if (icon == null) {
-                    logger.error("Error while retrieving icon {}", type, error);
+                    logger.error("Error while retrieving icon of {}. Cannot set graphic of hierarchy cell", type, error);
                 } else {
                     logger.debug("Got icon {} for {}. Setting it to graphic", icon, type);
                     UiUtilities.paintBufferedImageOnCanvas(icon, iconCanvas);

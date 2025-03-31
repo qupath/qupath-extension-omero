@@ -157,36 +157,42 @@ public class UiUtilities {
                     resources.getString("UiUtilities.noImages"),
                     resources.getString("UiUtilities.noValidImagesInSelected")
             );
-        } else {
-            if (QuPathGUI.getInstance().getProject() == null) {
-                if (uris.size() == 1) {
-                    try {
-                        QuPathGUI.getInstance().openImage(QuPathGUI.getInstance().getViewer(), uris.getFirst(), true, true);
-                    } catch (IOException e) {
-                        logger.error("Could not open image", e);
-                    }
-                } else {
-                    Dialogs.showErrorMessage(
-                            resources.getString("UiUtilities.openImages"),
-                            resources.getString("UiUtilities.createProjectFirst")
-                    );
+            return;
+        }
+
+        logger.debug("Opening images contained in {}", uris);
+        if (QuPathGUI.getInstance().getProject() == null) {
+            if (uris.size() == 1) {
+                logger.debug("No project detected and one URI {} provided: opening image in current viewer", uris);
+                try {
+                    QuPathGUI.getInstance().openImage(QuPathGUI.getInstance().getViewer(), uris.getFirst(), true, true);
+                } catch (IOException e) {
+                    logger.error("Could not open image {}", uris.getFirst(), e);
                 }
             } else {
-                List<ProjectImageEntry<BufferedImage>> entries = ProjectCommands.promptToImportImages(
-                        QuPathGUI.getInstance(),
-                        ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream().filter(b -> b instanceof OmeroImageServerBuilder).findAny().orElse(null),
-                        uris.toArray(String[]::new)
+                logger.debug("No project detected and more than one URI {} provided: cannot open images", uris);
+                Dialogs.showErrorMessage(
+                        resources.getString("UiUtilities.openImages"),
+                        resources.getString("UiUtilities.createProjectFirst")
                 );
+            }
+        } else {
+            logger.debug("Project currently open: adding {} to it", uris);
 
-                if (OmeroExtension.getAutoKvpImportProperty().get()) {
-                    logger.debug("Automatically importing key-value pairs and parent dataset information");
+            List<ProjectImageEntry<BufferedImage>> entries = ProjectCommands.promptToImportImages(
+                    QuPathGUI.getInstance(),
+                    ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream().filter(b -> b instanceof OmeroImageServerBuilder).findAny().orElse(null),
+                    uris.toArray(String[]::new)
+            );
 
-                    for (ProjectImageEntry<BufferedImage> entry: entries) {
-                        importKeyValuePairsAndParentContainer(entry);
-                    }
-                } else {
-                    logger.debug("Skipping automatic import of key-value pairs and parent dataset information");
+            if (OmeroExtension.getAutoKvpImportProperty().get()) {
+                logger.debug("Automatically importing key-value pairs and parent dataset information");
+
+                for (ProjectImageEntry<BufferedImage> entry: entries) {
+                    importKeyValuePairsAndParentContainer(entry);
                 }
+            } else {
+                logger.debug("Skipping automatic import of key-value pairs and parent dataset information");
             }
         }
     }
@@ -304,64 +310,67 @@ public class UiUtilities {
 
     private static void importKeyValuePairsAndParentContainer(ProjectImageEntry<BufferedImage> projectEntry) {
         CompletableFuture.runAsync(() -> {
+            logger.debug("Importing KVP and parent container ID and name to {}", projectEntry);
+
             try (ImageServer<BufferedImage> server = projectEntry.getServerBuilder().build()) {
                 if (!(server instanceof OmeroImageServer omeroImageServer)) {
                     logger.debug("{} is not an OMERO image server. Skipping KVP and parent container info import", server);
                     return;
                 }
 
-                omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class)
-                        .whenComplete(((annotationGroup, error) -> {
-                            if (error != null) {
-                                logger.debug(
-                                        "Cannot retrieve annotations of image with ID {}. Skipping key-value pairs import",
-                                        omeroImageServer.getId()
-                                );
-                                return;
-                            }
+                logger.debug("Getting annotations of image with ID {}", omeroImageServer.getId());
+                omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).whenComplete(((annotationGroup, error) -> {
+                    if (annotationGroup == null) {
+                        logger.debug(
+                                "Cannot retrieve annotations of image with ID {}. Skipping key-value pairs import",
+                                omeroImageServer.getId()
+                        );
+                        return;
+                    }
 
-                            List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
-                                    .filter(mapAnnotation ->
+                    List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+                            .filter(mapAnnotation ->
                                             mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(Namespace.getDefaultNamespace())
-                                    )
-                                    .map(MapAnnotation::getPairs)
-                                    .flatMap(List::stream)
-                                    .toList();
-                            Platform.runLater(() -> {
-                                logger.debug("Adding key-value pairs {} to {} metadata", keyValues, projectEntry);
+                            )
+                            .map(MapAnnotation::getPairs)
+                            .flatMap(List::stream)
+                            .toList();
+                    Platform.runLater(() -> {
+                        logger.debug("Adding key-value pairs {} to {} metadata", keyValues, projectEntry);
 
-                                for (MapAnnotation.Pair pair : keyValues) {
-                                    if (projectEntry.getMetadata().containsKey(pair.key())) {
-                                        logger.debug("Cannot add {} to image entry metadata because the same key already exists", pair);
-                                    } else {
-                                        projectEntry.getMetadata().put(pair.key(), pair.value());
-                                    }
-                                }
-                            });
-                        }));
-
-                omeroImageServer.getClient().getApisHandler().getDatasetOwningImage(omeroImageServer.getId())
-                        .whenComplete((dataset, error) -> {
-                            if (error != null) {
-                                logger.debug(
-                                        "Cannot retrieve dataset owning image with ID {}. Skipping parent container info import",
-                                        omeroImageServer.getId()
-                                );
-                                return;
+                        for (MapAnnotation.Pair pair : keyValues) {
+                            if (projectEntry.getMetadata().containsKey(pair.key())) {
+                                logger.debug("Cannot add {} to {} because the same key already exists", pair, projectEntry);
+                            } else {
+                                projectEntry.getMetadata().put(pair.key(), pair.value());
+                                logger.debug("{} added to {}", pair, projectEntry);
                             }
+                        }
+                    });
+                }));
 
-                            logger.debug("Adding dataset {} to {} metadata", dataset, projectEntry);
-                            Platform.runLater(() -> {
-                                projectEntry.getMetadata().put(DATASET_ID_LABEL, String.valueOf(dataset.getId()));
-                                projectEntry.getMetadata().put(DATASET_NAME_LABEL, dataset.getAttributeValue(0));
-                            });
-                        });
+                logger.debug("Getting parent dataset of image with ID {}", omeroImageServer.getId());
+                omeroImageServer.getClient().getApisHandler().getDatasetOwningImage(omeroImageServer.getId()).whenComplete((dataset, error) -> {
+                    if (dataset == null) {
+                        logger.debug(
+                                "Cannot retrieve dataset owning image with ID {}. Skipping parent container info import",
+                                omeroImageServer.getId()
+                        );
+                        return;
+                    }
+
+                    Platform.runLater(() -> {
+                        logger.debug("Adding dataset {} ID and name to {} metadata", dataset, projectEntry);
+                        projectEntry.getMetadata().put(DATASET_ID_LABEL, String.valueOf(dataset.getId()));
+                        projectEntry.getMetadata().put(DATASET_NAME_LABEL, dataset.getAttributeValue(0));
+                    });
+                });
             } catch (Exception e) {
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
                 }
 
-                logger.debug("Cannot create image server. Skipping KVP and parent container info import", e);
+                logger.debug("Cannot create image server. Skipping KVP and parent container info import for {}", projectEntry, e);
             }
         });
     }

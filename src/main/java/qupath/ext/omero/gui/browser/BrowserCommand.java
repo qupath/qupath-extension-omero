@@ -27,7 +27,7 @@ class BrowserCommand implements Runnable {
     private static final ResourceBundle resources = Utils.getResources();
     private final URI uri;
     private final Stage owner;
-    private final Consumer<Client> openClientBrowser;
+    private final Consumer<Client> onClientCreated;
     private Browser browser;
     private Client client;
     private LoginForm loginForm;
@@ -37,22 +37,22 @@ class BrowserCommand implements Runnable {
      *
      * @param uri the URI of the web client which will be used by the browser to retrieve data from the corresponding OMERO server
      * @param owner the window owning this command
-     * @param openClientBrowser a function that will be called to request opening the browser of a client
+     * @param onClientCreated a function that will be called if this browser command creates a new client. It will be called from
+     *                        the JavaFX Application Thread
      */
-    public BrowserCommand(URI uri, Stage owner, Consumer<Client> openClientBrowser) {
+    public BrowserCommand(URI uri, Stage owner, Consumer<Client> onClientCreated) {
+        logger.debug("Creating browser command for {}", uri);
         this.uri = uri;
         this.owner = owner;
-        this.openClientBrowser = openClientBrowser;
+        this.onClientCreated = onClientCreated;
 
         Client.addListenerToClients(() -> Platform.runLater(() -> {
-            if (client != null) {
-                if (!Client.getClients().contains(client)) {
-                    if (browser != null) {
-                        browser.close();
-                    }
-                    browser = null;
-                    client = null;
+            if (client != null && !Client.getClients().contains(client)) {
+                if (browser != null) {
+                    browser.close();
                 }
+                browser = null;
+                client = null;
             }
         }));
     }
@@ -60,6 +60,7 @@ class BrowserCommand implements Runnable {
     @Override
     public void run() {
         if (browser != null) {
+            logger.debug("Browser already exists. Showing it");
             browser.show();
             browser.requestFocus();
             return;
@@ -69,11 +70,13 @@ class BrowserCommand implements Runnable {
                 .filter(client -> client.getApisHandler().getWebServerURI().equals(uri))
                 .findAny();
         if (existingClient.isPresent()) {
+            logger.debug("Browser doesn't exist but client {} already exists. Using it to create browser", existingClient.get());
             createBrowser(existingClient.get());
             return;
         }
 
         if (loginForm == null) {
+            logger.debug("Browser doesn't exist and login form doesn't exist. Creating and showing login form");
             try {
                 loginForm = new LoginForm(
                         owner,
@@ -86,6 +89,7 @@ class BrowserCommand implements Runnable {
                 logger.error("Error while creating the login server form", e);
             }
         } else {
+            logger.debug("Browser doesn't exist but login form already exists. Showing it");
             loginForm.show();
             loginForm.requestFocus();
         }
@@ -106,43 +110,43 @@ class BrowserCommand implements Runnable {
             return;
         }
 
+        logger.debug("Getting server to create browser for {}", client);
         waitingWindow.show();
-        client.getServer()
-                .exceptionally(error -> {
-                    logger.error("Cannot get server information on {}", uri, error);
-                    return null;
-                })
-                .thenAccept(server -> {
-                    Platform.runLater(waitingWindow::close);
+        client.getServer().whenComplete((server, error) -> {
+            Platform.runLater(waitingWindow::close);
 
-                    if (server == null) {
-                        try {
-                            client.close();
-                        } catch (Exception e) {
-                            logger.error("Error while closing client", e);
+            if (server == null) {
+                logger.error("Cannot get server information on {}, so cannot create browser. Closing client", client, error);
 
-                            if (e instanceof InterruptedException) {
-                                Thread.currentThread().interrupt();
-                            }
-                        }
+                try {
+                    client.close();
+                } catch (Exception e) {
+                    logger.error("Error while closing client", e);
 
-                        Platform.runLater(() -> Dialogs.showErrorMessage(
-                                resources.getString("Browser.BrowserCommand.omeroError"),
-                                MessageFormat.format(
-                                        resources.getString("Browser.BrowserCommand.cannotGetServerInformation"),
-                                        uri
-                                )
-                        ));
-                    } else {
-                        Platform.runLater(() -> {
-                            try {
-                                this.browser = new Browser(owner, client, server, openClientBrowser);
-                                this.client = client;
-                            } catch (IOException e) {
-                                logger.error("Error while creating the browser", e);
-                            }
-                        });
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
                     }
-                });
+                }
+
+                Platform.runLater(() -> Dialogs.showErrorMessage(
+                        resources.getString("Browser.BrowserCommand.omeroError"),
+                        MessageFormat.format(
+                                resources.getString("Browser.BrowserCommand.cannotGetServerInformation"),
+                                uri
+                        )
+                ));
+                return;
+            }
+
+            logger.debug("Server {} of {} retrieved. Creating corresponding browser", server, client);
+            Platform.runLater(() -> {
+                try {
+                    this.browser = new Browser(owner, client, server, onClientCreated);
+                    this.client = client;
+                } catch (IOException e) {
+                    logger.error("Error while creating the browser", e);
+                }
+            });
+        });
     }
 }

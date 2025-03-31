@@ -315,10 +315,10 @@ public class ApisHandler implements AutoCloseable {
         return parseEntity(entityUri).map(entity -> {
             for (var entry: classToUrisProvider.entrySet()) {
                 if (entity.getClass().equals(entry.getKey())) {
-                    logger.debug("{} refers to a {}. Retrieving all images URIs belonging to it", entityUri, entry.getClass());
+                    logger.debug("{} refers to a {}. Retrieving all images URIs belonging to it", entityUri, entity.getClass());
                     return entry.getValue().apply(entity.getId());
                 } else {
-                    logger.debug("{} does no refer to a {}. Skipping it", entityUri, entry.getClass());
+                    logger.debug("{} does no refer to a {}. Skipping it", entityUri, entity.getClass());
                 }
             }
             logger.debug("{} does not refer to anything that contains image URIs", entityUri);

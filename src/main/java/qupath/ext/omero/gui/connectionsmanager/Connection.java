@@ -69,7 +69,8 @@ class Connection extends VBox {
      *
      * @param owner the window that owns this pane
      * @param client the client corresponding to the connection with the server
-     * @param openClientBrowser a function that will be called to request opening the browser of a client
+     * @param openClientBrowser a function that will be called to request opening the browser of a client. It will be
+     *                          called from the JavaFX Application Thread
      * @throws IOException if an error occurs while creating the pane
      */
     public Connection(Stage owner, Client client, Consumer<Client> openClientBrowser) throws IOException {
@@ -83,7 +84,8 @@ class Connection extends VBox {
      *
      * @param owner the window that owns this pane
      * @param serverURI the URI of the server
-     * @param openClientBrowser a function that will be called to request opening the browser of a client
+     * @param openClientBrowser a function that will be called to request opening the browser of a client. It will be
+     *                          called from the JavaFX Application Thread
      * @throws IOException if an error occurs while creating the pane
      */
     public Connection(Stage owner, URI serverURI, Consumer<Client> openClientBrowser) throws IOException {
@@ -91,6 +93,7 @@ class Connection extends VBox {
     }
 
     private Connection(Stage owner, Client client, URI serverURI, Consumer<Client> openClientBrowser) throws IOException {
+        logger.debug("Creating connection pane for {}", client == null ? serverURI : client);
         this.owner = owner;
         this.client = client;
         this.serverURI = serverURI;
@@ -118,12 +121,15 @@ class Connection extends VBox {
     @FXML
     private void onBrowseClicked(ActionEvent ignoredEvent) {
         if (client != null) {
+            logger.debug("Browse button clicked while client {} not null. Opening its browser", client);
             openClientBrowser.accept(client);
         }
     }
 
     @FXML
     private void onConnectClicked(ActionEvent ignoredEvent) {
+        logger.debug("Connection button clicked. Creating login form with (potential) saved credentials");
+
         try {
             new LoginForm(
                     getScene().getWindow(),
@@ -156,6 +162,7 @@ class Connection extends VBox {
         }
 
         try {
+            logger.debug("Login button clicked. Creating login form with no credentials");
             new LoginForm(
                     getScene().getWindow(),
                     serverURI,
@@ -197,6 +204,7 @@ class Connection extends VBox {
             return;
         }
 
+        logger.debug("Disconnect button clicked. Disconnecting from {}", client);
         disconnect();
     }
 
@@ -217,7 +225,10 @@ class Connection extends VBox {
             return;
         }
 
-        if (client != null) {
+        if (client == null) {
+            logger.debug("Remove button clicked. Removing {} from preferences", serverURI);
+        } else {
+            logger.debug("Remove button clicked. Disconnecting from {} and removing {} from preferences", client, serverURI);
             disconnect();
         }
         PreferencesManager.removeServer(serverURI);
@@ -304,6 +315,7 @@ class Connection extends VBox {
         }
         waitingWindow.show();
 
+        logger.debug("Closing client {}", client);
         CompletableFuture.runAsync(() -> {
             try {
                 client.close();
@@ -315,6 +327,7 @@ class Connection extends VBox {
                 }
             }
 
+            logger.debug("Client {} closed", client);
             Platform.runLater(waitingWindow::close);
         });
     }

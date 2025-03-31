@@ -3,6 +3,8 @@ package qupath.ext.omero.gui.datatransporters;
 import javafx.beans.binding.Bindings;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.lib.gui.QuPathGUI;
 
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.List;
  */
 public class DataTransporterMenu extends Menu {
 
+    private static final Logger logger = LoggerFactory.getLogger(DataTransporterMenu.class);
     /**
      * Create the data transporter menu.
      *
@@ -20,14 +23,12 @@ public class DataTransporterMenu extends Menu {
      * @param transporters  the list of {@link DataTransporter} to represent
      */
     public DataTransporterMenu(String title, QuPathGUI quPath, List<DataTransporter> transporters) {
+        logger.debug("Creating data transporter menu with {}", transporters);
+
         setText(title);
 
         disableProperty().bind(quPath.imageDataProperty().isNull());
 
-        setItems(quPath, transporters);
-    }
-
-    private void setItems(QuPathGUI quPath, List<DataTransporter> transporters) {
         getItems().addAll(transporters.stream()
                 .map(dataTransporter -> {
                     MenuItem menuItem = new MenuItem(dataTransporter.getMenuTitle());

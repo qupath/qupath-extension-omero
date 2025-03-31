@@ -39,6 +39,7 @@ public class ImageSettingsSender implements DataTransporter {
      * @param quPath the quPath window
      */
     public ImageSettingsSender(QuPathGUI quPath) {
+        logger.debug("Creating image settings sender for {}", quPath);
         this.quPath = quPath;
     }
 
@@ -54,8 +55,9 @@ public class ImageSettingsSender implements DataTransporter {
 
     @Override
     public void transportData() {
-        QuPathViewer viewer = quPath.getViewer();
+        logger.debug("Attempting to send image settings to OMERO");
 
+        QuPathViewer viewer = quPath.getViewer();
         if (viewer == null || !(viewer.getServer() instanceof OmeroImageServer omeroImageServer)) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
@@ -72,10 +74,6 @@ public class ImageSettingsSender implements DataTransporter {
             );
         } catch (IOException e) {
             logger.error("Error when creating the image settings form", e);
-            Dialogs.showErrorMessage(
-                    resources.getString("DataTransporters.ImageSettingsSender.sendImageSettings"),
-                    e.getLocalizedMessage()
-            );
             return;
         }
 
@@ -84,6 +82,7 @@ public class ImageSettingsSender implements DataTransporter {
                 imageSettingsForm
         );
         if (!confirmed || imageSettingsForm.getSelectedChoices().isEmpty()) {
+            logger.debug("Sending image settings dialog not confirmed or no selected option. Not sending image settings");
             return;
         }
 
@@ -146,46 +145,77 @@ public class ImageSettingsSender implements DataTransporter {
         }));
     }
 
+    @Override
+    public String toString() {
+        return String.format("Image settings sender for %s", quPath);
+    }
+
     private static Map<ImageSettingsForm.Choice, CompletableFuture<Void>> createRequests(
             List<ImageSettingsForm.Choice> selectedChoices,
             OmeroImageServer omeroImageServer,
             QuPathViewer viewer
     ) {
-        return selectedChoices.stream()
-                .collect(Collectors.toMap(Function.identity(), choice -> switch (choice) {
-                    case IMAGE_NAME -> omeroImageServer.getClient().getApisHandler().changeImageName(
-                            omeroImageServer.getId(),
-                            omeroImageServer.getMetadata().getName()
-                    );
-                    case CHANNEL_NAMES -> omeroImageServer.getClient().getApisHandler().changeChannelNames(
-                            omeroImageServer.getId(),
-                            omeroImageServer.getMetadata().getChannels().stream().map(ImageChannel::getName).toList()
-                    );
-                    case CHANNEL_COLORS -> omeroImageServer.getClient().getApisHandler().changeChannelColors(
-                            omeroImageServer.getId(),
-                            omeroImageServer.getMetadata().getChannels().stream()
-                                    .map(ImageChannel::getColor)
-                                    .toList()
-                    );
-                    case CHANNEL_DISPLAY_RANGES -> omeroImageServer.getClient().getApisHandler().changeChannelDisplayRanges(
-                            omeroImageServer.getId(),
-                            viewer.getImageDisplay().availableChannels().stream()
-                                    .map(channel -> new ChannelSettings(channel.getMinDisplay(), channel.getMaxDisplay()))
-                                    .toList()
-                    );
-                }));
+        return selectedChoices.stream().collect(Collectors.toMap(Function.identity(), choice -> switch (choice) {
+            case IMAGE_NAME -> {
+                logger.debug("Changing image name of image with ID {} to {}", omeroImageServer.getId(), omeroImageServer.getMetadata().getName());
+
+                yield omeroImageServer.getClient().getApisHandler().changeImageName(
+                    omeroImageServer.getId(),
+                    omeroImageServer.getMetadata().getName()
+            );
+            }
+            case CHANNEL_NAMES -> {
+                logger.debug("Changing channel names of image with ID {} to {}", omeroImageServer.getId(), omeroImageServer.getMetadata().getChannels());
+
+                yield omeroImageServer.getClient().getApisHandler().changeChannelNames(
+                    omeroImageServer.getId(),
+                    omeroImageServer.getMetadata().getChannels().stream().map(ImageChannel::getName).toList()
+            );
+            }
+            case CHANNEL_COLORS -> {
+                logger.debug("Changing channel colors of image with ID {} to {}", omeroImageServer.getId(), omeroImageServer.getMetadata().getChannels());
+
+                yield omeroImageServer.getClient().getApisHandler().changeChannelColors(
+                    omeroImageServer.getId(),
+                    omeroImageServer.getMetadata().getChannels().stream()
+                            .map(ImageChannel::getColor)
+                            .toList()
+            );
+            }
+            case CHANNEL_DISPLAY_RANGES -> {
+                logger.debug("Changing channel display ranges of image with ID {} to {}", omeroImageServer.getId(), viewer.getImageDisplay().availableChannels());
+
+                yield omeroImageServer.getClient().getApisHandler().changeChannelDisplayRanges(
+                    omeroImageServer.getId(),
+                    viewer.getImageDisplay().availableChannels().stream()
+                            .map(channel -> new ChannelSettings(channel.getMinDisplay(), channel.getMaxDisplay()))
+                            .toList()
+            );
+            }
+        }));
     }
 
     private static void logErrors(Map<ImageSettingsForm.Choice, Throwable> errors) {
         for (Map.Entry<ImageSettingsForm.Choice, Throwable> error: errors.entrySet()) {
-            if (error.getValue() != null) {
-                logger.error(
-                        "Error while sending {}", switch (error.getKey()) {
+            if (error.getValue() == null) {
+                logger.debug(
+                        "The operation sending {} succeeded",
+                        switch (error.getKey()) {
                             case IMAGE_NAME -> "image name";
                             case CHANNEL_NAMES -> "channel names";
                             case CHANNEL_COLORS -> "channel colors";
                             case CHANNEL_DISPLAY_RANGES -> "channel display ranges";
-                            },
+                        }
+                );
+            } else {
+                logger.error(
+                        "Error while sending {}",
+                        switch (error.getKey()) {
+                            case IMAGE_NAME -> "image name";
+                            case CHANNEL_NAMES -> "channel names";
+                            case CHANNEL_COLORS -> "channel colors";
+                            case CHANNEL_DISPLAY_RANGES -> "channel display ranges";
+                        },
                         error.getValue()
                 );
             }
