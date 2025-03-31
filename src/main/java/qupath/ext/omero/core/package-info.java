@@ -6,33 +6,20 @@
  *         provides generic methods to send HTTP requests to a server.
  *     </li>
  *     <li>
- *         The {@link qupath.ext.omero.core.PreferencesManager PreferencesManager}
+ *         The {@link qupath.ext.omero.core.preferences preferences} package
  *         stores server information in a permanent way. This is useful for the user to not have to write again server URIs
  *         after each application restart.
  *     </li>
  *     <li>
- *         The {@link qupath.ext.omero.core.WebClients WebClients} class handle all active connections.
- *         Connections should be created and removed using this class.
+ *         The {@link qupath.ext.omero.core.Client Client} class handle all active connections
+ *         and is used to perform any operation related to a server.
  *     </li>
  *     <li>
- *         The {@link qupath.ext.omero.core.WebClient WebClient} class represents an active connection.
- *         It is used to perform any operation related to the related server.
- *     </li>
- *     <li>
- *         The {@link qupath.ext.omero.core.apis apis} package contains requests that can made to an active
- *         connection.
- *     </li>
- *     <li>
- *         The {@link qupath.ext.omero.core.entities entities} package contains classes representing objects
- *         required or returned by some requests.
- *     </li>
- *     <li>
- *         The {@link qupath.ext.omero.core.imageserver ImageServers} package contains the
+ *         The {@link qupath.ext.omero.core.imageserver ImageServer} package contains the
  *         {@link qupath.lib.images.servers.ImageServer ImageServer} used when opening images coming from OMERO servers.
  *     </li>
  *     <li>
- *         The {@link qupath.ext.omero.core.pixelapis pixelapis} package contains different methods to read
- *         the pixel values of an image.
+ *         Other classes and packages are used internally by the entities described above.
  *     </li>
  * </ul>
  */

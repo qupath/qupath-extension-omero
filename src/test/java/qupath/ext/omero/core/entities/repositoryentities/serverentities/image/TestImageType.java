@@ -4,24 +4,22 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
-
 public class TestImageType {
 
     @Test
     void Check_Empty() {
         ImageType imageType = new Gson().fromJson("{}", ImageType.class);
 
-        Optional<String> value = imageType.getValue();
+        String value = imageType.value();
 
-        Assertions.assertTrue(value.isEmpty());
+        Assertions.assertNull(value);
     }
 
     @Test
     void Check_Value() {
         ImageType imageType = createImageType();
 
-        String value = imageType.getValue().orElse("");
+        String value = imageType.value();
 
         Assertions.assertEquals("uint8", value);
     }

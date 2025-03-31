@@ -21,12 +21,11 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 /**
- * This API uses the <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO Pixel Data Microservice</a>
+ * This API uses the <a href="https://github.com/glencoesoftware/omero-ms-pixel-buffer">OMERO pixel buffer microservice</a>
  * to access pixel values of an image. Any image can be used, and pixel values are accurate.
  * However, the server needs to have this microservice installed.
  */
@@ -42,13 +41,15 @@ public class MsPixelBufferApi implements PixelApi {
     private String host;
 
     /**
-     * Creates a new MsPixelBufferApi. Note that {@link #isAvailable()} may take a few seconds to
+     * Creates a new pixel buffer microservice API. Note that {@link #isAvailable()} may take a few seconds to
      * be accurate (it will be false by default and true if a request succeeds, which may take some
      * time).
      *
      * @param apisHandler the apis handler owning this API
      */
     public MsPixelBufferApi(ApisHandler apisHandler) {
+        logger.debug("Creating pixel buffer microservice API with {}", apisHandler);
+
         this.apisHandler = apisHandler;
         this.port = new SimpleIntegerProperty(
                 PreferencesManager.getMsPixelBufferPort(apisHandler.getWebServerURI()).orElse(DEFAULT_PORT)
@@ -108,18 +109,19 @@ public class MsPixelBufferApi implements PixelApi {
      */
     @Override
     public PixelApiReader createReader(long imageId, ImageServerMetadata metadata, List<String> args) {
+        logger.debug("Creating pixel buffer microservice reader to open image with ID {} with args {}", imageId, args);
+
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        ArgsUtils.findArgInList(PORT_PARAMETER, args)
-                .ifPresent(port -> {
-                    try {
-                        setPort(Integer.parseInt(port), true);
-                    } catch (IllegalArgumentException e) {
-                        logger.warn("Can't use provided port {}", port, e);
-                    }
-                });
+        ArgsUtils.findArgInList(PORT_PARAMETER, args).ifPresent(port -> {
+            try {
+                setPort(Integer.parseInt(port), true);
+            } catch (IllegalArgumentException e) {
+                logger.warn("Can't use provided port {}", port, e);
+            }
+        });
 
         return new MsPixelBufferReader(
                 host,
@@ -147,7 +149,7 @@ public class MsPixelBufferApi implements PixelApi {
 
     @Override
     public String toString() {
-        return String.format("Ms pixel buffer API of %s", apisHandler.getWebServerURI());
+        return String.format("Pixel buffer microservice API of %s", apisHandler.getWebServerURI());
     }
 
     @Override
@@ -182,74 +184,67 @@ public class MsPixelBufferApi implements PixelApi {
                 apisHandler.getWebServerURI(),
                 port
         );
-        logger.debug("Ms pixel buffer server port changed to {}", port);
+        logger.debug("Pixel buffer microservice server port changed to {}", port);
 
         setHost();
         setAvailable(!checkAvailabilityNow);
     }
 
     private void setHost() {
-        Optional<URI> uri = changePortOfURI(apisHandler.getWebServerURI(), port.get());
-        if (uri.isPresent()) {
-            host = uri.get().toString();
-        } else {
+        URI uri = apisHandler.getWebServerURI();
+        try {
+            host = new URI(
+                    uri.getScheme(),
+                    uri.getUserInfo(),
+                    uri.getHost(),
+                    port.get(),
+                    uri.getPath(),
+                    uri.getQuery(),
+                    uri.getFragment()
+            ).toString();
+            logger.debug("Pixel buffer microservice server host changed to {}", host);
+        } catch (URISyntaxException e) {
             host = apisHandler.getWebServerURI().toString();
+            logger.debug("Cannot create URI. Pixel buffer microservice server host changed to default value {}", host, e);
         }
-
-        logger.debug("Ms pixel buffer server host changed to {}", host);
     }
 
     private void setAvailable(boolean performInBackground) {
+        logger.debug("Checking availability of pixel buffer microservice for {}", apisHandler);
+
         String url = String.format("%s/tile", host);
         URI uri;
         try {
             uri = new URI(url);
         } catch (URISyntaxException e) {
-            logger.error("Cannot create URI from {}", url, e);
+            logger.error("Cannot create URI from {}. Considering pixel buffer microservice unavailable", url, e);
+
             synchronized (this) {
                 isAvailable.set(false);
             }
             return;
         }
 
-        CompletableFuture<Void> request = apisHandler.isLinkReachable(uri, RequestSender.RequestType.OPTIONS).handle((v, error) -> {
+        CompletableFuture<Void> request = apisHandler.isLinkReachable(uri, RequestSender.RequestType.OPTIONS).whenComplete((v, error) -> {
             if (error == null) {
                 synchronized (this) {
+                    logger.debug("Request to {} succeeded. Considering pixel buffer microservice available", uri);
                     isAvailable.set(true);
                 }
             } else {
-                logger.debug("Connexion to {} failed", uri, error);
+                logger.debug("Connexion to {} failed. Considering pixel buffer microservice unavailable", uri, error);
                 synchronized (this) {
                     isAvailable.set(false);
                 }
             }
-
-            logger.debug("Ms pixel buffer availability changed to {}", isAvailable.get());
-            return null;
         });
 
         if (!performInBackground) {
             try {
                 request.get();
             } catch (ExecutionException | InterruptedException e) {
-                logger.debug("Connexion to {} failed", uri, e);
+                // already logged above
             }
-        }
-    }
-
-    private static Optional<URI> changePortOfURI(URI uri, int port) {
-        try {
-            return Optional.of(new URI(
-                    uri.getScheme(),
-                    uri.getUserInfo(),
-                    uri.getHost(),
-                    port,
-                    uri.getPath(),
-                    uri.getQuery(),
-                    uri.getFragment()
-            ));
-        } catch (URISyntaxException e) {
-            return Optional.empty();
         }
     }
 }

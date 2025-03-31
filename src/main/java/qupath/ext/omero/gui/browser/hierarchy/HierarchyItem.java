@@ -10,6 +10,8 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.scene.control.TreeItem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
@@ -21,9 +23,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
@@ -37,6 +37,7 @@ import java.util.function.Predicate;
  */
 public class HierarchyItem extends TreeItem<RepositoryEntity> {
 
+    private static final Logger logger = LoggerFactory.getLogger(HierarchyItem.class);
     private static final Map<Class<? extends RepositoryEntity>, Integer> CLASS_ORDER = Map.of(
             Project.class, 1,
             Dataset.class, 2,
@@ -78,14 +79,22 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
 
         expandedProperty().addListener((p, o, n) -> {
             if (n && !computed) {
+                logger.debug("Item of {} expanded for the first time. Getting its children", getValue());
                 computed = true;
 
                 children.setAll(getValue().getChildren().stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
                 getValue().getChildren().addListener((ListChangeListener<? super RepositoryEntity>) change -> Platform.runLater(() -> {
-                    // Make a copy of the children to make sure no one is added while iterating
-                    List<? extends RepositoryEntity> newChildren = new ArrayList<>(getValue().getChildren());
-
-                    children.setAll(newChildren.stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
+                    while (change.next()) {
+                        if (change.wasAdded()) {
+                            children.addAll(change.getAddedSubList().stream()
+                                    .map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate))
+                                    .toList()
+                            );
+                        }
+                        if (change.wasRemoved()) {
+                            children.removeAll(children.stream().filter(item -> change.getRemoved().contains(item.getValue())).toList());
+                        }
+                    }
                 }));
 
                 filteredChildren.predicateProperty().bind(Bindings.createObjectBinding(

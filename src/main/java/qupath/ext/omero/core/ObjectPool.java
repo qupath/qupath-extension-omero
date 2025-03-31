@@ -20,16 +20,16 @@ import java.util.function.Supplier;
  * <p>
  * This class is thread-safe.
  *
- * @param <E>  the type of object to store
+ * @param <T> the type of object to store
  */
-public class ObjectPool<E> implements AutoCloseable {
+public class ObjectPool<T> implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectPool.class);
     private final ExecutorService objectCreationService = Executors.newCachedThreadPool();
-    private final ArrayBlockingQueue<E> queue;
+    private final ArrayBlockingQueue<T> queue;
     private final int queueSize;
-    private final Supplier<E> objectCreator;
-    private final Consumer<E> objectCloser;
+    private final Supplier<T> objectCreator;
+    private final Consumer<T> objectCloser;
     private int numberOfObjectsCreated = 0;
     private record ObjectWrapper<V>(Optional<V> object, boolean useThisObject) {}
 
@@ -40,7 +40,7 @@ public class ObjectPool<E> implements AutoCloseable {
      * @param objectCreator a function to create an object. It is allowed to return null
      * @throws IllegalArgumentException when size is less than 1
      */
-    public ObjectPool(int size, Supplier<E> objectCreator) {
+    public ObjectPool(int size, Supplier<T> objectCreator) {
         this(size, objectCreator, null);
     }
 
@@ -52,8 +52,10 @@ public class ObjectPool<E> implements AutoCloseable {
      * @param objectCloser a function that will be called on each object of this pool when it is closed
      * @throws IllegalArgumentException when size is less than 1
      */
-    public ObjectPool(int size, Supplier<E> objectCreator, Consumer<E> objectCloser) {
-        queue = new ArrayBlockingQueue<>(size);
+    public ObjectPool(int size, Supplier<T> objectCreator, Consumer<T> objectCloser) {
+        logger.debug("Creating object pool of size {}", size);
+
+        this.queue = new ArrayBlockingQueue<>(size);
         this.queueSize = size;
         this.objectCreator = objectCreator;
         this.objectCloser = objectCloser;
@@ -71,6 +73,8 @@ public class ObjectPool<E> implements AutoCloseable {
      */
     @Override
     public void close() throws Exception {
+        logger.debug("Closing object pool");
+
         objectCreationService.shutdown();
         objectCreationService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 
@@ -104,18 +108,22 @@ public class ObjectPool<E> implements AutoCloseable {
      * @throws InterruptedException  when creating an object or waiting for an object to become available is interrupted
      * @throws ExecutionException  when an error occurs while creating an object
      */
-    public Optional<E> get() throws InterruptedException, ExecutionException {
-        E object = queue.poll();
+    public Optional<T> get() throws InterruptedException, ExecutionException {
+        logger.trace("Getting object from pool");
+        T object = queue.poll();
 
         if (object == null) {
-            ObjectWrapper<E> objectWrapper = computeObjectIfPossible().get();
+            ObjectWrapper<T> objectWrapper = computeObjectIfPossible().get();
 
             if (objectWrapper.useThisObject()) {
+                logger.trace("Object {} created. Returning it", objectWrapper.object());
                 return objectWrapper.object();
             } else {
+                logger.trace("Pool empty and the maximum number of objects have been created. Waiting for an object to become available");
                 return Optional.of(queue.take());
             }
         } else {
+            logger.trace("The pool was not empty, so the object {} was retrieved from the pool", object);
             return Optional.of(object);
         }
     }
@@ -126,19 +134,21 @@ public class ObjectPool<E> implements AutoCloseable {
      *
      * @param object the object to give back. Nothing will happen if the object is null
      */
-    public void giveBack(E object) {
+    public void giveBack(T object) {
         if (object != null) {
+            logger.trace("Object {} gave back to pool", object);
             queue.offer(object);
         }
     }
 
-    private synchronized CompletableFuture<ObjectWrapper<E>> computeObjectIfPossible() {
+    private synchronized CompletableFuture<ObjectWrapper<T>> computeObjectIfPossible() {
         if (numberOfObjectsCreated < queueSize) {
+            logger.trace("Pool empty but another object can be created. Doing that");
             numberOfObjectsCreated++;
 
             return CompletableFuture.supplyAsync(
                     () -> {
-                        E object = null;
+                        T object = null;
 
                         try {
                             object = objectCreator.get();

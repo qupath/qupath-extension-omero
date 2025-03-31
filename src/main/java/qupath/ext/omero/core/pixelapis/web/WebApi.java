@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This API uses the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">OMERO JSON API</a>
+ * This API uses the <a href="https://docs.openmicroscopy.org/omero/latest/developers/json-api.html">OMERO JSON API</a>
  * to access pixel values of an image. It doesn't have dependencies but can only work with 8-bit RGB images, and the
  * images are JPEG-compressed.
  */
@@ -38,6 +38,8 @@ public class WebApi implements PixelApi {
      * @param apisHandler the api handler owning this API
      */
     public WebApi(ApisHandler apisHandler) {
+        logger.debug("Creating web API with {}", apisHandler);
+
         this.apisHandler = apisHandler;
         this.jpegQuality = new SimpleFloatProperty(
                 PreferencesManager.getWebJpegQuality(apisHandler.getWebServerURI()).orElse(DEFAULT_JPEG_QUALITY)
@@ -107,18 +109,19 @@ public class WebApi implements PixelApi {
      */
     @Override
     public PixelApiReader createReader(long imageId, ImageServerMetadata metadata, List<String> args) {
+        logger.debug("Creating web API reader to open image with ID {} with args {}", imageId, args);
+
         if (!canReadImage(metadata.getPixelType(), metadata.getSizeC())) {
             throw new IllegalArgumentException("The provided image cannot be read by this API");
         }
 
-        ArgsUtils.findArgInList(JPEG_QUALITY_PARAMETER, args)
-                .ifPresent(quality -> {
-                    try {
-                        setJpegQuality(Float.parseFloat(quality));
-                    } catch (IllegalArgumentException e) {
-                        logger.warn("Can't use provided JPEG quality {}", quality, e);
-                    }
-                });
+        ArgsUtils.findArgInList(JPEG_QUALITY_PARAMETER, args).ifPresent(quality -> {
+            try {
+                setJpegQuality(Float.parseFloat(quality));
+            } catch (IllegalArgumentException e) {
+                logger.warn("Can't use provided JPEG quality {}", quality, e);
+            }
+        });
 
         return new WebReader(
                 apisHandler,
@@ -157,10 +160,7 @@ public class WebApi implements PixelApi {
         }
 
         this.jpegQuality.set(jpegQuality);
-        PreferencesManager.setWebJpegQuality(
-                apisHandler.getWebServerURI(),
-                jpegQuality
-        );
+        PreferencesManager.setWebJpegQuality(apisHandler.getWebServerURI(), jpegQuality);
 
         logger.debug("JPEG quality of web API changed to {}", jpegQuality);
     }

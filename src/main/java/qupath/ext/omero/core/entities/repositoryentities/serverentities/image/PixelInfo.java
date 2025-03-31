@@ -2,75 +2,27 @@ package qupath.ext.omero.core.entities.repositoryentities.serverentities.image;
 
 import com.google.gson.annotations.SerializedName;
 
-import java.util.Optional;
-
 /**
  * This class contains various information related to the pixels of an image.
- * <p>
- * It uses the {@link PhysicalSize} and {@link ImageType} classes.
+ *
+ * @param width the width in pixels of the image, or 0 if not found
+ * @param height the height in pixels of the image, or 0 if not found
+ * @param sizeZ the number of z-stacks of the image, or 0 if not found
+ * @param numberOfChannels the number of channels of the image, or 0 if not found
+ * @param numberOfTimePoints the number of time points of the image, or 0 if not found
+ * @param physicalSizeX the pixel width, or null if not found
+ * @param physicalSizeY the pixel height, or null if not found
+ * @param physicalSizeZ the spacing between z-slices, or null if not found
+ * @param imageType the format of the pixel values (e.g. uint8), or null if not found
  */
-class PixelInfo {
-
-    @SerializedName(value = "SizeX") private int width;
-    @SerializedName(value = "SizeY") private int height;
-    @SerializedName(value = "SizeZ") private int z;
-    @SerializedName(value = "SizeC") private int c;
-    @SerializedName(value = "SizeT") private int t;
-    @SerializedName(value = "PhysicalSizeX") private PhysicalSize physicalSizeX;
-    @SerializedName(value = "PhysicalSizeY") private PhysicalSize physicalSizeY;
-    @SerializedName(value = "PhysicalSizeZ") private PhysicalSize physicalSizeZ;
-    @SerializedName(value = "Type") private ImageType imageType;
-
-    @Override
-    public String toString() {
-        return String.format("""
-                Image
-                    type: %s
-                    width: %d
-                    height: %d
-                    z: %d
-                    c: %d
-                    t: %d
-                    physicalSizeX: %s
-                    physicalSizeY: %s
-                    physicalSizeZ: %s
-                """, imageType, width, height, z, c, t, physicalSizeX, physicalSizeY, physicalSizeZ
-        );
-    }
-
-    /**
-     * @return the dimensions (width in pixels, height in pixels, number of z-slices, number of channels, number of time points)
-     * of the image. If a dimension was not found, 0 is returned
-     */
-    public int[] getImageDimensions() {
-        return new int[] { width, height, z, c, t };
-    }
-
-    /**
-     * @return the pixel width, or an empty Optional if not found
-     */
-    public Optional<PhysicalSize> getPhysicalSizeX() {
-        return Optional.ofNullable(physicalSizeX);
-    }
-
-    /**
-     * @return the pixel height, or an empty Optional if not found
-     */
-    public Optional<PhysicalSize> getPhysicalSizeY() {
-        return Optional.ofNullable(physicalSizeY);
-    }
-
-    /**
-     * @return the spacing between z-slices, or an empty Optional if not found
-     */
-    public Optional<PhysicalSize> getPhysicalSizeZ() {
-        return Optional.ofNullable(physicalSizeZ);
-    }
-
-    /**
-     * @return the format of the pixel values (e.g. uint8)
-     */
-    public Optional<String> getPixelType() {
-        return imageType == null ? Optional.empty() : imageType.getValue();
-    }
-}
+record PixelInfo(
+        @SerializedName(value = "SizeX") int width,
+        @SerializedName(value = "SizeY") int height,
+        @SerializedName(value = "SizeZ") int sizeZ,
+        @SerializedName(value = "SizeC") int numberOfChannels,
+        @SerializedName(value = "SizeT") int numberOfTimePoints,
+        @SerializedName(value = "PhysicalSizeX") PhysicalSize physicalSizeX,
+        @SerializedName(value = "PhysicalSizeY") PhysicalSize physicalSizeY,
+        @SerializedName(value = "PhysicalSizeZ") PhysicalSize physicalSizeZ,
+        @SerializedName(value = "Type") ImageType imageType
+) {}

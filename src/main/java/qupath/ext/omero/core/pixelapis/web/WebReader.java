@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 /**
- * Read pixel values using the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">OMERO JSON API</a>.
+ * Read pixel values using the <a href="https://docs.openmicroscopy.org/omero/latest/developers/json-api.html">OMERO JSON API</a>.
  */
 class WebReader implements PixelApiReader {
 
@@ -25,7 +25,7 @@ class WebReader implements PixelApiReader {
     private int preferredTileHeight;
 
     /**
-     * Creates a new WebApi.
+     * Creates a new web API.
      *
      * @param apisHandler the request handler which will be used to perform web requests
      * @param imageID the ID of the image to open
@@ -60,19 +60,25 @@ class WebReader implements PixelApiReader {
                     jpegQuality
             ).get();
         } catch (InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+
             throw new IOException(e);
         }
     }
 
     @Override
     public ImageServerMetadata updateMetadata(ImageServerMetadata originalMetadata) {
-        logger.debug("Updating metadata from web reader");
+        logger.debug("Updating metadata {} from web reader", originalMetadata);
 
         return maxWebGatewayTileSize(originalMetadata);
     }
 
     @Override
-    public void close() {}
+    public void close() {
+        logger.debug("Closing web reader of image with ID {}", imageID);
+    }
 
     @Override
     public String toString() {

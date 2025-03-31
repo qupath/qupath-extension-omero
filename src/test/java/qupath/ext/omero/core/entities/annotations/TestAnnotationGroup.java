@@ -26,7 +26,7 @@ public class TestAnnotationGroup {
                 }
                 """);
 
-        Map<Class<? extends Annotation>, List<Annotation>> annotations = annotationGroup.getAnnotations();
+        Map<Class<? extends Annotation>, List<Annotation>> annotations = annotationGroup.annotations();
 
         Assertions.assertEquals(2, annotations.values().stream().mapToInt(List::size).sum());
     }
@@ -42,7 +42,7 @@ public class TestAnnotationGroup {
                 }
                 """);
 
-        Map<Class<? extends Annotation>, List<Annotation>> annotations = annotationGroup.getAnnotations();
+        Map<Class<? extends Annotation>, List<Annotation>> annotations = annotationGroup.annotations();
 
         Assertions.assertEquals(2, annotations.get(CommentAnnotation.class).size());
     }

@@ -10,6 +10,8 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.controlsfx.glyphfont.FontAwesome;
 import org.controlsfx.glyphfont.Glyph;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
@@ -19,7 +21,6 @@ import qupath.ext.omero.core.entities.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.annotations.RatingAnnotation;
 import qupath.ext.omero.core.entities.annotations.TagAnnotation;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
@@ -38,6 +39,7 @@ import java.util.ResourceBundle;
  */
 public class AdvancedInformation extends Stage {
 
+    private static final Logger logger = LoggerFactory.getLogger(AdvancedInformation.class);
     private static final ResourceBundle resources = Utils.getResources();
     private final ServerEntity serverEntity;
     @FXML
@@ -52,6 +54,7 @@ public class AdvancedInformation extends Stage {
      * @throws IOException if an error occurs while creating the window
      */
     public AdvancedInformation(Stage owner, ServerEntity serverEntity, AnnotationGroup annotationGroup) throws IOException {
+        logger.debug("Creating advanced information window for {} displaying {}", serverEntity, annotationGroup);
         this.serverEntity = serverEntity;
 
         UiUtilities.loadFXML(this, AdvancedInformation.class.getResource("advanced_information.fxml"));
@@ -63,6 +66,7 @@ public class AdvancedInformation extends Stage {
 
         addEventHandler(KeyEvent.KEY_PRESSED, e -> {
             if (e.getCode() == KeyCode.ESCAPE) {
+                logger.debug("Escape key pressed. Closing advanced information window of {}", serverEntity);
                 close();
             }
         });
@@ -72,68 +76,75 @@ public class AdvancedInformation extends Stage {
     }
 
     private Node createObjectDetailPane() throws IOException {
+        logger.debug("Creating entity details pane with {} attributes", serverEntity.getNumberOfAttributes());
+
         FormPane formPane = new FormPane(resources.getString("Browser.ServerBrowser.AdvancedInformation.details"));
-        
-        formPane.addRow(resources.getString("Browser.ServerBrowser.AdvancedInformation.id"), String.valueOf(serverEntity.getId()));
-        formPane.addRow(resources.getString("Browser.ServerBrowser.AdvancedInformation.owner"), serverEntity.getOwner().getFullName());
-        formPane.addRow(resources.getString("Browser.ServerBrowser.AdvancedInformation.group"), serverEntity.getGroupName());
-
-        if (serverEntity instanceof Image image) {
-            int startingIndex = 4;  // The first image attributes are already used before
-
-            for (int i=startingIndex; i<image.getNumberOfAttributes(); ++i) {
-                formPane.addRow(image.getAttributeName(i), image.getAttributeValue(i));
-            }
+        for (int i=0; i<serverEntity.getNumberOfAttributes(); ++i) {
+            formPane.addRow(serverEntity.getAttributeName(i), serverEntity.getAttributeValue(i));
         }
-
         return formPane;
     }
 
     private void setAnnotationPanes(AnnotationGroup annotationGroup) throws IOException {
-        for (var omeroAnnotationType: annotationGroup.getAnnotations().keySet()) {
-            List<Annotation> annotationList = annotationGroup.getAnnotations().get(omeroAnnotationType);
-            TitledPane pane = null;
+        logger.debug("Setting annotation panes to display {}", annotationGroup);
 
-            if (omeroAnnotationType.equals(TagAnnotation.class)) {
-                pane = createTagPane(annotationList);
-            } else if (omeroAnnotationType.equals(MapAnnotation.class)) {
-                pane = createMapPane(annotationList);
-            } else if (omeroAnnotationType.equals(FileAnnotation.class)) {
-                pane = createFilePane(annotationList);
-            } else if (omeroAnnotationType.equals(CommentAnnotation.class)) {
-                pane = createCommentPane(annotationList);
-            } else if (omeroAnnotationType.equals(RatingAnnotation.class)) {
-                pane = createRatingPane(annotationList);
+        for (var entry: annotationGroup.annotations().entrySet()) {
+            logger.debug("Adding annotation pane for {}", entry);
+
+            TitledPane pane = null;
+            if (entry.getKey().equals(TagAnnotation.class)) {
+                pane = createTagPane(entry.getValue());
+            } else if (entry.getKey().equals(MapAnnotation.class)) {
+                pane = createMapPane(entry.getValue());
+            } else if (entry.getKey().equals(FileAnnotation.class)) {
+                pane = createFilePane(entry.getValue());
+            } else if (entry.getKey().equals(CommentAnnotation.class)) {
+                pane = createCommentPane(entry.getValue());
+            } else if (entry.getKey().equals(RatingAnnotation.class)) {
+                pane = createRatingPane(entry.getValue());
             }
 
-            if (pane != null) {
-                pane.setExpanded(!annotationList.isEmpty());
+            if (pane == null) {
+                logger.warn("Annotation type {} not recognized. Skipping it", entry.getKey());
+            } else {
+                logger.debug("Pane {} added for {}", pane, entry.getValue());
+                pane.setExpanded(!entry.getValue().isEmpty());
                 content.getChildren().add(pane);
             }
         }
     }
 
-    private TitledPane createTagPane(List<Annotation> annotationList) throws IOException {
-        InformationPane tagPane = new InformationPane(TagAnnotation.getTitle() + " (" + annotationList.size() + ")");
+    private TitledPane createTagPane(List<Annotation> annotations) throws IOException {
+        InformationPane tagPane = new InformationPane(String.format("%s (%d)", TagAnnotation.getTitle(), annotations.size()));
 
-        for (Annotation annotation : annotationList) {
-            TagAnnotation tagAnnotation = (TagAnnotation) annotation;
+        for (Annotation annotation : annotations) {
+            if (!(annotation instanceof TagAnnotation tagAnnotation)) {
+                logger.warn("Annotation {} is not a tag annotation even though it should be", annotation);
+                continue;
+            }
 
-            tagPane.addRow(tagAnnotation.getValue().orElse(""), MessageFormat.format(
-                    resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwned"),
-                    tagAnnotation.getAdderFullName(),
-                    tagAnnotation.getOwnerFullName()
-            ));
+            tagPane.addRow(
+                    tagAnnotation.getValue().orElse(""),
+                    MessageFormat.format(
+                            resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwned"),
+                            tagAnnotation.getAdderFullName(),
+                            tagAnnotation.getOwnerFullName()
+                    )
+            );
         }
         return tagPane;
     }
 
-    private TitledPane createMapPane(List<Annotation> annotationList) throws IOException {
+    private TitledPane createMapPane(List<Annotation> annotations) throws IOException {
         FormPane mapPane = new FormPane();
         int numberOfValues = 0;
 
-        for (Annotation annotation : annotationList) {
-            MapAnnotation mapAnnotation = (MapAnnotation) annotation;
+        for (Annotation annotation : annotations) {
+            if (!(annotation instanceof MapAnnotation mapAnnotation)) {
+                logger.warn("Annotation {} is not a map annotation even though it should be", annotation);
+                continue;
+            }
+
             for (MapAnnotation.Pair pair: mapAnnotation.getPairs()) {
                 mapPane.addRow(
                         pair.key(),
@@ -147,19 +158,26 @@ public class AdvancedInformation extends Stage {
             }
             numberOfValues += mapAnnotation.getPairs().size();
         }
-        mapPane.setTitle(MapAnnotation.getTitle() + " (" + numberOfValues + ")");
-
+        mapPane.setTitle(String.format("%s (%d)", MapAnnotation.getTitle(), numberOfValues));
         return mapPane;
     }
 
-    private TitledPane createFilePane(List<Annotation> annotationList) throws IOException {
-        InformationPane attachmentPane = new InformationPane(FileAnnotation.getTitle() + " (" + annotationList.size() + ")");
+    private TitledPane createFilePane(List<Annotation> annotations) throws IOException {
+        InformationPane attachmentPane = new InformationPane(String.format("%s (%d)", FileAnnotation.getTitle(), annotations.size()));
 
-        for (Annotation annotation : annotationList) {
-            FileAnnotation fileAnnotation = (FileAnnotation) annotation;
+        for (Annotation annotation : annotations) {
+            if (!(annotation instanceof FileAnnotation fileAnnotation)) {
+                logger.warn("Annotation {} is not a file annotation even though it should be", annotation);
+                continue;
+            }
+
             attachmentPane.addRow(
-                    fileAnnotation.getFilename().orElse("") +
-                            " (" + fileAnnotation.getFileSize().orElse(0L) + " " + resources.getString("Browser.ServerBrowser.AdvancedInformation.bytes") + ")",
+                    String.format(
+                            "%s (%d %s)",
+                            fileAnnotation.getFilename().orElse(""),
+                            fileAnnotation.getFileSize().orElse(0L),
+                            resources.getString("Browser.ServerBrowser.AdvancedInformation.bytes")
+                    ),
                     MessageFormat.format(
                             resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwnedType"),
                             fileAnnotation.getAdderFullName(),
@@ -171,12 +189,17 @@ public class AdvancedInformation extends Stage {
         return attachmentPane;
     }
 
-    private TitledPane createCommentPane(List<Annotation> annotationList) throws IOException {
-        InformationPane commentPane = new InformationPane(CommentAnnotation.getTitle() + " (" + annotationList.size() + ")");
+    private TitledPane createCommentPane(List<Annotation> annotations) throws IOException {
+        InformationPane commentPane = new InformationPane(String.format("%s (%d)", CommentAnnotation.getTitle(), annotations.size()));
 
-        for (Annotation annotation : annotationList) {
-            CommentAnnotation commentAnnotation = (CommentAnnotation) annotation;
-            commentPane.addRow(commentAnnotation.getValue().orElse(""),
+        for (Annotation annotation : annotations) {
+            if (!(annotation instanceof CommentAnnotation commentAnnotation)) {
+                logger.warn("Annotation {} is not a comment annotation even though it should be", annotation);
+                continue;
+            }
+
+            commentPane.addRow(
+                    commentAnnotation.getValue().orElse(""),
                     MessageFormat.format(
                             resources.getString("Browser.ServerBrowser.AdvancedInformation.added"),
                             commentAnnotation.getAdderFullName()
@@ -186,16 +209,20 @@ public class AdvancedInformation extends Stage {
         return commentPane;
     }
 
-    private TitledPane createRatingPane(List<Annotation> annotationList) throws IOException {
-        InformationPane ratingPane = new InformationPane(RatingAnnotation.getTitle() + " (" + annotationList.size() + ")");
+    private TitledPane createRatingPane(List<Annotation> annotations) throws IOException {
+        InformationPane ratingPane = new InformationPane(String.format("%s (%d)", RatingAnnotation.getTitle(), annotations.size()));
 
         int averageRating = 0;
-        for (Annotation annotation : annotationList) {
-            RatingAnnotation ratingAnnotation = (RatingAnnotation) annotation;
+        for (Annotation annotation : annotations) {
+            if (!(annotation instanceof RatingAnnotation ratingAnnotation)) {
+                logger.warn("Annotation {} is not a rating annotation even though it should be", annotation);
+                continue;
+            }
+
             averageRating += ratingAnnotation.getValue();
         }
-        if (!annotationList.isEmpty()) {
-            averageRating /= annotationList.size();
+        if (!annotations.isEmpty()) {
+            averageRating /= annotations.size();
         }
 
         Glyph fullStarGlyph = new Glyph("FontAwesome", FontAwesome.Glyph.STAR).size(QuPathGUI.TOOLBAR_ICON_SIZE);

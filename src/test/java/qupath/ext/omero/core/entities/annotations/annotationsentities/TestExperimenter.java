@@ -10,7 +10,7 @@ public class TestExperimenter {
     void Check_Experimenter_Id() {
         Experimenter experimenter = createExperimenter();
 
-        int id = experimenter.getId();
+        int id = experimenter.id();
 
         Assertions.assertEquals(54, id);
     }
@@ -19,7 +19,7 @@ public class TestExperimenter {
     void Check_Experimenter_FirstName() {
         Experimenter experimenter = createExperimenter();
 
-        String firstName = experimenter.getFirstName();
+        String firstName = experimenter.firstName();
 
         Assertions.assertEquals("John", firstName);
     }
@@ -28,7 +28,7 @@ public class TestExperimenter {
     void Check_Experimenter_LastName() {
         Experimenter experimenter = createExperimenter();
 
-        String lastName = experimenter.getLastName();
+        String lastName = experimenter.lastName();
 
         Assertions.assertEquals("Doe", lastName);
     }
@@ -37,7 +37,7 @@ public class TestExperimenter {
     void Check_Experimenter_FullName() {
         Experimenter experimenter = createExperimenter();
 
-        String fullName = experimenter.getFullName();
+        String fullName = experimenter.fullName();
 
         Assertions.assertEquals("John Doe", fullName);
     }
@@ -46,7 +46,7 @@ public class TestExperimenter {
     void Check_Experimenter_Missing() {
         Experimenter experimenter = new Gson().fromJson("{}", Experimenter.class);
 
-        String fullName = experimenter.getFullName();
+        String fullName = experimenter.fullName();
 
         Assertions.assertEquals("", fullName);
     }

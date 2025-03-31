@@ -15,15 +15,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An annotation group represents a set of {@link Annotation annotations}
- * attached to an OMERO entity.
+ * An annotation group represents a set of {@link Annotation annotations} attached to an OMERO entity.
+ *
+ * @param annotations all annotations contained in this annotation group. They are organized by type of
+ *                    annotation (e.g. all comment annotations form one group, all file annotations form
+ *                    another group, etc.).
  */
-public class AnnotationGroup {
+public record AnnotationGroup(Map<Class<? extends Annotation>, List<Annotation>> annotations) {
 
     private static final Logger logger = LoggerFactory.getLogger(AnnotationGroup.class);
     private static final Gson gson = new GsonBuilder().registerTypeAdapter(Annotation.class, new Annotation.GsonOmeroAnnotationDeserializer())
             .create();
-    private final Map<Class<? extends Annotation>, List<Annotation>> annotations;
 
     /**
      * Creates an annotation group from a JSON object.
@@ -33,37 +35,7 @@ public class AnnotationGroup {
      * @throws com.google.gson.JsonSyntaxException if the provided JSON contains unexpected representations of annotations
      */
     public AnnotationGroup(JsonObject json) {
-        annotations = createAnnotations(json, createExperimenters(json));
-    }
-
-    @Override
-    public String toString() {
-        return String.format("Annotation group containing %s", annotations);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (obj == this)
-            return true;
-        if (!(obj instanceof AnnotationGroup annotationGroup))
-            return false;
-        return annotationGroup.annotations.equals(annotations);
-    }
-
-    @Override
-    public int hashCode() {
-        return annotations.hashCode();
-    }
-
-    /**
-     * Returns all annotations contained in this annotation group.
-     * They are organized by type of annotation (e.g. all comment annotations form one group,
-     * all file annotations form another group, etc.).
-     *
-     * @return the annotations of this annotation group
-     */
-    public Map<Class<? extends Annotation>, List<Annotation>> getAnnotations() {
-        return annotations;
+        this(createAnnotations(json, createExperimenters(json)));
     }
 
     /**
@@ -96,6 +68,8 @@ public class AnnotationGroup {
             }
         }
 
+        logger.debug("Found experimenters {} in annotation group", experimenters);
+
         return experimenters;
     }
 
@@ -122,6 +96,8 @@ public class AnnotationGroup {
                 }
             }
         }
+
+        logger.debug("Found annotations {} in annotation group", annotations);
 
         return annotations;
     }

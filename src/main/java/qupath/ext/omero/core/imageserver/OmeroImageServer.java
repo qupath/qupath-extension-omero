@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
@@ -52,9 +53,11 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      * @throws IllegalArgumentException if the image ID cannot be parsed from the provided URI or if the image cannot be read
      */
     public OmeroImageServer(URI imageUri, Client client, PixelApi pixelApi, List<String> args) throws ExecutionException, InterruptedException, IOException {
+        logger.debug("Creating OMERO image server to open {} with {} and {}, and with args {}", imageUri, client, pixelApi, args);
+
         this.imageUri = imageUri;
         this.client = client;
-        this.id = ApisHandler.parseEntityId(imageUri).orElseThrow(() -> new IllegalArgumentException(String.format(
+        this.id = ApisHandler.parseEntity(imageUri).map(ServerEntity::getId).orElseThrow(() -> new IllegalArgumentException(String.format(
                 "Impossible to parse an ID from the provided URI %s", imageUri
         )));
         ImageServerMetadata metadata = client.getApisHandler().getImageMetadata(id).get();
@@ -64,10 +67,13 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
                 args
         );
         this.originalMetadata = this.pixelAPIReader.updateMetadata(metadata);
+        logger.debug("Metadata updated from {} to {}", metadata, this.originalMetadata);
 
         this.apiName = pixelApi.getName();
         this.args = args;
         this.client.addOpenedImage(imageUri);
+
+        logger.debug("OMERO image server to open {} created", imageUri);
     }
 
     @Override
@@ -78,13 +84,15 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     @Override
     public BufferedImage getDefaultThumbnail(int z, int t) throws IOException {
         if (isRGB()) {
+            logger.debug("Requesting thumbnail while the image is RGB. Trying to use web API");
+
             try {
                 return client.getApisHandler().getThumbnail(
                         id,
                         Math.max(getMetadata().getLevel(0).getWidth(), getMetadata().getLevel(0).getHeight())
                 ).get();
             } catch (Exception e) {
-                logger.debug("Cannot get thumbnail. Using default thumbnail instead", e);
+                logger.debug("Cannot get thumbnail through web API. Using default way of retrieving thumbnail instead", e);
 
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
@@ -133,7 +141,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
      */
     @Override
     public Collection<PathObject> readPathObjects() {
-        logger.debug("Reading path objects");
+        logger.debug("Reading all path objects stored on the OMERO server at {}", imageUri);
 
         try {
             return Shape.createPathObjects(client.getApisHandler().getShapes(id, -1).get());

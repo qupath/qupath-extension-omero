@@ -25,9 +25,11 @@ public class ConnectionsManagerCommand implements Runnable {
 	 * Creates a new connection manager command.
 	 *
 	 * @param owner the stage that should own the connection manager window
-	 * @param openClientBrowser a function that will be called to request opening the browser of a client
+	 * @param openClientBrowser a function that will be called to request opening the browser of a client. It will be
+	 *                          called from the JavaFX Application Thread
 	 */
 	public ConnectionsManagerCommand(Stage owner, Consumer<Client> openClientBrowser) {
+		logger.debug("Creating connections manager command");
 		this.owner = owner;
 		this.openClientBrowser = openClientBrowser;
 	}
@@ -35,12 +37,14 @@ public class ConnectionsManagerCommand implements Runnable {
 	@Override
 	public void run() {
 		if (connectionsManager == null) {
+			logger.debug("Connections manager window doesn't exist. Creating and showing it");
 			try {
 				connectionsManager = new ConnectionsManager(owner, openClientBrowser);
 			} catch (IOException e) {
 				logger.error("Error while creating the connection manager window", e);
 			}
 		} else {
+			logger.debug("Connections manager window already exists. Showing it");
 			connectionsManager.show();
 			connectionsManager.requestFocus();
 		}

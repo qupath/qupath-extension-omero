@@ -79,26 +79,25 @@ class WebclientApi implements AutoCloseable {
             PlateAcquisition.class, "run"
     );
     private static final Gson gson = new Gson();
-    private final URI host;
+    private final URI webServerUri;
     private final RequestSender requestSender;
-    private final URI pingUri;
     private final String token;
+    private final URI pingUri;
 
     /**
      * Creates a web client.
      *
-     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param webServerUri the URL to the OMERO web server to connect to
      * @param requestSender the request sender to use when making requests
      * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     *              used by this session. This is needed to properly close this API.
-     * @throws IllegalArgumentException when the ping URI cannot be created from the host
+     *              used by this session. This is needed to properly close this API
+     * @throws URISyntaxException if the ping URI cannot be created
      */
-    public WebclientApi(URI host, RequestSender requestSender, String token) {
-        this.host = host;
+    public WebclientApi(URI webServerUri, RequestSender requestSender, String token) throws URISyntaxException {
+        this.webServerUri = webServerUri;
         this.requestSender = requestSender;
         this.token = token;
-
-        pingUri = URI.create(String.format(PING_URL, host));
+        this.pingUri = new URI(String.format(PING_URL, webServerUri));
     }
 
     /**
@@ -111,9 +110,9 @@ class WebclientApi implements AutoCloseable {
      */
     @Override
     public void close() throws URISyntaxException, ExecutionException, InterruptedException {
-        logger.debug("Sending login out request");
+        logger.debug("Sending login out request to {}", webServerUri);
 
-        URI uri = new URI(String.format(LOGOUT_URL, host));
+        URI uri = new URI(String.format(LOGOUT_URL, webServerUri));
 
         requestSender.post(
                 uri,
@@ -125,20 +124,20 @@ class WebclientApi implements AutoCloseable {
 
     @Override
     public String toString() {
-        return String.format("Webclient API of %s", host);
+        return String.format("Webclient API of %s", webServerUri);
     }
 
     /**
      * Returns a link of the OMERO.web client pointing to a server entity.
      *
-     * @param entity the entity to have a link to.
-     *               Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *               {@link Screen}, {@link Plate} or {@link PlateAcquisition}
+     * @param entity the entity to have a link to. Must be an {@link Image}, {@link Dataset}, {@link Project},
+     *               {@link Screen}, {@link Plate} or {@link PlateAcquisition}. Only the ID and the class of
+     *               the entity will be used
      * @return a URL pointing to the server entity
-     * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
+     * @throws IllegalArgumentException if the provided entity is not an image, dataset, project,
      * screen, plate, or plate acquisition
      */
-    public String getEntityURI(ServerEntity entity) {
+    public String getEntityUri(ServerEntity entity) {
         if (!TYPE_TO_URI_LABEL.containsKey(entity.getClass())) {
             throw new IllegalArgumentException(String.format(
                     "The provided item (%s) is not an image, dataset, project, screen, plate, or plate acquisition.",
@@ -148,7 +147,7 @@ class WebclientApi implements AutoCloseable {
 
         return String.format(
                 ITEM_URL,
-                host,
+                webServerUri,
                 TYPE_TO_URI_LABEL.get(entity.getClass()),
                 entity.getId()
         );
@@ -182,7 +181,7 @@ class WebclientApi implements AutoCloseable {
 
         URI uri;
         try {
-            uri = new URI(String.format(ORPHANED_IMAGES_URL, host));
+            uri = new URI(String.format(ORPHANED_IMAGES_URL, webServerUri));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -216,7 +215,7 @@ class WebclientApi implements AutoCloseable {
 
         URI uri;
         try {
-            uri = new URI(String.format(WEBCLIENT_URL, host));
+            uri = new URI(String.format(WEBCLIENT_URL, webServerUri));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -263,7 +262,7 @@ class WebclientApi implements AutoCloseable {
 
         URI uri;
         try {
-            uri = new URI(String.format(READ_ANNOTATION_URL, host, TYPE_TO_URI_LABEL.get(entityClass), entityId));
+            uri = new URI(String.format(READ_ANNOTATION_URL, webServerUri, TYPE_TO_URI_LABEL.get(entityClass), entityId));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -314,16 +313,17 @@ class WebclientApi implements AutoCloseable {
 
         try {
             return requestSender
-                    .get(new URI(String.format(SEARCH_URL,
-                            host,
+                    .get(new URI(String.format(
+                            SEARCH_URL,
+                            webServerUri,
                             searchQuery.query(),
                             fields,
                             dataTypes,
                             searchQuery.group().getId(),
                             searchQuery.owner().id(),
                             System.currentTimeMillis()
-                    ))).thenApplyAsync(response ->
-                            SearchResult.createFromHTMLResponse(response, host)
+                    ))).thenApply(response ->
+                            SearchResult.createFromHTMLResponse(response, webServerUri)
                     );
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
@@ -348,11 +348,17 @@ class WebclientApi implements AutoCloseable {
             Map<String, String> keyValues,
             boolean replaceExisting
     ) {
-        logger.debug("Sending key-value pairs {} with namespace {} to image with ID {}", keyValues, namespace, imageId);
+        logger.debug(
+                "Sending (and {} replacing existing) key-value pairs {} with namespace {} to image with ID {}",
+                replaceExisting ? "" : "not",
+                keyValues,
+                namespace,
+                imageId
+        );
 
         URI uri;
         try {
-            uri = new URI(String.format(WRITE_KEY_VALUES_URL, host));
+            uri = new URI(String.format(WRITE_KEY_VALUES_URL, webServerUri));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -368,31 +374,40 @@ class WebclientApi implements AutoCloseable {
             if (pairs.isEmpty()) {
                 logger.debug("No more KVP to send to image with ID {}", imageId);
                 return CompletableFuture.completedFuture(null);
-            } else {
-                logger.debug("Creating new KVP {} with namespace {} for image with ID {}", pairs, namespace, imageId);
-
-                return requestSender.post(
-                        uri,
-                        String.format(
-                                "image=%d&ns=%s&mapAnnotation=%s",
-                                imageId,
-                                namespace.name(),
-                                URLEncoder.encode(
-                                        pairs.stream()
-                                                .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
-                                                .collect(Collectors.joining(",", "[", "]")),
-                                        StandardCharsets.UTF_8
-                                )
-                        ).getBytes(StandardCharsets.UTF_8),
-                        String.format("%s/webclient/", host),
-                        token
-                ).thenAccept(rawResponse -> {
-                    Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
-                    if (response == null || !response.containsKey("annId")) {
-                        throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
-                    }
-                });
             }
+
+            String body = String.format(
+                    "image=%d&ns=%s&mapAnnotation=%s",
+                    imageId,
+                    namespace.name(),
+                    URLEncoder.encode(
+                            pairs.stream()
+                                    .map(pair -> String.format("[\"%s\",\"%s\"]", pair.key(), pair.value()))
+                                    .collect(Collectors.joining(",", "[", "]")),
+                            StandardCharsets.UTF_8
+                    )
+            );
+            String referer = String.format("%s/webclient/", webServerUri);
+            logger.debug(
+                    "Creating new KVP {} with namespace {} for image with ID {} by sending body {} with referer {}",
+                    pairs,
+                    namespace,
+                    imageId,
+                    body,
+                    referer
+            );
+
+            return requestSender.post(
+                    uri,
+                    body.getBytes(StandardCharsets.UTF_8),
+                    referer,
+                    token
+            ).thenAccept(rawResponse -> {
+                Map<String, List<String>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
+                if (response == null || !response.containsKey("annId")) {
+                    throw new RuntimeException(String.format("The response %s doesn't contain the `annId` key", rawResponse));
+                }
+            });
         });
     }
 
@@ -407,22 +422,24 @@ class WebclientApi implements AutoCloseable {
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
     public CompletableFuture<Void> changeImageName(long imageId, String imageName) {
-        logger.debug("Changing image name of image with ID {} to {}", imageId, imageName);
-
         URI uri;
         try {
-            uri = new URI(String.format(WRITE_NAME_URL, host, imageId));
+            uri = new URI(String.format(WRITE_NAME_URL, webServerUri, imageId));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
 
+        String body = String.format(
+                "name=%s&",
+                imageName
+        );
+        String referer = String.format("%s/webclient/", webServerUri);
+        logger.debug("Changing image name of image with ID {} to {} with body {} and referer {}", imageId, imageName, body, referer);
+
         return requestSender.post(
                 uri,
-                String.format(
-                        "name=%s&",
-                        imageName
-                ).getBytes(StandardCharsets.UTF_8),
-                String.format("%s/webclient/", host),
+                body.getBytes(StandardCharsets.UTF_8),
+                referer,
                 token
         ).thenAccept(rawResponse -> {
             Map<String, String> response = gson.fromJson(rawResponse, new TypeToken<>() {});
@@ -443,24 +460,26 @@ class WebclientApi implements AutoCloseable {
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
     public CompletableFuture<Void> changeChannelNames(long imageId, List<String> channelsName) {
-        logger.debug("Changing channel names of image with ID {} to {}", imageId, channelsName);
-
         URI uri;
         try {
-            uri = new URI(String.format(WRITE_CHANNEL_NAMES_URL, host, imageId));
+            uri = new URI(String.format(WRITE_CHANNEL_NAMES_URL, webServerUri, imageId));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
 
+        String body = String.format(
+                "%ssave=save",
+                IntStream.range(0, channelsName.size())
+                        .mapToObj(i -> String.format("channel%d=%s&", i, channelsName.get(i)))
+                        .collect(Collectors.joining())
+        );
+        String referer = String.format("%s/webclient/", webServerUri);
+        logger.debug("Changing channel names of image with ID {} to {} with body {} and referer {}", imageId, channelsName, body, referer);
+
         return requestSender.post(
                 uri,
-                String.format(
-                        "%ssave=save",
-                        IntStream.range(0, channelsName.size())
-                                .mapToObj(i -> String.format("channel%d=%s&", i, channelsName.get(i)))
-                                .collect(Collectors.joining())
-                ).getBytes(StandardCharsets.UTF_8),
-                String.format("%s/webclient/", host),
+                body.getBytes(StandardCharsets.UTF_8),
+                referer,
                 token
         ).thenAccept(rawResponse -> {
             Map<String, Object> response = gson.fromJson(rawResponse, new TypeToken<>() {});
@@ -477,8 +496,7 @@ class WebclientApi implements AutoCloseable {
      * if the request failed for example).
      *
      * @param entityId the ID of the entity
-     * @param entityClass the class of the entity.
-     *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
+     * @param entityClass the class of the entity. Must be an {@link Image}, {@link Dataset}, {@link Project},
      *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
      * @param attachmentName the name of the file to send. A prefix will be added to it to mark
      *                       this file as coming from QuPath
@@ -504,21 +522,26 @@ class WebclientApi implements AutoCloseable {
 
         URI uri;
         try {
-            uri = new URI(String.format(SEND_ATTACHMENT_URL, host));
+            uri = new URI(String.format(SEND_ATTACHMENT_URL, webServerUri));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
 
+        String fileName = QUPATH_FILE_IDENTIFIER + attachmentName;
+        String referer = String.format("%s/webclient/", webServerUri);
+        Map<String, String> parameters = Map.of(
+                TYPE_TO_URI_LABEL.get(entityClass), String.valueOf(entityId),
+                "index", ""
+        );
+        logger.debug("Sending file {} with parameters {} and referer {} with the following content: {}", fileName, parameters, referer, attachmentContent);
+
         return requestSender.post(
                 uri,
-                QUPATH_FILE_IDENTIFIER + attachmentName,
+                fileName,
                 attachmentContent,
-                String.format("%s/webclient/", host),
+                referer,
                 token,
-                Map.of(
-                        TYPE_TO_URI_LABEL.get(entityClass), String.valueOf(entityId),
-                        "index", ""
-                )
+                parameters
         ).thenAccept(rawResponse -> {
             Map<String, List<Long>> response = gson.fromJson(rawResponse, new TypeToken<>() {});
             if (response == null || !response.containsKey("fileIds") || response.get("fileIds").isEmpty()) {
@@ -543,20 +566,23 @@ class WebclientApi implements AutoCloseable {
      * screen, plate, or plate acquisition
      */
     public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass, List<String> ownerFullNames) {
-        logger.debug("Deleting all attachments added from QuPath to the {} with ID {}", entityClass, entityId);
+        logger.debug("Deleting all attachments added from QuPath to the {} with ID {} belonging to owners {}", entityClass, entityId, ownerFullNames);
 
-        return getAnnotations(entityId, entityClass).thenApply(annotationGroup ->
-                annotationGroup.getAnnotationsOfClass(FileAnnotation.class).stream()
-                        .filter(annotation -> ownerFullNames.contains(annotation.getOwnerFullName()) &&
-                                annotation.getFilename().isPresent() &&
-                                annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER)
-                        )
-                        .map(Annotation::getId)
-                        .toList()
-        ).thenAcceptAsync(attachmentIds -> {
-            List<String> responses = attachmentIds.stream()
-                    .map(annotationId -> URI.create(String.format(DELETE_ATTACHMENT_URL, host, annotationId)))
-                    .map(uri -> requestSender.post(uri, "", String.format("%s/webclient/", host), token))
+        return getAnnotations(entityId, entityClass).thenApply(annotationGroup -> {
+            List<FileAnnotation> annotationsToDelete = annotationGroup.getAnnotationsOfClass(FileAnnotation.class).stream()
+                    .filter(annotation -> ownerFullNames.contains(annotation.getOwnerFullName()) &&
+                            annotation.getFilename().isPresent() &&
+                            annotation.getFilename().get().startsWith(QUPATH_FILE_IDENTIFIER)
+                    )
+                    .toList();
+
+            logger.debug("Retrieved annotations {} filtered to {}. Deleting these annotations", annotationGroup, annotationsToDelete);
+            return annotationsToDelete;
+        }).thenAccept(annotationsToDelete -> {
+            List<String> responses = annotationsToDelete.stream()
+                    .map(Annotation::getId)
+                    .map(annotationId -> URI.create(String.format(DELETE_ATTACHMENT_URL, webServerUri, annotationId)))
+                    .map(uri -> requestSender.post(uri, "", String.format("%s/webclient/", webServerUri), token))
                     .map(CompletableFuture::join)
                     .toList();
 
@@ -581,7 +607,7 @@ class WebclientApi implements AutoCloseable {
         logger.debug("Getting OMERO image icon");
 
         try {
-            return requestSender.getImage(new URI(String.format(IMAGE_ICON_URL, host)));
+            return requestSender.getImage(new URI(String.format(IMAGE_ICON_URL, webServerUri)));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -599,7 +625,7 @@ class WebclientApi implements AutoCloseable {
         logger.debug("Getting OMERO screen icon");
 
         try {
-            return requestSender.getImage(new URI(String.format(SCREEN_ICON_URL, host)));
+            return requestSender.getImage(new URI(String.format(SCREEN_ICON_URL, webServerUri)));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -617,7 +643,7 @@ class WebclientApi implements AutoCloseable {
         logger.debug("Getting OMERO plate icon");
 
         try {
-            return requestSender.getImage(new URI(String.format(PLATE_ICON_URL, host)));
+            return requestSender.getImage(new URI(String.format(PLATE_ICON_URL, webServerUri)));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -635,7 +661,7 @@ class WebclientApi implements AutoCloseable {
         logger.debug("Getting OMERO plate acquisition icon");
 
         try {
-            return requestSender.getImage(new URI(String.format(PLATE_ACQUISITION_ICON_URL, host)));
+            return requestSender.getImage(new URI(String.format(PLATE_ACQUISITION_ICON_URL, webServerUri)));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -647,14 +673,21 @@ class WebclientApi implements AutoCloseable {
             Namespace namespace,
             Map<String, String> keyValues
     ) {
+        logger.debug("Replacing KVP of namespace {} on image with ID {} contained in {}", namespace, imageId, keyValues);
+
         return getAnnotations(imageId, Image.class).thenApply(annotationGroup -> {
             List<MapAnnotation> existingAnnotations = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
                     .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(namespace))
                     .toList();
-            logger.debug("Got map annotations {} for image with ID {}. Replacing all pairs with keys in {}", existingAnnotations, imageId, keyValues);
+            logger.debug(
+                    "Got annotations {} reduced to map annotations {} for image with ID {}. Replacing all pairs with keys in {}",
+                    annotationGroup,
+                    existingAnnotations,
+                    imageId,
+                    keyValues
+            );
 
             Set<String> keysSent = new HashSet<>();
-
             for (MapAnnotation mapAnnotation : existingAnnotations) {
                 List<MapAnnotation.Pair> pairsToSend = new ArrayList<>();
                 boolean pairReplaced = false;
@@ -686,7 +719,7 @@ class WebclientApi implements AutoCloseable {
                                             StandardCharsets.UTF_8
                                     )
                             ).getBytes(StandardCharsets.UTF_8),
-                            String.format("%s/webclient/", host),
+                            String.format("%s/webclient/", webServerUri),
                             token
                     ).join();
                 } else {

@@ -13,16 +13,16 @@ public interface RepositoryEntity {
     boolean hasChildren();
 
     /**
-     * <p>Returns the list of children of this element.</p>
+     * Returns the list of children of this element.
      * <p>
-     *     Usually, the initial call to this function returns an empty list but
-     *     starts populating it in the background, so changes to this list should
-     *     be listened. The {@link #isPopulatingChildren()} function indicates
-     *     if the populating process is currently happening.
-     * </p>
-     * <p>This list may be updated from any thread.</p>
+     * Usually, the initial call to this function returns an empty list but
+     * starts populating it in the background, so changes to this list should
+     * be listened. The {@link #isPopulatingChildren()} function indicates
+     * if the populating process is currently happening.
+     * <p>
+     * This list may be updated from any thread.
      *
-     * @return an unmodifiable list of children of this element
+     * @return an unmodifiable observable list of children of this element
      */
     ObservableList<? extends RepositoryEntity> getChildren();
 

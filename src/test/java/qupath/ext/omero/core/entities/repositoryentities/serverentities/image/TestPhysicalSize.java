@@ -4,15 +4,13 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
-
 public class TestPhysicalSize {
 
     @Test
     void Check_Empty() {
         PhysicalSize physicalSize = new Gson().fromJson("{}", PhysicalSize.class);
 
-        Optional<String> symbol = physicalSize.getSymbol();
+        String symbol = physicalSize.symbol();
 
         Assertions.assertTrue(symbol.isEmpty());
     }
@@ -21,7 +19,7 @@ public class TestPhysicalSize {
     void Check_Symbol() {
         PhysicalSize physicalSize = createPhysicalSize();
 
-        String symbol = physicalSize.getSymbol().orElse("");
+        String symbol = physicalSize.symbol();
 
         Assertions.assertEquals("μm", symbol);
     }
@@ -30,7 +28,7 @@ public class TestPhysicalSize {
     void Check_Value() {
         PhysicalSize physicalSize = createPhysicalSize();
 
-        double value = physicalSize.getValue();
+        double value = physicalSize.value();
 
         Assertions.assertEquals(45.63, value);
     }

@@ -48,6 +48,7 @@ public class KeyValuesImporter implements DataTransporter {
      * @param quPath the quPath window
      */
     public KeyValuesImporter(QuPathGUI quPath) {
+        logger.debug("Creating KVP importer for {}", quPath);
         this.quPath = quPath;
     }
 
@@ -63,6 +64,8 @@ public class KeyValuesImporter implements DataTransporter {
 
     @Override
     public void transportData() {
+        logger.debug("Attempting to import KVP from OMERO");
+
         if (quPath.getProject() == null) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
@@ -92,59 +95,64 @@ public class KeyValuesImporter implements DataTransporter {
         }
         waitingWindow.show();
 
-        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class)
-                .exceptionally(error -> {
-                    logger.error("Cannot get annotations of image with ID {}", omeroImageServer.getId(), error);
-                    return null;
-                }).thenAccept(annotationGroup -> Platform.runLater(() -> {
-                    waitingWindow.close();
+        logger.debug("Getting annotations for image with ID {}", omeroImageServer.getId());
+        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).whenComplete((annotationGroup, error) -> Platform.runLater(() -> {
+            waitingWindow.close();
 
-                    if (annotationGroup == null) {
-                        new Dialogs.Builder()
-                                .alertType(Alert.AlertType.ERROR)
-                                .title(resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"))
-                                .content(new Label(resources.getString("DataTransporters.KeyValuesImporter.couldNotRetrieveKeyValues")))
-                                .owner(quPath.getStage())
-                                .show();
-                        return;
-                    }
+            if (annotationGroup == null) {
+                logger.error("Cannot get annotations of image with ID {}. Cannot import KVP", omeroImageServer.getId(), error);
 
-                    logger.debug("Got annotations {} for image with ID {}", annotationGroup, omeroImageServer.getId());
+                new Dialogs.Builder()
+                        .alertType(Alert.AlertType.ERROR)
+                        .title(resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"))
+                        .content(new Label(resources.getString("DataTransporters.KeyValuesImporter.couldNotRetrieveKeyValues")))
+                        .owner(quPath.getStage())
+                        .show();
+                return;
+            }
+            logger.debug("Got annotations {} for image with ID {}", annotationGroup, omeroImageServer.getId());
 
-                    if (annotationGroup.getAnnotationsOfClass(MapAnnotation.class).isEmpty()) {
-                        new Dialogs.Builder()
-                                .alertType(Alert.AlertType.WARNING)
-                                .title(resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"))
-                                .content(new Label(resources.getString("DataTransporters.KeyValuesImporter.noKeyValuePairFound")))
-                                .owner(quPath.getStage())
-                                .show();
-                        return;
-                    }
+            if (annotationGroup.getAnnotationsOfClass(MapAnnotation.class).isEmpty()) {
+                logger.debug("No annotations of {} are map annotations. Not importing KVP", annotationGroup);
+                new Dialogs.Builder()
+                        .alertType(Alert.AlertType.WARNING)
+                        .title(resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"))
+                        .content(new Label(resources.getString("DataTransporters.KeyValuesImporter.noKeyValuePairFound")))
+                        .owner(quPath.getStage())
+                        .show();
+                return;
+            }
 
-                    ImportKeyValuePairsForm importKeyValuePairsForm;
-                    try {
-                        importKeyValuePairsForm = new ImportKeyValuePairsForm(annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
-                                .stream()
-                                .map(Annotation::getNamespace)
-                                .flatMap(Optional::stream)
-                                .distinct()
-                                .toList()
-                        );
-                    } catch (IOException e) {
-                        logger.error("Error when creating the import key-values form", e);
-                        return;
-                    }
+            ImportKeyValuePairsForm importKeyValuePairsForm;
+            try {
+                importKeyValuePairsForm = new ImportKeyValuePairsForm(annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
+                        .stream()
+                        .map(Annotation::getNamespace)
+                        .flatMap(Optional::stream)
+                        .distinct()
+                        .toList()
+                );
+            } catch (IOException e) {
+                logger.error("Error when creating the import key-values form", e);
+                return;
+            }
 
-                    boolean confirmed = Dialogs.showConfirmDialog(
-                            resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
-                            importKeyValuePairsForm
-                    );
-                    if (!confirmed) {
-                        return;
-                    }
+            boolean confirmed = Dialogs.showConfirmDialog(
+                    resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"),
+                    importKeyValuePairsForm
+            );
+            if (!confirmed) {
+                logger.debug("Importing KVP dialog not confirmed. Not importing KVP");
+                return;
+            }
 
-                    setKeyValuePairs(annotationGroup, importKeyValuePairsForm.getSelectedNamespaces(), importKeyValuePairsForm.getSelectedChoice(), project);
-                }));
+            setKeyValuePairs(annotationGroup, importKeyValuePairsForm.getSelectedNamespaces(), importKeyValuePairsForm.getSelectedChoice(), project);
+        }));
+    }
+
+    @Override
+    public String toString() {
+        return String.format("KVP importer for %s", quPath);
     }
 
     private void setKeyValuePairs(AnnotationGroup annotationGroup, List<Namespace> selectedNamespaces, ImportKeyValuePairsForm.Choice selectedChoice, Project<BufferedImage> project) {
@@ -158,6 +166,7 @@ public class KeyValuesImporter implements DataTransporter {
         logger.debug("{} were filtered to {} to only contain the following namespaces: {}", annotationGroup, keyValues, selectedNamespaces);
 
         if (keyValues.isEmpty()) {
+            logger.debug("No KVP found. Not importing KVP");
             new Dialogs.Builder()
                     .alertType(Alert.AlertType.WARNING)
                     .title(resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"))
@@ -169,25 +178,27 @@ public class KeyValuesImporter implements DataTransporter {
 
         ProjectImageEntry<BufferedImage> projectEntry = project.getEntry(quPath.getImageData());
         if (selectedChoice.equals(ImportKeyValuePairsForm.Choice.DELETE_ALL)) {
-            logger.debug("Deleting metadata of current image");
+            logger.debug("Deleting metadata of current image {}", projectEntry);
             projectEntry.getMetadata().clear();
         }
 
+        logger.debug("Adding {} to {}", keyValues, projectEntry);
         List<MapAnnotation.Pair> keyValuesWritten = new ArrayList<>();
         List<MapAnnotation.Pair> keyValuesNotWrittenBecauseDuplicate = new ArrayList<>();
         for (MapAnnotation.Pair pair : keyValues) {
             if (selectedChoice.equals(ImportKeyValuePairsForm.Choice.KEEP_EXISTING) && projectEntry.getMetadata().containsKey(pair.key())) {
                 keyValuesNotWrittenBecauseDuplicate.add(pair);
-                logger.debug("Key-value pair {} not added to metadata of current image because it already exists", pair);
+                logger.debug("KVP {} not added to metadata of current image because it already exists", pair);
             } else if (keyValuesWritten.stream().map(MapAnnotation.Pair::key).anyMatch(key -> pair.key().equals(key))) {
                 keyValuesNotWrittenBecauseDuplicate.add(pair);
-                logger.debug("Key-value pair {} not added to metadata of current image because it is a duplicate of an already added pair", pair);
+                logger.debug("KVP {} not added to metadata of current image because it is a duplicate of an already added pair", pair);
             } else {
                 keyValuesWritten.add(pair);
                 projectEntry.getMetadata().put(pair.key(), pair.value());
-                logger.debug("Key-value pair {} added to metadata of current image", pair);
+                logger.debug("KVP {} added to metadata of current image", pair);
             }
         }
+        logger.debug("KVP {} added to {}, and {} not added because they are duplicates", keyValuesWritten, projectEntry, keyValuesNotWrittenBecauseDuplicate);
 
         if (keyValuesNotWrittenBecauseDuplicate.isEmpty()) {
             Dialogs.showInfoNotification(

@@ -145,22 +145,26 @@ public class PlateAcquisition extends ServerEntity {
                     wellSampleIndex = wellSampleIndices.getFirst();
                 }
 
-                client.getApisHandler().getWellsFromPlateAcquisition(getId(), wellSampleIndex)
-                        .thenApplyAsync(wells -> wells.stream()
-                                .map(well -> well.getImagesIds(true))
-                                .flatMap(List::stream)
-                                .map(id -> client.getApisHandler().getImage(id))
-                                .map(CompletableFuture::join)
-                                .toList()
-                        )
-                        .exceptionally(error -> {
-                            logger.error("Error while retrieving wells", error);
-                            return List.of();
-                        })
-                        .thenAccept(wells -> {
-                            children.addAll(wells);
-                            isPopulating = false;
-                        });
+                client.getApisHandler().getWellsFromPlateAcquisition(id, wellSampleIndex).thenApply(wells -> {
+                    logger.debug("Got wells {} as children of {}. Converting them to images", wells, this);
+
+                    return wells.stream()
+                            .map(well -> well.getImagesIds(true))
+                            .flatMap(List::stream)
+                            .map(id -> client.getApisHandler().getImage(id))
+                            .map(CompletableFuture::join)
+                            .toList();
+                }).whenComplete((images, error) -> {
+                    isPopulating = false;
+
+                    if (images == null) {
+                        logger.error("Error while retrieving children images of {}", this, error);
+                        return;
+                    }
+
+                    logger.debug("Got images {} as children of {}", images, this);
+                    children.addAll(images);
+                });
             }, () -> logger.warn(
                     "Could not find the web client corresponding to {}. Impossible to get the children of this plate acquisition ({}).",
                     webServerURI,

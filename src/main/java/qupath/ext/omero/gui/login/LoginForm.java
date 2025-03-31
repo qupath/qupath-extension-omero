@@ -72,12 +72,13 @@ public class LoginForm extends Stage {
      *
      * @param owner the window this form should be modal to
      * @param webServerUri the URI of the OMERO web server to connect to
-     * @param credentials some credentials to pre-fill the form. Can be null
+     * @param credentials some credentials to pre-fill the form. Can be null for not pre-filling anything
      * @param onClientCreated a function that will be called upon the successful creation of a client. It may be
      *                        executed from any thread
      * @throws IOException if an error occurs while getting the FXML file of this form
      */
     public LoginForm(Window owner, URI webServerUri, Credentials credentials, Consumer<Client> onClientCreated) throws IOException {
+        logger.debug("Creating login window for {}", webServerUri);
         this.onClientCreated = onClientCreated;
 
         UiUtilities.loadFXML(this, LoginForm.class.getResource("login_form.fxml"));
@@ -122,9 +123,11 @@ public class LoginForm extends Stage {
                 keyEvent -> {
                     switch (keyEvent.getCode()) {
                         case ENTER:
+                            logger.debug("Enter key pressed. Connecting");
                             onConnectClicked(null);
                             break;
                         case ESCAPE:
+                            logger.debug("Escape key pressed. Closing login window");
                             close();
                             break;
                     }
@@ -168,7 +171,11 @@ public class LoginForm extends Stage {
         executor.execute(() -> {
             try {
                 Credentials credentials = publicUser.isSelected() ? new Credentials() : new Credentials(username.getText(), getPassword());
+                logger.debug("Creating client with {} to connect to {}", credentials, url.getText());
+
                 Client client = Client.createOrGet(url.getText(), credentials, UiUtilities::displayPingErrorDialogIfUiPresent);
+                logger.debug("Client {} created. Closing waiting and login window", client);
+
                 onClientCreated.accept(client);
 
                 Platform.runLater(() -> {
@@ -177,7 +184,7 @@ public class LoginForm extends Stage {
                     close();
                 });
             } catch (Exception e) {
-                logger.error("Error while creating connection to {}", url.getText(), e);
+                logger.error("Error while creating connection to {}. Closing waiting window", url.getText(), e);
 
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
@@ -210,6 +217,7 @@ public class LoginForm extends Stage {
         for (int i = 0; i < passwordLength; i++) {
             passwordContent[i] = password.getCharacters().charAt(i);
         }
+        password.clear();
 
         return passwordContent;
     }

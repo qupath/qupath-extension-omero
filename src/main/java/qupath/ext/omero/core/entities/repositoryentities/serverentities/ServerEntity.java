@@ -71,7 +71,7 @@ public abstract class ServerEntity implements RepositoryEntity {
     }
 
     /**
-     * Returns the <b>name</b> of an attribute associated with this entity.
+     * Returns the localized <b>name</b> of an attribute associated with this entity.
      *
      * @param informationIndex the index of the attribute
      * @return the attribute name corresponding to the index, or an empty String if the index is out of bound
@@ -160,7 +160,7 @@ public abstract class ServerEntity implements RepositoryEntity {
 
                 return serverEntity;
             } catch (Exception e) {
-                logger.error("Could not deserialize {}", json, e);
+                logger.error("Could not deserialize {} to server entity", json, e);
                 return null;
             }
         }

@@ -80,6 +80,7 @@ class GatewayWrapper implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        logger.debug("Closing gateway wrapper");
         gateway.close();
     }
 

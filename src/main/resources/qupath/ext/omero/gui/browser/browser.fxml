@@ -139,7 +139,7 @@
                             </contextMenu>
                         </TreeView>
                         <HBox fx:id="filterContainer">
-                            <Button mnemonicParsing="false" onAction="#onAdvancedClicked" text="%Browser.ServerBrowser.advanced" />
+                            <Button mnemonicParsing="false" onAction="#onAdvancedSearchClicked" text="%Browser.ServerBrowser.advanced" />
                         </HBox>
                         <Button fx:id="importImage" disable="true" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#onImportButtonClicked" />
                     </VBox>

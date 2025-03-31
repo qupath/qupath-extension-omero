@@ -8,8 +8,8 @@
  *         the class that will actually read pixel values.
  *     </li>
  *     <li>
- *         The {@link qupath.ext.omero.core.pixelapis.ice ice} and
- *         {@link qupath.ext.omero.core.pixelapis.web web} packages contain two different
+ *         The {@link qupath.ext.omero.core.pixelapis.ice ice}, {@link qupath.ext.omero.core.pixelapis.web web}
+ *         and {@link qupath.ext.omero.core.pixelapis.mspixelbuffer mspixelbuffer} packages contain different
  *         APIs to read pixel values.
  *     </li>
  * </ul>

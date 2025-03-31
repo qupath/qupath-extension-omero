@@ -63,6 +63,8 @@ public record SearchResult(String type, int id, String name, Date dateAcquired, 
      * @return a list of search results, or an empty list if an error occurred or no result was found
      */
     public static List<SearchResult> createFromHTMLResponse(String htmlResponse, URI serverURI) {
+        logger.debug("Parsing {} to get search results", htmlResponse);
+
         List<SearchResult> searchResults = new ArrayList<>();
         Matcher rowMatcher = ROW_PATTERN.matcher(htmlResponse);
 
@@ -97,6 +99,8 @@ public record SearchResult(String type, int id, String name, Date dateAcquired, 
                 logger.warn("Could not parse search result.", e);
             }
         }
+
+        logger.debug("Found {} search results", searchResults);
 
         return searchResults;
     }

@@ -46,27 +46,27 @@ class WebGatewayApi {
     private static final String TILE_CHANNEL_PARAMETER = URLEncoder.encode("1|0:255$FF0000,2|0:255$00FF00,3|0:255$0000FF", StandardCharsets.UTF_8);
     private static final String CHANGE_CHANNEL_DISPLAY_RANGES_AND_COLORS_URL = "%s/webgateway/saveImgRDef/%d/?m=c&c=%s";
     private final IntegerProperty numberOfThumbnailsLoading = new SimpleIntegerProperty(0);
-    private final URI host;
+    private final URI webServerUri;
     private final RequestSender requestSender;
     private final String token;
 
     /**
      * Creates a web gateway client.
      *
-     * @param host the base server URI (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>)
+     * @param webServerUri the URL to the OMERO web server to connect to
      * @param requestSender the request sender to use
      * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
      *              used by this session. This is needed to perform some functions of this API.
      */
-    public WebGatewayApi(URI host, RequestSender requestSender, String token) {
-        this.host = host;
+    public WebGatewayApi(URI webServerUri, RequestSender requestSender, String token) {
+        this.webServerUri = webServerUri;
         this.requestSender = requestSender;
         this.token = token;
     }
 
     @Override
     public String toString() {
-        return String.format("WebGateway API of %s", host);
+        return String.format("WebGateway API of %s", webServerUri);
     }
 
     /**
@@ -89,7 +89,7 @@ class WebGatewayApi {
         logger.debug("Getting OMERO project icon");
 
         try {
-            return requestSender.getImage(new URI(String.format(ICON_URL, host, PROJECT_ICON_NAME)));
+            return requestSender.getImage(new URI(String.format(ICON_URL, webServerUri, PROJECT_ICON_NAME)));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -107,7 +107,7 @@ class WebGatewayApi {
         logger.debug("Getting OMERO dataset icon");
 
         try {
-            return requestSender.getImage(new URI(String.format(ICON_URL, host, DATASET_ICON_NAME)));
+            return requestSender.getImage(new URI(String.format(ICON_URL, webServerUri, DATASET_ICON_NAME)));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -125,7 +125,7 @@ class WebGatewayApi {
         logger.debug("Getting OMERO orphaned folder icon");
 
         try {
-            return requestSender.getImage(new URI(String.format(ICON_URL, host, ORPHANED_FOLDER_ICON_NAME)));
+            return requestSender.getImage(new URI(String.format(ICON_URL, webServerUri, ORPHANED_FOLDER_ICON_NAME)));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -149,7 +149,7 @@ class WebGatewayApi {
         }
 
         try {
-            return requestSender.getImage(new URI(String.format(THUMBNAIL_URL, host, imageId, size)))
+            return requestSender.getImage(new URI(String.format(THUMBNAIL_URL, webServerUri, imageId, size)))
                     .whenComplete((thumbnail, error) -> {
                         synchronized (this) {
                             numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() - 1);
@@ -174,7 +174,7 @@ class WebGatewayApi {
 
         URI uri;
         try {
-            uri = new URI(String.format(IMAGE_DATA_URL, host, imageId));
+            uri = new URI(String.format(IMAGE_DATA_URL, webServerUri, imageId));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -201,7 +201,7 @@ class WebGatewayApi {
 
         try {
             return requestSender.getImage(new URI(String.format(TILE_URL,
-                    host, imageId, tileRequest.getZ(), tileRequest.getT(),
+                    webServerUri, imageId, tileRequest.getZ(), tileRequest.getT(),
                     tileRequest.getLevel(), tileRequest.getTileX() / preferredTileWidth, tileRequest.getTileY() / preferredTileHeight,
                     preferredTileWidth, preferredTileHeight,
                     TILE_CHANNEL_PARAMETER,
@@ -218,15 +218,15 @@ class WebGatewayApi {
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request or the conversion failed for example).
      *
-     * @param imageID the ID of the image to change the channel settings
+     * @param imageId the ID of the image to change the channel settings
      * @param newChannelColors the new channel colors, with the packed RGB format
      * @param existingChannelSettings the existing channel settings of the image
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      * @throws IllegalArgumentException when {@code newChannelColors} and {@code existingChannelSettings}
      * don't have the same number of elements
      */
-    public CompletableFuture<Void> changeChannelColors(long imageID, List<Integer> newChannelColors, List<ChannelSettings> existingChannelSettings) {
-        logger.debug("Changing channel colors of image with ID {} to {}", imageID, newChannelColors);
+    public CompletableFuture<Void> changeChannelColors(long imageId, List<Integer> newChannelColors, List<ChannelSettings> existingChannelSettings) {
+        logger.debug("Changing channel colors of image with ID {} from {} to {}", imageId, existingChannelSettings, newChannelColors);
 
         if (newChannelColors.size() != existingChannelSettings.size()) {
             throw new IllegalArgumentException(String.format(
@@ -237,7 +237,7 @@ class WebGatewayApi {
         }
 
         return changeChannelDisplayRangesAndColors(
-                imageID,
+                imageId,
                 IntStream.range(0, existingChannelSettings.size())
                         .mapToObj(i -> new ChannelSettings(
                                 existingChannelSettings.get(i).minDisplayRange(),
@@ -254,7 +254,7 @@ class WebGatewayApi {
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request or the conversion failed for example).
      *
-     * @param imageID the ID of the image to change the channel settings
+     * @param imageId the ID of the image to change the channel settings
      * @param newChannelSettings the new channel display ranges (other fields of {@link ChannelSettings}
      *                         will be ignored)
      * @param existingChannelSettings the existing channel settings of the image
@@ -262,8 +262,8 @@ class WebGatewayApi {
      * @throws IllegalArgumentException when {@code newChannelSettings} and {@code existingChannelSettings}
      * don't have the same number of elements
      */
-    public CompletableFuture<Void> changeChannelDisplayRanges(long imageID, List<ChannelSettings> newChannelSettings, List<ChannelSettings> existingChannelSettings) {
-        logger.debug("Changing channel display ranges of image with ID {} to {}", imageID, newChannelSettings);
+    public CompletableFuture<Void> changeChannelDisplayRanges(long imageId, List<ChannelSettings> newChannelSettings, List<ChannelSettings> existingChannelSettings) {
+        logger.debug("Changing channel display ranges of image with ID {} from {} to {}", imageId, existingChannelSettings, newChannelSettings);
 
         if (newChannelSettings.size() != existingChannelSettings.size()) {
             throw new IllegalArgumentException(String.format(
@@ -274,7 +274,7 @@ class WebGatewayApi {
         }
 
         return changeChannelDisplayRangesAndColors(
-                imageID,
+                imageId,
                 IntStream.range(0, existingChannelSettings.size())
                         .mapToObj(i -> new ChannelSettings(
                                 newChannelSettings.get(i).minDisplayRange(),
@@ -285,13 +285,13 @@ class WebGatewayApi {
         );
     }
 
-    private CompletableFuture<Void> changeChannelDisplayRangesAndColors(long imageID, List<ChannelSettings> channelSettings) {
+    private CompletableFuture<Void> changeChannelDisplayRangesAndColors(long imageId, List<ChannelSettings> channelSettings) {
         URI uri;
         try {
             uri = new URI(String.format(
                     CHANGE_CHANNEL_DISPLAY_RANGES_AND_COLORS_URL,
-                    host,
-                    imageID,
+                    webServerUri,
+                    imageId,
                     URLEncoder.encode(
                             IntStream
                                     .range(0, channelSettings.size())
@@ -315,10 +315,13 @@ class WebGatewayApi {
             return CompletableFuture.failedFuture(e);
         }
 
+        String referer = String.format("%s/iviewer/?images=%d", webServerUri, imageId);
+        logger.debug("Changing channel display ranges and colors of image with ID {} with referer {}", imageId, referer);
+
         return requestSender.post(
                 uri,
                 "",
-                String.format("%s/iviewer/?images=%d", host, imageID),
+                referer,
                 token
         ).thenAccept(response -> {
             if (!response.equals("true")) {

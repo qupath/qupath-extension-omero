@@ -41,6 +41,7 @@ public class AnnotationImporter implements DataTransporter {
      * @param quPath the quPath window
      */
     public AnnotationImporter(QuPathGUI quPath) {
+        logger.debug("Creating annotation importer for {}", quPath);
         this.quPath = quPath;
     }
 
@@ -56,8 +57,9 @@ public class AnnotationImporter implements DataTransporter {
 
     @Override
     public void transportData() {
-        QuPathViewer viewer = quPath.getViewer();
+        logger.debug("Attempting to import annotations from OMERO");
 
+        QuPathViewer viewer = quPath.getViewer();
         if (!(viewer.getServer() instanceof OmeroImageServer omeroImageServer)) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.AnnotationsImporter.importAnnotations"),
@@ -78,10 +80,11 @@ public class AnnotationImporter implements DataTransporter {
         }
         waitingWindow.show();
 
+        logger.debug("Getting shapes of images with ID {}", omeroImageServer.getId());
         omeroImageServer.getClient().getApisHandler().getShapes(omeroImageServer.getId(), -1).whenComplete((shapes, error) -> Platform.runLater(() -> {
             waitingWindow.close();
 
-            if (error != null) {
+            if (shapes == null) {
                 logger.error("Cannot retrieve shapes of image with ID {}", omeroImageServer.getId(), error);
 
                 Dialogs.showErrorMessage(
@@ -93,7 +96,6 @@ public class AnnotationImporter implements DataTransporter {
                 );
                 return;
             }
-
             logger.debug("Got shapes {} from image with ID {}", shapes, omeroImageServer.getId());
 
             List<String> ownerNames = shapes.stream()
@@ -102,6 +104,7 @@ public class AnnotationImporter implements DataTransporter {
                     .distinct()
                     .toList();
             if (ownerNames.isEmpty()) {
+                logger.debug("No single owner full name was found in {}. Not importing annotations", shapes);
                 Dialogs.showErrorMessage(
                         resources.getString("DataTransporters.AnnotationsImporter.noAnnotations"),
                         resources.getString("DataTransporters.AnnotationsImporter.noAnnotationsFound")
@@ -122,17 +125,16 @@ public class AnnotationImporter implements DataTransporter {
                     annotationForm
             );
             if (!confirmed) {
+                logger.debug("Importing annotations dialog not confirmed. Not importing annotations");
                 return;
             }
-
-            List<PathObject> pathObjects = Shape.createPathObjects(shapes.stream()
-                    .filter(shape -> shape.getOwnerFullName().isPresent() && annotationForm.getSelectedOwner().contains(shape.getOwnerFullName().get()))
-                    .toList());
 
             PathObjectHierarchy hierarchy = viewer.getImageData().getHierarchy();
             StringBuilder message = new StringBuilder();
 
             if (annotationForm.deleteCurrentAnnotations()) {
+                logger.debug("Deleting current annotations from {}", hierarchy);
+
                 hierarchy.removeObjects(hierarchy.getAnnotationObjects(),true);
                 message
                         .append(resources.getString("DataTransporters.AnnotationsImporter.currentAnnotationsDeleted"))
@@ -140,12 +142,18 @@ public class AnnotationImporter implements DataTransporter {
             }
 
             if (annotationForm.deleteCurrentDetections()) {
+                logger.debug("Deleting current detections from {}", hierarchy);
+
                 hierarchy.removeObjects(hierarchy.getDetectionObjects(), false);
                 message
                         .append(resources.getString("DataTransporters.AnnotationsImporter.currentDetectionsDeleted"))
                         .append("\n");
             }
 
+            List<PathObject> pathObjects = Shape.createPathObjects(shapes.stream()
+                    .filter(shape -> shape.getOwnerFullName().isPresent() && annotationForm.getSelectedOwner().contains(shape.getOwnerFullName().get()))
+                    .toList());
+            logger.debug("Adding {} created from {} to {}", pathObjects, shapes, hierarchy);
             hierarchy.addObjects(pathObjects);
             hierarchy.resolveHierarchy();
 
@@ -163,5 +171,10 @@ public class AnnotationImporter implements DataTransporter {
                     message.toString()
             );
         }));
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Annotation importer for %s", quPath);
     }
 }

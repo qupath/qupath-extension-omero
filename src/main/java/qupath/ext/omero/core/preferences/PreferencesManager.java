@@ -87,6 +87,7 @@ public class PreferencesManager {
                 .filter(serverPreference -> serverPreference.webServerUri().equals(webServerUri))
                 .toList()
         );
+        logger.debug("Preferences for {} removed", webServerUri);
 
         preference.set(gson.toJson(serverPreferences));
     }
@@ -108,6 +109,7 @@ public class PreferencesManager {
      */
     public static synchronized void addListenerToServerPreferences(Runnable listener) {
         serverPreferences.addListener((ListChangeListener<? super ServerPreference>) change -> listener.run());
+        logger.debug("Adding listener to server preferences");
     }
 
     /**

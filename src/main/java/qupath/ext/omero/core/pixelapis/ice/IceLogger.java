@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 class IceLogger implements omero.log.Logger {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(IceLogger.class);
+
     @Override
     public void debug(Object o, String s) {
         logger.debug(s, o);

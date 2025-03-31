@@ -1,17 +1,18 @@
 package qupath.ext.omero.core;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.lib.io.GsonTools;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -44,7 +45,8 @@ public class RequestSender implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(RequestSender.class);
     private static final int REQUEST_TIMEOUT = 20;
-    private final java.net.CookieHandler cookieHandler = new CookieManager();
+    private static final Gson gson = new Gson();
+    private final CookieHandler cookieHandler = new CookieManager();
     /**
      * The redirection policy is specified to allow the HTTP client to automatically
      * follow HTTP redirections (from http:// to https:// for example).
@@ -75,6 +77,7 @@ public class RequestSender implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
+        logger.debug("Closing request sender");
         httpClient.close();
     }
 
@@ -135,7 +138,9 @@ public class RequestSender implements AutoCloseable {
      */
     public <T> CompletableFuture<T> getAndConvert(URI uri, TypeToken<T> conversionClass) {
         return get(uri).thenApply(response -> {
-            T processedResponse = GsonTools.getInstance().fromJson(response, conversionClass);
+            logger.trace("Converting {} to {}", response, conversionClass);
+
+            T processedResponse = gson.fromJson(response, conversionClass);
             if (processedResponse == null) {
                 throw new IllegalArgumentException(String.format(
                         "The response of %s is empty", uri
@@ -159,6 +164,8 @@ public class RequestSender implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with a list of JSON elements
      */
     public CompletableFuture<List<JsonElement>> getPaginated(URI uri) {
+        logger.debug("Reading paginated response from {}", uri);
+
         String delimiter = uri.getQuery() == null || uri.getQuery().isEmpty() ? "?" : "&";
 
         return getAndConvert(uri, JsonObject.class).thenApply(response -> {
@@ -359,7 +366,7 @@ public class RequestSender implements AutoCloseable {
         }
         HttpClient httpClient = builder.build();
 
-        logger.debug("Sending {} request to {}...", httpRequest.method(), httpRequest.uri());
+        logger.debug("Sending {} request to {} to check if it is reachable...", httpRequest.method(), httpRequest.uri());
 
         return httpClient
                 .sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
@@ -391,13 +398,15 @@ public class RequestSender implements AutoCloseable {
 
     private static void logResponse(URI uri, HttpResponse<?> response, Throwable error) {
         if (response == null) {
-            logger.trace("No response received from {}", uri);
+            logger.trace("Error when sending request to {}", uri, error);
         } else {
             logger.trace("Got response from {}: {}", uri, response.body());
         }
     }
 
     private List<JsonElement> readFollowingPages(String uri, int limit, int totalCount) {
+        logger.debug("Reading following pages of {} to read {} elements with {} elements per page", uri, totalCount, limit);
+
         return IntStream.iterate(limit, i -> i + limit)
                 .limit(max(0, (int) Math.ceil((float) (totalCount - limit) / limit)))
                 .mapToObj(offset -> URI.create(uri + "offset=" + offset))

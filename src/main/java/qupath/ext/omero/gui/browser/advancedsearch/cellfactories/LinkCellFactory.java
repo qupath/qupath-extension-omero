@@ -12,10 +12,12 @@ import qupath.lib.gui.QuPathGUI;
  */
 public class LinkCellFactory extends TableCell<SearchResult, SearchResult> {
 
-    private final Hyperlink hyperlink;
+    private final Hyperlink hyperlink = new Hyperlink();
 
+    /**
+     * Create the cell factory.
+     */
     public LinkCellFactory() {
-        hyperlink = new Hyperlink();
         hyperlink.setTextOverrun(OverrunStyle.LEADING_WORD_ELLIPSIS);
     }
 

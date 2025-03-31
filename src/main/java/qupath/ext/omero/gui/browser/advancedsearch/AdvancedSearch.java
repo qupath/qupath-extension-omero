@@ -51,6 +51,7 @@ public class AdvancedSearch extends Stage {
     private static final Logger logger = LoggerFactory.getLogger(AdvancedSearch.class);
     private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
     private static final ResourceBundle resources = Utils.getResources();
+    private static final int PROGRESS_INDICATOR_SIZE = 30;
     private final ApisHandler apisHandler;
     private final Server server;
     @FXML
@@ -105,6 +106,7 @@ public class AdvancedSearch extends Stage {
      * @throws IOException if an error occurs while creating the window
      */
     public AdvancedSearch(Stage ownerWindow, ApisHandler apisHandler, Server server) throws IOException {
+        logger.debug("Creating advanced search window for {}", server);
         this.apisHandler = apisHandler;
         this.server = server;
 
@@ -120,17 +122,18 @@ public class AdvancedSearch extends Stage {
             ((CheckBox) object).setSelected(true);
         }
 
-        owner.getSelectionModel().selectFirst();
-        group.getSelectionModel().selectFirst();
+        group.getSelectionModel().select(server.getDefaultGroup());
+        owner.getSelectionModel().select(server.getConnectedOwner());
 
         results.getItems().clear();
     }
 
     @FXML
     private void onSearchClicked(ActionEvent ignoredEvent) {
+        logger.debug("Search started");
+
         ProgressIndicator progressIndicator = new ProgressIndicator();
-        progressIndicator.setPrefSize(30, 30);
-        progressIndicator.setMinSize(30, 30);
+        progressIndicator.setPrefSize(PROGRESS_INDICATOR_SIZE, PROGRESS_INDICATOR_SIZE);
 
         search.setGraphic(progressIndicator);
         search.setText(null);
@@ -148,30 +151,29 @@ public class AdvancedSearch extends Stage {
                 screens.isSelected(),
                 group.getSelectionModel().getSelectedItem(),
                 owner.getSelectionModel().getSelectedItem()
-        )).handle((searchResults, error) -> {
-            Platform.runLater(() -> {
-                search.setGraphic(null);
-                search.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.search"));
+        )).whenComplete((searchResults, error) -> Platform.runLater(() -> {
+            search.setGraphic(null);
+            search.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.search"));
 
-                if (error == null) {
-                    results.getItems().setAll(searchResults);
-                } else {
-                    logger.error("Error when searching", error);
-                    Dialogs.showErrorNotification(
-                            resources.getString("Browser.ServerBrowser.AdvancedSearch.search"),
-                            MessageFormat.format(
-                                    resources.getString("Browser.ServerBrowser.AdvancedSearch.errorOccurred"),
-                                    error.getLocalizedMessage()
-                            )
-                    );
-                }
-            });
-            return null;
-        });
+            if (error == null) {
+                logger.debug("Got results {} from search", searchResults);
+                results.getItems().setAll(searchResults);
+            } else {
+                logger.error("Error when searching", error);
+                Dialogs.showErrorNotification(
+                        resources.getString("Browser.ServerBrowser.AdvancedSearch.search"),
+                        MessageFormat.format(
+                                resources.getString("Browser.ServerBrowser.AdvancedSearch.errorOccurred"),
+                                error.getLocalizedMessage()
+                        )
+                );
+            }
+        }));
     }
 
     @FXML
     private void onImportButtonClicked(ActionEvent ignoredEvent) {
+        logger.debug("Import button clicked. Importing selected images");
         importSelectedImages();
     }
 
@@ -263,6 +265,7 @@ public class AdvancedSearch extends Stage {
 
         results.setOnMouseClicked(mouseEvent -> {
             if (mouseEvent.getClickCount() == 2) {
+                logger.debug("Double click on results detected. Importing selected images");
                 importSelectedImages();
             }
         });
@@ -279,9 +282,11 @@ public class AdvancedSearch extends Stage {
                 keyEvent -> {
                     switch (keyEvent.getCode()) {
                         case ENTER:
+                            logger.debug("Enter key pressed. Starting search");
                             onSearchClicked(null);
                             break;
                         case ESCAPE:
+                            logger.debug("Escape key pressed. Closing advanced search window");
                             close();
                             break;
                     }

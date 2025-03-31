@@ -41,7 +41,7 @@ public abstract class Annotation {
      * @return the namespace of this annotation, or an empty Optional if not defined
      */
     public Optional<Namespace> getNamespace() {
-        return namespace == null ? Optional.empty() : Optional.of(new Namespace(namespace));
+        return Optional.ofNullable(namespace).map(Namespace::new);
     }
 
     /**
@@ -58,7 +58,7 @@ public abstract class Annotation {
      */
     public void updateAdderAndOwner(List<Experimenter> experimenters) {
         updateOwner(experimenters, owner).ifPresent(owner -> this.owner = owner);
-        updateOwner(experimenters, link == null ? null : link.getOwner().orElse(null)).ifPresent(owner -> link = new Link(owner));
+        updateOwner(experimenters, link == null ? null : link.owner()).ifPresent(owner -> link = new Link(owner));
     }
 
     /**
@@ -68,8 +68,10 @@ public abstract class Annotation {
      * @return the full name of the adder, or an empty String it not found
      */
     public String getAdderFullName() {
-        Optional<Owner> owner = link == null ? Optional.empty() : link.getOwner();
-        return owner.map(Owner::getFullName).orElse("");
+        return Optional.ofNullable(link)
+                .map(Link::owner)
+                .map(Owner::getFullName)
+                .orElse("");
     }
 
     /**
@@ -111,13 +113,13 @@ public abstract class Annotation {
 
     private static Optional<Owner> updateOwner(List<Experimenter> experimenters, Owner owner) {
         return experimenters.stream()
-                .filter(experimenter -> owner != null && experimenter.getId() == owner.id())
+                .filter(experimenter -> owner != null && experimenter.id() == owner.id())
                 .findAny()
                 .map(experimenter -> new Owner(
-                        experimenter.getId(),
-                        experimenter.getFirstName(),
+                        experimenter.id(),
+                        experimenter.firstName(),
                         owner.middleName(),
-                        experimenter.getLastName(),
+                        experimenter.lastName(),
                         owner.emailAddress(),
                         owner.institution(),
                         owner.username()

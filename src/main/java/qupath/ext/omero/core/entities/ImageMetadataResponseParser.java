@@ -36,6 +36,8 @@ public class ImageMetadataResponseParser {
      * channels or pixel type from the provided JSON object
      */
     public static ImageServerMetadata createMetadataFromJson(JsonObject metadataResponse) {
+        logger.debug("Parsing metadata from {}", metadataResponse);
+
         ImageServerMetadata.Builder metadataBuilder = new ImageServerMetadata.Builder();
 
         setImageSize(metadataResponse, metadataBuilder);
@@ -53,12 +55,15 @@ public class ImageMetadataResponseParser {
                 metadataBuilder.magnification(number.doubleValue())
         );
 
-        return metadataBuilder.build();
+        ImageServerMetadata metadata = metadataBuilder.build();
+        logger.debug("Got metadata {} from JSON {}", metadata, metadataResponse);
+
+        return metadata;
     }
 
     private static void setImageSize(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
         if (!metadataResponse.has("size") || !metadataResponse.get("size").isJsonObject()) {
-            throw new IllegalArgumentException(String.format("'size' JSON object not found in %s", metadataResponse));
+            throw new IllegalArgumentException(String.format("'size' JSON object not found in %s. Cannot determine width/height", metadataResponse));
         }
         JsonObject size = metadataResponse.getAsJsonObject("size");
 
@@ -81,16 +86,16 @@ public class ImageMetadataResponseParser {
                         pixelSize.getAsJsonPrimitive("y").getAsNumber()
                 );
             } else {
-                logger.debug("'x' or 'y' number not found in {}", pixelSize);
+                logger.debug("'x' or 'y' number not found in {}. Cannot set x/y pixel size", pixelSize);
             }
 
             if (pixelSize.has("z") && pixelSize.get("z").isJsonPrimitive() && pixelSize.getAsJsonPrimitive("z").isNumber()) {
                 metadataBuilder.zSpacingMicrons(pixelSize.getAsJsonPrimitive("z").getAsNumber());
             } else {
-                logger.debug("'z' number not found in {}", pixelSize);
+                logger.debug("'z' number not found in {}. Cannot set z spacing", pixelSize);
             }
         } else {
-            logger.debug("'pixel_size' JSON object not found in {}", metadataResponse);
+            logger.debug("'pixel_size' JSON object not found in {}. Cannot set x/y/z pixel size", metadataResponse);
         }
     }
 
@@ -98,14 +103,16 @@ public class ImageMetadataResponseParser {
         if (!metadataResponse.has("channels") || !metadataResponse.get("channels").isJsonArray() ||
                 metadataResponse.getAsJsonArray("channels").isEmpty()
         ) {
-            throw new IllegalArgumentException(String.format("Non empty 'channels' JSON array not found in %s", metadataResponse));
+            throw new IllegalArgumentException(String.format("Non empty 'channels' JSON array not found in %s. Cannot set channels", metadataResponse));
         }
         List<JsonElement> channelsJson = metadataResponse.getAsJsonArray("channels").asList();
 
         List<ImageChannel> channels = IntStream.range(0, channelsJson.size())
                 .mapToObj(i -> {
                     if (!channelsJson.get(i).isJsonObject()) {
-                        throw new IllegalArgumentException(String.format("The JSON element %s is not a JSON object", channelsJson.get(i)));
+                        throw new IllegalArgumentException(
+                                String.format("The JSON element %s is not a JSON object. Cannot set channels", channelsJson.get(i))
+                        );
                     }
                     JsonObject channel = channelsJson.get(i).getAsJsonObject();
 
@@ -113,8 +120,8 @@ public class ImageMetadataResponseParser {
                     if (channel.has("label") && channel.get("label").isJsonPrimitive()) {
                         channelName = channel.get("label").getAsString();
                     } else {
-                        logger.debug("'label' string not found in {}", channel);
                         channelName = String.format("Channel %d", i);
+                        logger.debug("'label' string not found in {}. Setting channel {} name to default value {}", channel, i, channelName);
                     }
 
                     Integer color;
@@ -128,12 +135,12 @@ public class ImageMetadataResponseParser {
                                     Integer.valueOf(colorText.substring(4, 6), 16)
                             );
                         } catch (IndexOutOfBoundsException |  NumberFormatException e) {
-                            logger.debug("Could not parse a color from {}", colorText, e);
                             color = ImageChannel.getDefaultChannelColor(i);
+                            logger.debug("Could not parse a color from {}. Setting channel {} color to default value {}", colorText, i, color, e);
                         }
                     } else {
-                        logger.debug("'color' string not found in {}", channel);
                         color = ImageChannel.getDefaultChannelColor(i);
+                        logger.debug("'color' string not found in {}. Setting channel {} color to default value {}", channel, i, color);
                     }
 
                     return ImageChannel.getInstance(
@@ -149,18 +156,18 @@ public class ImageMetadataResponseParser {
 
     private static PixelType setImageNameAndPixelType(JsonObject metadataResponse, ImageServerMetadata.Builder metadataBuilder) {
         if (!metadataResponse.has("meta") || !metadataResponse.get("meta").isJsonObject()) {
-            throw new IllegalArgumentException(String.format("'meta' JSON object not found in %s", metadataResponse));
+            throw new IllegalArgumentException(String.format("'meta' JSON object not found in %s. Cannot set pixel type", metadataResponse));
         }
         JsonObject meta = metadataResponse.getAsJsonObject("meta");
 
         if (meta.has("imageName") && meta.get("imageName").isJsonPrimitive()) {
             metadataBuilder.name(meta.get("imageName").getAsString());
         } else {
-            logger.debug("'imageName' string not found in {}", meta);
+            logger.debug("'imageName' string not found in {}. Cannot set image name", meta);
         }
 
         if (!meta.has("pixelsType") || !meta.get("pixelsType").isJsonPrimitive()) {
-            throw new IllegalArgumentException(String.format("'pixelsType' string not found in %s", meta));
+            throw new IllegalArgumentException(String.format("'pixelsType' string not found in %s. Cannot set pixel type", meta));
         }
         String pixelsType = meta.get("pixelsType").getAsString();
 
@@ -184,7 +191,7 @@ public class ImageMetadataResponseParser {
                 metadataBuilder.preferredTileSize(tileWidth.get().intValue(), tileHeight.get().intValue());
             }
         } else {
-            logger.debug("'tile_size' JSON object not found in {}", metadataResponse);
+            logger.debug("'tile_size' JSON object not found in {}. Cannot set preferred tile size", metadataResponse);
         }
     }
 
@@ -202,7 +209,7 @@ public class ImageMetadataResponseParser {
                         .toArray()
                 );
             } else {
-                logger.debug("'zoomLevelScaling' JSON object not found in {}", metadataResponse);
+                logger.debug("'zoomLevelScaling' JSON object not found in {}. Cannot set levels", metadataResponse);
             }
         }
     }

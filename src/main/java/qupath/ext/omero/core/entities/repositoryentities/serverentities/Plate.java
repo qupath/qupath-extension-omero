@@ -136,46 +136,50 @@ public class Plate extends ServerEntity {
             );
         } else {
             Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
-                client.getApisHandler().getPlateAcquisitions(id)
-                        .exceptionally(error -> {
-                            logger.error("Error while retrieving plate acquisitions", error);
-                            return List.of();
-                        })
-                        .thenAccept(plateAcquisitions -> {
-                            synchronized (this) {
-                                childrenTypesPopulated++;
-                            }
+                client.getApisHandler().getPlateAcquisitions(id).whenComplete(((plateAcquisitions, error) -> {
+                    synchronized (this) {
+                        childrenTypesPopulated++;
+                    }
 
-                            for (PlateAcquisition plateAcquisition: plateAcquisitions) {
-                                plateAcquisition.setNumberOfWells(columns * rows);
-                            }
-                            children.addAll(plateAcquisitions);
-                        });
+                    if (plateAcquisitions == null) {
+                        logger.error("Error while retrieving children plate acquisitions of {}", this, error);
+                        return;
+                    }
 
-                client.getApisHandler().getWellsFromPlate(id)
-                        .thenApplyAsync(wells -> wells.stream()
-                                .map(well -> well.getImagesIds(false))
-                                .flatMap(List::stream)
-                                .map(id -> client.getApisHandler().getImage(id))
-                                .map(CompletableFuture::join)
-                                .toList()
-                        )
-                        .exceptionally(error -> {
-                            logger.error("Error while retrieving wells", error);
-                            return List.of();
-                        })
-                        .thenAccept(images -> {
-                            synchronized (this) {
-                                childrenTypesPopulated++;
-                            }
+                    logger.debug("Got plate acquisitions {} as children of {}", plateAcquisitions, this);
+                    for (PlateAcquisition plateAcquisition: plateAcquisitions) {
+                        plateAcquisition.setNumberOfWells(columns * rows);
+                    }
+                    children.addAll(plateAcquisitions);
+                }));
 
-                            children.addAll(images);
-                        });
-            }, () -> logger.warn(String.format(
-                    "Could not find the web client corresponding to %s. Impossible to get the children of this plate (%s).",
+                client.getApisHandler().getWellsFromPlate(id).thenApply(wells -> {
+                    logger.debug("Got wells {} as children of {}. Converting them to images", wells, this);
+
+                    return wells.stream()
+                            .map(well -> well.getImagesIds(false))
+                            .flatMap(List::stream)
+                            .map(id -> client.getApisHandler().getImage(id))
+                            .map(CompletableFuture::join)
+                            .toList();
+                }).whenComplete((images, error) -> {
+                    synchronized (this) {
+                        childrenTypesPopulated++;
+                    }
+
+                    if (images == null) {
+                        logger.error("Error while retrieving children images of {}", this, error);
+                        return;
+                    }
+
+                    logger.debug("Got images {} as children of {}", images, this);
+                    children.addAll(images);
+                });
+            }, () -> logger.warn(
+                    "Could not find the web client corresponding to {}. Impossible to get the children of this plate ({}).",
                     webServerURI,
                     this
-            )));
+            ));
         }
     }
 }

@@ -42,6 +42,7 @@ public class KeyValuesSender implements DataTransporter {
      * @param quPath the quPath window
      */
     public KeyValuesSender(QuPathGUI quPath) {
+        logger.debug("Creating KVP sender for {}", quPath);
         this.quPath = quPath;
     }
 
@@ -57,6 +58,8 @@ public class KeyValuesSender implements DataTransporter {
 
     @Override
     public void transportData() {
+        logger.debug("Attempting to send KVP to OMERO");
+
         if (quPath.getProject() == null) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
@@ -95,27 +98,36 @@ public class KeyValuesSender implements DataTransporter {
         }
         waitingWindow.show();
 
-        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class)
-                .exceptionally(error -> {
-                    logger.warn("Cannot get annotations of image with ID {}. Assuming no namespace exists", omeroImageServer.getId(), error);
-                    return null;
-                }).thenAccept(annotationGroup -> {
-                    Platform.runLater(waitingWindow::close);
+        logger.debug("Getting annotations of image with ID {}", omeroImageServer.getId());
+        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).whenComplete(((annotationGroup, error) -> Platform.runLater(() -> {
+            waitingWindow.close();
 
-                    if (annotationGroup == null) {
-                        return;
-                    }
+            if (annotationGroup == null) {
+                logger.error("Cannot get annotations of image with ID {}. Can't send KVP", omeroImageServer.getId(), error);
 
-                    Platform.runLater(() -> sendKeyValuePairs(
-                            omeroImageServer,
-                            keyValues,
-                            annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
-                                    .map(Annotation::getNamespace)
-                                    .flatMap(Optional::stream)
-                                    .distinct()
-                                    .toList()
-                    ));
-                });
+                Dialogs.showErrorMessage(
+                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                        resources.getString("DataTransporters.KeyValuesSender.cannotGetExistingKvp")
+                );
+                return;
+            }
+            logger.debug("Got annotations {} for image with ID {}", annotationGroup, omeroImageServer.getId());
+
+            sendKeyValuePairs(
+                    omeroImageServer,
+                    keyValues,
+                    annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+                            .map(Annotation::getNamespace)
+                            .flatMap(Optional::stream)
+                            .distinct()
+                            .toList()
+            );
+        })));
+    }
+
+    @Override
+    public String toString() {
+        return String.format("KVP sender for %s", quPath);
     }
 
     private void sendKeyValuePairs(OmeroImageServer omeroImageServer, Map<String,String> keyValues, List<Namespace> namespaces) {
@@ -134,6 +146,7 @@ public class KeyValuesSender implements DataTransporter {
                 sendKeyValuePairsForm
         );
         if (!confirmed) {
+            logger.debug("Sending KVP dialog not confirmed. Not sending KVP");
             return;
         }
 
@@ -157,30 +170,33 @@ public class KeyValuesSender implements DataTransporter {
         }
         waitingWindow.show();
 
+        logger.debug(
+                "Sending {} with namespace {} to image with ID {}",
+                sendKeyValuePairsForm.getKeyValuePairsToSend(),
+                sendKeyValuePairsForm.getSelectedNamespace(),
+                omeroImageServer.getId()
+        );
         omeroImageServer.getClient().getApisHandler().sendKeyValuePairs(
                 omeroImageServer.getId(),
                 sendKeyValuePairsForm.getSelectedNamespace(),
                 sendKeyValuePairsForm.getKeyValuePairsToSend(),
                 sendKeyValuePairsForm.getSelectedChoice().equals(SendKeyValuePairsForm.Choice.REPLACE_EXITING)
-        ).handle((v, error) -> {
-            Platform.runLater(() -> {
-                waitingWindow.close();
+        ).whenComplete((v, error) -> Platform.runLater(() -> {
+            waitingWindow.close();
 
-                if (error == null) {
-                    Dialogs.showInfoNotification(
-                            resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                            resources.getString("DataTransporters.KeyValuesSender.keyValuesSent")
-                    );
-                } else {
-                    logger.error("Error while sending key-value pairs", error);
-                    Dialogs.showErrorNotification(
-                            resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
-                            resources.getString("DataTransporters.KeyValuesSender.keyValuesNotSent")
-                    );
-                }
-            });
-
-            return null;
-        });
+            if (error == null) {
+                logger.debug("KVP {} sent to image with ID {}", sendKeyValuePairsForm.getKeyValuePairsToSend(), omeroImageServer.getId());
+                Dialogs.showInfoNotification(
+                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                        resources.getString("DataTransporters.KeyValuesSender.keyValuesSent")
+                );
+            } else {
+                logger.error("Error while sending key-value pairs", error);
+                Dialogs.showErrorNotification(
+                        resources.getString("DataTransporters.KeyValuesSender.sendKeyValues"),
+                        resources.getString("DataTransporters.KeyValuesSender.keyValuesNotSent")
+                );
+            }
+        }));
     }
 }

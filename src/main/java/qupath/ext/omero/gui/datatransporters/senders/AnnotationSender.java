@@ -60,6 +60,7 @@ public class AnnotationSender implements DataTransporter {
      * @param quPath the quPath window
      */
     public AnnotationSender(QuPathGUI quPath) {
+        logger.debug("Creating annotation sender for {}", quPath);
         this.quPath = quPath;
     }
 
@@ -75,8 +76,9 @@ public class AnnotationSender implements DataTransporter {
 
     @Override
     public void transportData() {
-        QuPathViewer viewer = quPath.getViewer();
+        logger.debug("Attempting to send annotations to OMERO");
 
+        QuPathViewer viewer = quPath.getViewer();
         if (viewer == null || !(viewer.getServer() instanceof OmeroImageServer omeroImageServer)) {
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.AnnotationsSender.sendAnnotations"),
@@ -97,42 +99,78 @@ public class AnnotationSender implements DataTransporter {
         }
         waitingWindow.show();
 
-        omeroImageServer.getClient().getServer()
-                .thenApply(server -> {
-                    long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroupId();
+        logger.debug("Getting server of {}", omeroImageServer.getClient());
+        omeroImageServer.getClient().getServer().thenApplyAsync(server -> {
+            logger.debug("Got server {} of {}", server, omeroImageServer.getClient());
 
-                    Group group = server.getGroups().stream()
-                            .filter(g -> g.getId() == groupId)
-                            .findAny()
-                            .orElseThrow(() -> new NoSuchElementException(String.format("Cannot find group with ID %d", groupId)));
+            logger.debug("Getting image with ID {} to get ID of group owning the image", omeroImageServer.getId());
+            long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroupId();
 
-                    return switch (group.getPermissionLevel()) {
-                        case UNKNOWN, PRIVATE, READ_ONLY -> List.of(server.getConnectedOwner());
-                        case READ_ANNOTATE -> omeroImageServer.getClient().getApisHandler().isConnectedUserOwnerOfGroup(groupId) ?
-                                group.getOwners() :
-                                List.of(server.getConnectedOwner());
-                        case READ_WRITE -> group.getOwners();
-                    };
-                })
-                .exceptionally(error -> {
-                    logger.error("Cannot get owners having access to the image {}", omeroImageServer.getURIs(), error);
-                    return null;
-                })
-                .thenAccept(owners -> Platform.runLater(() -> {
-                    waitingWindow.close();
+            Group group = server.getGroups().stream()
+                    .filter(g -> g.getId() == groupId)
+                    .findAny()
+                    .orElseThrow(() -> new NoSuchElementException(String.format("Cannot find group with ID %d", groupId)));
+            logger.debug("Got group {} owning image with ID {}", group, omeroImageServer.getId());
 
-                    if (owners == null) {
-                        Dialogs.showErrorMessage(
-                                resources.getString("DataTransporters.AnnotationsSender.serverError"),
-                                MessageFormat.format(
-                                        resources.getString("DataTransporters.AnnotationsSender.cannotRetrieveOwners"),
-                                        omeroImageServer.getURIs()
-                                )
+            return switch (group.getPermissionLevel()) {
+                case UNKNOWN, PRIVATE, READ_ONLY -> {
+                    logger.debug("Group {} has {} permission level, which means current user can only delete its own annotations", group, group.getPermissionLevel());
+
+                    yield List.of(server.getConnectedOwner());
+                }
+                case READ_ANNOTATE -> {
+                    if (omeroImageServer.getClient().getApisHandler().isConnectedUserOwnerOfGroup(groupId)) {
+                        logger.debug(
+                                "Group {} has {} permission level and current user is owner of this group, which means current user can delete annotations of all members of group",
+                                group,
+                                group.getPermissionLevel()
                         );
+
+                        yield group.getOwners();
                     } else {
-                        sendAnnotations(omeroImageServer, owners, viewer);
+                        logger.debug(
+                                "Group {} has {} permission level and current user is not owner of this group, which means current user can only delete its own annotations",
+                                group,
+                                group.getPermissionLevel()
+                        );
+
+                        yield List.of(server.getConnectedOwner());
                     }
-                }));
+                }
+                case READ_WRITE -> {
+                    logger.debug(
+                            "Group {} has {} permission level, which means current user can delete annotations of all members of group",
+                            group,
+                            group.getPermissionLevel()
+                    );
+
+                    yield group.getOwners();
+                }
+            };
+        }).whenComplete((owners, error) -> Platform.runLater(() -> {
+            waitingWindow.close();
+
+            if (owners == null) {
+                logger.error("Cannot get owners having access to the image {}. Cannot send annotations", omeroImageServer.getURIs(), error);
+
+                Dialogs.showErrorMessage(
+                        resources.getString("DataTransporters.AnnotationsSender.serverError"),
+                        MessageFormat.format(
+                                resources.getString("DataTransporters.AnnotationsSender.cannotRetrieveOwners"),
+                                omeroImageServer.getURIs()
+                        )
+                );
+                return;
+            }
+
+            logger.debug("Got owners {} that potentially have annotations that can be deleted by current user", owners);
+            sendAnnotations(omeroImageServer, owners, viewer);
+        }));
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Annotation sender for %s", quPath);
     }
 
     private void sendAnnotations(OmeroImageServer omeroImageServer, List<Owner> owners, QuPathViewer viewer) {
@@ -146,10 +184,6 @@ public class AnnotationSender implements DataTransporter {
             );
         } catch (IOException e) {
             logger.error("Error when creating the annotation form", e);
-            Dialogs.showErrorMessage(
-                    resources.getString("DataTransporters.AnnotationsSender.sendAnnotations"),
-                    e.getLocalizedMessage()
-            );
             return;
         }
 
@@ -157,11 +191,13 @@ public class AnnotationSender implements DataTransporter {
                 resources.getString("DataTransporters.AnnotationsSender.dataToSend"),
                 annotationForm
         )) {
+            logger.debug("Sending annotations dialog not confirmed. Not sending annotations");
             return;
         }
 
         Collection<PathObject> annotations = getAnnotations(viewer, annotationForm.sendOnlySelectedAnnotations());
         if (annotations.isEmpty()) {
+            logger.debug("No annotations to send. Not sending annotations");
             Dialogs.showErrorMessage(
                     resources.getString("DataTransporters.AnnotationsSender.sendAnnotations"),
                     resources.getString("DataTransporters.AnnotationsSender.noAnnotations")
@@ -172,6 +208,7 @@ public class AnnotationSender implements DataTransporter {
         // The potential deletion of existing measurements and annotations must happen before other requests
         Map<Request, CompletableFuture<Void>> deletionRequests = new HashMap<>();
         if (annotationForm.deleteExistingAnnotations()) {
+            logger.debug("Deleting shapes of image with ID {} belonging to users {}", omeroImageServer.getId(), annotationForm.getSelectedOwnersOfDeletedAnnotations());
             deletionRequests.put(
                     Request.DELETE_EXISTING_ANNOTATIONS,
                     omeroImageServer.getClient().getApisHandler().deleteShapes(
@@ -181,6 +218,7 @@ public class AnnotationSender implements DataTransporter {
             );
         }
         if (annotationForm.deleteExistingMeasurements()) {
+            logger.debug("Deleting measurements of image with ID {} belonging to users {}", omeroImageServer.getId(), annotationForm.getSelectedOwnersOfDeletedMeasurements());
             deletionRequests.put(
                     Request.DELETE_EXISTING_MEASUREMENTS,
                     omeroImageServer.getClient().getApisHandler().deleteAttachments(
@@ -292,6 +330,7 @@ public class AnnotationSender implements DataTransporter {
     ) {
         Map<Request, CompletableFuture<Void>> requests = new HashMap<>();
 
+        logger.debug("Adding {} to image with ID {}", annotations, omeroImageServer.getId());
         requests.put(
                 Request.SEND_ANNOTATIONS,
                 omeroImageServer.getClient().getApisHandler().addShapes(
@@ -359,6 +398,7 @@ public class AnnotationSender implements DataTransporter {
                     new SimpleDateFormat("yyyyMMdd-HH'h'mm'm'ss").format(new Date())
             );
 
+            logger.debug("Sending {} measurements to image with ID {}", exportType, omeroImageServer.getId());
             return omeroImageServer.getClient().getApisHandler().sendAttachment(
                     omeroImageServer.getId(),
                     Image.class,
@@ -372,7 +412,18 @@ public class AnnotationSender implements DataTransporter {
 
     private static void logErrors(Map<Request, Throwable> errors) {
         for (Map.Entry<Request, Throwable> error: errors.entrySet()) {
-            if (error.getValue() != null) {
+            if (error.getValue() == null) {
+                logger.debug(
+                        "The operation {} succeeded",
+                        switch (error.getKey()) {
+                            case SEND_ANNOTATIONS -> "sending annotations";
+                            case DELETE_EXISTING_ANNOTATIONS -> "deleting existing annotations";
+                            case DELETE_EXISTING_MEASUREMENTS -> "deleting existing measurements";
+                            case SEND_ANNOTATION_MEASUREMENTS -> "sending annotations measurements";
+                            case SEND_DETECTION_MEASUREMENTS -> "sending detection measurements";
+                        }
+                );
+            } else {
                 logger.error(
                         "Error while {}",
                         switch (error.getKey()) {
@@ -381,7 +432,7 @@ public class AnnotationSender implements DataTransporter {
                             case DELETE_EXISTING_MEASUREMENTS -> "deleting existing measurements";
                             case SEND_ANNOTATION_MEASUREMENTS -> "sending annotations measurements";
                             case SEND_DETECTION_MEASUREMENTS -> "sending detection measurements";
-                            },
+                        },
                         error.getValue()
                 );
             }

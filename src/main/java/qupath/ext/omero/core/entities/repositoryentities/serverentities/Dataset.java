@@ -11,7 +11,6 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Im
 import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
-import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -132,14 +131,17 @@ public class Dataset extends ServerEntity {
             Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
                 isPopulating = true;
 
-                client.getApisHandler().getImages(getId())
-                        .exceptionally(error -> {
-                            logger.error("Error while retrieving images", error);
-                            return List.of();
-                        }).thenAccept(images -> {
-                            isPopulating = false;
-                            children.addAll(images);
-                        });
+                client.getApisHandler().getImages(id).whenComplete((images, error) -> {
+                    isPopulating = false;
+
+                    if (images == null) {
+                        logger.error("Error while retrieving children images of {}", this, error);
+                        return;
+                    }
+
+                    logger.debug("Got images {} as children of {}", images, this);
+                    children.addAll(images);
+                });
             }, () -> logger.warn(
                     "Could not find the web client corresponding to {}. Impossible to get the children of this dataset ({}).",
                     webServerURI,

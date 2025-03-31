@@ -169,6 +169,8 @@ public class Client implements AutoCloseable {
      * was used to log in
      */
     public static Client createOrGet(String url, Credentials credentials, Consumer<Client> onPingFailed) throws URISyntaxException, ExecutionException, InterruptedException {
+        logger.debug("Creating or getting client to {} with {}", url, credentials);
+
         URI webServerURI = getServerURI(new URI(url));
 
         synchronized (Client.class) {
@@ -213,6 +215,8 @@ public class Client implements AutoCloseable {
      */
     @Override
     public void close() throws Exception {
+        logger.debug("Closing connection to {}", apisHandler.getWebServerURI());
+
         synchronized (Client.class) {
             clients.remove(this);
         }
@@ -269,6 +273,7 @@ public class Client implements AutoCloseable {
      */
     public static synchronized void addListenerToClients(Runnable listener) {
         clients.addListener((ListChangeListener<? super Client>) change -> listener.run());
+        logger.debug("Adding listener to clients");
     }
 
     /**
@@ -301,6 +306,10 @@ public class Client implements AutoCloseable {
                 try {
                     return new Server(apisHandler);
                 } catch (ExecutionException | InterruptedException e) {
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
+
                     throw new RuntimeException(e);
                 }
             });
@@ -332,6 +341,7 @@ public class Client implements AutoCloseable {
         }
 
         synchronized (this) {
+            logger.debug("Selecting {} for {}", pixelAPI, this);
             selectedPixelAPI.set(pixelAPI);
         }
     }
@@ -427,6 +437,8 @@ public class Client implements AutoCloseable {
                 .findAny()
                 .orElse(availablePixelApis.getFirst())
         );
+        logger.debug("{} selected for {}", selectedPixelAPI.get(), this);
+
         availablePixelApis.addListener((ListChangeListener<? super PixelApi>) change -> {
             synchronized (this) {
                 selectedPixelAPI.set(availablePixelApis.stream()

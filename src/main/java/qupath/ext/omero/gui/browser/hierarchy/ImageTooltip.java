@@ -39,21 +39,22 @@ class ImageTooltip extends VBox {
      * @throws IOException if an error occurs while creating the tooltip
      */
     public ImageTooltip(Image image, ApisHandler apisHandler) throws IOException {
+        logger.debug("Creating image tooltip for {}", image);
+
         UiUtilities.loadFXML(this, ImageTooltip.class.getResource("image_tooltip.fxml"));
 
         setErrorLine(image);
         image.isSupported().addListener(change -> Platform.runLater(() -> setErrorLine(image)));
 
-        apisHandler.getThumbnail(image.getId())
-                .exceptionally(error -> {
-                    logger.error("Error when retrieving thumbnail", error);
-                    return null;
-                })
-                .thenAccept(thumbnail -> Platform.runLater(() -> {
-                    if (thumbnail != null) {
-                        UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
-                    }
-                }));
+        apisHandler.getThumbnail(image.getId()).whenComplete((thumbnail, error) -> Platform.runLater(() -> {
+            if (thumbnail == null) {
+                logger.error("Error when retrieving thumbnail of image with ID {}. Cannot set canvas of image tooltip", image.getId(), error);
+                return;
+            }
+
+            logger.debug("Retrieved thumbnail {} of image with ID {}. Setting to canvas of image tooltip", thumbnail, image.getId());
+            UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+        }));
     }
 
     private void setErrorLine(Image image) {
