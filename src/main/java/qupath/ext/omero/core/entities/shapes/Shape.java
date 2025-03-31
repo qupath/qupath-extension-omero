@@ -45,6 +45,7 @@ public abstract class Shape {
     private static final String ANNOTATION = "Annotation";
     private static final String DETECTION = "Detection";
     private static final String NO_PARENT = "NoParent";
+    private static final String NO_NAME = "NoName";
     private static final String TEXT_DELIMITER = ":";
     private static final String CLASS_DELIMITER = "&";
     private static final String POINT_DELIMITER = " ";
@@ -74,7 +75,7 @@ public abstract class Shape {
         this.type = TYPE_URL + type;
 
         this.text = String.format(
-                "%s%s%s%s%s%s%s",
+                "%s%s%s%s%s%s%s%s%s",
                 pathObject.isDetection() ? DETECTION : ANNOTATION,
                 TEXT_DELIMITER,
                 pathObject.getPathClass() == null ?
@@ -83,12 +84,16 @@ public abstract class Shape {
                 TEXT_DELIMITER,
                 pathObject.getID().toString(),
                 TEXT_DELIMITER,
-                pathObject.getParent() == null ? NO_PARENT : pathObject.getParent().getID().toString()
+                pathObject.getParent() == null ? NO_PARENT : pathObject.getParent().getID().toString(),
+                TEXT_DELIMITER,
+                pathObject.getName() == null ? NO_NAME : pathObject.getName()
         );
 
         int color = pathObject.getPathClass() == null ? PathPrefs.colorDefaultObjectsProperty().get() : pathObject.getPathClass().getColor();
         this.strokeColor = ARGBToRGBA(color);
         this.fillColor = colorToRGBA(fillColor ? ColorToolsAwt.getMoreTranslucentColor(new Color(color)) : new Color(0, 0, 0, 0));
+
+        this.locked = pathObject.isLocked();
     }
 
     /**
@@ -213,7 +218,7 @@ public abstract class Shape {
         Map<UUID, UUID> idToParentId = new HashMap<>();
         for (UUID uuid: uuids) {
             List<? extends Shape> shapesWithUuid = shapes.stream()
-                    .filter(shape -> uuid.equals(shape.getQuPathId()))
+                    .filter(shape -> uuid.equals(((Shape) shape).getQuPathId()))
                     .toList();
             List<UUID> parentUuid = shapesWithUuid.stream()
                     .map(Shape::getQuPathParentId)
@@ -310,11 +315,7 @@ public abstract class Shape {
         return c == null ? ImagePlane.getPlane(z, t) : ImagePlane.getPlaneWithChannel(c, z, t);
     }
 
-    /**
-     * @return the QuPath ID contained in this shape, or a random UUID if not
-     * found
-     */
-    protected UUID getQuPathId() {
+    private UUID getQuPathId() {
         if (this.uuid == null) {
             if (text != null && text.split(TEXT_DELIMITER).length > 2) {
                 String uuid = text.split(TEXT_DELIMITER)[2];
@@ -330,13 +331,6 @@ public abstract class Shape {
         }
 
         return uuid;
-    }
-
-    /**
-     * @return whether this shape should be locked (can be null)
-     */
-    protected Boolean getLocked() {
-        return locked;
     }
 
     private Optional<UUID> getQuPathParentId() {
@@ -367,12 +361,14 @@ public abstract class Shape {
         List<PathClass> pathClasses = shapes.stream().map(Shape::getPathClass).distinct().toList();
         List<String> types = shapes.stream().map(Shape::getType).distinct().toList();
         List<UUID> uuids = shapes.stream().map(Shape::getQuPathId).distinct().toList();
-        List<Boolean> locked = shapes.stream().map(Shape::getLocked).distinct().toList();
+        List<Boolean> locked = shapes.stream().map(shape -> ((Shape) shape).locked).distinct().toList();
+        List<Optional<String>> names = shapes.stream().map(shape -> ((Shape) shape).getName()).distinct().toList();
 
         warnIfDuplicateAttribute(shapes, pathClasses, "class");
         warnIfDuplicateAttribute(shapes, types, "type (annotation/detection)");
         warnIfDuplicateAttribute(shapes, uuids, "UUID");
         warnIfDuplicateAttribute(shapes, locked, "locked");
+        warnIfDuplicateAttribute(shapes, names, "names");
 
         PathObject pathObject;
         if (types.getFirst().equals(DETECTION)) {
@@ -394,8 +390,12 @@ public abstract class Shape {
         if (locked.getFirst() != null) {
             pathObject.setLocked(locked.getFirst());
         }
-        logger.debug("Created path object {} from shapes {}", pathObject, shapes);
 
+        if (names.getFirst().isPresent()) {
+            pathObject.setName(names.getFirst().get());
+        }
+
+        logger.debug("Created path object {} from shapes {}", pathObject, shapes);
         return pathObject;
     }
 
@@ -434,6 +434,21 @@ public abstract class Shape {
             logger.debug("Type not found in {}. Returning {}", text, ANNOTATION);
 
             return ANNOTATION;
+        }
+    }
+
+    private Optional<String> getName() {
+        if (text != null && text.split(TEXT_DELIMITER).length > 4 && !text.split(TEXT_DELIMITER)[4].isBlank()) {
+            if (NO_NAME.equals(text.split(TEXT_DELIMITER)[4])) {
+                logger.debug("{} name found in {}. Not setting any name", NO_NAME, text);
+                return Optional.empty();
+            } else {
+                return Optional.of(text.split(TEXT_DELIMITER)[4]);
+            }
+        } else {
+            logger.debug("Name not found in {}. Not setting any name", text);
+
+            return Optional.empty();
         }
     }
 

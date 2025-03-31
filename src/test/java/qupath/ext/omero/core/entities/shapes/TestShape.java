@@ -159,7 +159,7 @@ public class TestShape {
     private static class ShapeImplementation extends Shape {
 
         protected ShapeImplementation(String type) {
-            super(type);
+            super(type, PathObjects.createAnnotationObject(ROIs.createEmptyROI()), false);
         }
 
         @Override
