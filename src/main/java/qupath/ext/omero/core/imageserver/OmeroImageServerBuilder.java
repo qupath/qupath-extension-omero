@@ -7,6 +7,7 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.login.LoginForm;
@@ -22,6 +23,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -328,27 +330,30 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<Client> getExistingClient(URI uri) {
-        return ApisHandler.parseEntity(uri).flatMap(entity -> {
-            List<Client> clients = Client.getClients();
-            logger.debug("Finding if existing client belonging to {} can access {}", clients, uri);
+        ServerEntity entity = ApisHandler.parseEntity(uri).orElseThrow(() -> new NoSuchElementException(String.format(
+                "The provided URI %s was not recognized",
+                uri
+        )));
 
-            return clients.stream()
-                    .filter(client -> client.getApisHandler().getWebServerURI().getHost().equals(uri.getHost()))
-                    .map(client -> {
-                        try {
-                            URI entityUri = new URI(client.getApisHandler().getEntityUri(entity));
-                            client.getApisHandler().isLinkReachable(entityUri, RequestSender.RequestType.GET).get();
+        List<Client> clients = Client.getClients();
+        logger.debug("Finding if existing client belonging to {} can access {}", clients, uri);
 
-                            logger.debug("{} is reachable. {} can access entity with ID {}. Using it", entityUri, client, entity.getId());
-                            return client;
-                        } catch (ExecutionException | InterruptedException | URISyntaxException e) {
-                            logger.debug("{} cannot access entity with ID {}. Skipping it", client, entity.getId(), e);
-                            return null;
-                        }
-                    })
-                    .filter(Objects::nonNull)
-                    .findAny();
-        });
+        return clients.stream()
+                .filter(client -> client.getApisHandler().getWebServerURI().getHost().equals(uri.getHost()))
+                .map(client -> {
+                    try {
+                        URI entityUri = new URI(client.getApisHandler().getEntityUri(entity));
+                        client.getApisHandler().isLinkReachable(entityUri, RequestSender.RequestType.GET).get();
+
+                        logger.debug("{} is reachable. {} can access entity with ID {}. Using it", entityUri, client, entity.getId());
+                        return client;
+                    } catch (ExecutionException | InterruptedException | URISyntaxException e) {
+                        logger.debug("{} cannot access entity with ID {}. Skipping it", client, entity.getId(), e);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .findAny();
     }
 
     private static Optional<Client> getClientFromUserPrompt(URI uri, String username) {
