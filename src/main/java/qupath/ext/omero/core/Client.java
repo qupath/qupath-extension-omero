@@ -99,8 +99,8 @@ public class Client implements AutoCloseable {
                                             error
                                     );
                                 } else {
-                                    logger.error(
-                                            "Ping attempt {}/{} to {} failed. Closing connection",
+                                    logger.debug(
+                                            "Ping attempt {}/{} to {} failed. Attempting to re-login",
                                             attempt,
                                             MAX_NUMBER_OF_PING_ATTEMPTS-1,
                                             apisHandler.getWebServerURI(),
@@ -108,17 +108,28 @@ public class Client implements AutoCloseable {
                                     );
 
                                     try {
-                                        Client.this.close();
-                                    } catch (Exception e) {
-                                        logger.error("Error while closing {}", Client.this.apisHandler.getWebServerURI(), e);
+                                        apisHandler.reLogin().get();
+                                        logger.debug("Re-login succeeded");
+                                    } catch (InterruptedException | ExecutionException e) {
+                                        logger.error("Error while attempting to reconnect to {}. Closing connection", apisHandler.getWebServerURI(), e);
 
                                         if (e instanceof InterruptedException) {
                                             Thread.currentThread().interrupt();
                                         }
-                                    }
 
-                                    if (onPingFailed != null) {
-                                        onPingFailed.accept(this);
+                                        try {
+                                            Client.this.close();
+                                        } catch (Exception closeError) {
+                                            logger.error("Error while closing {}", Client.this.apisHandler.getWebServerURI(), closeError);
+
+                                            if (e instanceof InterruptedException) {
+                                                Thread.currentThread().interrupt();
+                                            }
+                                        }
+
+                                        if (onPingFailed != null) {
+                                            onPingFailed.accept(this);
+                                        }
                                     }
                                 }
                             }
