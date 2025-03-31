@@ -1,12 +1,10 @@
 package qupath.ext.omero.core.entities.shapes;
 
 import com.google.gson.annotations.SerializedName;
-import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -14,19 +12,8 @@ import java.util.Objects;
  */
 public class Polygon extends Shape {
 
-    public static final String TYPE = TYPE_URL + "Polygon";
+    private static final String TYPE = "Polygon";
     @SerializedName(value = "Points", alternate = "points") private final String pointString;
-
-    /**
-     * Creates a polygon.
-     *
-     * @param points a list of points describing the polygon
-     */
-    public Polygon(List<Point2> points) {
-        super(TYPE);
-
-        this.pointString = pointsToString(points);
-    }
 
     /**
      * Creates a polygon corresponding to a path object.
@@ -36,9 +23,9 @@ public class Polygon extends Shape {
      * @param fillColor whether to fill the polygon with colors
      */
     public Polygon(PathObject pathObject, ROI roi, boolean fillColor) {
-        this(roi.getAllPoints());
+        super(TYPE, pathObject, fillColor);
 
-        linkWithPathObject(pathObject, fillColor);
+        this.pointString = pointsToString(roi.getAllPoints());
     }
 
     @Override
@@ -64,5 +51,15 @@ public class Polygon extends Shape {
     @Override
     public int hashCode() {
         return Objects.hash(pointString);
+    }
+
+    /**
+     * Indicate whether the provided shape type refers to a polygon.
+     *
+     * @param type the type of the shape according to the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06">Open Microscopy Environment OME Schema</a>
+     * @return whether the provided shape type refers to a polygon
+     */
+    public static boolean isPolygon(String type) {
+        return type.contains(TYPE);
     }
 }

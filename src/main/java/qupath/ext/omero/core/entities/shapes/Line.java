@@ -13,45 +13,28 @@ import java.util.Objects;
  */
 public class Line extends Shape {
 
-    public static final String TYPE = TYPE_URL + "Line";
+    private static final String TYPE = "Line";
     @SerializedName(value = "X1", alternate = "x1") private final double x1;
     @SerializedName(value = "Y1", alternate = "y1") private final double y1;
     @SerializedName(value = "X2", alternate = "x2") private final double x2;
     @SerializedName(value = "Y2", alternate = "y2") private final double y2;
 
     /**
-     * Creates a line.
-     *
-     * @param x1 the x-coordinate of the start point of the line
-     * @param y1 the y-coordinate of the start point of the line
-     * @param x2 the x-coordinate of the end point of the line
-     * @param y2 the y-coordinate of the end point of the line
-     */
-    public Line(double x1, double y1, double x2, double y2) {
-        super(TYPE);
-
-        this.x1 = x1;
-        this.y1 = y1;
-        this.x2 = x2;
-        this.y2 = y2;
-    }
-
-    /**
      * Creates a line corresponding to a path object.
      *
      * @param pathObject the path object corresponding to this shape
-     * @param lineRoi the ROI describing this line
      * @param fillColor whether to fill the line with colors
      */
-    public Line(PathObject pathObject, LineROI lineRoi, boolean fillColor) {
-        this(
-                lineRoi.getX1(),
-                lineRoi.getY1(),
-                lineRoi.getX2(),
-                lineRoi.getY2()
-        );
+    public Line(PathObject pathObject, boolean fillColor) {
+        super(TYPE, pathObject, fillColor);
 
-        linkWithPathObject(pathObject, fillColor);
+        if (!(pathObject.getROI() instanceof LineROI lineRoi)) {
+            throw new IllegalArgumentException(String.format("The provided path object %s doesn't have a line ROI. Can't create line", pathObject));
+        }
+        this.x1 = lineRoi.getX1();
+        this.y1 = lineRoi.getY1();
+        this.x2 = lineRoi.getX2();
+        this.y2 = lineRoi.getY2();
     }
 
     @Override
@@ -76,5 +59,15 @@ public class Line extends Shape {
     @Override
     public int hashCode() {
         return Objects.hash(x1, y1, x2, y2);
+    }
+
+    /**
+     * Indicate whether the provided shape type refers to a line.
+     *
+     * @param type the type of the shape according to the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06">Open Microscopy Environment OME Schema</a>
+     * @return whether the provided shape type refers to a line
+     */
+    public static boolean isLine(String type) {
+        return type.contains(TYPE);
     }
 }

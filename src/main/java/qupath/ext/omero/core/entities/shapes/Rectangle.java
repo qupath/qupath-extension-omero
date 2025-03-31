@@ -12,33 +12,11 @@ import java.util.Objects;
  */
 public class Rectangle extends Shape {
 
-    public static final String TYPE = TYPE_URL + "Rectangle";
+    private static final String TYPE = "Rectangle";
     @SerializedName(value = "X", alternate = "x") private final double x;
     @SerializedName(value = "Y", alternate = "y") private final double y;
     @SerializedName(value = "Width", alternate = "width") private final double width;
     @SerializedName(value = "Height", alternate = "height") private final double height;
-
-    /**
-     * Creates a rectangle.
-     *
-     * @param x the x-coordinate of the top left point of the rectangle
-     * @param y the y-coordinate of the top left point of the rectangle
-     * @param width the width of the rectangle
-     * @param height the height of the rectangle
-     */
-    public Rectangle(
-            double x,
-            double y,
-            double width,
-            double height
-    ) {
-        super(TYPE);
-
-        this.x = x;
-        this.y = y;
-        this.width = width;
-        this.height = height;
-    }
 
     /**
      * Creates a rectangle corresponding to a path object.
@@ -47,14 +25,12 @@ public class Rectangle extends Shape {
      * @param fillColor whether to fill the rectangle with colors
      */
     public Rectangle(PathObject pathObject, boolean fillColor) {
-        this(
-                pathObject.getROI().getBoundsX(),
-                pathObject.getROI().getBoundsY(),
-                pathObject.getROI().getBoundsWidth(),
-                pathObject.getROI().getBoundsHeight()
-        );
+        super(TYPE, pathObject, fillColor);
 
-        linkWithPathObject(pathObject, fillColor);
+        this.x = pathObject.getROI().getBoundsX();
+        this.y = pathObject.getROI().getBoundsY();
+        this.width = pathObject.getROI().getBoundsWidth();
+        this.height = pathObject.getROI().getBoundsHeight();
     }
 
     @Override
@@ -79,5 +55,15 @@ public class Rectangle extends Shape {
     @Override
     public int hashCode() {
         return Objects.hash(x, y, width, height);
+    }
+
+    /**
+     * Indicate whether the provided shape type refers to a rectangle.
+     *
+     * @param type the type of the shape according to the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06">Open Microscopy Environment OME Schema</a>
+     * @return whether the provided shape type refers to a rectangle
+     */
+    public static boolean isRectangle(String type) {
+        return type.contains(TYPE);
     }
 }
