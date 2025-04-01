@@ -55,11 +55,11 @@ public abstract class Shape {
     @SerializedName(value = "Text", alternate = "text") private final String text;
     @SerializedName(value = "FillColor", alternate = "fillColor") private final int fillColor;
     @SerializedName(value = "StrokeColor", alternate = "strokeColor") private final Integer strokeColor;
+    @SerializedName(value = "Locked", alternate = "locked") private final Boolean locked;
     @SerializedName(value = "@id") private int id;
     @SerializedName(value = "TheC") private Integer c;
     @SerializedName(value = "TheZ") private int z;
     @SerializedName(value = "TheT") private int t;
-    @SerializedName(value = "Locked", alternate = "locked") private Boolean locked;
     private String oldId = "-1:-1";
     @SerializedName(value = "omero:details") private OmeroDetails omeroDetails;
     private transient UUID uuid;

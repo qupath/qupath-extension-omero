@@ -38,6 +38,7 @@ import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
 import java.awt.image.BufferedImage;
@@ -939,8 +940,14 @@ public class TestApisHandler extends OmeroServer {
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
 
             List<Shape> rois = List.of(
-                    new Rectangle(PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100)), false),
-                    new Line(PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50)), false)
+                    new Rectangle(
+                            PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100, ImagePlane.getDefaultPlane())),
+                            false
+                    ),
+                    new Line(
+                            PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50, ImagePlane.getDefaultPlane())),
+                            false
+                    )
             );
 
             Assertions.assertThrows(ExecutionException.class, () -> apisHandler.addShapes(imageId, rois).get());
@@ -1322,8 +1329,14 @@ public class TestApisHandler extends OmeroServer {
             long userId = OmeroServer.getConnectedOwner(userType).id();
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
             List<Shape> shapes = List.of(
-                    new Rectangle(PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100)), false),
-                    new Line(PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50)), false)
+                    new Rectangle(
+                            PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100, ImagePlane.getDefaultPlane())),
+                            false
+                    ),
+                    new Line(
+                            PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50, ImagePlane.getDefaultPlane())),
+                            false
+                    )
             );
             apisHandler.addShapes(imageId, shapes).get();
 
@@ -1338,8 +1351,14 @@ public class TestApisHandler extends OmeroServer {
             long userId = OmeroServer.getConnectedOwner(userType).id();
             long imageId = OmeroServer.getAnnotableImage(userType).getId();
             List<Shape> expectedShapes = List.of(
-                    new Rectangle(PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100)), false),
-                    new Line(PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50)), false)
+                    new Rectangle(
+                            PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100, ImagePlane.getDefaultPlane())),
+                            false
+                    ),
+                    new Line(
+                            PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50, ImagePlane.getDefaultPlane())),
+                            false
+                    )
             );
 
             apisHandler.addShapes(imageId, expectedShapes).get();
