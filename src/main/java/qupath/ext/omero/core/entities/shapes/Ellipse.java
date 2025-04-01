@@ -12,28 +12,11 @@ import java.util.Objects;
  */
 public class Ellipse extends Shape {
 
-    public static final String TYPE = TYPE_URL + "Ellipse";
+    private static final String TYPE = "Ellipse";
     @SerializedName(value = "X", alternate = "x") private final double x;
     @SerializedName(value = "Y", alternate = "y") private final double y;
     @SerializedName(value = "RadiusX", alternate = "radiusX") private final double radiusX;
     @SerializedName(value = "RadiusY", alternate = "radiusY") private final double radiusY;
-
-    /**
-     * Creates an ellipse.
-     *
-     * @param x x-coordinate of the center of the ellipse
-     * @param y y-coordinate of the center of the ellipse
-     * @param radiusX radius along the x-axis
-     * @param radiusY radius along the y-axis
-     */
-    public Ellipse(double x, double y, double radiusX, double radiusY) {
-        super(TYPE);
-
-        this.x = x;
-        this.y = y;
-        this.radiusX = radiusX;
-        this.radiusY = radiusY;
-    }
 
     /**
      * Creates an ellipse corresponding to a path object.
@@ -42,14 +25,12 @@ public class Ellipse extends Shape {
      * @param fillColor whether to fill the ellipse with colors
      */
     public Ellipse(PathObject pathObject, boolean fillColor) {
-        this(
-                pathObject.getROI().getCentroidX(),
-                pathObject.getROI().getCentroidY(),
-                pathObject.getROI().getBoundsWidth()/2,
-                pathObject.getROI().getBoundsHeight()/2
-        );
+        super(TYPE, pathObject, fillColor);
 
-        linkWithPathObject(pathObject, fillColor);
+        this.x = pathObject.getROI().getCentroidX();
+        this.y = pathObject.getROI().getCentroidY();
+        this.radiusX = pathObject.getROI().getBoundsWidth()/2;
+        this.radiusY = pathObject.getROI().getBoundsHeight()/2;
     }
 
     @Override
@@ -74,5 +55,15 @@ public class Ellipse extends Shape {
     @Override
     public int hashCode() {
         return Objects.hash(x, y, radiusX, radiusY);
+    }
+
+    /**
+     * Indicate whether the provided shape type refers to an ellipse.
+     *
+     * @param type the type of the shape according to the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06">Open Microscopy Environment OME Schema</a>
+     * @return whether the provided shape type refers to an ellipse
+     */
+    public static boolean isEllipse(String type) {
+        return type.contains(TYPE);
     }
 }

@@ -776,6 +776,13 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
+     * See {@link JsonApi#reLogin()}.
+     */
+    public CompletableFuture<Void> reLogin() {
+        return jsonApi.reLogin();
+    }
+
+    /**
      * Delete all shapes of the provided image.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally

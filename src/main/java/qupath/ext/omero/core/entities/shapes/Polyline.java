@@ -1,12 +1,10 @@
 package qupath.ext.omero.core.entities.shapes;
 
 import com.google.gson.annotations.SerializedName;
-import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -14,19 +12,8 @@ import java.util.Objects;
  */
 public class Polyline extends Shape {
 
-    public static final String TYPE = TYPE_URL + "Polyline";
+    private static final String TYPE = "Polyline";
     @SerializedName(value = "Points", alternate = "points") private final String pointString;
-
-    /**
-     * Creates a polyline.
-     *
-     * @param points a list of points describing the polyline
-     */
-    public Polyline(List<Point2> points) {
-        super(TYPE);
-
-        this.pointString = pointsToString(points);
-    }
 
     /**
      * Creates a polyline corresponding to a path object.
@@ -35,9 +22,9 @@ public class Polyline extends Shape {
      * @param fillColor whether to fill the polyline with colors
      */
     public Polyline(PathObject pathObject, boolean fillColor) {
-        this(pathObject.getROI().getAllPoints());
+        super(TYPE, pathObject, fillColor);
 
-        linkWithPathObject(pathObject, fillColor);
+        this.pointString = pointsToString(pathObject.getROI().getAllPoints());
     }
 
     @Override
@@ -63,5 +50,15 @@ public class Polyline extends Shape {
     @Override
     public int hashCode() {
         return Objects.hash(pointString);
+    }
+
+    /**
+     * Indicate whether the provided shape type refers to a polyline.
+     *
+     * @param type the type of the shape according to the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06">Open Microscopy Environment OME Schema</a>
+     * @return whether the provided shape type refers to a polyline
+     */
+    public static boolean isPolyline(String type) {
+        return type.contains(TYPE);
     }
 }

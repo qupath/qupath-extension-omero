@@ -3,6 +3,7 @@ package qupath.ext.omero.core.entities.shapes;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.objects.PathObject;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
 
@@ -15,12 +16,12 @@ import java.util.Objects;
 public class Label extends Shape {
 
     private static final Logger logger = LoggerFactory.getLogger(Label.class);
-    public static final String TYPE = TYPE_URL + "Label";
+    private static final String TYPE = "Label";
     @SerializedName(value = "X", alternate = "x") private double x;
     @SerializedName(value = "Y", alternate = "y") private double y;
 
-    protected Label(String type) {
-        super(type);
+    private Label(String type, PathObject pathObject, boolean fillColor) {
+        super(type, pathObject, fillColor);
     }
 
     @Override
@@ -46,5 +47,15 @@ public class Label extends Shape {
     @Override
     public int hashCode() {
         return Objects.hash(x, y);
+    }
+
+    /**
+     * Indicate whether the provided shape type refers to a label.
+     *
+     * @param type the type of the shape according to the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06">Open Microscopy Environment OME Schema</a>
+     * @return whether the provided shape type refers to a label
+     */
+    public static boolean isLabel(String type) {
+        return type.contains(TYPE);
     }
 }

@@ -45,26 +45,55 @@ public abstract class Shape {
     private static final String ANNOTATION = "Annotation";
     private static final String DETECTION = "Detection";
     private static final String NO_PARENT = "NoParent";
+    private static final String NO_NAME = "NoName";
     private static final String TEXT_DELIMITER = ":";
     private static final String CLASS_DELIMITER = "&";
     private static final String POINT_DELIMITER = " ";
     private static final String POINT_COORDINATE_DELIMITER = ",";
-    protected static String TYPE_URL = "http://www.openmicroscopy.org/Schemas/OME/2016-06#";
-    @SerializedName(value = "@type") private String type;
+    private static final String TYPE_URL = "http://www.openmicroscopy.org/Schemas/OME/2016-06#";
+    @SerializedName(value = "@type") private final String type;
+    @SerializedName(value = "Text", alternate = "text") private final String text;
+    @SerializedName(value = "FillColor", alternate = "fillColor") private final int fillColor;
+    @SerializedName(value = "StrokeColor", alternate = "strokeColor") private final Integer strokeColor;
+    @SerializedName(value = "Locked", alternate = "locked") private final Boolean locked;
     @SerializedName(value = "@id") private int id;
     @SerializedName(value = "TheC") private Integer c;
     @SerializedName(value = "TheZ") private int z;
     @SerializedName(value = "TheT") private int t;
-    @SerializedName(value = "Text", alternate = "text") private String text;
-    @SerializedName(value = "Locked", alternate = "locked") private Boolean locked;
-    @SerializedName(value = "FillColor", alternate = "fillColor") private int fillColor;
-    @SerializedName(value = "StrokeColor", alternate = "strokeColor") private Integer strokeColor;
     private String oldId = "-1:-1";
     @SerializedName(value = "omero:details") private OmeroDetails omeroDetails;
     private transient UUID uuid;
 
-    protected Shape(String type) {
-        this.type = type;
+    /**
+     * Create a new shape.
+     *
+     * @param type the type of the shape according to the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06">Open Microscopy Environment OME Schema</a>
+     * @param pathObject the path object corresponding to this shape
+     * @param fillColor whether to fill the ellipse with colors
+     */
+    protected Shape(String type, PathObject pathObject, boolean fillColor) {
+        this.type = TYPE_URL + type;
+
+        this.text = String.format(
+                "%s%s%s%s%s%s%s%s%s",
+                pathObject.isDetection() ? DETECTION : ANNOTATION,
+                TEXT_DELIMITER,
+                pathObject.getPathClass() == null ?
+                        PathClass.NULL_CLASS.toString() :
+                        pathObject.getPathClass().toString().replaceAll(":", CLASS_DELIMITER),
+                TEXT_DELIMITER,
+                pathObject.getID().toString(),
+                TEXT_DELIMITER,
+                pathObject.getParent() == null ? NO_PARENT : pathObject.getParent().getID().toString(),
+                TEXT_DELIMITER,
+                pathObject.getName() == null ? NO_NAME : pathObject.getName()
+        );
+
+        int color = pathObject.getPathClass() == null ? PathPrefs.colorDefaultObjectsProperty().get() : pathObject.getPathClass().getColor();
+        this.strokeColor = ARGBToRGBA(color);
+        this.fillColor = colorToRGBA(fillColor ? ColorToolsAwt.getMoreTranslucentColor(new Color(color)) : new Color(0, 0, 0, 0));
+
+        this.locked = pathObject.isLocked();
     }
 
     /**
@@ -73,26 +102,36 @@ public abstract class Shape {
     public static class GsonShapeDeserializer implements JsonDeserializer<Shape> {
         @Override
         public Shape deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) {
+            logger.trace("Deserializing {} to shape", json);
+
             try {
                 String type = json.getAsJsonObject().get("@type").getAsString();
 
-                if (type.equalsIgnoreCase(Rectangle.TYPE))
-                    return context.deserialize(json, Rectangle.class);
-                if (type.equalsIgnoreCase(Ellipse.TYPE))
+                if (Ellipse.isEllipse(type)) {
+                    logger.trace("{} is an ellipse", json);
                     return context.deserialize(json, Ellipse.class);
-                if (type.equalsIgnoreCase(Line.TYPE))
-                    return context.deserialize(json, Line.class);
-                if (type.equalsIgnoreCase(Polygon.TYPE))
-                    return context.deserialize(json, Polygon.class);
-                if (type.equalsIgnoreCase(Polyline.TYPE))
-                    return context.deserialize(json, Polyline.class);
-                if (type.equalsIgnoreCase(Point.TYPE))
-                    return context.deserialize(json, Point.class);
-                if (type.equalsIgnoreCase(Label.TYPE))
+                } else if (Label.isLabel(type)) {
+                    logger.trace("{} is a label", json);
                     return context.deserialize(json, Label.class);
-
-                logger.warn("Unsupported type {} to convert to shape", type);
-                return null;
+                } else if (Line.isLine(type)) {
+                    logger.trace("{} is a line", json);
+                    return context.deserialize(json, Line.class);
+                } else if (Point.isPoint(type)) {
+                    logger.trace("{} is a point", json);
+                    return context.deserialize(json, Point.class);
+                } else if (Polygon.isPolygon(type)) {
+                    logger.trace("{} is a polygon", json);
+                    return context.deserialize(json, Polygon.class);
+                } else if (Polyline.isPolyline(type)) {
+                    logger.trace("{} is a polyline", json);
+                    return context.deserialize(json, Polyline.class);
+                } else if (Rectangle.isRectangle(type)) {
+                    logger.trace("{} is a rectangle", json);
+                    return context.deserialize(json, Rectangle.class);
+                } else {
+                    logger.warn("Unsupported type {} to convert to shape", type);
+                    return null;
+                }
             } catch (Exception e) {
                 logger.error("Could not deserialize {} to shape", json, e);
                 return null;
@@ -121,8 +160,8 @@ public abstract class Shape {
             logger.debug("{} is an ellipse, so returning a single ellipse {}", pathObject, ellipse);
 
             return List.of(ellipse);
-        } else if (roi instanceof LineROI lineRoi) {
-            Line line = new Line(pathObject, lineRoi, fillColor);
+        } else if (roi instanceof LineROI) {
+            Line line = new Line(pathObject, fillColor);
             logger.debug("{} is a line, so returning a single line {}", pathObject, line);
 
             return List.of(line);
@@ -179,7 +218,7 @@ public abstract class Shape {
         Map<UUID, UUID> idToParentId = new HashMap<>();
         for (UUID uuid: uuids) {
             List<? extends Shape> shapesWithUuid = shapes.stream()
-                    .filter(shape -> uuid.equals(shape.getQuPathId()))
+                    .filter(shape -> uuid.equals(((Shape) shape).getQuPathId()))
                     .toList();
             List<UUID> parentUuid = shapesWithUuid.stream()
                     .map(Shape::getQuPathParentId)
@@ -239,35 +278,6 @@ public abstract class Shape {
     protected abstract ROI createRoi();
 
     /**
-     * Link this shape with a path object.
-     * <p>
-     * Its text will be formatted as {@code Type:Class1&Class2:ObjectID:ParentID},
-     * for example {@code Annotation:Unclassified:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:NoParent}
-     * or {@code Detection:Stroma:aba712b2-bbc2-4c05-bbba-d9fbab4d454f:205037ff-7dd7-4549-89d8-a4e3cbf61294}.
-     *
-     * @param pathObject the path object that should correspond to this shape
-     * @param fillColor whether to fill the shape with colors
-     */
-    protected void linkWithPathObject(PathObject pathObject, boolean fillColor) {
-        this.text = String.format(
-                "%s%s%s%s%s%s%s",
-                pathObject.isDetection() ? DETECTION : ANNOTATION,
-                TEXT_DELIMITER,
-                pathObject.getPathClass() == null ?
-                        PathClass.NULL_CLASS.toString() :
-                        pathObject.getPathClass().toString().replaceAll(":", CLASS_DELIMITER),
-                TEXT_DELIMITER,
-                pathObject.getID().toString(),
-                TEXT_DELIMITER,
-                pathObject.getParent() == null ? NO_PARENT : pathObject.getParent().getID().toString()
-        );
-
-        int color = pathObject.getPathClass() == null ? PathPrefs.colorDefaultObjectsProperty().get() : pathObject.getPathClass().getColor();
-        this.strokeColor = ARGBToRGBA(color);
-        this.fillColor = colorToRGBA(fillColor ? ColorToolsAwt.getMoreTranslucentColor(new Color(color)) : new Color(0, 0, 0, 0));
-    }
-
-    /**
      * Parse the OMERO string representing points into a list.
      *
      * @param pointsString a String describing a list of points returned by the OMERO API,
@@ -305,11 +315,7 @@ public abstract class Shape {
         return c == null ? ImagePlane.getPlane(z, t) : ImagePlane.getPlaneWithChannel(c, z, t);
     }
 
-    /**
-     * @return the QuPath ID contained in this shape, or a random UUID if not
-     * found
-     */
-    protected UUID getQuPathId() {
+    private UUID getQuPathId() {
         if (this.uuid == null) {
             if (text != null && text.split(TEXT_DELIMITER).length > 2) {
                 String uuid = text.split(TEXT_DELIMITER)[2];
@@ -325,13 +331,6 @@ public abstract class Shape {
         }
 
         return uuid;
-    }
-
-    /**
-     * @return whether this shape should be locked (can be null)
-     */
-    protected Boolean getLocked() {
-        return locked;
     }
 
     private Optional<UUID> getQuPathParentId() {
@@ -362,12 +361,14 @@ public abstract class Shape {
         List<PathClass> pathClasses = shapes.stream().map(Shape::getPathClass).distinct().toList();
         List<String> types = shapes.stream().map(Shape::getType).distinct().toList();
         List<UUID> uuids = shapes.stream().map(Shape::getQuPathId).distinct().toList();
-        List<Boolean> locked = shapes.stream().map(Shape::getLocked).distinct().toList();
+        List<Boolean> locked = shapes.stream().map(shape -> ((Shape) shape).locked).distinct().toList();
+        List<Optional<String>> names = shapes.stream().map(shape -> ((Shape) shape).getName()).distinct().toList();
 
         warnIfDuplicateAttribute(shapes, pathClasses, "class");
         warnIfDuplicateAttribute(shapes, types, "type (annotation/detection)");
         warnIfDuplicateAttribute(shapes, uuids, "UUID");
         warnIfDuplicateAttribute(shapes, locked, "locked");
+        warnIfDuplicateAttribute(shapes, names, "names");
 
         PathObject pathObject;
         if (types.getFirst().equals(DETECTION)) {
@@ -389,8 +390,12 @@ public abstract class Shape {
         if (locked.getFirst() != null) {
             pathObject.setLocked(locked.getFirst());
         }
-        logger.debug("Created path object {} from shapes {}", pathObject, shapes);
 
+        if (names.getFirst().isPresent()) {
+            pathObject.setName(names.getFirst().get());
+        }
+
+        logger.debug("Created path object {} from shapes {}", pathObject, shapes);
         return pathObject;
     }
 
@@ -429,6 +434,21 @@ public abstract class Shape {
             logger.debug("Type not found in {}. Returning {}", text, ANNOTATION);
 
             return ANNOTATION;
+        }
+    }
+
+    private Optional<String> getName() {
+        if (text != null && text.split(TEXT_DELIMITER).length > 4 && !text.split(TEXT_DELIMITER)[4].isBlank()) {
+            if (NO_NAME.equals(text.split(TEXT_DELIMITER)[4])) {
+                logger.debug("{} name found in {}. Not setting any name", NO_NAME, text);
+                return Optional.empty();
+            } else {
+                return Optional.of(text.split(TEXT_DELIMITER)[4]);
+            }
+        } else {
+            logger.debug("Name not found in {}. Not setting any name", text);
+
+            return Optional.empty();
         }
     }
 

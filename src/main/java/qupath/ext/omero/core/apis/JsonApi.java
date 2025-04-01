@@ -32,6 +32,7 @@ import qupath.lib.io.GsonTools;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +83,7 @@ class JsonApi {
     private final RequestSender requestSender;
     private final Map<String, String> urls;
     private final String serverUri;
+    private final int serverId;
     private final int port;
     private final String token;
     private final LoginResponse loginResponse;
@@ -112,6 +114,7 @@ class JsonApi {
                 serverInformation.getServerId().isPresent() &&
                 serverInformation.getServerPort().isPresent()) {
             this.serverUri = serverInformation.getServerHost().get();
+            this.serverId = serverInformation.getServerId().getAsInt();
             this.port = serverInformation.getServerPort().getAsInt();
 
             logger.debug("OMERO.server information set: {}:{}", this.serverUri, this.port);
@@ -124,7 +127,7 @@ class JsonApi {
 
         this.token = tokenRequest.get();
         if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
-            this.loginResponse = login(this.requestSender, credentials, this.urls, serverInformation.getServerId().getAsInt(), token).get();
+            this.loginResponse = login(this.requestSender, credentials, this.urls, this.serverId, token).get();
             logger.debug(
                     "Created JSON API with authenticated {} user of ID {} and default group {}",
                     loginResponse.isAdmin() ? "admin" : "non admin",
@@ -597,6 +600,30 @@ class JsonApi {
         );
     }
 
+    /**
+     * Attempt to re-login with the stored session UUID. This can be used as a last resort if the ping fails.
+     * Note that this won't work if no authentication was previously performed.
+     *
+     * @return a CompletableFuture that completes exceptionally if the login fails
+     */
+    public CompletableFuture<Void> reLogin() {
+        if (loginResponse == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("No login previously done. Cannot re-attempt login"));
+        }
+
+        return authenticate(
+                requestSender,
+                urls,
+                token,
+                String.join(
+                        "&",
+                        String.format("server=%d", serverId),
+                        String.format("username=%s", loginResponse.sessionUuid()),
+                        String.format("password=%s", loginResponse.sessionUuid())
+                ).getBytes(StandardCharsets.UTF_8)
+        ).thenAccept(loginResponse -> {});
+    }
+
     private static Map<String, String> getUrls(RequestSender requestSender, URI apiUri) throws ExecutionException, InterruptedException, URISyntaxException {
         OmeroApi omeroAPI = requestSender.getAndConvert(apiUri, OmeroApi.class).get();
 
@@ -648,38 +675,16 @@ class JsonApi {
             RequestSender requestSender,
             Credentials credentials,
             Map<String, String> urls,
-            int serverID,
+            int serverId,
             String token
     ) {
-        if (!urls.containsKey(LOGIN_URL_KEY)) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The %s token was not found in %s", LOGIN_URL_KEY, urls)
-            ));
-        }
-
-        URI uri;
-        try {
-            uri = new URI(urls.get(LOGIN_URL_KEY));
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
         char[] encodedPassword = ApiUtilities.urlEncode(credentials.password());
         byte[] body = ApiUtilities.concatAndConvertToBytes(
-                String.join("&", "server=" + serverID, "username=" + credentials.username(), "password=").toCharArray(),
+                String.join("&", "server=" + serverId, "username=" + credentials.username(), "password=").toCharArray(),
                 encodedPassword
         );
 
-        return requestSender.post(
-                        uri,
-                        body,
-                        uri.toString(),
-                        token
-                ).whenComplete((response, error) -> {
-                    Arrays.fill(body, (byte) 0);    // clear password
-                })
-                .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
-                .thenApply(LoginResponse::parseServerAuthenticationResponse);
+        return authenticate(requestSender, urls, token, body);
     }
 
     private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(String url, Class<T> type) {
@@ -715,5 +720,36 @@ class JsonApi {
                 throw new RuntimeException(String.format("'data' JSON object not found in %s", response));
             }
         });
+    }
+
+    private static CompletableFuture<LoginResponse> authenticate(
+            RequestSender requestSender,
+            Map<String, String> urls,
+            String token,
+            byte[] body
+    ) {
+        if (!urls.containsKey(LOGIN_URL_KEY)) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException(
+                    String.format("The %s token was not found in %s", LOGIN_URL_KEY, urls)
+            ));
+        }
+
+        URI uri;
+        try {
+            uri = new URI(urls.get(LOGIN_URL_KEY));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        return requestSender.post(
+                        uri,
+                        body,
+                        uri.toString(),
+                        token
+                ).whenComplete((response, error) -> {
+                    Arrays.fill(body, (byte) 0);    // clear possible password
+                })
+                .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
+                .thenApply(LoginResponse::parseServerAuthenticationResponse);
     }
 }
