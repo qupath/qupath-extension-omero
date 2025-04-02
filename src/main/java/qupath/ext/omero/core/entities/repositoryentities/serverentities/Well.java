@@ -1,8 +1,12 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.SerializedName;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
@@ -17,8 +21,10 @@ import java.util.ResourceBundle;
  */
 public class Well extends ServerEntity {
 
+    private static final Logger logger = LoggerFactory.getLogger(Well.class);
     private static final ResourceBundle resources = Utils.getResources();
-    private static final String[] ATTRIBUTES = new String[] {
+    private static final Gson gson = new Gson()
+;    private static final String[] ATTRIBUTES = new String[] {
             resources.getString("Entities.Well.name"),
             resources.getString("Entities.Well.id"),
             resources.getString("Entities.Well.owner"),
@@ -29,6 +35,7 @@ public class Well extends ServerEntity {
     @SerializedName(value = "WellSamples") private List<WellSample> wellSamples;
     @SerializedName(value = "Column") private int column;
     @SerializedName(value = "Row") private int row;
+    private transient ObservableList<ServerEntity> children;
     private record WellSample(
             @SerializedName(value = "Image") Image image,
             @SerializedName(value = "PlateAcquisition") PlateAcquisition plateAcquisition
@@ -43,20 +50,42 @@ public class Well extends ServerEntity {
 
     @Override
     public boolean hasChildren() {
-        return wellSamples != null && !wellSamples.stream()
-                .map(WellSample::image)
-                .filter(Objects::nonNull)
-                .toList().isEmpty();
+        return !getChildren().isEmpty();
     }
 
     @Override
-    public ObservableList<? extends RepositoryEntity> getChildren() {
-        return FXCollections.emptyObservableList();
+    public synchronized ObservableList<? extends RepositoryEntity> getChildren() {
+        if (children == null) {
+            children = FXCollections.unmodifiableObservableList(wellSamples == null ?
+                    FXCollections.emptyObservableList() :
+                    FXCollections.observableList(wellSamples.stream()
+                            .map(WellSample::image)
+                            .map(image -> {
+                                if (image == null) {
+                                    logger.debug("Cannot create image from well sample in well {} because the image field is null", this);
+                                    return null;
+                                }
+
+                                try {
+                                    // Serialize and deserialize image because every server entity should be created with ServerEntity.createFromJsonElement()
+                                    return ServerEntity.createFromJsonElement(gson.toJsonTree(image), webServerURI);
+                                } catch (JsonSyntaxException e) {
+                                    logger.debug("Cannot create image {} from well sample in well {}", image, this, e);
+                                    return null;
+                                }
+                            })
+                            .filter(Objects::nonNull)
+                            .toList()
+                    )
+            );
+        }
+
+        return children;
     }
 
     @Override
     public String getLabel() {
-        return String.format("Column: %d, Row: %d", column, row);
+        return String.format("%s%d", (char) ('A' + row), column+1);
     }
 
     @Override

@@ -104,7 +104,7 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
                 }
             }));
         } else {
-            logger.warn("Can set icon for {} because it doesn't exist", type);
+            logger.warn("Can set icon for {} because it is not supported", type);
         }
     }
 }

@@ -133,43 +133,41 @@ public class PlateAcquisition extends ServerEntity {
 
     private void populateChildren() {
         if (webServerURI == null) {
-            throw new IllegalStateException(
-                    "The web server URI has not been set on this plate acquisition. See the setWebServerURI(URI) function."
-            );
-        } else {
-            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
-                isPopulating = true;
+            throw new IllegalStateException("The web server URI has not been set on this plate acquisition. Cannot populate children");
+        }
 
-                int wellSampleIndex = 0;
-                if (wellSampleIndices != null && wellSampleIndices.size() > 1) {
-                    wellSampleIndex = wellSampleIndices.getFirst();
+        Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            isPopulating = true;
+
+            int wellSampleIndex = 0;
+            if (wellSampleIndices != null && wellSampleIndices.size() > 1) {
+                wellSampleIndex = wellSampleIndices.getFirst();
+            }
+
+            client.getApisHandler().getWellsFromPlateAcquisition(id, wellSampleIndex).thenApply(wells -> {
+                logger.debug("Got wells {} as children of {}. Converting them to images", wells, this);
+
+                return wells.stream()
+                        .map(well -> well.getImagesIds(true))
+                        .flatMap(List::stream)
+                        .map(id -> client.getApisHandler().getImage(id))
+                        .map(CompletableFuture::join)
+                        .toList();
+            }).whenComplete((images, error) -> {
+                isPopulating = false;
+
+                if (images == null) {
+                    logger.error("Error while retrieving children images of {}", this, error);
+                    return;
                 }
 
-                client.getApisHandler().getWellsFromPlateAcquisition(id, wellSampleIndex).thenApply(wells -> {
-                    logger.debug("Got wells {} as children of {}. Converting them to images", wells, this);
-
-                    return wells.stream()
-                            .map(well -> well.getImagesIds(true))
-                            .flatMap(List::stream)
-                            .map(id -> client.getApisHandler().getImage(id))
-                            .map(CompletableFuture::join)
-                            .toList();
-                }).whenComplete((images, error) -> {
-                    isPopulating = false;
-
-                    if (images == null) {
-                        logger.error("Error while retrieving children images of {}", this, error);
-                        return;
-                    }
-
-                    logger.debug("Got images {} as children of {}", images, this);
-                    children.addAll(images);
-                });
-            }, () -> logger.warn(
-                    "Could not find the web client corresponding to {}. Impossible to get the children of this plate acquisition ({}).",
-                    webServerURI,
-                    this
-            ));
-        }
+                logger.debug("Got images {} as children of {}", images, this);
+                children.addAll(images);
+            });
+        }, () -> logger.warn(
+                "Could not find the web client corresponding to {}. Impossible to get the children of this plate acquisition ({}).",
+                webServerURI,
+                this
+        ));
     }
 }

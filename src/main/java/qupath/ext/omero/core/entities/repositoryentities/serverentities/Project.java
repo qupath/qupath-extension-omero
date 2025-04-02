@@ -121,29 +121,27 @@ public class Project extends ServerEntity {
 
     private void populateChildren() {
         if (webServerURI == null) {
-            throw new IllegalStateException(
-                    "The web server URI has not been set on this project. See the setWebServerURI(URI) function."
-            );
-        } else {
-            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
-                isPopulating = true;
-
-                client.getApisHandler().getDatasets(id).whenComplete((datasets, error) -> {
-                    isPopulating = false;
-
-                    if (datasets == null) {
-                        logger.error("Error while retrieving children datasets of {}", this, error);
-                        return;
-                    }
-
-                    logger.debug("Got datasets {} as children of {}", datasets, this);
-                    children.addAll(datasets);
-                });
-            }, () -> logger.warn(
-                    "Could not find the web client corresponding to {}. Impossible to get the children of this project ({}).",
-                    webServerURI,
-                    this
-            ));
+            throw new IllegalStateException("The web server URI has not been set on this project. Cannot populate children");
         }
+
+        Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            isPopulating = true;
+
+            client.getApisHandler().getDatasets(id).whenComplete((datasets, error) -> {
+                isPopulating = false;
+
+                if (datasets == null) {
+                    logger.error("Error while retrieving children datasets of {}", this, error);
+                    return;
+                }
+
+                logger.debug("Got datasets {} as children of {}", datasets, this);
+                children.addAll(datasets);
+            });
+        }, () -> logger.warn(
+                "Could not find the web client corresponding to {}. Impossible to get the children of this project ({}).",
+                webServerURI,
+                this
+        ));
     }
 }
