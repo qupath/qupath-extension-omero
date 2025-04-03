@@ -405,8 +405,11 @@ public class RequestSender implements AutoCloseable {
     }
 
     private List<JsonElement> readFollowingPages(String uri, int limit, int totalCount) {
-        logger.debug("Reading following pages of {} to read {} elements with {} elements per page", uri, totalCount, limit);
+        if (totalCount <= limit) {
+            return List.of();
+        }
 
+        logger.debug("Reading following pages of {} to read {} elements with {} elements per page", uri, totalCount, limit);
         return IntStream.iterate(limit, i -> i + limit)
                 .limit(max(0, (int) Math.ceil((float) (totalCount - limit) / limit)))
                 .mapToObj(offset -> URI.create(uri + "offset=" + offset))

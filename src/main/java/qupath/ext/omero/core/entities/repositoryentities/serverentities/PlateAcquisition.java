@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.IntStream;
 
 /**
  * Represents an OMERO plate acquisition.
@@ -31,8 +32,8 @@ public class PlateAcquisition extends ServerEntity {
             resources.getString("Entities.PlateAcquisition.group"),
             resources.getString("Entities.PlateAcquisition.acquisitionTime")
     };
-    private final transient ObservableList<Image> children = FXCollections.observableArrayList();
-    private final transient ObservableList<Image> childrenImmutable = FXCollections.unmodifiableObservableList(children);
+    private final transient ObservableList<Well> children = FXCollections.observableArrayList();
+    private final transient ObservableList<Well> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
     private transient volatile boolean isPopulating = false;
     private transient int numberOfWells = 0;
@@ -139,30 +140,31 @@ public class PlateAcquisition extends ServerEntity {
         Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
             isPopulating = true;
 
-            int wellSampleIndex = 0;
-            if (wellSampleIndices != null && wellSampleIndices.size() > 1) {
-                wellSampleIndex = wellSampleIndices.getFirst();
+            if (wellSampleIndices == null || wellSampleIndices.size() < 2) {
+                isPopulating = false;
+                logger.debug("Well sample indice list not found or contains less than 2 elements. Cannot populate children wells of {}", this);
+                return;
             }
 
-            client.getApisHandler().getWellsFromPlateAcquisition(id, wellSampleIndex).thenApply(wells -> {
-                logger.debug("Got wells {} as children of {}. Converting them to images", wells, this);
-
-                return wells.stream()
-                        .map(well -> well.getImagesIds(true))
-                        .flatMap(List::stream)
-                        .map(id -> client.getApisHandler().getImage(id))
-                        .map(CompletableFuture::join)
-                        .toList();
-            }).whenComplete((images, error) -> {
+            CompletableFuture.supplyAsync(() -> IntStream.range(wellSampleIndices.getFirst(), wellSampleIndices.get(1)+1)
+                    .mapToObj(i -> client.getApisHandler().getWellsFromPlateAcquisition(id, i))
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .toList()
+            ).whenComplete((wells, error) -> {
                 isPopulating = false;
 
-                if (images == null) {
-                    logger.error("Error while retrieving children images of {}", this, error);
+                if (wells == null) {
+                    logger.error("Error while retrieving children wells of {}", this, error);
                     return;
                 }
 
-                logger.debug("Got images {} as children of {}", images, this);
-                children.addAll(images);
+                for (Well well: wells) {
+                    well.setPlateAcquisitionOwnerId(id);
+                }
+
+                logger.debug("Got wells {} as children of {}", wells, this);
+                children.addAll(wells);
             });
         }, () -> logger.warn(
                 "Could not find the web client corresponding to {}. Impossible to get the children of this plate acquisition ({}).",

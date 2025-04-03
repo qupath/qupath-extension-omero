@@ -39,7 +39,7 @@ class ImageTooltip extends VBox {
      * @throws IOException if an error occurs while creating the tooltip
      */
     public ImageTooltip(Image image, ApisHandler apisHandler) throws IOException {
-        logger.debug("Creating image tooltip for {}", image);
+        logger.trace("Creating image tooltip for {}", image);
 
         UiUtilities.loadFXML(this, ImageTooltip.class.getResource("image_tooltip.fxml"));
 
@@ -52,7 +52,7 @@ class ImageTooltip extends VBox {
                 return;
             }
 
-            logger.debug("Retrieved thumbnail {} of image with ID {}. Setting to canvas of image tooltip", thumbnail, image.getId());
+            logger.trace("Retrieved thumbnail {} of image with ID {}. Setting to canvas of image tooltip", thumbnail, image.getId());
             UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
         }));
     }
