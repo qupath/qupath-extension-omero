@@ -56,10 +56,10 @@ file=$(/opt/omero/server/venv3/bin/omero obj new FileAnnotation file=$analysis)
 
 # Create a screen and a plate inside it
 screen=$(/opt/omero/server/venv3/bin/omero obj new Screen name=screen)
-/opt/omero/server/venv3/bin/omero import -r $screen /resources/plate/hcs.companion.ome
+/opt/omero/server/venv3/bin/omero import -r $screen /resources/plate/plate-well.xml
 
 # Create an orphaned plate
-/opt/omero/server/venv3/bin/omero import /resources/plate/hcs.companion.ome
+/opt/omero/server/venv3/bin/omero import /resources/plate/plate-well.xml
 
 # Connect as user1
 /opt/omero/server/venv3/bin/omero login user1@localhost:4064 -w password_user1
@@ -81,13 +81,13 @@ dataset=$(/opt/omero/server/venv3/bin/omero obj new Dataset name=dataset2)
 
 # Create screens and plates inside it
 screen=$(/opt/omero/server/venv3/bin/omero obj new Screen name=screen1)
-/opt/omero/server/venv3/bin/omero import -r $screen /resources/plate/hcs.companion.ome
+/opt/omero/server/venv3/bin/omero import -r $screen /resources/plate/plate-well.xml
 screen=$(/opt/omero/server/venv3/bin/omero obj new Screen name=screen2)
-/opt/omero/server/venv3/bin/omero import -r $screen /resources/plate/hcs.companion.ome
+/opt/omero/server/venv3/bin/omero import -r $screen /resources/plate/plate-plate_acquisition-well.xml
 
 # Create orphaned plates
-/opt/omero/server/venv3/bin/omero import /resources/plate/hcs.companion.ome
-/opt/omero/server/venv3/bin/omero import /resources/plate/hcs.companion.ome
+/opt/omero/server/venv3/bin/omero import /resources/plate/plate-well.xml
+/opt/omero/server/venv3/bin/omero import /resources/plate/plate-plate_acquisition-well.xml
 
 # Connect as user2
 /opt/omero/server/venv3/bin/omero login user2@localhost:4064 -w password_user2

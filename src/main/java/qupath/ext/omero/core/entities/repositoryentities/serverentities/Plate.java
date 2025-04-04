@@ -9,8 +9,6 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
-
-import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -131,55 +129,53 @@ public class Plate extends ServerEntity {
 
     private void populateChildren() {
         if (webServerURI == null) {
-            throw new IllegalStateException(
-                    "The web server URI has not been set on this plate. See the setWebServerURI(URI) function."
-            );
-        } else {
-            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
-                client.getApisHandler().getPlateAcquisitions(id).whenComplete(((plateAcquisitions, error) -> {
-                    synchronized (this) {
-                        childrenTypesPopulated++;
-                    }
-
-                    if (plateAcquisitions == null) {
-                        logger.error("Error while retrieving children plate acquisitions of {}", this, error);
-                        return;
-                    }
-
-                    logger.debug("Got plate acquisitions {} as children of {}", plateAcquisitions, this);
-                    for (PlateAcquisition plateAcquisition: plateAcquisitions) {
-                        plateAcquisition.setNumberOfWells(columns * rows);
-                    }
-                    children.addAll(plateAcquisitions);
-                }));
-
-                client.getApisHandler().getWellsFromPlate(id).thenApply(wells -> {
-                    logger.debug("Got wells {} as children of {}. Converting them to images", wells, this);
-
-                    return wells.stream()
-                            .map(well -> well.getImagesIds(false))
-                            .flatMap(List::stream)
-                            .map(id -> client.getApisHandler().getImage(id))
-                            .map(CompletableFuture::join)
-                            .toList();
-                }).whenComplete((images, error) -> {
-                    synchronized (this) {
-                        childrenTypesPopulated++;
-                    }
-
-                    if (images == null) {
-                        logger.error("Error while retrieving children images of {}", this, error);
-                        return;
-                    }
-
-                    logger.debug("Got images {} as children of {}", images, this);
-                    children.addAll(images);
-                });
-            }, () -> logger.warn(
-                    "Could not find the web client corresponding to {}. Impossible to get the children of this plate ({}).",
-                    webServerURI,
-                    this
-            ));
+            throw new IllegalStateException("The web server URI has not been set on this plate. Cannot populate children");
         }
+
+        Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            client.getApisHandler().getPlateAcquisitions(id).whenComplete(((plateAcquisitions, error) -> {
+                synchronized (this) {
+                    childrenTypesPopulated++;
+                }
+
+                if (plateAcquisitions == null) {
+                    logger.error("Error while retrieving children plate acquisitions of {}", this, error);
+                    return;
+                }
+
+                logger.debug("Got plate acquisitions {} as children of {}", plateAcquisitions, this);
+                for (PlateAcquisition plateAcquisition: plateAcquisitions) {
+                    plateAcquisition.setNumberOfWells(columns * rows);
+                }
+                children.addAll(plateAcquisitions);
+            }));
+
+            client.getApisHandler().getWellsFromPlate(id).thenApply(wells ->
+                    wells.stream().map(ServerEntity::getId).distinct().toList()
+            ).thenApplyAsync(wellIds -> {
+                logger.debug("Got well IDs {} for {}. Fetching corresponding wells", wellIds, this);
+
+                return wellIds.stream()
+                        .map(id -> client.getApisHandler().getWell(id))
+                        .map(CompletableFuture::join)
+                        .toList();
+            }).whenComplete((wells, error) -> {
+                synchronized (this) {
+                    childrenTypesPopulated++;
+                }
+
+                if (wells == null) {
+                    logger.error("Error while retrieving children wells of {}", this, error);
+                    return;
+                }
+
+                logger.debug("Got wells {} as children of {}", wells, this);
+                children.addAll(wells);
+            });
+        }, () -> logger.warn(
+                "Could not find the web client corresponding to {}. Impossible to get the children of this plate ({}).",
+                webServerURI,
+                this
+        ));
     }
 }

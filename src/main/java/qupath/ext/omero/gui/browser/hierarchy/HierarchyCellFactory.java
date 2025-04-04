@@ -17,6 +17,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.gui.UiUtilities;
 
@@ -42,7 +43,8 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
             Image.class,
             Screen.class,
             Plate.class,
-            PlateAcquisition.class
+            PlateAcquisition.class,
+            Well.class
     );
     private final DoubleProperty opacityProperty = new SimpleDoubleProperty(1);
     private final ApisHandler apisHandler;
@@ -99,12 +101,12 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
                 if (icon == null) {
                     logger.error("Error while retrieving icon of {}. Cannot set graphic of hierarchy cell", type, error);
                 } else {
-                    logger.debug("Got icon {} for {}. Setting it to graphic", icon, type);
+                    logger.trace("Got icon {} for {}. Setting it to graphic", icon, type);
                     UiUtilities.paintBufferedImageOnCanvas(icon, iconCanvas);
                 }
             }));
         } else {
-            logger.warn("Can set icon for {} because it doesn't exist", type);
+            logger.warn("Can set icon for {} because it is not supported", type);
         }
     }
 }

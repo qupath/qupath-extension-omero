@@ -566,6 +566,13 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
+     * See {@link JsonApi#getWell(long)}.
+     */
+    public CompletableFuture<Well> getWell(long wellId) {
+        return jsonApi.getWell(wellId);
+    }
+
+    /**
      * See {@link WebclientApi#getAnnotations(long, Class)}.
      */
     public CompletableFuture<AnnotationGroup> getAnnotations(
@@ -611,7 +618,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * Attempt to retrieve the icon of an OMERO entity.
      * <p>
-     * Icons for orphaned folders, projects, datasets, images, screens, plates, and plate acquisitions can be retrieved.
+     * Icons for orphaned folders, projects, datasets, images, screens, plates, plate acquisitions and wells can be retrieved.
      * <p>
      * Icons are cached.
      * <p>
@@ -622,7 +629,7 @@ public class ApisHandler implements AutoCloseable {
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
     public CompletableFuture<BufferedImage> getOmeroIcon(Class<? extends RepositoryEntity> type) {
-        logger.debug("Getting OMERO icon {}", type);
+        logger.trace("Getting OMERO icon {}", type);
 
         CompletableFuture<BufferedImage> request;
 
@@ -630,7 +637,7 @@ public class ApisHandler implements AutoCloseable {
             request = omeroIconsCache.get(
                     type,
                     () -> {
-                        logger.debug("OMERO icon {} not in cache. Retrieving it", type);
+                        logger.trace("OMERO icon {} not in cache. Retrieving it", type);
 
                         if (type.equals(Project.class)) {
                             return webGatewayApi.getProjectIcon();
@@ -638,6 +645,8 @@ public class ApisHandler implements AutoCloseable {
                             return webGatewayApi.getDatasetIcon();
                         } else if (type.equals(OrphanedFolder.class)) {
                             return webGatewayApi.getOrphanedFolderIcon();
+                        } else if (type.equals(Well.class)) {
+                            return webGatewayApi.getWellIcon();
                         } else if (type.equals(Image.class)) {
                             return webclientApi.getImageIcon();
                         } else if (type.equals(Screen.class)) {
@@ -678,7 +687,7 @@ public class ApisHandler implements AutoCloseable {
      * Thumbnails are cached in a cache of size {@link #THUMBNAIL_CACHE_SIZE}.
      */
     public CompletableFuture<BufferedImage> getThumbnail(long imageId, int size) {
-        logger.debug("Getting thumbnail of image with ID {} and size {}", imageId, size);
+        logger.trace("Getting thumbnail of image with ID {} and size {}", imageId, size);
 
         IdSizeWrapper key = new IdSizeWrapper(imageId, size);
 
@@ -687,7 +696,7 @@ public class ApisHandler implements AutoCloseable {
             request = thumbnailsCache.get(
                     key,
                     () -> {
-                        logger.debug("Thumbnail of image with ID {} and size {} not in cache. Retrieving it", imageId, size);
+                        logger.trace("Thumbnail of image with ID {} and size {} not in cache. Retrieving it", imageId, size);
                         return webGatewayApi.getThumbnail(imageId, size);
                     }
             );

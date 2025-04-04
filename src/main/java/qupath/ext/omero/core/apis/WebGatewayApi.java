@@ -36,6 +36,7 @@ class WebGatewayApi {
     private static final String PROJECT_ICON_NAME = "folder16.png";
     private static final String DATASET_ICON_NAME = "folder_image16.png";
     private static final String ORPHANED_FOLDER_ICON_NAME = "folder_yellow16.png";
+    private static final String WELL_ICON_NAME = "icon_folder.png";
     private static final String THUMBNAIL_URL = "%s/webgateway/render_thumbnail/%d/%d";
     private static final String IMAGE_DATA_URL = "%s/webgateway/imgData/%d";
     private static final String TILE_URL = "%s/webgateway/render_image_region/%d/%d/%d/?" +
@@ -126,6 +127,24 @@ class WebGatewayApi {
 
         try {
             return requestSender.getImage(new URI(String.format(ICON_URL, webServerUri, ORPHANED_FOLDER_ICON_NAME)));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * Attempt to retrieve the OMERO well icon.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @return a CompletableFuture (that may complete exceptionally) with the well icon
+     */
+    public CompletableFuture<BufferedImage> getWellIcon() {
+        logger.debug("Getting OMERO well icon");
+
+        try {
+            return requestSender.getImage(new URI(String.format(ICON_URL, webServerUri, WELL_ICON_NAME)));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }

@@ -222,9 +222,7 @@ public class Image extends ServerEntity {
     private synchronized void setUpSupported() {
         if (isSupported == null) {
             if (webServerURI == null) {
-                throw new IllegalStateException(
-                        "The web server URI has not been set on this image. See the setWebServerURI(URI) function."
-                );
+                throw new IllegalStateException("The web server URI has not been set on this image. Cannot check if supported");
             }
 
             isSupported = new SimpleBooleanProperty(false);

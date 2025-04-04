@@ -121,29 +121,27 @@ public class Screen extends ServerEntity {
 
     private void populateChildren() {
         if (webServerURI == null) {
-            throw new IllegalStateException(
-                    "The web server URI has not been set on this screen. See the setWebServerURI(URI) function."
-            );
-        } else {
-            Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
-                isPopulating = true;
-
-                client.getApisHandler().getPlates(id).whenComplete((plates, error) -> {
-                    isPopulating = false;
-
-                    if (plates == null) {
-                        logger.error("Error while retrieving children plates of {}", this, error);
-                        return;
-                    }
-
-                    logger.debug("Got plates {} as children of {}", plates, this);
-                    children.addAll(plates);
-                });
-            }, () -> logger.warn(
-                    "Could not find the web client corresponding to {}. Impossible to get the children of this screen ({}).",
-                    webServerURI,
-                    this
-            ));
+            throw new IllegalStateException("The web server URI has not been set on this screen. Cannot populate children");
         }
+
+        Client.getClientFromURI(webServerURI).ifPresentOrElse(client -> {
+            isPopulating = true;
+
+            client.getApisHandler().getPlates(id).whenComplete((plates, error) -> {
+                isPopulating = false;
+
+                if (plates == null) {
+                    logger.error("Error while retrieving children plates of {}", this, error);
+                    return;
+                }
+
+                logger.debug("Got plates {} as children of {}", plates, this);
+                children.addAll(plates);
+            });
+        }, () -> logger.warn(
+                "Could not find the web client corresponding to {}. Impossible to get the children of this screen ({}).",
+                webServerURI,
+                this
+        ));
     }
 }
