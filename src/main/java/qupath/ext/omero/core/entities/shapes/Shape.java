@@ -44,6 +44,7 @@ public abstract class Shape {
     private static final Logger logger = LoggerFactory.getLogger(Shape.class);
     private static final String ANNOTATION = "Annotation";
     private static final String DETECTION = "Detection";
+    private static final String NO_CLASS = "NoClass";
     private static final String NO_PARENT = "NoParent";
     private static final String NO_NAME = "NoName";
     private static final String TEXT_DELIMITER = ":";
@@ -79,7 +80,7 @@ public abstract class Shape {
                 pathObject.isDetection() ? DETECTION : ANNOTATION,
                 TEXT_DELIMITER,
                 pathObject.getPathClass() == null ?
-                        PathClass.NULL_CLASS.toString() :
+                        NO_CLASS :
                         pathObject.getPathClass().toString().replaceAll(":", CLASS_DELIMITER),
                 TEXT_DELIMITER,
                 pathObject.getID().toString(),
@@ -339,7 +340,7 @@ public abstract class Shape {
             try {
                 return Optional.of(UUID.fromString(uuid));
             } catch (IllegalArgumentException e) {
-                logger.debug("Cannot create UUID from {}", uuid);
+                logger.debug("Cannot create UUID from {}. Considering parent UUID does not exist", uuid);
             }
         }
         return Optional.empty();
@@ -415,14 +416,14 @@ public abstract class Shape {
         if (text != null && text.split(TEXT_DELIMITER).length > 1 && !text.split(TEXT_DELIMITER)[1].isBlank()) {
             List<String> names = Arrays.stream(text.split(TEXT_DELIMITER)[1].split(CLASS_DELIMITER)).toList();
 
-            if (names.size() == 1 && names.getFirst().equals(PathClass.NULL_CLASS.toString())) {
+            if (names.size() == 1 && names.getFirst().equals(NO_CLASS)) {
+                logger.debug("{} path class detected. Returning {}", NO_CLASS, PathClass.NULL_CLASS);
                 return PathClass.NULL_CLASS;
             } else {
                 return PathClass.fromCollection(names);
             }
         } else {
             logger.debug("Path class not found in {}. Returning {}", text, PathClass.NULL_CLASS);
-
             return PathClass.NULL_CLASS;
         }
     }
@@ -432,7 +433,6 @@ public abstract class Shape {
             return text.split(TEXT_DELIMITER)[0];
         } else {
             logger.debug("Type not found in {}. Returning {}", text, ANNOTATION);
-
             return ANNOTATION;
         }
     }
@@ -447,7 +447,6 @@ public abstract class Shape {
             }
         } else {
             logger.debug("Name not found in {}. Not setting any name", text);
-
             return Optional.empty();
         }
     }
