@@ -10,6 +10,7 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
 import java.util.ResourceBundle;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -149,7 +150,16 @@ public class Plate extends ServerEntity {
                 children.addAll(plateAcquisitions);
             }));
 
-            client.getApisHandler().getWellsFromPlate(id).whenComplete((wells, error) -> {
+            client.getApisHandler().getWellsFromPlate(id).thenApply(wells ->
+                    wells.stream().map(ServerEntity::getId).distinct().toList()
+            ).thenApplyAsync(wellIds -> {
+                logger.debug("Got well IDs {} for {}. Fetching corresponding wells", wellIds, this);
+
+                return wellIds.stream()
+                        .map(id -> client.getApisHandler().getWell(id))
+                        .map(CompletableFuture::join)
+                        .toList();
+            }).whenComplete((wells, error) -> {
                 synchronized (this) {
                     childrenTypesPopulated++;
                 }

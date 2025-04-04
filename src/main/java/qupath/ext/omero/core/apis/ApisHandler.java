@@ -566,6 +566,13 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
+     * See {@link JsonApi#getWell(long)}.
+     */
+    public CompletableFuture<Well> getWell(long wellId) {
+        return jsonApi.getWell(wellId);
+    }
+
+    /**
      * See {@link WebclientApi#getAnnotations(long, Class)}.
      */
     public CompletableFuture<AnnotationGroup> getAnnotations(

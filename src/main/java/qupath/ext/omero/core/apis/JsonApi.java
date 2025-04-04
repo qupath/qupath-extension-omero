@@ -73,7 +73,8 @@ class JsonApi {
     private static final String ORPHANED_PLATES_URL = "%s?orphaned=true";
     private static final String PLATE_ACQUISITIONS_URL = "%s/api/v0/m/plates/%d/plateacquisitions/";
     private static final String PLATE_WELLS_URL = "%s/api/v0/m/plates/%d/wells/";
-    private static final String WELLS_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
+    private static final String WELLS_IN_PLATE_ACQUISITION_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
+    private static final String WELLS_URL = "%s/api/v0/m/wells/%d";
     private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%d%s";
     private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
     private static final Gson gson = new Gson();
@@ -365,37 +366,9 @@ class JsonApi {
      * @return a CompletableFuture (that may complete exceptionally) with the image
      */
     public CompletableFuture<Image> getImage(long imageId) {
-        logger.debug("Getting information on image with ID {}", imageId);
+        logger.debug("Getting image with ID {}", imageId);
 
-        URI uri;
-        try {
-            uri = new URI(urls.get(IMAGES_URL_KEY) + imageId);
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        synchronized (this) {
-            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
-        }
-
-        return requestSender.getAndConvert(uri, JsonObject.class)
-                .thenApply(jsonImage -> {
-                    if (!jsonImage.has("data")) {
-                        throw new RuntimeException(String.format("'data' member not present in %s", jsonImage));
-                    }
-
-                    ServerEntity serverEntity = ServerEntity.createFromJsonElement(jsonImage.get("data"), webServerUri);
-                    if (serverEntity instanceof Image image) {
-                        return image;
-                    } else {
-                        throw new RuntimeException(String.format("The returned server entity %s is not an image", serverEntity));
-                    }
-                })
-                .whenComplete((jsonImage, error) -> {
-                    synchronized (this) {
-                        numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
-                    }
-                });
+        return getEntity(urls.get(IMAGES_URL_KEY) + imageId, Image.class);
     }
 
     /**
@@ -538,7 +511,22 @@ class JsonApi {
     public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, int wellSampleIndex) {
         logger.debug("Getting all wells of plate acquisition with ID {} and well sample of ID {}", plateAcquisitionId, wellSampleIndex);
 
-        return getChildren(String.format(WELLS_URL, webServerUri, plateAcquisitionId, wellSampleIndex), Well.class);
+        return getChildren(String.format(WELLS_IN_PLATE_ACQUISITION_URL, webServerUri, plateAcquisitionId, wellSampleIndex), Well.class);
+    }
+
+    /**
+     * Attempt to create a well entity from a well ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param wellId the ID of the image
+     * @return a CompletableFuture (that may complete exceptionally) with the image
+     */
+    public CompletableFuture<Well> getWell(long wellId) {
+        logger.debug("Getting well with ID {}", wellId);
+
+        return getEntity(String.format(WELLS_URL, webServerUri, wellId), Well.class);
     }
 
     /**
@@ -710,6 +698,36 @@ class JsonApi {
                         numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
                     }
                 });
+    }
+
+    private <T extends ServerEntity> CompletableFuture<T> getEntity(String url, Class<T> type) {
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        synchronized (this) {
+            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
+        }
+
+        return requestSender.getAndConvert(uri, JsonObject.class).thenApply(response -> {
+            if (!response.has("data")) {
+                throw new RuntimeException(String.format("'data' member not present in %s", response));
+            }
+
+            ServerEntity serverEntity = ServerEntity.createFromJsonElement(response.get("data"), webServerUri);
+            if (serverEntity.getClass().equals(type)) {
+                return type.cast(serverEntity);
+            } else {
+                throw new RuntimeException(String.format("The returned server entity %s is not a %s", serverEntity, type));
+            }
+        }).whenComplete((entity, error) -> {
+            synchronized (this) {
+                numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
+            }
+        });
     }
 
     private CompletableFuture<JsonObject> requestImageInfo(URI uri) {

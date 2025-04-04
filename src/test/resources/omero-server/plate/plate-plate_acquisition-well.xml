@@ -51,6 +51,7 @@
             <WellSampleRef ID="WellSample:1.1.1.1"/>
             <WellSampleRef ID="WellSample:1.2.1.1"/>
             <WellSampleRef ID="WellSample:1.1.2.1"/>
+            <WellSampleRef ID="WellSample:1.1.2.3"/>
             <WellSampleRef ID="WellSample:1.2.2.1"/>
         </PlateAcquisition>
         <PlateAcquisition ID="PlateAcquisition:Plate:1:ScreenAcquisition:2" StartTime="2010-02-23T12:50:30" EndTime="2010-02-23T12:51:29">

@@ -150,8 +150,17 @@ public class PlateAcquisition extends ServerEntity {
                     .mapToObj(i -> client.getApisHandler().getWellsFromPlateAcquisition(id, i))
                     .map(CompletableFuture::join)
                     .flatMap(List::stream)
+                    .map(ServerEntity::getId)
+                    .distinct()
                     .toList()
-            ).whenComplete((wells, error) -> {
+            ).thenApplyAsync(wellIds -> {
+                logger.debug("Got well IDs {} for {}. Fetching corresponding wells", wellIds, this);
+
+                return wellIds.stream()
+                        .map(id -> client.getApisHandler().getWell(id))
+                        .map(CompletableFuture::join)
+                        .toList();
+            }).whenComplete((wells, error) -> {
                 isPopulating = false;
 
                 if (wells == null) {
