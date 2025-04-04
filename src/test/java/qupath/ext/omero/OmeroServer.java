@@ -349,12 +349,17 @@ public abstract class OmeroServer {
 
     protected static Group getGroupOfEntity(ServerEntity serverEntity) {
         return switch (serverEntity) {
-            case Image image -> switch ((int) image.getId()) {
-                case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 -> getPublicGroup();
-                case 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 46 -> getGroup1();
-                case 41, 42, 43, 44, 45 -> getGroup2();
-                default -> null;
-            };
+            case Image image -> {
+                if (image.getId() < 19) {
+                    yield getPublicGroup();
+                } else if (image.getId() < 53 || image.getId() == 58) {
+                    yield getGroup1();
+                } else if (image.getId() < 58) {
+                    yield getGroup2();
+                } else {
+                    yield null;
+                }
+            }
             case Project project -> switch ((int) project.getId()) {
                 case 1 -> getPublicGroup();
                 case 2 -> getGroup1();
@@ -375,6 +380,19 @@ public abstract class OmeroServer {
                 case 3, 4, 5, 6 -> getGroup1();
                 default -> null;
             };
+            case PlateAcquisition plateAcquisition -> switch ((int) plateAcquisition.getId()) {
+                case 1, 2 -> getGroup1();
+                default -> null;
+            };
+            case Well well -> {
+                if (well.getId() < 9) {
+                    yield getPublicGroup();
+                } else if (well.getId() < 25) {
+                    yield getGroup1();
+                } else {
+                    yield null;
+                }
+            }
             case null, default -> null;
         };
     }
@@ -420,13 +438,19 @@ public abstract class OmeroServer {
 
     protected static Owner getOwnerOfEntity(ServerEntity serverEntity) {
         return switch (serverEntity) {
-            case Image image -> switch ((int) image.getId()) {
-                case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 -> getPublicUser();
-                case 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 -> getUser1();
-                case 41, 42, 43, 44, 45 -> getUser2();
-                case 46 -> getUser();
-                default -> null;
-            };
+            case Image image -> {
+                if (image.getId() < 19) {
+                    yield getPublicUser();
+                } else if (image.getId() < 53) {
+                    yield getUser1();
+                } else if (image.getId() < 58) {
+                    yield getUser2();
+                } else if (image.getId() < 59) {
+                    yield getUser();
+                } else {
+                    yield null;
+                }
+            }
             case Project project -> switch ((int) project.getId()) {
                 case 1 -> getPublicUser();
                 case 2 -> getUser1();
@@ -447,6 +471,19 @@ public abstract class OmeroServer {
                 case 3, 4, 5, 6 -> getUser1();
                 default -> null;
             };
+            case PlateAcquisition plateAcquisition -> switch ((int) plateAcquisition.getId()) {
+                case 1, 2 -> getUser1();
+                default -> null;
+            };
+            case Well well -> {
+                if (well.getId() < 9) {
+                    yield getPublicUser();
+                } else if (well.getId() < 25) {
+                    yield getUser1();
+                } else {
+                    yield null;
+                }
+            }
             case null, default -> null;
         };
     }
@@ -539,7 +576,7 @@ public abstract class OmeroServer {
 
     protected static Image getUint8Image(UserType userType) {
         return switch (userType) {
-            case AUTHENTICATED -> new Image(41);
+            case AUTHENTICATED -> new Image(53);
             case UNAUTHENTICATED -> new Image(2);
             case ADMIN -> null;
         };
@@ -547,7 +584,7 @@ public abstract class OmeroServer {
 
     protected static Image getUint16Image(UserType userType) {
         return switch (userType) {
-            case AUTHENTICATED -> new Image(42);
+            case AUTHENTICATED -> new Image(54);
             case UNAUTHENTICATED -> new Image(3);
             case ADMIN -> null;
         };
@@ -555,7 +592,7 @@ public abstract class OmeroServer {
 
     protected static Image getInt16Image(UserType userType) {
         return switch (userType) {
-            case AUTHENTICATED -> new Image(43);
+            case AUTHENTICATED -> new Image(55);
             case UNAUTHENTICATED -> new Image(4);
             case ADMIN -> null;
         };
@@ -563,7 +600,7 @@ public abstract class OmeroServer {
 
     protected static Image getInt32Image(UserType userType) {
         return switch (userType) {
-            case AUTHENTICATED -> new Image(44);
+            case AUTHENTICATED -> new Image(56);
             case UNAUTHENTICATED -> new Image(5);
             case ADMIN -> null;
         };
@@ -591,7 +628,7 @@ public abstract class OmeroServer {
 
     protected static Image getFloat64Image(UserType userType) {
         return switch (userType) {
-            case AUTHENTICATED -> new Image(45);
+            case AUTHENTICATED -> new Image(57);
             case UNAUTHENTICATED -> new Image(7);
             case ADMIN -> null;
         };
@@ -599,7 +636,7 @@ public abstract class OmeroServer {
 
     protected static Image getComplexImage(UserType userType) {
         return switch (userType) {
-            case AUTHENTICATED -> new Image(46);
+            case AUTHENTICATED -> new Image(58);
             case UNAUTHENTICATED -> new Image(8);
             case ADMIN -> null;
         };
@@ -704,26 +741,35 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<Image> getImagesInPlate(Plate plate) {
-        if (plate.getId() < 3) {
-            return List.of(
-                    new Image(9 + (plate.getId()-1) * 5),
-                    new Image(10 + (plate.getId()-1) * 5),
-                    new Image(11 + (plate.getId()-1) * 5),
-                    new Image(12 + (plate.getId()-1) * 5),
-                    new Image(13 + (plate.getId()-1) * 5)
-            );
-        } else if (plate.getId() < 7) {
-            return List.of(
-                    new Image(11 + (plate.getId()-1) * 5),
-                    new Image(12 + (plate.getId()-1) * 5),
-                    new Image(13 + (plate.getId()-1) * 5),
-                    new Image(14 + (plate.getId()-1) * 5),
-                    new Image(15 + (plate.getId()-1) * 5)
-            );
-        } {
-            return List.of();
-        }
+    protected static List<Image> getImagesInWell(Well well) {
+        List<Integer> ids = switch ((int) well.getId()) {
+            case 1 -> List.of(10);
+            case 2 -> List.of(11);
+            case 3 -> List.of(12);
+            case 4 -> List.of(9);
+            case 5 -> List.of(15, 16);
+            case 6 -> List.of(17);
+            case 7 -> List.of(18);
+            case 8 -> List.of(14);
+            case 9 -> List.of(22);
+            case 10 -> List.of(23, 24);
+            case 11 -> List.of(25);
+            case 12 -> List.of(21);
+            case 13 -> List.of(26, 27);
+            case 14 -> List.of(28, 29);
+            case 15 -> List.of(30, 31, 32, 33, 34);
+            case 16 -> List.of(35, 36);
+            case 17 -> List.of(38);
+            case 18 -> List.of(39);
+            case 19 -> List.of(40, 41);
+            case 20 -> List.of(37);
+            case 21 -> List.of(43, 44);
+            case 22 -> List.of(42, 45);
+            case 23 -> List.of(46, 47, 48, 49, 50);
+            case 24 -> List.of(51, 52);
+            default -> List.of();
+        };
+        return ids.stream().map(Image::new).toList();
     }
 
     protected static Image getAnnotableImage(UserType userType) {
@@ -810,19 +856,48 @@ public abstract class OmeroServer {
             default -> List.of();
         };
     }
-
-    protected static List<PlateAcquisition> getPlateAcquisitionsInScreen() {
-        return List.of();
+    
+    protected static List<Plate> getPlatesOwningPlateAcquisition(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> List.of();
+            case AUTHENTICATED -> List.of(new Plate(4), new Plate(6));
+        };
     }
 
     protected static List<String> getPlateAttributeValue(Plate plate) {
         return List.of(
-                "plate",
+                switch ((int) plate.getId()) {
+                    case 1, 2, 3, 5 -> "plate";
+                    case 4, 6 -> "plate-plate_acquisition-well.xml";
+                    default -> "-";
+                },
                 String.valueOf(plate.getId()),
                 Objects.requireNonNull(getOwnerOfEntity(plate)).getFullName(),
                 Objects.requireNonNull(getGroupOfEntity(plate)).getName(),
                 "3",
                 "3"
+        );
+    }
+
+    protected static List<PlateAcquisition> getPlateAcquisitionsInPlate(Plate plate) {
+        return switch ((int) plate.getId()) {
+            case 4 -> List.of(new PlateAcquisition(1), new PlateAcquisition(2));
+            case 6 -> List.of(new PlateAcquisition(3), new PlateAcquisition(4));
+            default -> List.of();
+        };
+    }
+
+    protected static List<String> getPlateAcquisitionAttributeValue(PlateAcquisition plateAcquisition) {
+        return List.of(
+                "-",
+                String.valueOf(plateAcquisition.getId()),
+                Objects.requireNonNull(getOwnerOfEntity(plateAcquisition)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(plateAcquisition)).getName(),
+                switch ((int) plateAcquisition.getId()) {
+                    case 1, 3 -> "Tue Feb 23 12:50:30 GMT 2010";
+                    case 2, 4 -> "Tue Feb 23 12:49:30 GMT 2010";
+                    default -> "-";
+                }
         );
     }
 
@@ -837,6 +912,40 @@ public abstract class OmeroServer {
         } else {
             return List.of();
         }
+    }
+
+    protected static List<Well> getWellsInPlateAcquisition(PlateAcquisition plateAcquisition) {
+        if (plateAcquisition.getId() == 1 || plateAcquisition.getId() == 2) {
+            return List.of(
+                    new Well(13),
+                    new Well(14),
+                    new Well(15),
+                    new Well(16)
+            );
+        } else {
+            return List.of();
+        }
+    }
+
+    protected static List<String> getWellAttributeValue(Well well) {
+        return List.of(
+                "-",
+                String.valueOf(well.getId()),
+                Objects.requireNonNull(getOwnerOfEntity(well)).getFullName(),
+                Objects.requireNonNull(getGroupOfEntity(well)).getName(),
+                String.valueOf(switch ((int) well.getId()) {
+                    case 1, 7, 11, 14, 16, 17, 21, 24 -> 2;
+                    case 2, 6, 9, 18 -> 0;
+                    case 3, 4, 5, 8, 10, 12, 13, 15, 19, 20, 22, 23 -> 1;
+                    default -> "-";
+                }),
+                String.valueOf(switch ((int) well.getId()) {
+                    case 1, 2, 6, 7, 9, 11, 13, 16, 17, 18, 21, 22 -> 1;
+                    case 3, 5, 10, 14, 15, 19, 23, 24 -> 2;
+                    case 4, 8, 12, 20 -> 0;
+                    default -> "-";
+                })
+        );
     }
 
     protected static AnnotationGroup getAnnotationsInDataset(Dataset dataset) {

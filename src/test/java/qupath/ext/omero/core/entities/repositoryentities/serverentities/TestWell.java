@@ -16,15 +16,14 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
-public class TestPlate extends OmeroServer {
+public class TestWell extends OmeroServer {
 
     abstract static class GenericClient {
 
         protected static UserType userType;
         protected static Client client;
-        protected static Plate plate;
+        protected static Well well;
 
         @AfterAll
         static void removeClient() throws Exception {
@@ -35,52 +34,46 @@ public class TestPlate extends OmeroServer {
 
         @Test
         void Check_Owner() {
-            Owner expectedOwner = OmeroServer.getOwnerOfEntity(plate);
+            Owner expectedOwner = OmeroServer.getOwnerOfEntity(well);
 
-            Owner owner = plate.getOwner();
+            Owner owner = well.getOwner();
 
             Assertions.assertEquals(expectedOwner, owner);
         }
 
         @Test
         void Check_Group_Id() {
-            long expectedGroupId = OmeroServer.getGroupOfEntity(plate).getId();
+            long expectedGroupId = OmeroServer.getGroupOfEntity(well).getId();
 
-            long groupId = plate.getGroupId();
+            long groupId = well.getGroupId();
 
             Assertions.assertEquals(expectedGroupId, groupId);
         }
 
         @Test
         void Check_Group_Name() {
-            String expectedGroupName = OmeroServer.getGroupOfEntity(plate).getName();
+            String expectedGroupName = OmeroServer.getGroupOfEntity(well).getName();
 
-            String groupName = plate.getGroupName();
+            String groupName = well.getGroupName();
 
             Assertions.assertEquals(expectedGroupName, groupName);
         }
 
         @Test
         void Check_Has_Children() {
-            boolean expectedChildren = !Stream.concat(
-                    OmeroServer.getPlateAcquisitionsInPlate(plate).stream(),
-                    OmeroServer.getWellsInPlate(plate).stream()
-            ).toList().isEmpty();
+            boolean expectedChildren = !OmeroServer.getImagesInWell(well).isEmpty();
 
-            boolean hasChildren = plate.hasChildren();
+            boolean hasChildren = well.hasChildren();
 
             Assertions.assertEquals(expectedChildren, hasChildren);
         }
 
         @Test
         void Check_Children() throws InterruptedException {
-            List<? extends RepositoryEntity> expectedChildren = Stream.concat(
-                    OmeroServer.getPlateAcquisitionsInPlate(plate).stream(),
-                    OmeroServer.getWellsInPlate(plate).stream()
-            ).toList();
+            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getImagesInWell(well);
 
-            List<? extends RepositoryEntity> children = plate.getChildren();
-            while (plate.isPopulatingChildren()) {
+            List<? extends RepositoryEntity> children = well.getChildren();
+            while (well.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
 
@@ -89,11 +82,11 @@ public class TestPlate extends OmeroServer {
 
         @Test
         void Check_Attributes() {
-            int numberOfValues = plate.getNumberOfAttributes();
-            List<String> expectedAttributeValues = OmeroServer.getPlateAttributeValue(plate);
+            int numberOfValues = well.getNumberOfAttributes();
+            List<String> expectedAttributeValues = OmeroServer.getWellAttributeValue(well);
 
             List<String> attributesValues = IntStream.range(0, numberOfValues)
-                    .mapToObj(i -> plate.getAttributeValue(i))
+                    .mapToObj(i -> well.getAttributeValue(i))
                     .toList();
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedAttributeValues, attributesValues);
@@ -101,7 +94,7 @@ public class TestPlate extends OmeroServer {
     }
 
     @Nested
-    class UnauthenticatedClient extends GenericClient {
+    class UnauthenticatedClient extends TestScreen.GenericClient {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
@@ -112,28 +105,16 @@ public class TestPlate extends OmeroServer {
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            Screen screen = server.getChildren().stream()
+            screen = server.getChildren().stream()
                     .filter(child -> child instanceof Screen)
                     .map(s -> (Screen) s)
-                    .findAny()
-                    .orElse(null);
-            assert screen != null;
-
-            List<? extends RepositoryEntity> plateChildren = screen.getChildren();
-            while (screen.isPopulatingChildren()) {
-                TimeUnit.MILLISECONDS.sleep(50);
-            }
-
-            plate = plateChildren.stream()
-                    .filter(child -> child instanceof Plate)
-                    .map(p -> (Plate) p)
                     .findAny()
                     .orElse(null);
         }
     }
 
     @Nested
-    class AuthenticatedClient extends GenericClient {
+    class AuthenticatedClient extends TestScreen.GenericClient {
 
         @BeforeAll
         static void createClient() throws ExecutionException, InterruptedException {
@@ -144,21 +125,9 @@ public class TestPlate extends OmeroServer {
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            Screen screen = server.getChildren().stream()
+            screen = server.getChildren().stream()
                     .filter(child -> child instanceof Screen)
                     .map(s -> (Screen) s)
-                    .findAny()
-                    .orElse(null);
-            assert screen != null;
-
-            List<? extends RepositoryEntity> plateChildren = screen.getChildren();
-            while (screen.isPopulatingChildren()) {
-                TimeUnit.MILLISECONDS.sleep(50);
-            }
-
-            plate = plateChildren.stream()
-                    .filter(child -> child instanceof Plate)
-                    .map(p -> (Plate) p)
                     .findAny()
                     .orElse(null);
         }

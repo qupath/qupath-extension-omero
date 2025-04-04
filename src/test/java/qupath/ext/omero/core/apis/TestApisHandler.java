@@ -559,15 +559,7 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Plate_Acquisitions() throws ExecutionException, InterruptedException {
-            Screen screen = OmeroServer.getScreens(userType).getLast();
-            long screenId = screen.getId();
-            List<PlateAcquisition> expectedPlateAcquisitions = OmeroServer.getPlateAcquisitionsInScreen();
-
-            List<PlateAcquisition> plateAcquisitions = apisHandler.getPlateAcquisitions(screenId).get();
-
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedPlateAcquisitions, plateAcquisitions);
-        }
+        abstract void Check_Plate_Acquisitions() throws ExecutionException, InterruptedException;
 
         @Test
         void Check_Wells() throws ExecutionException, InterruptedException {
@@ -822,6 +814,12 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         @Override
+        void Check_Plate_Acquisitions() {
+            // The public owner has no plate acquisition
+        }
+
+        @Test
+        @Override
         void Check_Key_Value_Pairs_Sent() {
             Image image = OmeroServer.getAnnotableImage(userType);
             Map<String, String> keyValues = Map.of(
@@ -1021,6 +1019,18 @@ public class TestApisHandler extends OmeroServer {
             long groupId = OmeroServer.getGroupsOwnedByUser(userType).getFirst().getId();
 
             Assertions.assertTrue(apisHandler.isConnectedUserOwnerOfGroup(groupId));
+        }
+
+        @Test
+        @Override
+        void Check_Plate_Acquisitions() throws ExecutionException, InterruptedException {
+            Plate plate = OmeroServer.getPlatesOwningPlateAcquisition(userType).getFirst();
+            long plateId = plate.getId();
+            List<PlateAcquisition> expectedPlateAcquisitions = OmeroServer.getPlateAcquisitionsInPlate(plate);
+
+            List<PlateAcquisition> plateAcquisitions = apisHandler.getPlateAcquisitions(plateId).get();
+
+            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedPlateAcquisitions, plateAcquisitions);
         }
 
         @Test
