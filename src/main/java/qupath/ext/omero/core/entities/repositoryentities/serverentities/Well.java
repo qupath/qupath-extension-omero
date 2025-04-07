@@ -24,7 +24,7 @@ public class Well extends ServerEntity {
 
     private static final Logger logger = LoggerFactory.getLogger(Well.class);
     private static final ResourceBundle resources = Utils.getResources();
-;    private static final String[] ATTRIBUTES = new String[] {
+    private static final String[] ATTRIBUTES = new String[] {
             resources.getString("Entities.Well.name"),
             resources.getString("Entities.Well.id"),
             resources.getString("Entities.Well.owner"),
