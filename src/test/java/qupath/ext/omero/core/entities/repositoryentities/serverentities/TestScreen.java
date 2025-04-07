@@ -102,14 +102,15 @@ public class TestScreen extends OmeroServer {
             client = OmeroServer.createClient(userType);
             Server server = client.getServer().get();
 
+            List<? extends RepositoryEntity> serverChildren = server.getChildren();
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            screen = server.getChildren().stream()
+            screen = serverChildren.stream()
                     .filter(child -> child instanceof Screen)
                     .map(s -> (Screen) s)
                     .findAny()
-                    .orElse(null);
+                    .orElseThrow();
         }
     }
 
@@ -122,14 +123,15 @@ public class TestScreen extends OmeroServer {
             client = OmeroServer.createClient(userType);
             Server server = client.getServer().get();
 
+            List<? extends RepositoryEntity> serverChildren = server.getChildren();
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            screen = server.getChildren().stream()
+            screen = serverChildren.stream()
                     .filter(child -> child instanceof Screen)
                     .map(s -> (Screen) s)
                     .findAny()
-                    .orElse(null);
+                    .orElseThrow();
         }
     }
 }

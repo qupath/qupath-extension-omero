@@ -81,7 +81,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Pixel Buffer Microservice",
                     "--usertype",
@@ -113,7 +113,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Pixel Buffer Microservice",
                     "--usertype",
@@ -145,7 +145,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Pixel Buffer Microservice",
                     "--usertype",
@@ -177,7 +177,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Pixel Buffer Microservice",
                     "--usertype",
@@ -209,7 +209,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Pixel Buffer Microservice",
                     "--usertype",
@@ -241,7 +241,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Pixel Buffer Microservice",
                     "--usertype",
@@ -273,7 +273,7 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Pixel Buffer Microservice",
                     "--usertype",

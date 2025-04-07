@@ -109,26 +109,25 @@ public class TestPlate extends OmeroServer {
             client = OmeroServer.createClient(userType);
             Server server = client.getServer().get();
 
+            List<? extends RepositoryEntity> serverChildren = server.getChildren();
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            Screen screen = server.getChildren().stream()
+            Screen screen = serverChildren.stream()
                     .filter(child -> child instanceof Screen)
                     .map(s -> (Screen) s)
                     .findAny()
-                    .orElse(null);
-            assert screen != null;
+                    .orElseThrow();
 
             List<? extends RepositoryEntity> plateChildren = screen.getChildren();
             while (screen.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-
             plate = plateChildren.stream()
                     .filter(child -> child instanceof Plate)
                     .map(p -> (Plate) p)
                     .findAny()
-                    .orElse(null);
+                    .orElseThrow();
         }
     }
 
@@ -141,26 +140,25 @@ public class TestPlate extends OmeroServer {
             client = OmeroServer.createClient(userType);
             Server server = client.getServer().get();
 
+            List<? extends RepositoryEntity> serverChildren = server.getChildren();
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            Screen screen = server.getChildren().stream()
+            Screen screen = serverChildren.stream()
                     .filter(child -> child instanceof Screen)
                     .map(s -> (Screen) s)
                     .findAny()
-                    .orElse(null);
-            assert screen != null;
+                    .orElseThrow();
 
             List<? extends RepositoryEntity> plateChildren = screen.getChildren();
             while (screen.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-
             plate = plateChildren.stream()
                     .filter(child -> child instanceof Plate)
                     .map(p -> (Plate) p)
                     .findAny()
-                    .orElse(null);
+                    .orElseThrow();
         }
     }
 }

@@ -28,6 +28,7 @@ import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
+import qupath.ext.omero.gui.ImageOpener;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.LinkCellFactory;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TextCellFactory;
@@ -295,9 +296,11 @@ public class AdvancedSearch extends Stage {
     }
 
     private void importSelectedImages() {
-        UiUtilities.openImages(results.getSelectionModel().getSelectedItems().stream()
-                .map(SearchResult::link)
-                .toList()
+        ImageOpener.openImageFromUris(
+                results.getSelectionModel().getSelectedItems().stream()
+                        .map(SearchResult::link)
+                        .toList(),
+                apisHandler
         );
     }
 }

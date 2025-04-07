@@ -168,12 +168,15 @@ public class LoginForm extends Stage {
         waitingWindow.initOwner(this);
         waitingWindow.show();
 
+        // Get variables of UI elements while still in JavaFX application thread
+        String urlInput = url.getText();
+        Credentials credentials = publicUser.isSelected() ? new Credentials() : new Credentials(username.getText(), getPassword());
+
         executor.execute(() -> {
             try {
-                Credentials credentials = publicUser.isSelected() ? new Credentials() : new Credentials(username.getText(), getPassword());
-                logger.debug("Creating client with {} to connect to {}", credentials, url.getText());
+                logger.debug("Creating client with {} to connect to {}", credentials, urlInput);
 
-                Client client = Client.createOrGet(url.getText(), credentials, UiUtilities::displayPingErrorDialogIfUiPresent);
+                Client client = Client.createOrGet(urlInput, credentials, UiUtilities::displayPingErrorDialogIfUiPresent);
                 logger.debug("Client {} created. Closing waiting and login window", client);
 
                 onClientCreated.accept(client);
@@ -184,7 +187,7 @@ public class LoginForm extends Stage {
                     close();
                 });
             } catch (Exception e) {
-                logger.error("Error while creating connection to {}. Closing waiting window", url.getText(), e);
+                logger.error("Error while creating connection to {}. Closing waiting window", urlInput, e);
 
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();

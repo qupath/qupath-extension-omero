@@ -12,6 +12,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Im
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -130,6 +131,22 @@ public class PlateAcquisition extends ServerEntity {
      */
     public synchronized void setNumberOfWells(int numberOfWells) {
         this.numberOfWells = numberOfWells;
+    }
+
+    /**
+     * @return the minimal index of well sample this plate acquisition contains, or an empty Optional if not found
+     */
+    public Optional<Integer> getMinWellSampleIndex() {
+        return Optional.ofNullable(wellSampleIndices)
+                .map(wellSampleIndices -> wellSampleIndices.isEmpty() ? null : wellSampleIndices.getFirst());
+    }
+
+    /**
+     * @return the maximal index of well sample this plate acquisition contains, or an empty Optional if not found
+     */
+    public Optional<Integer> getMaxWellSampleIndex() {
+        return Optional.ofNullable(wellSampleIndices)
+                .map(wellSampleIndices -> wellSampleIndices.size() > 1 ? wellSampleIndices.get(1) : null);
     }
 
     private void populateChildren() {

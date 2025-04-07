@@ -81,7 +81,7 @@ public class TestIceReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Ice",
                     "--username",
@@ -116,7 +116,7 @@ public class TestIceReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Ice",
                     "--username",
@@ -151,7 +151,7 @@ public class TestIceReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Ice",
                     "--username",
@@ -186,7 +186,7 @@ public class TestIceReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Ice",
                     "--username",
@@ -221,7 +221,7 @@ public class TestIceReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Ice",
                     "--username",
@@ -256,7 +256,7 @@ public class TestIceReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Ice",
                     "--username",
@@ -291,7 +291,7 @@ public class TestIceReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI",
                     "Ice",
                     "--username",

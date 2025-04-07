@@ -241,6 +241,10 @@ public class AnnotationSender implements DataTransporter {
         }
         waitingWindow.show();
 
+        // Get form info in JavaFX Application Thread
+        boolean sendAnnotationMeasurements = annotationForm.sendAnnotationMeasurements();
+        boolean sendDetectionMeasurements = annotationForm.sendDetectionMeasurements();
+
         CompletableFuture.supplyAsync(() -> {
             Map<Request, Throwable> requestToErrors = new HashMap<>();      // a HashMap is manually created because using
                                                                             // streams doesn't allow for null values
@@ -269,8 +273,8 @@ public class AnnotationSender implements DataTransporter {
                     quPath,
                     omeroImageServer,
                     annotations,
-                    annotationForm.sendAnnotationMeasurements(),
-                    annotationForm.sendDetectionMeasurements()
+                    sendAnnotationMeasurements,
+                    sendDetectionMeasurements
             ));
 
             Map<Request, Throwable> requestToErrors = new LinkedHashMap<>();

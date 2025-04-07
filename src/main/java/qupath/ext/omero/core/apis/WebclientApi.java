@@ -17,6 +17,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcq
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
@@ -76,7 +77,8 @@ class WebclientApi implements AutoCloseable {
             Project.class, "project",
             Screen.class, "screen",
             Plate.class, "plate",
-            PlateAcquisition.class, "run"
+            PlateAcquisition.class, "run",
+            Well.class, "well"
     );
     private static final Gson gson = new Gson();
     private final URI webServerUri;
@@ -131,16 +133,15 @@ class WebclientApi implements AutoCloseable {
      * Returns a link of the OMERO.web client pointing to a server entity.
      *
      * @param entity the entity to have a link to. Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *               {@link Screen}, {@link Plate} or {@link PlateAcquisition}. Only the ID and the class of
-     *               the entity will be used
+     *               {@link Screen}, {@link Plate}, {@link PlateAcquisition}, or {@link Well}. Only the ID and
+     *               the class of the entity will be used
      * @return a URL pointing to the server entity
-     * @throws IllegalArgumentException if the provided entity is not an image, dataset, project,
-     * screen, plate, or plate acquisition
+     * @throws IllegalArgumentException if the provided entity is not among the list above
      */
     public String getEntityUri(ServerEntity entity) {
         if (!TYPE_TO_URI_LABEL.containsKey(entity.getClass())) {
             throw new IllegalArgumentException(String.format(
-                    "The provided item (%s) is not an image, dataset, project, screen, plate, or plate acquisition.",
+                    "The provided item (%s) is not an image, dataset, project, screen, plate, plate acquisition, or well.",
                     entity
             ));
         }
@@ -242,10 +243,9 @@ class WebclientApi implements AutoCloseable {
      * @param entityId the ID of the entity
      * @param entityClass the class of the entity whose annotation should be retrieved.
      *                    Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     *                    {@link Screen}, {@link Plate}, {@link PlateAcquisition}, or {@link Well}.
      * @return a CompletableFuture (that may complete exceptionally) with the annotation
-     * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
-     * screen, plate, or plate acquisition
+     * @throws IllegalArgumentException if the provided entity is not among the list above
      */
     public CompletableFuture<AnnotationGroup> getAnnotations(
             long entityId,
@@ -255,7 +255,7 @@ class WebclientApi implements AutoCloseable {
 
         if (!TYPE_TO_URI_LABEL.containsKey(entityClass)) {
             throw new IllegalArgumentException(String.format(
-                    "The provided item (%d) is not an image, dataset, project, screen, plate, or plate acquisition.",
+                    "The provided item (%d) is not an image, dataset, project, screen, plate, plate acquisition, or well.",
                     entityId
             ));
         }
@@ -497,13 +497,12 @@ class WebclientApi implements AutoCloseable {
      *
      * @param entityId the ID of the entity
      * @param entityClass the class of the entity. Must be an {@link Image}, {@link Dataset}, {@link Project},
-     *                    {@link Screen}, {@link Plate}, or {@link PlateAcquisition}.
+     *                    {@link Screen}, {@link Plate}, {@link PlateAcquisition}, or {@link Well well}.
      * @param attachmentName the name of the file to send. A prefix will be added to it to mark
      *                       this file as coming from QuPath
      * @param attachmentContent the content of the file to send
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
-     * @throws IllegalArgumentException when the provided entity is not an image, dataset, project,
-     * screen, plate, or plate acquisition
+     * @throws IllegalArgumentException if the provided entity is not among the list above
      */
     public CompletableFuture<Void> sendAttachment(
             long entityId,
@@ -515,7 +514,7 @@ class WebclientApi implements AutoCloseable {
 
         if (!TYPE_TO_URI_LABEL.containsKey(entityClass)) {
             throw new IllegalArgumentException(String.format(
-                    "The provided item (%s) is not an image, dataset, project, screen, plate, or plate acquisition.",
+                    "The provided item (%s) is not an image, dataset, project, screen, plate, plate acquisition, or well.",
                     entityClass
             ));
         }
