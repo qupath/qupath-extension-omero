@@ -578,7 +578,7 @@ class Browser extends Stage {
 
         var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
         if (selectedItems.size() == 1 && selectedItems.getFirst() != null && selectedItems.getFirst().getValue() instanceof Image image) {
-            logger.debug("One image {} is selected. Fetching its thumbnail", image);
+            logger.trace("One image {} is selected. Fetching its thumbnail", image);
 
             client.getApisHandler().getThumbnail(image.getId()).whenComplete((thumbnail, error) -> Platform.runLater(() ->{
                 if (thumbnail == null) {
@@ -586,7 +586,7 @@ class Browser extends Stage {
                     return;
                 }
 
-                logger.debug("Got thumbnail {} for {}. Updating canvas with it", thumbnail, image);
+                logger.trace("Got thumbnail {} for {}. Updating canvas with it", thumbnail, image);
                 UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
             }));
         }
@@ -597,12 +597,12 @@ class Browser extends Stage {
 
         var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
         if (selectedItems.size() == 1 && selectedItems.getFirst() != null && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
-            logger.debug("One server entity {} selected. Updating description", serverEntity);
+            logger.trace("One server entity {} selected. Updating description", serverEntity);
             description.getItems().setAll(
                     IntStream.rangeClosed(0, serverEntity.getNumberOfAttributes()).boxed().collect(Collectors.toList())
             );
         } else {
-            logger.debug("Zero or more than one server entity selected. Clearing description");
+            logger.trace("Zero or more than one server entity selected. Clearing description");
             description.getItems().clear();
         }
     }
@@ -623,16 +623,16 @@ class Browser extends Stage {
         importImage.setDisable(importableEntities.isEmpty());
 
         if (importableEntities.isEmpty()) {
-            logger.debug("No importable entity selected. Disabling import button");
+            logger.trace("No importable entity selected. Disabling import button");
             importImage.setText(resources.getString("Browser.ServerBrowser.cantImportSelectedToQuPath"));
         } else if (importableEntities.size() == 1) {
-            logger.debug("One importable entity selected {}. Enabling import button", importableEntities.getFirst());
+            logger.trace("One importable entity selected {}. Enabling import button", importableEntities.getFirst());
             importImage.setText(MessageFormat.format(
                     resources.getString("Browser.ServerBrowser.importToQuPath"),
                     importableEntities.getFirst().getLabel()
             ));
         } else {
-            logger.debug("Several importable entity selected {}. Enabling import button", importableEntities);
+            logger.trace("Several importable entity selected {}. Enabling import button", importableEntities);
             importImage.setText(resources.getString("Browser.ServerBrowser.importSelectedToQuPath"));
         }
     }
