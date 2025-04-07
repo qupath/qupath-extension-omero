@@ -168,15 +168,12 @@ public class LoginForm extends Stage {
         waitingWindow.initOwner(this);
         waitingWindow.show();
 
-        // Get variables of UI elements while in JavaFX application thread
+        // Get variables of UI elements while still in JavaFX application thread
         String urlInput = url.getText();
-        boolean isPublicUser = publicUser.isSelected();
-        String usernameInput = username.getText();
-        char[] passwordInput = getPassword();
+        Credentials credentials = publicUser.isSelected() ? new Credentials() : new Credentials(username.getText(), getPassword());
 
         executor.execute(() -> {
             try {
-                Credentials credentials = isPublicUser ? new Credentials() : new Credentials(usernameInput, passwordInput);
                 logger.debug("Creating client with {} to connect to {}", credentials, urlInput);
 
                 Client client = Client.createOrGet(urlInput, credentials, UiUtilities::displayPingErrorDialogIfUiPresent);
