@@ -887,8 +887,8 @@ public abstract class OmeroServer {
                 Objects.requireNonNull(getOwnerOfEntity(plateAcquisition)).getFullName(),
                 Objects.requireNonNull(getGroupOfEntity(plateAcquisition)).getName(),
                 switch ((int) plateAcquisition.getId()) {
-                    case 1, 3 -> "Tue Feb 23 12:50:30 GMT 2010";
-                    case 2, 4 -> "Tue Feb 23 12:49:30 GMT 2010";
+                    case 1, 3 -> "2010-02-23 12:50:30";
+                    case 2, 4 -> "2010-02-23 12:49:30";
                     default -> "-";
                 }
         );

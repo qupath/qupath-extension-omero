@@ -10,6 +10,8 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +35,7 @@ public class PlateAcquisition extends ServerEntity {
             resources.getString("Entities.PlateAcquisition.group"),
             resources.getString("Entities.PlateAcquisition.acquisitionTime")
     };
+    private static final DateFormat ACQUISITION_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     private final transient ObservableList<Well> children = FXCollections.observableArrayList();
     private final transient ObservableList<Well> childrenImmutable = FXCollections.unmodifiableObservableList(children);
     private final transient AtomicBoolean childrenPopulated = new AtomicBoolean(false);
@@ -99,7 +102,7 @@ public class PlateAcquisition extends ServerEntity {
             case 1 -> String.valueOf(getId());
             case 2 -> getOwner().getFullName();
             case 3 -> getGroupName();
-            case 4 -> startTime == 0 ? "-" : new Date(startTime).toString();
+            case 4 -> startTime == 0 ? "-" : ACQUISITION_DATE_FORMAT.format(new Date(startTime));
             default -> "";
         };
     }
