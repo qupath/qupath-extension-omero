@@ -1,6 +1,6 @@
 package qupath.ext.omero;
 
-import org.junit.jupiter.api.Assertions;
+import org.opentest4j.AssertionFailedError;
 
 import java.util.Collection;
 
@@ -19,13 +19,25 @@ public class TestUtilities {
      * This function doesn't work if some duplicates are present in one
      * of the list.
      *
-     * @param expectedCollection  the expected values
-     * @param actualCollection  the actual values
-     * @param <T>  the type of the elements of the collection
+     * @param expectedCollection the expected values
+     * @param actualCollection the actual values
+     * @param <T> the type of the elements of the collection
      */
     public static <T> void assertCollectionsEqualsWithoutOrder(Collection<? extends T> expectedCollection, Collection<? extends T> actualCollection) {
-        Assertions.assertEquals(expectedCollection.size(), actualCollection.size());
-        Assertions.assertTrue(expectedCollection.containsAll(actualCollection));
-        Assertions.assertTrue(actualCollection.containsAll(expectedCollection));
+        if (expectedCollection.size() != actualCollection.size()) {
+            throw new AssertionFailedError(String.format(
+                    "Expected collection size: %d but was: %d",
+                    expectedCollection.size(),
+                    actualCollection.size())
+            );
+        }
+
+        if (!expectedCollection.containsAll(actualCollection) || !actualCollection.containsAll(expectedCollection)) {
+            throw new AssertionFailedError(String.format(
+                    "Expected collection: %s but was: %s",
+                    expectedCollection,
+                    actualCollection
+            ));
+        }
     }
 }
