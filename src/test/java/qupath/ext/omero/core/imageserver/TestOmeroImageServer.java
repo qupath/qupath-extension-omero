@@ -30,7 +30,7 @@ public class TestOmeroImageServer extends OmeroServer {
     static void createImageServer() throws ExecutionException, InterruptedException, IOException {
         client = OmeroServer.createClient(userType);
         imageServer = new OmeroImageServer(
-                OmeroServer.getImageURI(image),
+                OmeroServer.getImageUri(image),
                 client,
                 client.getPixelAPI(WebApi.class),
                 List.of()

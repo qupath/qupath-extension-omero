@@ -26,10 +26,11 @@ public class TestPlateAcquisition extends OmeroServer {
     static void createClient() throws ExecutionException, InterruptedException {
         Server server = client.getServer().get();
 
+        List<? extends RepositoryEntity> serverChildren = server.getChildren();
         while (server.isPopulatingChildren()) {
             TimeUnit.MILLISECONDS.sleep(50);
         }
-        Screen screen = server.getChildren().stream()
+        Screen screen = serverChildren.stream()
                 .filter(child -> child instanceof Screen)
                 .map(s -> (Screen) s)
                 .toList()

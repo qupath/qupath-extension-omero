@@ -273,12 +273,12 @@ public class TestApisHandler extends OmeroServer {
         @Test
         void Check_Image_URIs_From_Dataset_URI() throws ExecutionException, InterruptedException {
             Dataset dataset = OmeroServer.getDatasets(userType).getLast();
-            URI datasetUri = OmeroServer.getDatasetURI(dataset);
+            URI datasetUri = OmeroServer.getDatasetUri(dataset);
             List<URI> expectedImageUris = OmeroServer.getImagesInDataset(dataset).stream()
-                    .map(OmeroServer::getImageURI)
+                    .map(OmeroServer::getImageUri)
                     .toList();
 
-            List<URI> imageUris = apisHandler.getImagesURIFromEntityURI(datasetUri).get();
+            List<URI> imageUris = apisHandler.getImageUrisFromEntityURI(datasetUri).get();
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
         }
@@ -286,24 +286,24 @@ public class TestApisHandler extends OmeroServer {
         @Test
         void Check_Image_URIs_From_Project_URI() throws ExecutionException, InterruptedException {
             Project project = OmeroServer.getProjects(userType).getLast();
-            URI projectUri = OmeroServer.getProjectURI(project);
+            URI projectUri = OmeroServer.getProjectUri(project);
             List<URI> expectedImageUris = OmeroServer.getDatasetsInProject(project).stream()
                     .map(OmeroServer::getImagesInDataset)
                     .flatMap(List::stream)
-                    .map(OmeroServer::getImageURI)
+                    .map(OmeroServer::getImageUri)
                     .toList();
 
-            List<URI> imageUris = apisHandler.getImagesURIFromEntityURI(projectUri).get();
+            List<URI> imageUris = apisHandler.getImageUrisFromEntityURI(projectUri).get();
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
         }
 
         @Test
         void Check_Image_URIs_From_Image_URI() throws ExecutionException, InterruptedException {
-            URI imageUri = OmeroServer.getImageURI(OmeroServer.getRGBImage(userType));
+            URI imageUri = OmeroServer.getImageUri(OmeroServer.getRGBImage(userType));
             List<URI> expectedImageUris = List.of(imageUri);
 
-            List<URI> imageUris = apisHandler.getImagesURIFromEntityURI(imageUri).get();
+            List<URI> imageUris = apisHandler.getImageUrisFromEntityURI(imageUri).get();
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
         }
@@ -312,7 +312,7 @@ public class TestApisHandler extends OmeroServer {
         void Check_Image_URIs_From_Web_Server_URI() {
             URI serverUri = URI.create(OmeroServer.getWebServerURI());
 
-            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.getImagesURIFromEntityURI(serverUri).get());
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.getImageUrisFromEntityURI(serverUri).get());
         }
 
         @Test
@@ -332,27 +332,9 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Images_URI_Of_Dataset() throws ExecutionException, InterruptedException {
-            Dataset dataset = OmeroServer.getDatasets(userType).getLast();
-            long datasetID = dataset.getId();
-            List<URI> expectedURIs = OmeroServer.getImagesInDataset(dataset).stream().map(OmeroServer::getImageURI).toList();
-
-            List<URI> uris = apisHandler.getImagesURIOfDataset(datasetID).get();
-
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedURIs, uris);
-        }
-
-        @Test
-        void Check_Image_URI_Of_Invalid_Dataset() {
-            long datasetID = -1;
-
-            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.getImagesURIOfDataset(datasetID).get());
-        }
-
-        @Test
-        void Check_Image_URI() {
+        void Check_Image_Uri() {
             Image image = OmeroServer.getRGBImage(userType);
-            String expectedURI = OmeroServer.getImageURI(image).toString();
+            String expectedURI = OmeroServer.getImageUri(image).toString();
 
             String uri = apisHandler.getEntityUri(image);
 
@@ -360,9 +342,9 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Dataset_URI() {
+        void Check_Dataset_Uri() {
             Dataset dataset = OmeroServer.getDatasets(userType).getLast();
-            String expectedURI = OmeroServer.getDatasetURI(dataset).toString();
+            String expectedURI = OmeroServer.getDatasetUri(dataset).toString();
 
             String uri = apisHandler.getEntityUri(dataset);
 
@@ -370,11 +352,44 @@ public class TestApisHandler extends OmeroServer {
         }
 
         @Test
-        void Check_Project_URI() {
+        void Check_Project_Uri() {
             Project project = OmeroServer.getProjects(userType).getLast();
-            String expectedURI = OmeroServer.getProjectURI(project).toString();
+            String expectedURI = OmeroServer.getProjectUri(project).toString();
 
             String uri = apisHandler.getEntityUri(project);
+
+            Assertions.assertEquals(expectedURI, uri);
+        }
+
+        @Test
+        void Check_Screen_Uri() {
+            Screen screen = OmeroServer.getScreens(userType).getLast();
+            String expectedURI = OmeroServer.getScreenUri(screen).toString();
+
+            String uri = apisHandler.getEntityUri(screen);
+
+            Assertions.assertEquals(expectedURI, uri);
+        }
+
+        @Test
+        void Check_Plate_Uri() {
+            Plate plate = OmeroServer.getPlates(userType).getLast();
+            String expectedURI = OmeroServer.getPlateUri(plate).toString();
+
+            String uri = apisHandler.getEntityUri(plate);
+
+            Assertions.assertEquals(expectedURI, uri);
+        }
+
+        @Test
+        abstract void Check_Plate_Acquisition_Uri();
+
+        @Test
+        void Check_Well_Uri() {
+            Well well = OmeroServer.getWells(userType).getLast();
+            String expectedURI = OmeroServer.getWellUri(well).toString();
+
+            String uri = apisHandler.getEntityUri(well);
 
             Assertions.assertEquals(expectedURI, uri);
         }
@@ -814,6 +829,12 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         @Override
+        void Check_Plate_Acquisition_Uri() {
+            // The public owner has no plate acquisition
+        }
+
+        @Test
+        @Override
         void Check_Plate_Acquisitions() {
             // The public owner has no plate acquisition
         }
@@ -1019,6 +1040,17 @@ public class TestApisHandler extends OmeroServer {
             long groupId = OmeroServer.getGroupsOwnedByUser(userType).getFirst().getId();
 
             Assertions.assertTrue(apisHandler.isConnectedUserOwnerOfGroup(groupId));
+        }
+
+        @Test
+        @Override
+        void Check_Plate_Acquisition_Uri() {
+            PlateAcquisition plateAcquisition = OmeroServer.getPlateAcquisitions(userType).getLast();
+            String expectedURI = OmeroServer.getPlateAcquisitionUri(plateAcquisition).toString();
+
+            String uri = apisHandler.getEntityUri(plateAcquisition);
+
+            Assertions.assertEquals(expectedURI, uri);
         }
 
         @Test

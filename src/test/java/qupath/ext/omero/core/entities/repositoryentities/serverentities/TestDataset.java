@@ -102,26 +102,25 @@ public class TestDataset extends OmeroServer {
             client = OmeroServer.createClient(userType);
             Server server = client.getServer().get();
 
+            List<? extends RepositoryEntity> serverChildren = server.getChildren();
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            Project project = server.getChildren().stream()
+            Project project = serverChildren.stream()
                     .filter(child -> child instanceof Project)
                     .map(p -> (Project) p)
                     .findAny()
-                    .orElse(null);
-            assert project != null;
+                    .orElseThrow();
 
             List<? extends RepositoryEntity> projectChildren = project.getChildren();
             while (project.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-
             dataset = projectChildren.stream()
                     .filter(child -> child instanceof Dataset)
                     .map(d -> (Dataset) d)
                     .findAny()
-                    .orElse(null);
+                    .orElseThrow();
         }
     }
 
@@ -134,26 +133,25 @@ public class TestDataset extends OmeroServer {
             client = OmeroServer.createClient(userType);
             Server server = client.getServer().get();
 
+            List<? extends RepositoryEntity> serverChildren = server.getChildren();
             while (server.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-            Project project = server.getChildren().stream()
+            Project project = serverChildren.stream()
                     .filter(child -> child instanceof Project)
                     .map(p -> (Project) p)
                     .findAny()
-                    .orElse(null);
-            assert project != null;
+                    .orElseThrow();
 
             List<? extends RepositoryEntity> projectChildren = project.getChildren();
             while (project.isPopulatingChildren()) {
                 TimeUnit.MILLISECONDS.sleep(50);
             }
-
             dataset = projectChildren.stream()
                     .filter(child -> child instanceof Dataset)
                     .map(d -> (Dataset) d)
                     .findAny()
-                    .orElse(null);
+                    .orElseThrow();
         }
     }
 }

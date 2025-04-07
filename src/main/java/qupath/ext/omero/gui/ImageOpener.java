@@ -58,7 +58,7 @@ public class ImageOpener {
      * </ul>
      * Note that the provided URIs don't have to point to images, they can point to datasets for example, in which case all
      * children images of the dataset will be imported (same for other entities, see
-     * {@link qupath.ext.omero.core.apis.ApisHandler#getImagesURIFromEntityURI(URI)})
+     * {@link qupath.ext.omero.core.apis.ApisHandler#getImageUrisFromEntityURI(URI)})
      * <p>
      * If the images are added to a QuPath project, an attempt will be made to automatically
      * import the key-value pairs of the OMERO image to the metadata of the project entry, as
@@ -85,7 +85,7 @@ public class ImageOpener {
         logger.debug("Getting image URIs contained in {}", uris);
         CompletableFuture.supplyAsync(() -> uris.stream()
                 .map(URI::create)
-                .map(apisHandler::getImagesURIFromEntityURI)
+                .map(apisHandler::getImageUrisFromEntityURI)
                 .map(CompletableFuture::join)
                 .flatMap(List::stream)
                 .distinct()
@@ -101,6 +101,17 @@ public class ImageOpener {
                 );
                 return;
             }
+
+            if (imageUris.isEmpty()) {
+                logger.debug("No image found in {}", uris);
+
+                Dialogs.showErrorMessage(
+                        resources.getString("ImageOpener.imageOpening"),
+                        MessageFormat.format(resources.getString("ImageOpener.noImageFound"), uris)
+                );
+                return;
+            }
+
             logger.debug("Got image URIs {} contained in {}", imageUris, uris);
 
             if (QuPathGUI.getInstance().getProject() == null) {

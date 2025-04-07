@@ -23,7 +23,7 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
 
         @Test
         void Check_Server_Can_Be_Built() {
-            URI imageURI = OmeroServer.getImageURI(image);
+            URI imageURI = OmeroServer.getImageUri(image);
 
             try (ImageServer<BufferedImage> server = new OmeroImageServerBuilder().buildServer(
                     imageURI,
@@ -42,7 +42,7 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
 
         @Test
         void Check_Image_Support() {
-            URI imageURI = OmeroServer.getImageURI(image);
+            URI imageURI = OmeroServer.getImageUri(image);
 
             ImageServerBuilder.UriImageSupport<BufferedImage> imageSupport = new OmeroImageServerBuilder().checkImageSupport(
                     imageURI,

@@ -72,7 +72,7 @@ public class TestWebReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI", "Web",
                     "--jpegQuality", "1.0",
                     "--usertype",
@@ -104,7 +104,7 @@ public class TestWebReader extends OmeroServer {
 
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageURI(image),
+                    OmeroServer.getImageUri(image),
                     "--pixelAPI", "Web",
                     "--jpegQuality", "1.0",
                     "--usertype",

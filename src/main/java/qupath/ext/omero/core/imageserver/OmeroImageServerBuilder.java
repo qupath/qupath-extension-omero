@@ -107,7 +107,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
         logger.debug("Client retrieved for {}. Getting images URIs...", entityURI);
         try {
-            List<ServerBuilder<BufferedImage>> builders = clientArgsWrapper.get().client().getApisHandler().getImagesURIFromEntityURI(
+            List<ServerBuilder<BufferedImage>> builders = clientArgsWrapper.get().client().getApisHandler().getImageUrisFromEntityURI(
                             entityURI
                     )
                     .join()

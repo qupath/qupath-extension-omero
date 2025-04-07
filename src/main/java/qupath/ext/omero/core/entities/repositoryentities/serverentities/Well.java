@@ -146,6 +146,24 @@ public class Well extends ServerEntity {
         plateAcquisitionOwnerId = id;
     }
 
+    /**
+     * Get the IDs of the images present in this well, optionally belonging to a plate acquisition.
+     *
+     * @param plateAcquisitionOwnerId the ID of the plate acquisition that should contain the images to retrieve,
+     *                                or a negative to retrieve all images
+     * @return all image IDs contained in this well belonging to the provided plate acquisition
+     */
+    public List<Long> getImageIds(long plateAcquisitionOwnerId) {
+        return wellSamples == null ? List.of() : wellSamples.stream()
+                .filter(wellSample ->
+                        plateAcquisitionOwnerId < 0 || (wellSample.plateAcquisition() != null && wellSample.plateAcquisition().getId() == plateAcquisitionOwnerId)
+                )
+                .map(WellSample::image)
+                .filter(Objects::nonNull)
+                .map(ServerEntity::getId)
+                .toList();
+    }
+
     private void populateChildren() {
         if (webServerURI == null) {
             throw new IllegalStateException("The web server URI has not been set on this well. Cannot populate children");

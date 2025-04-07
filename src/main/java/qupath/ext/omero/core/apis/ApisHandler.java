@@ -39,6 +39,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +47,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
 /**
  * This class provides functions to perform operations with an OMERO server.
@@ -71,12 +73,16 @@ public class ApisHandler implements AutoCloseable {
             "float", PixelType.FLOAT32,
             "double", PixelType.FLOAT64
     );
-    private static final Pattern webclientImagePattern = Pattern.compile("/webclient/\\?show=image-(\\d+)");
-    private static final Pattern webclientImagePatternAlternate = Pattern.compile("/webclient/img_detail/(\\d+)");
-    private static final Pattern webgatewayImagePattern = Pattern.compile("/webgateway/img_detail/(\\d+)");
-    private static final Pattern iviewerImagePattern = Pattern.compile("/iviewer/\\?images=(\\d+)");
-    private static final Pattern datasetPattern = Pattern.compile("/webclient/\\?show=dataset-(\\d+)");
-    private static final Pattern projectPattern = Pattern.compile("/webclient/\\?show=project-(\\d+)");
+    private static final Pattern PROJECT_PATTERN = Pattern.compile("/webclient/\\?show=project-(\\d+)");
+    private static final Pattern DATASET_PATTERN = Pattern.compile("/webclient/\\?show=dataset-(\\d+)");
+    private static final Pattern WEBCLIENT_IMAGE_PATTERN = Pattern.compile("/webclient/\\?show=image-(\\d+)");
+    private static final Pattern WEBCLIENT_IMAGE_PATTERN_ALTERNATE = Pattern.compile("/webclient/img_detail/(\\d+)");
+    private static final Pattern WEBGATEWAY_IMAGE_PATTERN = Pattern.compile("/webgateway/img_detail/(\\d+)");
+    private static final Pattern IVIEWER_IMAGE_PATTERN = Pattern.compile("/iviewer/\\?images=(\\d+)");
+    private static final Pattern WELL_PATTERN = Pattern.compile("/webclient/\\?show=well-(\\d+)");
+    private static final Pattern PLATE_ACQUISITION_PATTERN = Pattern.compile("/webclient/\\?show=run-(\\d+)");
+    private static final Pattern PLATE_PATTERN = Pattern.compile("/webclient/\\?show=plate-(\\d+)");
+    private static final Pattern SCREEN_PATTERN = Pattern.compile("/webclient/\\?show=screen-(\\d+)");
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
     private final Cache<Long, CompletableFuture<Image>> imagesCache = CacheBuilder.newBuilder()
             .build();
@@ -245,6 +251,8 @@ public class ApisHandler implements AutoCloseable {
     /**
      * Parse an OMERO server entity from a URI. The returned entity will be empty except for its ID.
      * In other words, this function returns an entity ID and an entity class.
+     * <p>
+     * This function mar recognize projects, datasets, images, wells, plate acquisitions, plates, and screens.
      *
      * @param uri the URI that is supposed to contain the entity. It can be URL encoded
      * @return the entity (whose only correct attribute is its ID), or an empty Optional if it was not found
@@ -253,12 +261,16 @@ public class ApisHandler implements AutoCloseable {
         logger.debug("Finding entity in {}...", uri);
 
         Map<Pattern, Function<Long, ServerEntity>> entityCreator = Map.of(
-                projectPattern, Project::new,
-                datasetPattern, Dataset::new,
-                webclientImagePattern, Image::new,
-                webclientImagePatternAlternate, Image::new,
-                webgatewayImagePattern, Image::new,
-                iviewerImagePattern, Image::new
+                PROJECT_PATTERN, Project::new,
+                DATASET_PATTERN, Dataset::new,
+                WEBCLIENT_IMAGE_PATTERN, Image::new,
+                WEBCLIENT_IMAGE_PATTERN_ALTERNATE, Image::new,
+                WEBGATEWAY_IMAGE_PATTERN, Image::new,
+                IVIEWER_IMAGE_PATTERN, Image::new,
+                WELL_PATTERN, Well::new,
+                PLATE_ACQUISITION_PATTERN, PlateAcquisition::new,
+                PLATE_PATTERN, Plate::new,
+                SCREEN_PATTERN, Screen::new
         );
         String entityUrl = URLDecoder.decode(uri.toString(), StandardCharsets.UTF_8);
 
@@ -295,6 +307,10 @@ public class ApisHandler implements AutoCloseable {
      *     <li>If the entity is a dataset, the URIs of the children of this dataset (which are images) are returned.</li>
      *     <li>If the entity is a project, the URIs of each child of the datasets of this project are returned.</li>
      *     <li>If the entity is an image, the input URI is returned.</li>
+     *     <li>If the entity is a well, the URIs of the child images of the well are returned.</li>
+     *     <li>If the entity is a plate acquisition, the URIs of the child images of each well contained in the plate acquisition are returned.</li>
+     *     <li>If the entity is a plate, the URIs of the child images of each well contained in the plate are returned.</li>
+     *     <li>If the entity is a screen, the URIs of the child images of each well contained in the child plates of the screen are returned.</li>
      *     <li>Else, an error is returned.</li>
      * </ul>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
@@ -303,28 +319,28 @@ public class ApisHandler implements AutoCloseable {
      * @param entityUri the URI of the entity whose images should be retrieved. It can be URL encoded
      * @return a CompletableFuture (that may complete exceptionally) with the list described above
      */
-    public CompletableFuture<List<URI>> getImagesURIFromEntityURI(URI entityUri) {
+    public CompletableFuture<List<URI>> getImageUrisFromEntityURI(URI entityUri) {
         logger.debug("Finding image URIs indicated by {}...", entityUri);
 
         Map<Class<? extends ServerEntity>, Function<Long, CompletableFuture<List<URI>>>> classToUrisProvider = Map.of(
-                Project.class, this::getImagesURIOfProject,
-                Dataset.class, this::getImagesURIOfDataset,
-                Image.class, entityId -> CompletableFuture.completedFuture(List.of(entityUri))
+                Project.class, this::getImageUrisOfProject,
+                Dataset.class, this::getImageUrisOfDataset,
+                Image.class, entityId -> CompletableFuture.completedFuture(List.of(entityUri)),
+                Well.class, entityId -> getImageUrisOfWell(entityId, -1),
+                PlateAcquisition.class, this::getImageUrisOfPlateAcquisition,
+                Plate.class, this::getImageUrisOfPlate,
+                Screen.class, this::getImageUrisOfScreen
         );
 
         return parseEntity(entityUri).map(entity -> {
-            for (var entry: classToUrisProvider.entrySet()) {
-                if (entity.getClass().equals(entry.getKey())) {
-                    logger.debug("{} refers to a {}. Retrieving all images URIs belonging to it", entityUri, entity.getClass());
-                    return entry.getValue().apply(entity.getId());
-                } else {
-                    logger.debug("{} does no refer to a {}. Skipping it", entityUri, entity.getClass());
-                }
+            if (classToUrisProvider.containsKey(entity.getClass())) {
+                logger.debug("{} refers to a {}. Retrieving all images URIs belonging to it", entityUri, entity.getClass());
+                return classToUrisProvider.get(entity.getClass()).apply(entity.getId());
+            } else {
+                return null;
             }
-            logger.debug("{} does not refer to anything that contains image URIs", entityUri);
-            return null;
         }).orElse(CompletableFuture.failedFuture(new IllegalArgumentException(
-                String.format("The provided URI %s does not represent a project, dataset, or image", entityUri)
+                String.format("The provided URI %s does not represent a project, dataset, image, well, plate acquisition, plate, or screen", entityUri)
         )));
     }
 
@@ -848,24 +864,111 @@ public class ApisHandler implements AutoCloseable {
         return webclientApi.deleteAttachments(entityId, entityClass, ownerFullNames);
     }
 
-    private CompletableFuture<List<URI>> getImagesURIOfProject(long projectID) {
-        logger.debug("Finding image URIs contained in project with ID {}", projectID);
+    private CompletableFuture<List<URI>> getImageUrisOfProject(long projectId) {
+        logger.debug("Finding image URIs contained in project with ID {}", projectId);
 
-        return getDatasets(projectID).thenApply(datasets -> datasets.stream()
-                .map(dataset -> getImagesURIOfDataset(dataset.getId()))
-                .map(CompletableFuture::join)
-                .flatMap(List::stream)
-                .toList()
-        );
+        return getDatasets(projectId).thenApply(datasets -> {
+            logger.debug("Found datasets {} belonging to project with ID {}. Now retrieving image URIs of those datasets", datasets, projectId);
+
+            return datasets.stream()
+                    .map(dataset -> getImageUrisOfDataset(dataset.getId()))
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .distinct()
+                    .toList();
+        });
     }
 
-    public CompletableFuture<List<URI>> getImagesURIOfDataset(long datasetID) {
-        logger.debug("Finding image URIs contained in dataset with ID {}", datasetID);
+    private CompletableFuture<List<URI>> getImageUrisOfDataset(long datasetId) {
+        logger.debug("Finding image URIs contained in dataset with ID {}", datasetId);
 
-        return getImages(datasetID).thenApply(images -> images.stream()
-                .map(this::getEntityUri)
-                .map(URI::create)
-                .toList()
-        );
+        return getImages(datasetId).thenApply(images -> {
+            logger.debug("Found images {} belonging to dataset with ID {}. Now creating image URIs of them", images, datasetId);
+
+            return images.stream()
+                    .map(this::getEntityUri)
+                    .map(URI::create)
+                    .distinct()
+                    .toList();
+        });
+    }
+
+    private CompletableFuture<List<URI>> getImageUrisOfWell(long wellId, long plateAcquisitionOwnerId) {
+        logger.debug("Finding image URIs contained in well with ID {} and belonging to plate acquisition with ID {}", wellId, plateAcquisitionOwnerId);
+
+        return getWell(wellId).thenApply(well -> {
+            logger.debug("Got well {}. Now getting image URIs of it", well);
+
+            return well.getImageIds(plateAcquisitionOwnerId).stream()
+                    .map(Image::new)
+                    .map(this::getEntityUri)
+                    .map(URI::create)
+                    .distinct()
+                    .toList();
+        });
+    }
+
+    private CompletableFuture<List<URI>> getImageUrisOfPlateAcquisition(long plateAcquisitionId) {
+        logger.debug("Finding image URIs contained in plate acquisition with ID {}", plateAcquisitionId);
+
+        return jsonApi.getPlateAcquisition(plateAcquisitionId).thenApply(plateAcquisition -> {
+            int minWellSampleIndex = plateAcquisition.getMinWellSampleIndex().orElseThrow(() -> new NoSuchElementException(String.format(
+                    "No min well sample index found in %s",
+                    plateAcquisition
+            )));
+            int maxWellSampleIndex = plateAcquisition.getMaxWellSampleIndex().orElseThrow(() -> new NoSuchElementException(String.format(
+                    "No max well sample index found in %s",
+                    plateAcquisition
+            )));
+            logger.debug(
+                    "Got plate acquisition {}. Now getting wells of it with well sample indices between {} and {}",
+                    plateAcquisition,
+                    minWellSampleIndex,
+                    maxWellSampleIndex
+            );
+
+            return IntStream.range(minWellSampleIndex, maxWellSampleIndex+1)
+                    .mapToObj(i -> getWellsFromPlateAcquisition(plateAcquisitionId, i))
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .map(ServerEntity::getId)
+                    .map(wellId -> getImageUrisOfWell(wellId, plateAcquisitionId))
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .distinct()
+                    .toList();
+        });
+    }
+
+    private CompletableFuture<List<URI>> getImageUrisOfPlate(long plateId) {
+        logger.debug("Finding image URIs contained in plate with ID {}", plateId);
+
+        return getWellsFromPlate(plateId).thenApplyAsync(wells -> {
+            logger.debug("Found wells {} belonging to plate with ID {}. Now finding image URIs of them", wells, plateId);
+
+            return wells.stream()
+                    .map(ServerEntity::getId)
+                    .map(wellId -> getImageUrisOfWell(wellId, -1))
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .distinct()
+                    .toList();
+        });
+    }
+
+    private CompletableFuture<List<URI>> getImageUrisOfScreen(long screenId) {
+        logger.debug("Finding image URIs contained in screen with ID {}", screenId);
+
+        return getPlates(screenId).thenApplyAsync(plates -> {
+            logger.debug("Found plates {} belonging to screen with ID {}. Now finding image URIs of them", plates, screenId);
+
+            return plates.stream()
+                    .map(ServerEntity::getId)
+                    .map(this::getImageUrisOfPlate)
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .distinct()
+                    .toList();
+        });
     }
 }

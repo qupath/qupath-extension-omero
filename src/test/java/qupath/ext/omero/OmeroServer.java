@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 /**
  * An abstract class that gives access to an OMERO server hosted
@@ -496,7 +497,7 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static URI getProjectURI(Project project) {
+    protected static URI getProjectUri(Project project) {
         return URI.create(getWebServerURI() + "/webclient/?show=project-" + project.getId());
     }
 
@@ -562,7 +563,7 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static URI getDatasetURI(Dataset dataset) {
+    protected static URI getDatasetUri(Dataset dataset) {
         return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + dataset.getId());
     }
 
@@ -741,37 +742,6 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<Image> getImagesInWell(Well well) {
-        List<Integer> ids = switch ((int) well.getId()) {
-            case 1 -> List.of(10);
-            case 2 -> List.of(11);
-            case 3 -> List.of(12);
-            case 4 -> List.of(9);
-            case 5 -> List.of(15, 16);
-            case 6 -> List.of(17);
-            case 7 -> List.of(18);
-            case 8 -> List.of(14);
-            case 9 -> List.of(22);
-            case 10 -> List.of(23, 24);
-            case 11 -> List.of(25);
-            case 12 -> List.of(21);
-            case 13 -> List.of(26, 27);
-            case 14 -> List.of(28, 29);
-            case 15 -> List.of(30, 31, 32, 33, 34);
-            case 16 -> List.of(35, 36);
-            case 17 -> List.of(38);
-            case 18 -> List.of(39);
-            case 19 -> List.of(40, 41);
-            case 20 -> List.of(37);
-            case 21 -> List.of(43, 44);
-            case 22 -> List.of(42, 45);
-            case 23 -> List.of(46, 47, 48, 49, 50);
-            case 24 -> List.of(51, 52);
-            default -> List.of();
-        };
-        return ids.stream().map(Image::new).toList();
-    }
-
     protected static Image getAnnotableImage(UserType userType) {
         return getRGBImage(userType);
     }
@@ -786,7 +756,7 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static URI getImageURI(Image image) {
+    protected static URI getImageUri(Image image) {
         return URI.create(getWebServerURI() + "/webclient/?show=image-" + image.getId());
     }
 
@@ -840,6 +810,18 @@ public abstract class OmeroServer {
         );
     }
 
+    protected static URI getScreenUri(Screen screen) {
+        return URI.create(getWebServerURI() + "/webclient/?show=screen-" + screen.getId());
+    }
+
+    protected static List<Plate> getPlates(UserType userType) {
+        return switch (userType) {
+            case AUTHENTICATED -> List.of(new Plate(3), new Plate(4), new Plate(5), new Plate(6));
+            case UNAUTHENTICATED -> List.of(new Plate(1), new Plate(2));
+            case ADMIN -> List.of(new Plate(1), new Plate(2), new Plate(3), new Plate(4), new Plate(5), new Plate(6));
+        };
+    }
+
     protected static List<Plate> getOrphanedPlates(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> List.of(new Plate(5), new Plate(6));
@@ -879,6 +861,17 @@ public abstract class OmeroServer {
         );
     }
 
+    protected static URI getPlateUri(Plate plate) {
+        return URI.create(getWebServerURI() + "/webclient/?show=plate-" + plate.getId());
+    }
+
+    protected static List<PlateAcquisition> getPlateAcquisitions(UserType userType) {
+        return switch (userType) {
+            case AUTHENTICATED, ADMIN -> List.of(new PlateAcquisition(1), new PlateAcquisition(2), new PlateAcquisition(3), new PlateAcquisition(4));
+            case UNAUTHENTICATED -> List.of();
+        };
+    }
+
     protected static List<PlateAcquisition> getPlateAcquisitionsInPlate(Plate plate) {
         return switch ((int) plate.getId()) {
             case 4 -> List.of(new PlateAcquisition(1), new PlateAcquisition(2));
@@ -899,6 +892,18 @@ public abstract class OmeroServer {
                     default -> "-";
                 }
         );
+    }
+
+    protected static URI getPlateAcquisitionUri(PlateAcquisition plateAcquisition) {
+        return URI.create(getWebServerURI() + "/webclient/?show=run-" + plateAcquisition.getId());
+    }
+
+    protected static List<Well> getWells(UserType userType) {
+        return switch (userType) {
+            case AUTHENTICATED -> IntStream.range(9, 25).mapToObj(Well::new).toList();
+            case UNAUTHENTICATED -> IntStream.range(1, 9).mapToObj(Well::new).toList();
+            case ADMIN -> IntStream.range(1, 25).mapToObj(Well::new).toList();
+        };
     }
 
     protected static List<Well> getWellsInPlate(Plate plate) {
@@ -927,25 +932,8 @@ public abstract class OmeroServer {
         }
     }
 
-    protected static List<String> getWellAttributeValue(Well well) {
-        return List.of(
-                "-",
-                String.valueOf(well.getId()),
-                Objects.requireNonNull(getOwnerOfEntity(well)).getFullName(),
-                Objects.requireNonNull(getGroupOfEntity(well)).getName(),
-                String.valueOf(switch ((int) well.getId()) {
-                    case 1, 7, 11, 14, 16, 17, 21, 24 -> 2;
-                    case 2, 6, 9, 18 -> 0;
-                    case 3, 4, 5, 8, 10, 12, 13, 15, 19, 20, 22, 23 -> 1;
-                    default -> "-";
-                }),
-                String.valueOf(switch ((int) well.getId()) {
-                    case 1, 2, 6, 7, 9, 11, 13, 16, 17, 18, 21, 22 -> 1;
-                    case 3, 5, 10, 14, 15, 19, 23, 24 -> 2;
-                    case 4, 8, 12, 20 -> 0;
-                    default -> "-";
-                })
-        );
+    protected static URI getWellUri(Well well) {
+        return URI.create(getWebServerURI() + "/webclient/?show=well-" + well.getId());
     }
 
     protected static AnnotationGroup getAnnotationsInDataset(Dataset dataset) {

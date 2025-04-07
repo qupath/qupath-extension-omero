@@ -74,6 +74,7 @@ class JsonApi {
     private static final String PLATE_ACQUISITIONS_URL = "%s/api/v0/m/plates/%d/plateacquisitions/";
     private static final String PLATE_WELLS_URL = "%s/api/v0/m/plates/%d/wells/";
     private static final String WELLS_IN_PLATE_ACQUISITION_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
+    private static final String PLATE_ACQUISITION_URL = "%s/api/v0/m/plateacquisitions/%d";
     private static final String WELLS_URL = "%s/api/v0/m/wells/%d";
     private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%d%s";
     private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
@@ -357,7 +358,7 @@ class JsonApi {
     }
 
     /**
-     * Attempt to create an Image entity from an image ID.
+     * Attempt to retrieve an image entity from an image ID.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
@@ -484,6 +485,21 @@ class JsonApi {
     }
 
     /**
+     * Attempt to retrieve a plate acquisition entity from a plate acquisition ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param plateAcquisitionId the ID of the plate acquisition
+     * @return a CompletableFuture (that may complete exceptionally) with the plate acquisition
+     */
+    public CompletableFuture<PlateAcquisition> getPlateAcquisition(long plateAcquisitionId) {
+        logger.debug("Getting plate acquisition with ID {}", plateAcquisitionId);
+
+        return getEntity(String.format(PLATE_ACQUISITION_URL, webServerUri, plateAcquisitionId), PlateAcquisition.class);
+    }
+
+    /**
      * Attempt to retrieve all wells of a plate visible by the current user.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
@@ -515,13 +531,13 @@ class JsonApi {
     }
 
     /**
-     * Attempt to create a well entity from a well ID.
+     * Attempt to retrieve a well entity from a well ID.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
-     * @param wellId the ID of the image
-     * @return a CompletableFuture (that may complete exceptionally) with the image
+     * @param wellId the ID of the well
+     * @return a CompletableFuture (that may complete exceptionally) with the well
      */
     public CompletableFuture<Well> getWell(long wellId) {
         logger.debug("Getting well with ID {}", wellId);
