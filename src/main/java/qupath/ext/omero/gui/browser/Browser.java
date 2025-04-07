@@ -32,6 +32,7 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.gui.ImageOpener;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyCellFactory;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyItem;
 import qupath.ext.omero.gui.login.LoginForm;
@@ -235,7 +236,7 @@ class Browser extends Stage {
 
             if (selectedObject instanceof Image image && image.isSupported().get()) {
                 logger.debug("Double click on tree detected while {} is selected and supported. Opening it", image);
-                UiUtilities.openImages(List.of(client.getApisHandler().getEntityUri(image)));
+                ImageOpener.openImageFromUris(List.of(client.getApisHandler().getEntityUri(image)), client.getApisHandler());
             }
         }
     }
@@ -346,7 +347,7 @@ class Browser extends Stage {
     private void onImportButtonClicked(ActionEvent ignoredEvent) {
         logger.debug("Import button clicked. Opening server entities in selected items {}", hierarchy.getSelectionModel().getSelectedItems());
 
-        UiUtilities.openImages(
+        ImageOpener.openImageFromUris(
                 hierarchy.getSelectionModel().getSelectedItems().stream()
                         .map(TreeItem::getValue)
                         .map(repositoryEntity -> {
@@ -360,7 +361,8 @@ class Browser extends Stage {
                         .map(serverEntity ->
                                 client.getApisHandler().getEntityUri(serverEntity)
                         )
-                        .toList()
+                        .toList(),
+                client.getApisHandler()
         );
     }
 
