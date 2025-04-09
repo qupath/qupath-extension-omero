@@ -9,6 +9,7 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
 
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -169,8 +170,12 @@ public class Plate extends ServerEntity {
                     return;
                 }
 
-                logger.debug("Got wells {} as children of {}", wells, this);
-                children.addAll(wells);
+                List<Well> filteredWells = wells.stream()
+                        .filter(Well::hasChildren)
+                        .toList();
+
+                logger.debug("Got wells {} filtered to {} by removing empty ones as children of {}", wells, filteredWells, this);
+                children.addAll(filteredWells);
             });
         }, () -> logger.warn(
                 "Could not find the web client corresponding to {}. Impossible to get the children of this plate ({}).",
