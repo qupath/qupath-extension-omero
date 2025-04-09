@@ -919,6 +919,14 @@ public abstract class OmeroServer {
         }
     }
 
+    protected static long getNumberOfNonEmptyWellsInPlate(Plate plate) {
+        return switch ((int) plate.getId()) {
+            case 1, 2, 3, 5 -> 4;
+            case 4, 6 -> 1;
+            default -> 0;
+        };
+    }
+
     protected static List<Well> getWellsInPlateAcquisition(PlateAcquisition plateAcquisition) {
         if (plateAcquisition.getId() == 1 || plateAcquisition.getId() == 2) {
             return List.of(

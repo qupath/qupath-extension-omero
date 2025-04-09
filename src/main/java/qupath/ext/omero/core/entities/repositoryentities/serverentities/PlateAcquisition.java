@@ -191,9 +191,12 @@ public class PlateAcquisition extends ServerEntity {
                 for (Well well: wells) {
                     well.setPlateAcquisitionOwnerId(id);
                 }
+                List<Well> filteredWells = wells.stream()
+                        .filter(Well::hasChildren)
+                        .toList();
 
-                logger.debug("Got wells {} as children of {}", wells, this);
-                children.addAll(wells);
+                logger.debug("Got wells {} filtered to {} by removing empty ones as children of {}", wells, filteredWells, this);
+                children.addAll(filteredWells);
             });
         }, () -> logger.warn(
                 "Could not find the web client corresponding to {}. Impossible to get the children of this plate acquisition ({}).",
