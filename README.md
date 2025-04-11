@@ -10,18 +10,22 @@ It is not compatible with earlier QuPath versions.
 
 ## Installing
 
-To install the OMERO extension, download the latest `qupath-extension-omero-[version].jar` file from [releases](https://github.com/qupath/qupath-extension-omero/releases) and drag it onto the main QuPath window.
+To install the OMERO extension, you can:
+* Open the QuPath [extension manager](https://qupath.readthedocs.io/en/latest/docs/intro/extensions.html#managing-extensions-with-the-extension-manager) and install the extension from there (recommended).
+* Or download the latest `qupath-extension-omero-[version].jar` file from [releases](https://github.com/qupath/qupath-extension-omero/releases) and drag it onto the main QuPath window.
 
 If you haven't installed any extensions before, you'll be prompted to select a QuPath user directory.
 The extension will then be copied to a location inside that directory.
 
 You might then need to restart QuPath (but not your computer).
 
-If you want to use the ICE pixel API (see the [documentation](https://qupath.readthedocs.io/en/stable/docs/advanced/omero.html#opening-omero-images)), you need to install the OMERO Java dependencies: on the [OMERO download page](https://www.openmicroscopy.org/omero/downloads/), under "OMERO Java", download the .zip file, unzip it and copy the *libs* folder in your extension directory.
+If you want to use the ICE pixel API (see the [documentation](https://qupath.readthedocs.io/en/stable/docs/advanced/omero.html#opening-omero-images)), you need to install the OMERO Java dependencies. This can be done:
+* With the [extension manager](https://qupath.readthedocs.io/en/latest/docs/intro/extensions.html#managing-extensions-with-the-extension-manager) by clicking on *Install optional dependencies* when installing the extension (recommended).
+* Or by going on the [OMERO download page](https://www.openmicroscopy.org/omero/downloads/), under "OMERO Java", download the .zip file, unzip it and copy the *libs* folder in your extension directory.
 
 ## Documentation
 
-The main documentation for the extension is at https://qupath.readthedocs.io/en/stable/docs/advanced/omero.html.
+The main documentation for the extension is at https://qupath.readthedocs.io/en/latest/docs/advanced/omero.html.
 
 ## Building
 
