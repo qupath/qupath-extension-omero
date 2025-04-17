@@ -882,7 +882,7 @@ public abstract class OmeroServer {
 
     protected static List<String> getPlateAcquisitionAttributeValue(PlateAcquisition plateAcquisition) {
         return List.of(
-                "-",
+                String.format("Run %d", plateAcquisition.getId()),
                 String.valueOf(plateAcquisition.getId()),
                 Objects.requireNonNull(getOwnerOfEntity(plateAcquisition)).getFullName(),
                 Objects.requireNonNull(getGroupOfEntity(plateAcquisition)).getName(),
