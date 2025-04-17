@@ -314,6 +314,21 @@ class JsonApi {
     }
 
     /**
+     * Attempt to retrieve a project entity from a project ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param projectId the ID of the project
+     * @return a CompletableFuture (that may complete exceptionally) with the project
+     */
+    public CompletableFuture<Project> getProject(long projectId) {
+        logger.debug("Getting project with ID {}", projectId);
+
+        return getEntity(urls.get(PROJECTS_URL_KEY) + projectId, Project.class);
+    }
+
+    /**
      * Attempt to retrieve all orphaned datasets visible by the current user.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
@@ -340,6 +355,21 @@ class JsonApi {
         logger.debug("Getting all datasets of project with ID {}", projectId);
 
         return getChildren(String.format(DATASETS_URL, urls.get(PROJECTS_URL_KEY), projectId), Dataset.class);
+    }
+
+    /**
+     * Attempt to retrieve a dataset entity from a dataset ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param datasetId the ID of the dataset
+     * @return a CompletableFuture (that may complete exceptionally) with the dataset
+     */
+    public CompletableFuture<Dataset> getDataset(long datasetId) {
+        logger.debug("Getting dataset with ID {}", datasetId);
+
+        return getEntity(urls.get(DATASETS_URL_KEY) + datasetId, Dataset.class);
     }
 
     /**
@@ -441,6 +471,21 @@ class JsonApi {
     }
 
     /**
+     * Attempt to retrieve a screen entity from a screen ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param screenId the ID of the screen
+     * @return a CompletableFuture (that may complete exceptionally) with the screen
+     */
+    public CompletableFuture<Screen> getScreen(long screenId) {
+        logger.debug("Getting screen with ID {}", screenId);
+
+        return getEntity(urls.get(SCREENS_URL_KEY) + screenId, Screen.class);
+    }
+
+    /**
      * Attempt to retrieve all orphaned (e.g. not in any screen) plates visible by the current user.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
@@ -467,6 +512,21 @@ class JsonApi {
         logger.debug("Getting all plates of screen with ID {}", screenId);
 
         return getChildren(String.format(PLATES_URL, urls.get(SCREENS_URL_KEY), screenId), Plate.class);
+    }
+
+    /**
+     * Attempt to retrieve a plate entity from a plate ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param plateId the ID of the plate
+     * @return a CompletableFuture (that may complete exceptionally) with the plate
+     */
+    public CompletableFuture<Plate> getPlate(long plateId) {
+        logger.debug("Getting plate with ID {}", plateId);
+
+        return getEntity(urls.get(PLATES_URL_KEY) + plateId, Plate.class);
     }
 
     /**

@@ -98,7 +98,7 @@ public class PlateAcquisition extends ServerEntity {
     @Override
     public String getAttributeValue(int informationIndex) {
         return switch (informationIndex) {
-            case 0 -> name == null || name.isEmpty() ? "-" : name;
+            case 0 -> name == null || name.isEmpty() ? getLabel() : name;
             case 1 -> String.valueOf(getId());
             case 2 -> getOwner().getFullName();
             case 3 -> getGroupName();

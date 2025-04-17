@@ -6,6 +6,7 @@ import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.Namespace;
+import qupath.ext.omero.core.entities.PathsToObjectResponse;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.FileAnnotation;
@@ -57,6 +58,7 @@ class WebclientApi implements AutoCloseable {
     private static final String ORPHANED_IMAGES_URL = "%s/webclient/api/images/?orphaned=true";
     private static final String WEBCLIENT_URL = "%s/webclient/";
     private static final Pattern USER_ID_PATTERN = Pattern.compile("WEBCLIENT.USER = \\{'id': (.+?), 'fullName':");
+    private static final String PARENTS_OF_IMAGE_URL = "%s/webclient/api/paths_to_object/?image=%d";
     private static final String READ_ANNOTATION_URL = "%s/webclient/api/annotations/?%s=%d";
     private static final String SEARCH_URL = "%s/webclient/load_searching/form/" +
             "?query=%s&%s&%s&searchGroup=%s&ownedBy=%s" +
@@ -230,6 +232,30 @@ class WebclientApi implements AutoCloseable {
                 throw new RuntimeException(String.format("Pattern %s not found in %s", USER_ID_PATTERN, response));
             }
         });
+    }
+
+    /**
+     * Attempt to get all parents of an image. Only {@link Screen}, {@link Plate}, {@link PlateAcquisition}, {@link Well},
+     * {@link Project}, and {@link Dataset} entities are considered.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param imageId the ID of the image whose parents should be retrieved
+     * @return the list of parents of the provided image. Note that only the ID and the class of the returned entities
+     * is relevant
+     */
+    public CompletableFuture<List<ServerEntity>> getParentsOfImage(long imageId) {
+        logger.debug("Getting all parents of image with ID {}", imageId);
+
+        URI uri;
+        try {
+            uri = new URI(String.format(PARENTS_OF_IMAGE_URL, webServerUri, imageId));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        return requestSender.get(uri).thenApply(PathsToObjectResponse::getServerEntitiesFromResponse);
     }
 
     /**

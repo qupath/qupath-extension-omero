@@ -208,6 +208,47 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
+     * Attempt to get all parents of an image. Only {@link Screen}, {@link Plate}, {@link PlateAcquisition}, {@link Well},
+     * {@link Project}, and {@link Dataset} entities are considered.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param imageId the ID of the image whose parents should be retrieved
+     * @return the list of parents of the provided image
+     */
+    public CompletableFuture<List<ServerEntity>> getParentsOfImage(long imageId) {
+        return webclientApi.getParentsOfImage(imageId).thenApplyAsync(serverEntities -> {
+            logger.debug("Got parents {}. Fetching now more information on them", serverEntities);
+
+            return serverEntities.stream()
+                    .map(serverEntity -> {
+                        if (serverEntity.getClass().equals(Screen.class)) {
+                            return jsonApi.getScreen(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(Plate.class)) {
+                            return jsonApi.getPlate(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(PlateAcquisition.class)) {
+                            return jsonApi.getPlateAcquisition(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(Well.class)) {
+                            return jsonApi.getWell(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(Project.class)) {
+                            return jsonApi.getProject(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(Dataset.class)) {
+                            return jsonApi.getDataset(serverEntity.getId());
+                        } else {
+                            throw new IllegalArgumentException(String.format(
+                                    "The provided entity %s was not recognized",
+                                    serverEntity
+                            ));
+                        }
+                    })
+                    .map(CompletableFuture::join)
+                    .map(serverEntity -> (ServerEntity) serverEntity)
+                    .toList();
+        });
+    }
+
+    /**
      * See {@link JsonApi#getDefaultGroup()}.
      */
     public Optional<Group> getDefaultGroup() {
@@ -426,37 +467,6 @@ public class ApisHandler implements AutoCloseable {
      */
     public CompletableFuture<List<Dataset>> getDatasets(long projectId) {
         return jsonApi.getDatasets(projectId);
-    }
-
-    /**
-     * Attempt to retrieve the parent dataset of an image.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if there is no parent dataset for example).
-     *
-     * @param imageId the ID of the image whose parent dataset should be retrieved
-     * @return a CompletableFuture (that may complete exceptionally) with the parent dataset of the provided image
-     */
-    public CompletableFuture<Dataset> getDatasetOwningImage(long imageId) {
-        logger.debug("Getting dataset owning image with ID {}", imageId);
-
-        return getImage(imageId)
-                .thenApply(image -> image.getDatasetsUrl().orElseThrow())
-                .thenCompose(datasetUrl -> {
-                    logger.debug("Got dataset URL {}. Sending request to it to get dataset", datasetUrl);
-                    return requestSender.getPaginated(URI.create(datasetUrl));
-                })
-                .thenApply(jsonElements -> jsonElements.stream()
-                        .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
-                        .toList()
-                )
-                .thenApply(serverEntities ->
-                        serverEntities.stream()
-                                .filter(serverEntity -> serverEntity instanceof Dataset)
-                                .map(serverEntity -> (Dataset) serverEntity)
-                                .findAny()
-                                .orElseThrow()
-                );
     }
 
     /**
