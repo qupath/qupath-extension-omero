@@ -99,7 +99,7 @@ public class OmeroExtension implements QuPathExtension {
 	}
 
 	/**
-	 * @return whether key-value pairs and parent dataset ID and name should be imported when an image of an OMERO
+	 * @return whether key-value pairs and parent entities ID and name should be imported when an image of an OMERO
 	 * server is added to a QuPath project
 	 */
 	public static ReadOnlyBooleanProperty getAutoKvpImportProperty() {
