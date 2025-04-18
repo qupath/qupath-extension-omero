@@ -17,8 +17,10 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchResult;
+import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.util.List;
@@ -27,7 +29,7 @@ import java.util.ResourceBundle;
 /**
  * Cell factory that displays an image representing the search result in the cell and in a tooltip.
  */
-public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
+public class TypeCellFactory extends TableCell<SearchResultWithParentInfo, SearchResult> {
 
     private static final Logger logger = LoggerFactory.getLogger(TypeCellFactory.class);
     private static final ResourceBundle resources = Utils.getResources();
@@ -38,7 +40,8 @@ public class TypeCellFactory extends TableCell<SearchResult, SearchResult> {
             Image.class,
             Screen.class,
             Plate.class,
-            PlateAcquisition.class
+            PlateAcquisition.class,
+            Well.class
     );
     private static final int ICON_SIZE = 20;
     private static final int TOOLTIP_IMAGE_SIZE = 256;

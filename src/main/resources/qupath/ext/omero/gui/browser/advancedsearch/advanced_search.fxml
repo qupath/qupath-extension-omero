@@ -22,7 +22,7 @@
     <scene>
         <Scene stylesheets="@../../styles.css">
             <HBox>
-                <VBox spacing="10.0">
+                <VBox minWidth="300.0" spacing="10.0">
                     <HBox.margin>
                         <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                     </HBox.margin>
@@ -94,12 +94,18 @@
                 </VBox>
                 <TableView fx:id="results" styleClass="search-results" HBox.hgrow="ALWAYS">
                     <columns>
-                        <TableColumn fx:id="typeColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.type" />
-                        <TableColumn fx:id="nameColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.name" />
-                        <TableColumn fx:id="acquiredColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.acquired" />
-                        <TableColumn fx:id="importedColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.imported" />
-                        <TableColumn fx:id="groupColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.group" />
-                        <TableColumn fx:id="linkColumn" maxWidth="1.7976931348623157E308" minWidth="-1.0" prefWidth="-1.0" text="%Browser.ServerBrowser.AdvancedSearch.link" />
+                        <TableColumn fx:id="typeColumn" prefWidth="50.0" text="%Browser.ServerBrowser.AdvancedSearch.type" />
+                        <TableColumn fx:id="nameColumn" prefWidth="75.0" text="%Browser.ServerBrowser.AdvancedSearch.name" />
+                        <TableColumn fx:id="acquiredColumn" prefWidth="150.0" text="%Browser.ServerBrowser.AdvancedSearch.acquired" />
+                        <TableColumn fx:id="importedColumn" prefWidth="150.0" text="%Browser.ServerBrowser.AdvancedSearch.imported" />
+                        <TableColumn fx:id="groupColumn" prefWidth="75.0" text="%Browser.ServerBrowser.AdvancedSearch.group" />
+                        <TableColumn fx:id="linkColumn" prefWidth="200.0" text="%Browser.ServerBrowser.AdvancedSearch.link" />
+                        <TableColumn fx:id="projectColumn" prefWidth="100.0" text="%Browser.ServerBrowser.AdvancedSearch.parentProject" />
+                        <TableColumn fx:id="datasetColumn" prefWidth="100.0" text="%Browser.ServerBrowser.AdvancedSearch.parentDataset" />
+                        <TableColumn fx:id="screenColumn" prefWidth="100.0" text="%Browser.ServerBrowser.AdvancedSearch.parentScreen" />
+                        <TableColumn fx:id="plateColumn" prefWidth="100.0" text="%Browser.ServerBrowser.AdvancedSearch.parentPlate" />
+                        <TableColumn fx:id="plateAcquisitionColumn" prefWidth="100.0" text="%Browser.ServerBrowser.AdvancedSearch.parentPlateAcquisition" />
+                        <TableColumn fx:id="wellColumn" prefWidth="100.0" text="%Browser.ServerBrowser.AdvancedSearch.parentWell" />
                     </columns>
                 </TableView>
             </HBox>

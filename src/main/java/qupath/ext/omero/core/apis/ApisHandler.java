@@ -26,7 +26,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEn
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
-import qupath.ext.omero.core.entities.search.SearchResult;
+import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
@@ -205,6 +205,47 @@ public class ApisHandler implements AutoCloseable {
         return jsonApi.getUserId()
                 .map(CompletableFuture::completedFuture)
                 .orElseGet(webclientApi::getPublicUserId);
+    }
+
+    /**
+     * Attempt to get all parents of an image. Only {@link Screen}, {@link Plate}, {@link PlateAcquisition}, {@link Well},
+     * {@link Project}, and {@link Dataset} entities are considered.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param imageId the ID of the image whose parents should be retrieved
+     * @return the list of parents of the provided image
+     */
+    public CompletableFuture<List<ServerEntity>> getParentsOfImage(long imageId) {
+        return webclientApi.getParentsOfImage(imageId).thenApplyAsync(serverEntities -> {
+            logger.debug("Got parents {}. Fetching now more information on them", serverEntities);
+
+            return serverEntities.stream()
+                    .map(serverEntity -> {
+                        if (serverEntity.getClass().equals(Screen.class)) {
+                            return jsonApi.getScreen(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(Plate.class)) {
+                            return jsonApi.getPlate(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(PlateAcquisition.class)) {
+                            return jsonApi.getPlateAcquisition(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(Well.class)) {
+                            return jsonApi.getWell(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(Project.class)) {
+                            return jsonApi.getProject(serverEntity.getId());
+                        } else if (serverEntity.getClass().equals(Dataset.class)) {
+                            return jsonApi.getDataset(serverEntity.getId());
+                        } else {
+                            throw new IllegalArgumentException(String.format(
+                                    "The provided entity %s was not recognized",
+                                    serverEntity
+                            ));
+                        }
+                    })
+                    .map(CompletableFuture::join)
+                    .map(serverEntity -> (ServerEntity) serverEntity)
+                    .toList();
+        });
     }
 
     /**
@@ -429,37 +470,6 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * Attempt to retrieve the parent dataset of an image.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if there is no parent dataset for example).
-     *
-     * @param imageId the ID of the image whose parent dataset should be retrieved
-     * @return a CompletableFuture (that may complete exceptionally) with the parent dataset of the provided image
-     */
-    public CompletableFuture<Dataset> getDatasetOwningImage(long imageId) {
-        logger.debug("Getting dataset owning image with ID {}", imageId);
-
-        return getImage(imageId)
-                .thenApply(image -> image.getDatasetsUrl().orElseThrow())
-                .thenCompose(datasetUrl -> {
-                    logger.debug("Got dataset URL {}. Sending request to it to get dataset", datasetUrl);
-                    return requestSender.getPaginated(URI.create(datasetUrl));
-                })
-                .thenApply(jsonElements -> jsonElements.stream()
-                        .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
-                        .toList()
-                )
-                .thenApply(serverEntities ->
-                        serverEntities.stream()
-                                .filter(serverEntity -> serverEntity instanceof Dataset)
-                                .map(serverEntity -> (Dataset) serverEntity)
-                                .findAny()
-                                .orElseThrow()
-                );
-    }
-
-    /**
      * See {@link JsonApi#getImages(long)}.
      */
     public CompletableFuture<List<Image>> getImages(long datasetId) {
@@ -599,10 +609,43 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#getSearchResults(SearchQuery)}.
+     * Same as {@link WebclientApi#getSearchResults(SearchQuery)}, but with additional information on the parents if the
+     * entity is an image
      */
-    public CompletableFuture<List<SearchResult>> getSearchResults(SearchQuery searchQuery) {
-        return webclientApi.getSearchResults(searchQuery);
+    public CompletableFuture<List<SearchResultWithParentInfo>> getSearchResults(SearchQuery searchQuery) {
+        return webclientApi.getSearchResults(searchQuery).thenApplyAsync(searchResults -> {
+            logger.debug("Got search results {}. Getting information on the parents of images", searchResults);
+
+            return searchResults.stream()
+                    .map(searchResult -> {
+                        if (searchResult.getType().isPresent() && searchResult.getType().get().equals(Image.class)) {
+                            logger.debug("{} refers to an image. Searching parents of it", searchResult);
+
+                            return getParentsOfImage(searchResult.id()).handle((parents, error) -> {
+                                if (parents == null) {
+                                    logger.debug("Cannot retrieve parents of {}. Considering it doesn't have any", searchResult, error);
+                                    return new SearchResultWithParentInfo(searchResult);
+                                }
+
+                                logger.debug("Got parents {} for image {}", parents, searchResult);
+                                return new SearchResultWithParentInfo(
+                                        searchResult,
+                                        getEntityOfTypeInList(parents, Project.class),
+                                        getEntityOfTypeInList(parents, Dataset.class),
+                                        getEntityOfTypeInList(parents, Screen.class),
+                                        getEntityOfTypeInList(parents, Plate.class),
+                                        getEntityOfTypeInList(parents, PlateAcquisition.class),
+                                        getEntityOfTypeInList(parents, Well.class)
+                                );
+                            });
+                        } else {
+                            logger.debug("{} does not refer to an image. Not fetching parent information", searchResult);
+                            return CompletableFuture.completedFuture(new SearchResultWithParentInfo(searchResult));
+                        }
+                    })
+                    .map(CompletableFuture::join)
+                    .toList();
+        });
     }
 
     /**
@@ -970,5 +1013,13 @@ public class ApisHandler implements AutoCloseable {
                     .distinct()
                     .toList();
         });
+    }
+
+    private static <T extends ServerEntity> T getEntityOfTypeInList(List<ServerEntity> entities, Class<T> type) {
+        return entities.stream()
+                .filter(type::isInstance)
+                .map(type::cast)
+                .findAny()
+                .orElse(null);
     }
 }

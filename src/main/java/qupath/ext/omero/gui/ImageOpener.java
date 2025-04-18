@@ -7,6 +7,13 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.Namespace;
 import qupath.ext.omero.core.entities.annotations.MapAnnotation;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.core.imageserver.OmeroImageServerBuilder;
@@ -36,8 +43,8 @@ public class ImageOpener {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageOpener.class);
     private static final ResourceBundle resources = Utils.getResources();
-    private static final String DATASET_ID_LABEL = "dataset-id";
-    private static final String DATASET_NAME_LABEL = "dataset-name";
+    private static final String ID_LABEL = "%s-id";
+    private static final String NAME_LABEL = "%s-name";
 
     private ImageOpener() {
         throw new AssertionError("This class is not instantiable.");
@@ -58,7 +65,7 @@ public class ImageOpener {
      * </ul>
      * Note that the provided URIs don't have to point to images, they can point to datasets for example, in which case all
      * children images of the dataset will be imported (same for other entities, see
-     * {@link qupath.ext.omero.core.apis.ApisHandler#getImageUrisFromEntityURI(URI)})
+     * {@link ApisHandler#getImageUrisFromEntityURI(URI)})
      * <p>
      * If the images are added to a QuPath project, an attempt will be made to automatically
      * import the key-value pairs of the OMERO image to the metadata of the project entry, as
@@ -239,53 +246,8 @@ public class ImageOpener {
                     return;
                 }
 
-                logger.debug("Getting annotations of image with ID {}", omeroImageServer.getId());
-                omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).whenComplete(((annotationGroup, error) -> {
-                    if (annotationGroup == null) {
-                        logger.debug(
-                                "Cannot retrieve annotations of image with ID {}. Skipping key-value pairs import",
-                                omeroImageServer.getId()
-                        );
-                        return;
-                    }
-
-                    List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
-                            .filter(mapAnnotation ->
-                                    mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(Namespace.getDefaultNamespace())
-                            )
-                            .map(MapAnnotation::getPairs)
-                            .flatMap(List::stream)
-                            .toList();
-                    Platform.runLater(() -> {
-                        logger.debug("Adding key-value pairs {} to {} metadata", keyValues, projectEntry);
-
-                        for (MapAnnotation.Pair pair : keyValues) {
-                            if (projectEntry.getMetadata().containsKey(pair.key())) {
-                                logger.debug("Cannot add {} to {} because the same key already exists", pair, projectEntry);
-                            } else {
-                                projectEntry.getMetadata().put(pair.key(), pair.value());
-                                logger.debug("{} added to {}", pair, projectEntry);
-                            }
-                        }
-                    });
-                }));
-
-                logger.debug("Getting parent dataset of image with ID {}", omeroImageServer.getId());
-                omeroImageServer.getClient().getApisHandler().getDatasetOwningImage(omeroImageServer.getId()).whenComplete((dataset, error) -> {
-                    if (dataset == null) {
-                        logger.debug(
-                                "Cannot retrieve dataset owning image with ID {}. Skipping parent container info import",
-                                omeroImageServer.getId()
-                        );
-                        return;
-                    }
-
-                    Platform.runLater(() -> {
-                        logger.debug("Adding dataset {} ID and name to {} metadata", dataset, projectEntry);
-                        projectEntry.getMetadata().put(DATASET_ID_LABEL, String.valueOf(dataset.getId()));
-                        projectEntry.getMetadata().put(DATASET_NAME_LABEL, dataset.getAttributeValue(0));
-                    });
-                });
+                importKvp(omeroImageServer, projectEntry);
+                importParentIdsAndNames(omeroImageServer, projectEntry);
             } catch (Exception e) {
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
@@ -293,6 +255,81 @@ public class ImageOpener {
 
                 logger.debug("Cannot create image server. Skipping KVP and parent container info import for {}", projectEntry, e);
             }
+        });
+    }
+
+    private static void importKvp(OmeroImageServer omeroImageServer, ProjectImageEntry<BufferedImage> projectEntry) {
+        logger.debug("Getting annotations of image with ID {}", omeroImageServer.getId());
+        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).whenComplete(((annotationGroup, error) -> {
+            if (annotationGroup == null) {
+                logger.debug(
+                        "Cannot retrieve annotations of image with ID {}. Skipping key-value pairs import",
+                        omeroImageServer.getId()
+                );
+                return;
+            }
+
+            List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+                    .filter(mapAnnotation ->
+                            mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(Namespace.getDefaultNamespace())
+                    )
+                    .map(MapAnnotation::getPairs)
+                    .flatMap(List::stream)
+                    .toList();
+            Platform.runLater(() -> {
+                logger.debug("Adding key-value pairs {} to {} metadata", keyValues, projectEntry);
+
+                for (MapAnnotation.Pair pair : keyValues) {
+                    if (projectEntry.getMetadata().containsKey(pair.key())) {
+                        logger.debug("Cannot add {} to {} because the same key already exists", pair, projectEntry);
+                    } else {
+                        projectEntry.getMetadata().put(pair.key(), pair.value());
+                        logger.debug("{} added to {}", pair, projectEntry);
+                    }
+                }
+            });
+        }));
+    }
+
+    private static void importParentIdsAndNames(OmeroImageServer omeroImageServer, ProjectImageEntry<BufferedImage> projectEntry) {
+        logger.debug("Getting parent information of image with ID {}", omeroImageServer.getId());
+        omeroImageServer.getClient().getApisHandler().getParentsOfImage(omeroImageServer.getId()).whenComplete((parents, error) -> {
+            if (parents == null) {
+                logger.debug(
+                        "Cannot retrieve parents of image with ID {}. Skipping parent container info import",
+                        omeroImageServer.getId()
+                );
+                return;
+            }
+
+            Platform.runLater(() -> {
+                logger.debug("Adding IDs and names of {} to {} metadata", parents, projectEntry);
+
+                for (ServerEntity parent: parents) {
+                    String type;
+                    if (parent.getClass().equals(Screen.class)) {
+                        type = "screen";
+                    } else if (parent.getClass().equals(Plate.class)) {
+                        type = "plate";
+                    } else if (parent.getClass().equals(PlateAcquisition.class)) {
+                        type = "run";
+                    } else if (parent.getClass().equals(Well.class)) {
+                        type = "well";
+                    } else if (parent.getClass().equals(Project.class)) {
+                        type = "project";
+                    } else if (parent.getClass().equals(Dataset.class)) {
+                        type = "dataset";
+                    } else {
+                        throw new IllegalArgumentException(String.format(
+                                "The provided parent %s was not recognized",
+                                parent
+                        ));
+                    }
+
+                    projectEntry.getMetadata().put(String.format(ID_LABEL, type), String.valueOf(parent.getId()));
+                    projectEntry.getMetadata().put(String.format(NAME_LABEL, type), parent.getAttributeValue(0));
+                }
+            });
         });
     }
 }

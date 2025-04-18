@@ -5,12 +5,13 @@ import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
 import qupath.ext.omero.core.entities.search.SearchResult;
+import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.lib.gui.QuPathGUI;
 
 /**
  * Cell factory that displays a button that opens the link of a search result in a browser.
  */
-public class LinkCellFactory extends TableCell<SearchResult, SearchResult> {
+public class LinkCellFactory extends TableCell<SearchResultWithParentInfo, SearchResult> {
 
     private final Hyperlink hyperlink = new Hyperlink();
 

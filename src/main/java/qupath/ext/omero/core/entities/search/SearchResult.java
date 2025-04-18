@@ -23,16 +23,23 @@ import java.util.regex.Pattern;
  * This class can create usable results from an HTML search query response
  * (usually from {@code https://omero-server/webclient/load_searching/form}).
  *
- * @param type the type of the object (e.g. dataset, image)
- * @param id the id of the object
- * @param name the name of the object
- * @param group the group name whose object belongs to
- * @param link a URL linking to the object
- * @param dateAcquired the date this object was acquired. Can be null
- * @param dateImported the date this object was imported. Can be null
+ * @param type the type of the entity (e.g. dataset, image)
+ * @param id the id of the entity
+ * @param name the name of the entity
+ * @param group the group name whose entity belongs to
+ * @param link a URL linking to the entity
+ * @param dateAcquired the date this entity was acquired. Can be null
+ * @param dateImported the date this entity was imported. Can be null
  */
-public record SearchResult(String type, int id, String name, Date dateAcquired, Date dateImported, String group, String link) {
-
+public record SearchResult(
+        String type,
+        int id,
+        String name,
+        Date dateAcquired,
+        Date dateImported,
+        String group,
+        String link
+) {
     private static final Logger logger = LoggerFactory.getLogger(SearchResult.class);
     private static final DateFormat OMERO_DATE_FORMAT = new SimpleDateFormat("EEE, dd MMM yyyy hh:mm:ss Z");
     private static final Pattern ROW_PATTERN = Pattern.compile("<tr id=\"(.+?)-(.+?)\".+?</tr>", Pattern.DOTALL | Pattern.MULTILINE);
@@ -69,35 +76,46 @@ public record SearchResult(String type, int id, String name, Date dateAcquired, 
         Matcher rowMatcher = ROW_PATTERN.matcher(htmlResponse);
 
         while (rowMatcher.find()) {
-            try {
-                String row = rowMatcher.group(0);
+            String row = rowMatcher.group();
 
-                Date acquiredDate = null;
-                try {
-                    acquiredDate = OMERO_DATE_FORMAT.parse(findPatternInText(DATE_PATTERN, row).orElse(""));
-                } catch (ParseException e) {
-                    logger.debug("Could not parse acquired date", e);
-                }
-
-                Date importedDate = null;
-                try {
-                    importedDate = OMERO_DATE_FORMAT.parse(findPatternInText(DATE_PATTERN, row, 1).orElse(""));
-                } catch (ParseException e) {
-                    logger.debug("Could not parse imported date", e);
-                }
-
-                searchResults.add(new SearchResult(
-                        rowMatcher.group(1),
-                        Integer.parseInt(rowMatcher.group(2)),
-                        findPatternInText(DESCRIPTION_PATTERN, row).orElse("-"),
-                        acquiredDate,
-                        importedDate,
-                        findPatternInText(GROUP_PATTERN, row).orElse("-"),
-                        serverURI + findPatternInText(LINK_PATTERN, row).orElse("")
-                ));
-            } catch (Exception e) {
-                logger.warn("Could not parse search result.", e);
+            if (rowMatcher.groupCount() == 0) {
+                logger.debug("No type found in row {}. Skipping it", row);
+                continue;
             }
+
+            Date acquiredDate = null;
+            Optional<String> acquiredDateText = findPatternInText(DATE_PATTERN, row);
+            if (acquiredDateText.isPresent()) {
+                try {
+                    acquiredDate = OMERO_DATE_FORMAT.parse(acquiredDateText.get());
+                } catch (ParseException e) {
+                    logger.debug("Could not parse acquired date {} in row {}", acquiredDateText.get(), row, e);
+                }
+            } else {
+                logger.debug("Acquired date not found in row {}", row);
+            }
+
+            Date importedDate = null;
+            Optional<String> importedDateText = findPatternInText(DATE_PATTERN, row, 1);
+            if (importedDateText.isPresent()) {
+                try {
+                    importedDate = OMERO_DATE_FORMAT.parse(importedDateText.get());
+                } catch (ParseException e) {
+                    logger.debug("Could not parse imported date {} in row {}", importedDateText.get(), row, e);
+                }
+            } else {
+                logger.debug("Imported date not found in row {}", row);
+            }
+
+            searchResults.add(new SearchResult(
+                    rowMatcher.group(1),
+                    Integer.parseInt(rowMatcher.group(2)),
+                    findPatternInText(DESCRIPTION_PATTERN, row).orElse("-"),
+                    acquiredDate,
+                    importedDate,
+                    findPatternInText(GROUP_PATTERN, row).orElse("-"),
+                    serverURI + findPatternInText(LINK_PATTERN, row).orElse("")
+            ));
         }
 
         logger.debug("Found {} search results", searchResults);
