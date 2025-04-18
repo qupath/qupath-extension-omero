@@ -26,7 +26,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEn
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
-import qupath.ext.omero.core.entities.search.SearchResult;
+import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
@@ -609,10 +609,43 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#getSearchResults(SearchQuery)}.
+     * Same as {@link WebclientApi#getSearchResults(SearchQuery)}, but with additional information on the parents if the
+     * entity is an image
      */
-    public CompletableFuture<List<SearchResult>> getSearchResults(SearchQuery searchQuery) {
-        return webclientApi.getSearchResults(searchQuery);
+    public CompletableFuture<List<SearchResultWithParentInfo>> getSearchResults(SearchQuery searchQuery) {
+        return webclientApi.getSearchResults(searchQuery).thenApplyAsync(searchResults -> {
+            logger.debug("Got search results {}. Getting information on the parents of images", searchResults);
+
+            return searchResults.stream()
+                    .map(searchResult -> {
+                        if (searchResult.getType().isPresent() && searchResult.getType().get().equals(Image.class)) {
+                            logger.debug("{} refers to an image. Searching parents of it", searchResult);
+
+                            return getParentsOfImage(searchResult.id()).handle((parents, error) -> {
+                                if (parents == null) {
+                                    logger.debug("Cannot retrieve parents of {}. Considering it doesn't have any", searchResult, error);
+                                    return new SearchResultWithParentInfo(searchResult);
+                                }
+
+                                logger.debug("Got parents {} for image {}", parents, searchResult);
+                                return new SearchResultWithParentInfo(
+                                        searchResult,
+                                        getEntityOfTypeInList(parents, Project.class),
+                                        getEntityOfTypeInList(parents, Dataset.class),
+                                        getEntityOfTypeInList(parents, Screen.class),
+                                        getEntityOfTypeInList(parents, Plate.class),
+                                        getEntityOfTypeInList(parents, PlateAcquisition.class),
+                                        getEntityOfTypeInList(parents, Well.class)
+                                );
+                            });
+                        } else {
+                            logger.debug("{} does not refer to an image. Not fetching parent information", searchResult);
+                            return CompletableFuture.completedFuture(new SearchResultWithParentInfo(searchResult));
+                        }
+                    })
+                    .map(CompletableFuture::join)
+                    .toList();
+        });
     }
 
     /**
@@ -980,5 +1013,13 @@ public class ApisHandler implements AutoCloseable {
                     .distinct()
                     .toList();
         });
+    }
+
+    private static <T extends ServerEntity> T getEntityOfTypeInList(List<ServerEntity> entities, Class<T> type) {
+        return entities.stream()
+                .filter(type::isInstance)
+                .map(type::cast)
+                .findAny()
+                .orElse(null);
     }
 }

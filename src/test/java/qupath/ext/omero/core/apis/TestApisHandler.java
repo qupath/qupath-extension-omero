@@ -31,7 +31,7 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEn
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.entities.search.SearchQuery;
-import qupath.ext.omero.core.entities.search.SearchResult;
+import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.entities.shapes.Line;
 import qupath.ext.omero.core.entities.shapes.Rectangle;
 import qupath.ext.omero.core.entities.shapes.Shape;
@@ -606,9 +606,9 @@ public class TestApisHandler extends OmeroServer {
                     Group.getAllGroupsGroup(),
                     Owner.getAllMembersOwner()
             );
-            List<SearchResult> expectedResults = OmeroServer.getSearchResultsOnDataset(userType);
+            List<SearchResultWithParentInfo> expectedResults = OmeroServer.getSearchResultsOnDataset(userType);
 
-            List<SearchResult> searchResults = apisHandler.getSearchResults(searchQuery).get();
+            List<SearchResultWithParentInfo> searchResults = apisHandler.getSearchResults(searchQuery).get();
 
             TestUtilities.assertCollectionsEqualsWithoutOrder(expectedResults, searchResults);
         }

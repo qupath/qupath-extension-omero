@@ -304,7 +304,7 @@ class WebclientApi implements AutoCloseable {
      * if the request failed for example).
      *
      * @param searchQuery the parameters used in the search
-     * @return a CompletableFuture (that may complete exceptionally) with a list of search results, or an empty list if an error occurred
+     * @return a CompletableFuture (that may complete exceptionally) with a list of search results
      */
     public CompletableFuture<List<SearchResult>> getSearchResults(SearchQuery searchQuery) {
         logger.debug("Searching with query {}", searchQuery);
@@ -342,7 +342,7 @@ class WebclientApi implements AutoCloseable {
                     .get(new URI(String.format(
                             SEARCH_URL,
                             webServerUri,
-                            searchQuery.query(),
+                            URLEncoder.encode(searchQuery.query(), StandardCharsets.UTF_8),
                             fields,
                             dataTypes,
                             searchQuery.group().getId(),
