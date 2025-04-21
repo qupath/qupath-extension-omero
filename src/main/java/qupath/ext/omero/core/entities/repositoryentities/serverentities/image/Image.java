@@ -52,7 +52,6 @@ public class Image extends ServerEntity {
     private transient BooleanProperty isSupported;
     @SerializedName(value = "AcquisitionDate") private long acquisitionDate;
     @SerializedName(value = "Pixels") private PixelInfo pixels;
-    @SerializedName(value = "url:datasets") private String datasetsUrl;
     /**
      * The reason why an image may not be supported by a pixel API
      */
@@ -210,13 +209,6 @@ public class Image extends ServerEntity {
     public synchronized Set<UnsupportedReason> getUnsupportedReasons() {
         setUpSupported();
         return unsupportedReasons;
-    }
-
-    /**
-     * @return a link to the datasets owning this image, or an empty Optional if it doesn't exist
-     */
-    public Optional<String> getDatasetsUrl() {
-        return Optional.ofNullable(datasetsUrl);
     }
 
     private synchronized void setUpSupported() {

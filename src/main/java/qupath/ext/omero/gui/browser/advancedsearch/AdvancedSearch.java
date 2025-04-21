@@ -26,10 +26,18 @@ import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResult;
+import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.ext.omero.gui.ImageOpener;
 import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.EntityCellFactory;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.LinkCellFactory;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TextCellFactory;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TypeCellFactory;
@@ -84,19 +92,31 @@ public class AdvancedSearch extends Stage {
     @FXML
     private Button importImage;
     @FXML
-    private TableView<SearchResult> results;
+    private TableView<SearchResultWithParentInfo> results;
     @FXML
-    private TableColumn<SearchResult, SearchResult> typeColumn;
+    private TableColumn<SearchResultWithParentInfo, SearchResult> typeColumn;
     @FXML
-    private TableColumn<SearchResult, String> nameColumn;
+    private TableColumn<SearchResultWithParentInfo, String> nameColumn;
     @FXML
-    private TableColumn<SearchResult, String> acquiredColumn;
+    private TableColumn<SearchResultWithParentInfo, String> acquiredColumn;
     @FXML
-    private TableColumn<SearchResult, String> importedColumn;
+    private TableColumn<SearchResultWithParentInfo, String> importedColumn;
     @FXML
-    private TableColumn<SearchResult, String> groupColumn;
+    private TableColumn<SearchResultWithParentInfo, String> groupColumn;
     @FXML
-    private TableColumn<SearchResult, SearchResult> linkColumn;
+    private TableColumn<SearchResultWithParentInfo, SearchResult> linkColumn;
+    @FXML
+    private TableColumn<SearchResultWithParentInfo, Project> projectColumn;
+    @FXML
+    private TableColumn<SearchResultWithParentInfo, Dataset> datasetColumn;
+    @FXML
+    private TableColumn<SearchResultWithParentInfo, Screen> screenColumn;
+    @FXML
+    private TableColumn<SearchResultWithParentInfo, Plate> plateColumn;
+    @FXML
+    private TableColumn<SearchResultWithParentInfo, PlateAcquisition> plateAcquisitionColumn;
+    @FXML
+    private TableColumn<SearchResultWithParentInfo, Well> wellColumn;
 
     /**
      * Creates the advanced search window.
@@ -161,7 +181,7 @@ public class AdvancedSearch extends Stage {
                 results.getItems().setAll(searchResults);
             } else {
                 logger.error("Error when searching", error);
-                Dialogs.showErrorNotification(
+                Dialogs.showErrorMessage(
                         resources.getString("Browser.ServerBrowser.AdvancedSearch.search"),
                         MessageFormat.format(
                                 resources.getString("Browser.ServerBrowser.AdvancedSearch.errorOccurred"),
@@ -212,16 +232,22 @@ public class AdvancedSearch extends Stage {
 
         results.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
-        typeColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue()));
-        nameColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().name()));
-        acquiredColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().dateAcquired() == null ?
-                "" : DATE_FORMAT.format(n.getValue().dateAcquired())
+        typeColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().searchResult()));
+        nameColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().searchResult().name()));
+        acquiredColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(
+                n.getValue().searchResult().dateAcquired() == null ? "" : DATE_FORMAT.format(n.getValue().searchResult().dateAcquired())
         ));
-        importedColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().dateImported() == null ?
-                "" : DATE_FORMAT.format(n.getValue().dateImported())
+        importedColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(
+                n.getValue().searchResult().dateImported() == null ? "" : DATE_FORMAT.format(n.getValue().searchResult().dateImported())
         ));
-        groupColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().group()));
-        linkColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue()));
+        groupColumn.setCellValueFactory(n -> new ReadOnlyStringWrapper(n.getValue().searchResult().group()));
+        linkColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().searchResult()));
+        projectColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().parentProject()));
+        datasetColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().parentDataset()));
+        screenColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().parentScreen()));
+        plateColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().parentPlate()));
+        plateAcquisitionColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().parentPlateAcquisition()));
+        wellColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().parentWell()));
 
         typeColumn.setCellFactory(n -> new TypeCellFactory(apisHandler));
         nameColumn.setCellFactory(n -> new TextCellFactory());
@@ -229,6 +255,12 @@ public class AdvancedSearch extends Stage {
         importedColumn.setCellFactory(n -> new TextCellFactory());
         groupColumn.setCellFactory(n -> new TextCellFactory());
         linkColumn.setCellFactory(n -> new LinkCellFactory());
+        projectColumn.setCellFactory(n -> new EntityCellFactory<>());
+        datasetColumn.setCellFactory(n -> new EntityCellFactory<>());
+        screenColumn.setCellFactory(n -> new EntityCellFactory<>());
+        plateColumn.setCellFactory(n -> new EntityCellFactory<>());
+        plateAcquisitionColumn.setCellFactory(n -> new EntityCellFactory<>());
+        wellColumn.setCellFactory(n -> new EntityCellFactory<>());
 
         initOwner(ownerWindow);
         show();
@@ -258,7 +290,11 @@ public class AdvancedSearch extends Stage {
 
         importImage.textProperty().bind(Bindings.createStringBinding(
                 () -> results.getSelectionModel().getSelectedItems().size() == 1 ?
-                        resources.getString("Browser.ServerBrowser.AdvancedSearch.import") + " " + results.getSelectionModel().getSelectedItems().getFirst().name() :
+                        String.format(
+                                "%s %s",
+                                resources.getString("Browser.ServerBrowser.AdvancedSearch.import"),
+                                results.getSelectionModel().getSelectedItems().getFirst().searchResult().name()
+                        ) :
                         resources.getString("Browser.ServerBrowser.AdvancedSearch.importObjects"),
                 results.getSelectionModel().getSelectedItems()
         ));
@@ -270,13 +306,6 @@ public class AdvancedSearch extends Stage {
                 importSelectedImages();
             }
         });
-
-        typeColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
-        nameColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
-        acquiredColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
-        importedColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
-        groupColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
-        linkColumn.prefWidthProperty().bind(results.widthProperty().multiply(0.1667));
 
         getScene().addEventFilter(
                 KeyEvent.KEY_PRESSED,
@@ -298,6 +327,7 @@ public class AdvancedSearch extends Stage {
     private void importSelectedImages() {
         ImageOpener.openImageFromUris(
                 results.getSelectionModel().getSelectedItems().stream()
+                        .map(SearchResultWithParentInfo::searchResult)
                         .map(SearchResult::link)
                         .toList(),
                 apisHandler
