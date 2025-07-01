@@ -22,12 +22,13 @@ public class DataTransporterMenu extends Menu {
      * @param quPath the currently used QuPath GUI
      * @param transporters  the list of {@link DataTransporter} to represent
      */
-    public DataTransporterMenu(String title, QuPathGUI quPath, List<DataTransporter> transporters) {
+    public DataTransporterMenu(String title, QuPathGUI quPath, List<DataTransporter> transporters, boolean forceAvailable) {
         logger.debug("Creating data transporter menu with {}", transporters);
 
         setText(title);
 
-        disableProperty().bind(quPath.imageDataProperty().isNull());
+        if(!forceAvailable)
+            disableProperty().bind(quPath.imageDataProperty().isNull());
 
         getItems().addAll(transporters.stream()
                 .map(dataTransporter -> {
