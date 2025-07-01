@@ -35,7 +35,7 @@ images.forEach(it -> {
 // Open an image and print its metadata
 def imageID = 1920093
 def image = client.getApisHandler().getImage(imageID).get()
-def imageURI = client.getApisHandler().getItemURI(image)
+def imageURI = client.getApisHandler().getEntityUri(image)
 ImageServer<BufferedImage> server = ImageServerProvider.buildServer(imageURI, BufferedImage.class)
 println "Image metadata: " + server.getMetadata()
 

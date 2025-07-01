@@ -8,6 +8,9 @@
  *         The {@link qupath.ext.omero.gui.UiUtilities UiUtilities} class contains utility functions related to the UI.
  *     </li>
  *     <li>
+ *         The {@link qupath.ext.omero.gui.SampleScriptMenu SampleScriptMenu} class defines a menu that starts sample scripts.
+ *     </li>
+ *     <li>
  *         The {@link qupath.ext.omero.gui.browser Browser} package contains windows
  *         to browse an OMERO server.
  *     </li>

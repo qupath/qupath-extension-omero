@@ -8,12 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.gui.browser.BrowseMenu;
-import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.DataTransporterMenu;
 import qupath.ext.omero.gui.datatransporters.importers.AnnotationImporter;
 import qupath.ext.omero.gui.datatransporters.importers.ImageSettingsImporter;
 import qupath.ext.omero.gui.datatransporters.importers.KeyValuesImporter;
-import qupath.ext.omero.gui.datatransporters.scripts.ScriptLauncher;
 import qupath.ext.omero.gui.datatransporters.senders.AnnotationSender;
 import qupath.ext.omero.gui.datatransporters.senders.ImageSettingsSender;
 import qupath.ext.omero.gui.datatransporters.senders.KeyValuesSender;
@@ -25,10 +23,6 @@ import qupath.lib.gui.prefs.PathPrefs;
 import qupath.lib.gui.tools.MenuTools;
 import qupath.ext.omero.gui.connectionsmanager.ConnectionsManagerCommand;
 
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -52,41 +46,16 @@ public class OmeroExtension implements QuPathExtension {
 	);
 	private BrowseMenu browseMenu;
 
-	private static final LinkedHashMap<String, String> SCRIPTS = new LinkedHashMap<>() {{
-		put("Import annotations", "sample-scripts/import_annotations.groovy");
-		put("Import image settings", "sample-scripts/import_image_settings.groovy");
-		put("Import key value pairs", "sample-scripts/import_key_value_pairs.groovy");
-		put("Open image from command line", "sample-scripts/open_image_from_command_line.groovy");
-		put("Open images of project", "sample-scripts/open_images_of_project.groovy");
-		put("Open server", "sample-scripts/open_server.groovy");
-		put("Send annotations", "sample-scripts/send_annotations.groovy");
-		put("Send image settings", "sample-scripts/send_image_settings.groovy");
-		put("Send key value pairs", "sample-scripts/send_key_value_pairs.groovy");
-		put("Send measurements", "sample-scripts/send_measurements.groovy");
-	}};
-
 	@Override
 	public synchronized void installExtension(QuPathGUI quPath) {
 		if (browseMenu == null) {
 			logger.debug("Installing OMERO extension");
 			browseMenu = new BrowseMenu(quPath.getStage());
-			List<DataTransporter> scriptMenuItems = new ArrayList<>();
 
-			SCRIPTS.forEach((title, path) -> {
-				try (InputStream stream = OmeroExtension.class.getClassLoader().getResourceAsStream(path)) {
-					if (stream != null) {
-						String script = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-						if (!script.isEmpty()) {
-							scriptMenuItems.add(new ScriptLauncher(quPath, title, script));
-						}
-					}
-				} catch (Exception e) {
-					logger.error(e.getLocalizedMessage(), e);
-				}
-			});
-
-			MenuTools.addMenuItems(quPath.getMenu("Extensions", false),
-					MenuTools.createMenu("OMERO",
+			MenuTools.addMenuItems(
+					quPath.getMenu("Extensions", false),
+					MenuTools.createMenu(
+							"OMERO",
 							browseMenu,
 							ActionTools.createAction(
 									new ConnectionsManagerCommand(
@@ -97,23 +66,17 @@ public class OmeroExtension implements QuPathExtension {
 							),
 							new SeparatorMenuItem(),
 							new DataTransporterMenu(
-									resources.getString("Extension.sampleScripts"),
-									quPath,
-									scriptMenuItems,
-									true
-							),
-							new DataTransporterMenu(
 									resources.getString("Extension.sendToOMERO"),
 									quPath,
-									List.of(new AnnotationSender(quPath), new KeyValuesSender(quPath), new ImageSettingsSender(quPath)),
-									false
+									List.of(new AnnotationSender(quPath), new KeyValuesSender(quPath), new ImageSettingsSender(quPath))
 							),
 							new DataTransporterMenu(
 									resources.getString("Extension.importFromOMERO"),
 									quPath,
-									List.of(new AnnotationImporter(quPath), new KeyValuesImporter(quPath), new ImageSettingsImporter(quPath)),
-									false
-							)
+									List.of(new AnnotationImporter(quPath), new KeyValuesImporter(quPath), new ImageSettingsImporter(quPath))
+							),
+							new SeparatorMenuItem(),
+							new SampleScriptMenu(quPath)
 					)
 			);
 
