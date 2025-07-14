@@ -12,6 +12,7 @@ import java.net.URI;
  * @param webJpegQuality the JPEG quality used by the web pixel API of the OMERO server. Can be 0 to indicate that no quality was specified
  * @param iceAddress the address of the OMERO ICE server. Can be null to indicate that no address was specified
  * @param icePort the port of the OMERO ICE server. Can be 0 to indicate that no port was specified
+ * @param iceNumberOfReaders the number of readers to use when reading an image with ICE. Can be 0 to indicate that no number of readers was specified
  * @param msPixelBufferPort the saved port used by the pixel buffer microservice of the OMERO server. Can be 0 to indicate that
  *                          no port was specified
  */
@@ -21,5 +22,6 @@ public record ServerPreference(
         float webJpegQuality,
         String iceAddress,
         int icePort,
+        int iceNumberOfReaders,
         int msPixelBufferPort
 ) {}

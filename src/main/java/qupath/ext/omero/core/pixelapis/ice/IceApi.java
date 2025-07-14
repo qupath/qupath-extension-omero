@@ -39,11 +39,18 @@ public class IceApi implements PixelApi {
     private static final String NAME = "Ice";
     private static final String ADDRESS_PARAMETER = "--serverAddress";
     private static final String PORT_PARAMETER = "--serverPort";
+    private static final String NUMBER_OF_READERS_PARAMETER = "--numberOfReaders";
+    private static final int MIN_NUMBER_OF_READERS = 1;
+    private static final int MAX_NUMBER_OF_READERS = Runtime.getRuntime().availableProcessors() + 5;    // Tasks that include I/O or other blocking operations
+                                                                                                        // should use a bit more than the number of cores
+    private static final int DEFAULT_NUMBER_OF_READERS = Math.min(MAX_NUMBER_OF_READERS, 10);           // See https://github.com/qupath/qupath-extension-omero/issues/85#issuecomment-3023798827
+                                                                                                        // for a justification of this number
     private static final boolean gatewayAvailable;
     private final Map<Long, IceReader> readers = new HashMap<>();
     private final ApisHandler apisHandler;
     private final StringProperty serverAddress;
     private final IntegerProperty serverPort;
+    private final IntegerProperty numberOfReaders;
     private final BooleanProperty isAvailable;
     private GatewayWrapper gatewayWrapper;
 
@@ -76,6 +83,9 @@ public class IceApi implements PixelApi {
         this.serverPort = new SimpleIntegerProperty(
                 PreferencesManager.getIcePort(apisHandler.getWebServerURI()).orElse(0)
         );
+        this.numberOfReaders = new SimpleIntegerProperty(
+                PreferencesManager.getIceNumberOfReaders(apisHandler.getWebServerURI()).orElse(DEFAULT_NUMBER_OF_READERS)
+        );
         this.isAvailable = new SimpleBooleanProperty(apisHandler.getCredentials().userType().equals(Credentials.UserType.REGULAR_USER) && gatewayAvailable);
     }
 
@@ -88,7 +98,8 @@ public class IceApi implements PixelApi {
     public Map<String, String> getArgs() {
         return Map.of(
                 ADDRESS_PARAMETER, serverAddress.get(),
-                PORT_PARAMETER, String.valueOf(serverPort.get())
+                PORT_PARAMETER, String.valueOf(serverPort.get()),
+                NUMBER_OF_READERS_PARAMETER, String.valueOf(numberOfReaders.get())
         );
     }
 
@@ -154,6 +165,13 @@ public class IceApi implements PixelApi {
                 logger.warn("Can't use provided ICE server port {}", port, e);
             }
         });
+        ArgsUtils.findArgInList(NUMBER_OF_READERS_PARAMETER, args).ifPresent(numberOfReaders -> {
+            try {
+                setNumberOfReaders(Integer.parseInt(numberOfReaders));
+            } catch (IllegalArgumentException e) {
+                logger.warn("Can't use provided ICE server number of readers {}", numberOfReaders, e);
+            }
+        });
 
         synchronized (this) {
             if (gatewayWrapper == null) {
@@ -189,7 +207,7 @@ public class IceApi implements PixelApi {
                     logger.debug("No reader for image with ID {} found. Creating one...", imageId);
 
                     try {
-                        IceReader reader = new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels());
+                        IceReader reader = new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels(), numberOfReaders.get());
                         readers.put(imageId, reader);
                         return reader;
                     } catch (Exception e) {
@@ -284,6 +302,49 @@ public class IceApi implements PixelApi {
         );
 
         logger.debug("ICE server port set to {}", serverPort);
+    }
+
+    /**
+     * @return the (inclusive) minimum number of readers that can be used with this ICE API
+     */
+    public int getMinNumberOfReaders() {
+        return MIN_NUMBER_OF_READERS;
+    }
+
+    /**
+     * @return the (inclusive) maximum number of readers that can be used with this ICE API
+     */
+    public int getMaxNumberOfReaders() {
+        return MAX_NUMBER_OF_READERS;
+    }
+
+    /**
+     * @return the number of readers to use when reading an image with this API.
+     * This property may be updated from any thread
+     */
+    public ReadOnlyIntegerProperty getNumberOfReaders() {
+        return numberOfReaders;
+    }
+
+    /**
+     * Set the number of readers to use when reading an image with this API.
+     *
+     * @param numberOfReaders the number of readers to use when reading an image with this API. It must be greater than or equal to {@link #getMinNumberOfReaders()}
+     *                        and less than or equal to {@link #getMaxNumberOfReaders()}
+     * @throws IllegalArgumentException if the provided number of readers does not respect the above specifications
+     */
+    public void setNumberOfReaders(int numberOfReaders) {
+        if (numberOfReaders < getMinNumberOfReaders()) {
+            throw new IllegalArgumentException(String.format("The provided number of readers %d is not greater than %d", numberOfReaders, getMinNumberOfReaders()));
+        }
+
+        this.numberOfReaders.set(numberOfReaders);
+        PreferencesManager.setIceNumberOfReaders(
+                apisHandler.getWebServerURI(),
+                numberOfReaders
+        );
+
+        logger.debug("ICE number of readers set to {}", numberOfReaders);
     }
 
     /**

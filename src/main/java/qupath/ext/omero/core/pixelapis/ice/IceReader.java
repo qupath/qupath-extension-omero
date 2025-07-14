@@ -35,8 +35,6 @@ import java.util.Optional;
 class IceReader implements PixelApiReader {
 
     private static final Logger logger = LoggerFactory.getLogger(IceReader.class);
-    private static final int NUMBER_OF_READERS = Runtime.getRuntime().availableProcessors() + 5;    // Tasks that include I/O or other blocking operations
-                                                                                                    // should use a bit more than the number of cores
     private final long groupId;
     private final SecurityContext context;
     private final ImageData imageData;
@@ -54,9 +52,10 @@ class IceReader implements PixelApiReader {
      * @param imageId the ID of the image to open
      * @param groupId the ID of the group owning the image to open
      * @param channels the channels of the image to open
+     * @param numberOfReaders the maximum number of threads to use when reading tiles
      * @throws Exception when the reader creation fails
      */
-    public IceReader(GatewayWrapper gatewayWrapper, long imageId, long groupId, List<ImageChannel> channels) throws Exception {
+    public IceReader(GatewayWrapper gatewayWrapper, long imageId, long groupId, List<ImageChannel> channels, int numberOfReaders) throws Exception {
         logger.debug("Creating ICE reader for image of ID {} with group of ID {}...", imageId, groupId);
 
         this.groupId = groupId;
@@ -67,7 +66,7 @@ class IceReader implements PixelApiReader {
         PixelsData pixelsData = imageData.getDefaultPixels();
 
         readerPool = new ObjectPool<>(
-                NUMBER_OF_READERS,
+                numberOfReaders,
                 () -> {
                     try {
                         RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
