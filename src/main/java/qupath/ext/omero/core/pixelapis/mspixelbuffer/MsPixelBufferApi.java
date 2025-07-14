@@ -32,7 +32,7 @@ import java.util.concurrent.ExecutionException;
 public class MsPixelBufferApi implements PixelApi {
 
     private static final String NAME = "Pixel Buffer Microservice";
-    private static final int DEFAULT_PORT = 8082;
+    private static final int DEFAULT_PORT = 443;
     private static final String PORT_PARAMETER = "--msPixelBufferPort";
     private static final Logger logger = LoggerFactory.getLogger(MsPixelBufferApi.class);
     private final ApisHandler apisHandler;
