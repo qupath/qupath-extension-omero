@@ -4,9 +4,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.control.TextFormatter;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import org.controlsfx.control.textfield.CustomTextField;
@@ -32,15 +30,17 @@ class Settings extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(Settings.class);
     private static final ResourceBundle resources = Utils.getResources();
-    private final MsPixelBufferApi msPixelBufferApi;
     private final WebApi webApi;
     private final IceApi iceApi;
+    private final MsPixelBufferApi msPixelBufferApi;
     @FXML
     private CustomTextField webJpegQuality;
     @FXML
     private TextField omeroAddress;
     @FXML
     private TextField omeroPort;
+    @FXML
+    private Spinner<Integer> numberOfIceReaders;
     @FXML
     private TextField msPixelBufferAPIPort;
 
@@ -54,9 +54,9 @@ class Settings extends Stage {
     public Settings(Stage ownerWindow, Client client) throws IOException {
         logger.debug("Creating settings window for {}", client);
 
-        this.msPixelBufferApi = client.getPixelAPI(MsPixelBufferApi.class);
         this.webApi = client.getPixelAPI(WebApi.class);
         this.iceApi = client.getPixelAPI(IceApi.class);
+        this.msPixelBufferApi = client.getPixelAPI(MsPixelBufferApi.class);
 
         initUI(ownerWindow);
         setUpListeners();
@@ -68,10 +68,15 @@ class Settings extends Stage {
     public void resetEntries() {
         logger.debug("Resetting entries to values of pixel APIs");
 
-        msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferApi.getPort().get()));
         webJpegQuality.setText(String.valueOf(webApi.getJpegQuality().get()));
         omeroAddress.setText(iceApi.getServerAddress().get());
         omeroPort.setText(String.valueOf(iceApi.getServerPort().get()));
+        numberOfIceReaders.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                iceApi.getMinNumberOfReaders(),
+                iceApi.getMaxNumberOfReaders(),
+                iceApi.getNumberOfReaders().get()
+        ));
+        msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferApi.getPort().get()));
     }
 
     @FXML
@@ -124,9 +129,6 @@ class Settings extends Stage {
     }
 
     private void setUpListeners() {
-        msPixelBufferApi.getPort().addListener((p, o, n) -> Platform.runLater(() ->
-                msPixelBufferAPIPort.setText(String.valueOf(n))
-        ));
         webApi.getJpegQuality().addListener((p, o, n) -> Platform.runLater(() ->
                 webJpegQuality.setText(String.valueOf(n))
         ));
@@ -135,6 +137,16 @@ class Settings extends Stage {
         ));
         iceApi.getServerPort().addListener((p, o, n) -> Platform.runLater(() ->
                 omeroPort.setText(String.valueOf(n))
+        ));
+        iceApi.getNumberOfReaders().addListener((p, o, n) -> Platform.runLater(() ->
+                numberOfIceReaders.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                        iceApi.getMinNumberOfReaders(),
+                        iceApi.getMaxNumberOfReaders(),
+                        n.intValue()
+                ))
+        ));
+        msPixelBufferApi.getPort().addListener((p, o, n) -> Platform.runLater(() ->
+                msPixelBufferAPIPort.setText(String.valueOf(n))
         ));
 
         getScene().addEventFilter(
@@ -178,6 +190,17 @@ class Settings extends Stage {
             Dialogs.showErrorMessage(
                     resources.getString("Browser.ServerBrowser.Settings.error"),
                     resources.getString("Browser.ServerBrowser.Settings.iceServerPort")
+            );
+            return false;
+        }
+        try {
+            iceApi.setNumberOfReaders(numberOfIceReaders.getValue());
+        } catch (IllegalArgumentException e) {
+            logger.warn("Incorrect ICE server number of readers {}", numberOfIceReaders.getValue(), e);
+
+            Dialogs.showErrorMessage(
+                    resources.getString("Browser.ServerBrowser.Settings.error"),
+                    resources.getString("Browser.ServerBrowser.Settings.iceNumberOfReaders")
             );
             return false;
         }

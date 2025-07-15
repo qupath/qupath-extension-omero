@@ -38,6 +38,7 @@ public class TestPreferencesManager {
                 0,
                 null,
                 0,
+                0,
                 0
         );
         List<ServerPreference> expectedPreferences = List.of(serverPreference);
@@ -293,6 +294,67 @@ public class TestPreferencesManager {
         int port = PreferencesManager.getIcePort(uri).orElse(-1);
 
         Assertions.assertEquals(expectedPort, port);
+    }
+
+    @Test
+    void Check_Ice_Number_Of_Readers_Empty_When_Not_Set() {
+        URI uri = URI.create("https://github.com/qupath");
+
+        Optional<Integer> numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri);
+
+        Assertions.assertTrue(numberOfReaders.isEmpty());
+    }
+
+    @Test
+    void Check_Ice_Number_Of_Readers_When_Preference_Not_Set() {
+        URI uri = URI.create("https://github.com/qupath");
+        PreferencesManager.setIcePort(uri, 4);
+
+        Optional<Integer> numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri);
+
+        Assertions.assertTrue(numberOfReaders.isEmpty());
+    }
+
+    @Test
+    void Check_Ice_Number_Of_Readers_When_Preference_Set() {
+        int expectedNumberOfReaders = 4;
+        URI uri = URI.create("https://github.com/qupath");
+        PreferencesManager.addServer(uri, new Credentials());
+        PreferencesManager.setIceNumberOfReaders(uri, expectedNumberOfReaders);
+
+        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElse(-1);
+
+        Assertions.assertEquals(expectedNumberOfReaders, numberOfReaders);
+    }
+
+    @Test
+    void Check_Ice_Number_Of_Readers_When_Set_Twice() {
+        int unexpectedNumberOfReaders = 4;
+        int expectedNumberOfReaders = 10;
+        URI uri = URI.create("https://github.com/qupath");
+        PreferencesManager.addServer(uri, new Credentials());
+        PreferencesManager.setIceNumberOfReaders(uri, unexpectedNumberOfReaders);
+        PreferencesManager.setIceNumberOfReaders(uri, expectedNumberOfReaders);
+
+        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElse(-1);
+
+        Assertions.assertEquals(expectedNumberOfReaders, numberOfReaders);
+    }
+
+    @Test
+    void Check_Ice_Number_Of_Readers_When_Other_URI_Set() {
+        URI otherUri = URI.create("https://qupath.readthedocs.io");
+        int otherNumberOfReaders = 4;
+        PreferencesManager.addServer(otherUri, new Credentials());
+        PreferencesManager.setIceNumberOfReaders(otherUri, otherNumberOfReaders);
+        int expectedNumberOfReaders = 10;
+        URI uri = URI.create("https://github.com/qupath");
+        PreferencesManager.addServer(uri, new Credentials());
+        PreferencesManager.setIceNumberOfReaders(uri, expectedNumberOfReaders);
+
+        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElse(-1);
+
+        Assertions.assertEquals(expectedNumberOfReaders, numberOfReaders);
     }
 
     @Test

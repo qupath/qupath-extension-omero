@@ -25,8 +25,9 @@ If those parameters are not indicated, you will be prompted for the credentials.
 is selected, you can add the [--jpegQuality, 0.6] optional argument to set the quality level of the JPEG images returned by the web
 pixel API (number between 0 and 1).
 --server "[--pixelAPI, Ice]" to use the Ice pixel API (see the README file of the extension, "Reading images" section). If this API
-is selected, you can add the [--serverAddress, "some_address"] optional argument to set the address of the OMERO server and the
-[--serverPort, 4064] optional argument to set the port used by the OMERO server.
+is selected, you can add the [--serverAddress, "some_address"] optional argument to set the address of the OMERO server, the
+[--serverPort, 4064] optional argument to set the port used by the OMERO server, and the [--numberOfReaders, 16] optional argument to
+set the maximum number of parallel readers to use when reading the image.
 --server "[--pixelAPI, Pixel Buffer Microservice]" to use the Pixel Buffer Microservice pixel API (see the README file of the extension,
 "Reading images" section). If this API is selected, you can add the [--msPixelBufferPort, 8082] optional argument to set the port used
 by this microservice on the OMERO server.

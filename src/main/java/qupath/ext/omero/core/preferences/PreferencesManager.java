@@ -59,7 +59,7 @@ public class PreferencesManager {
                 .toList();
 
         if (existingPreferences.isEmpty()) {
-            serverPreferences.add(new ServerPreference(webServerUri, credentials, 0, null, 0, 0));
+            serverPreferences.add(new ServerPreference(webServerUri, credentials, 0, null, 0, 0, 0));
             logger.debug("Preference for {} added with the following credentials: {}", webServerUri, credentials);
         } else {
             serverPreferences.removeAll(existingPreferences);
@@ -69,6 +69,7 @@ public class PreferencesManager {
                     existingPreferences.getFirst().webJpegQuality(),
                     existingPreferences.getFirst().iceAddress(),
                     existingPreferences.getFirst().icePort(),
+                    existingPreferences.getFirst().iceNumberOfReaders(),
                     existingPreferences.getFirst().msPixelBufferPort()
             ));
             logger.debug("Preference for {} modified with the following credentials: {}", webServerUri, credentials);
@@ -143,6 +144,7 @@ public class PreferencesManager {
                         webJpegQuality,
                         serverPreference.iceAddress(),
                         serverPreference.icePort(),
+                        serverPreference.iceNumberOfReaders(),
                         serverPreference.msPixelBufferPort()
                 )
         );
@@ -179,6 +181,7 @@ public class PreferencesManager {
                         serverPreference.webJpegQuality(),
                         iceAddress,
                         serverPreference.icePort(),
+                        serverPreference.iceNumberOfReaders(),
                         serverPreference.msPixelBufferPort()
                 )
         );
@@ -215,6 +218,7 @@ public class PreferencesManager {
                         serverPreference.webJpegQuality(),
                         serverPreference.iceAddress(),
                         icePort,
+                        serverPreference.iceNumberOfReaders(),
                         serverPreference.msPixelBufferPort()
                 )
         );
@@ -230,6 +234,43 @@ public class PreferencesManager {
         return getProperty(
                 webServerUri,
                 serverPreference -> serverPreference.icePort() == 0 ? Optional.empty() : Optional.of(serverPreference.icePort())
+        );
+    }
+
+    /**
+     * Set the saved number of readers for the OMERO ICE server corresponding to the provided web server. This will only
+     * happen if {@link #getServerPreferences()} contains an entry with the specified web server URI.
+     *
+     * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server number of readers should be set
+     * @param numberOfReaders the number of readers to use when opening an image with OMERO ICE
+     */
+    public static void setIceNumberOfReaders(URI webServerUri, int numberOfReaders) {
+        setProperty(
+                webServerUri,
+                "ICE number of readers",
+                numberOfReaders,
+                serverPreference -> new ServerPreference(
+                        webServerUri,
+                        serverPreference.credentials(),
+                        serverPreference.webJpegQuality(),
+                        serverPreference.iceAddress(),
+                        serverPreference.icePort(),
+                        numberOfReaders,
+                        serverPreference.msPixelBufferPort()
+                )
+        );
+    }
+
+    /**
+     * Get the saved number of readers for the OMERO ICE server corresponding to the provided web server.
+     *
+     * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server number of readers should be retrieved
+     * @return the OMERO ICE number of readers, or an empty optional if not found
+     */
+    public static Optional<Integer> getIceNumberOfReaders(URI webServerUri) {
+        return getProperty(
+                webServerUri,
+                serverPreference -> serverPreference.iceNumberOfReaders() == 0 ? Optional.empty() : Optional.of(serverPreference.iceNumberOfReaders())
         );
     }
 
@@ -251,6 +292,7 @@ public class PreferencesManager {
                         serverPreference.webJpegQuality(),
                         serverPreference.iceAddress(),
                         serverPreference.icePort(),
+                        serverPreference.iceNumberOfReaders(),
                         msPixelBufferPort
                 )
         );
