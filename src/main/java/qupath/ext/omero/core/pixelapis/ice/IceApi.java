@@ -43,8 +43,8 @@ public class IceApi implements PixelApi {
     private static final int MIN_NUMBER_OF_READERS = 1;
     private static final int MAX_NUMBER_OF_READERS = Runtime.getRuntime().availableProcessors() + 5;    // Tasks that include I/O or other blocking operations
                                                                                                         // should use a bit more than the number of cores
-    private static final int DEFAULT_NUMBER_OF_READERS = Math.min(MAX_NUMBER_OF_READERS, 10);           // See https://github.com/qupath/qupath-extension-omero/issues/85#issuecomment-3023798827
-                                                                                                        // for a justification of this number
+    private static final int DEFAULT_NUMBER_OF_READERS = Math.min(MAX_NUMBER_OF_READERS, 10);           // The "10" parameter comes from
+                                                                                                        // https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.threads.min_threads
     private static final boolean gatewayAvailable;
     private final Map<Long, IceReader> readers = new HashMap<>();
     private final ApisHandler apisHandler;
