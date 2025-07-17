@@ -112,8 +112,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     )
                     .join()
                     .stream()
-                    .map(uri -> createServerBuilder(uri, clientArgsWrapper.get()))
-                    .flatMap(Optional::stream)
+                    .map(uri -> DefaultImageServerBuilder.createInstance(
+                            OmeroImageServerBuilder.class,
+                            uri,
+                            clientArgsWrapper.get().args.toArray(new String[0])
+                    ))
                     .toList();
             logger.debug("Got builders {} for {}", builders, entityURI);
 
@@ -196,32 +199,6 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             });
         } catch (Exception e) {
             logger.debug("Cannot create OMERO client for {}", uri, e);
-
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-
-            return Optional.empty();
-        }
-    }
-
-    private static Optional<ServerBuilder<BufferedImage>> createServerBuilder(URI uri, ClientPixelApiArgsWrapper clientPixelApiArgsWrapper) {
-        logger.debug("Creating server builder for {} with {}", uri, clientPixelApiArgsWrapper);
-
-        try (OmeroImageServer imageServer = new OmeroImageServer(
-                uri,
-                clientPixelApiArgsWrapper.client,
-                clientPixelApiArgsWrapper.pixelApi,
-                clientPixelApiArgsWrapper.args
-        )) {
-            return Optional.of(DefaultImageServerBuilder.createInstance(
-                    OmeroImageServerBuilder.class,
-                    imageServer.getMetadata(),
-                    uri,
-                    clientPixelApiArgsWrapper.args.toArray(new String[0])
-            ));
-        } catch (Exception e) {
-            logger.debug("Cannot create image server for {}", uri, e);
 
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();

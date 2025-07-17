@@ -69,8 +69,9 @@ public interface PixelApi extends AutoCloseable {
      * Creates a {@link PixelApiReader} corresponding to this API that will be used to read
      * pixel values of an image. This may take a few seconds depending on the implementation.
      * <p>
-     * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
-     * no longer used. This pixel API will close them when it itself is closed.
+     * Note that you should {@link PixelApiReader#close() close} the returned reader when it's
+     * no longer used. As a precaution, this pixel API will (if needed) close them when it itself
+     * is closed, but it's better if they are closed as soon as possible.
      * <p>
      * Note that if this API is not available (see {@link #isAvailable()}), calling this function
      * will result in undefined behavior.

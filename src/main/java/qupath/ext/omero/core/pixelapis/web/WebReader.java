@@ -76,9 +76,7 @@ class WebReader implements PixelApiReader {
     }
 
     @Override
-    public void close() {
-        logger.debug("Closing web reader of image with ID {}", imageID);
-    }
+    public void close() {}
 
     @Override
     public String toString() {

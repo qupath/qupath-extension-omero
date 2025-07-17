@@ -152,6 +152,11 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     }
 
     @Override
+    public void close() throws Exception {
+        pixelAPIReader.close();
+    }
+
+    @Override
     public String toString() {
         return String.format("OMERO image server of %s", imageUri);
     }
