@@ -65,6 +65,18 @@ public class Client implements AutoCloseable {
     private ScheduledExecutorService pingScheduler;
     private CompletableFuture<Server> server;
 
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            for (Client client: Client.getClients()) {
+                try {
+                    client.close();
+                } catch (Exception e) {
+                    logger.error("Error while closing {}", client, e);
+                }
+            }
+        }));
+    }
+
     private Client(URI webServerUri, Credentials credentials, Consumer<Client> onPingFailed) throws ExecutionException, InterruptedException, URISyntaxException {
         this.apisHandler = new ApisHandler(webServerUri, credentials);
         this.allPixelApis = List.of(

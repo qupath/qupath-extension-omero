@@ -89,17 +89,6 @@ public class OmeroExtension implements QuPathExtension {
 							.description(resources.getString("Extension.automaticallyImportWhenAddingImage"))
 							.build()
 					);
-
-			//TODO: uncomment this when https://github.com/qupath/qupath/pull/1956 is merged
-//			quPath.addOnCloseRunnable(() -> {
-//				for (Client client: Client.getClients()) {
-//					try {
-//						client.close();
-//					} catch (Exception e) {
-//						logger.error("Error while closing {}", client, e);
-//					}
-//				}
-//			});
 		}
 	}
 
