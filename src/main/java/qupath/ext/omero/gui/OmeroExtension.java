@@ -4,11 +4,9 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.scene.control.SeparatorMenuItem;
 
-import javafx.stage.WindowEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.Client;
 import qupath.ext.omero.gui.browser.BrowseMenu;
 import qupath.ext.omero.gui.datatransporters.DataTransporterMenu;
 import qupath.ext.omero.gui.datatransporters.importers.AnnotationImporter;
@@ -92,15 +90,16 @@ public class OmeroExtension implements QuPathExtension {
 							.build()
 					);
 
-			quPath.addOnCloseRunnable(() -> {
-				for (Client client: Client.getClients()) {
-					try {
-						client.close();
-					} catch (Exception e) {
-						logger.error("Error while closing {}", client, e);
-					}
-				}
-			});
+			//TODO: uncomment this when https://github.com/qupath/qupath/pull/1956 is merged
+//			quPath.addOnCloseRunnable(() -> {
+//				for (Client client: Client.getClients()) {
+//					try {
+//						client.close();
+//					} catch (Exception e) {
+//						logger.error("Error while closing {}", client, e);
+//					}
+//				}
+//			});
 		}
 	}
 
