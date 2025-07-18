@@ -203,7 +203,7 @@ public class IceApi implements PixelApi {
                 logger.debug("Creating reader for image with ID {}...", imageId);
 
                 try {
-                    IceReader reader = new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels(), numberOfReaders.get());
+                    IceReader reader = new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels(), metadata.isRGB(), numberOfReaders.get());
                     readers.add(reader);
                     return reader;
                 } catch (Exception e) {
