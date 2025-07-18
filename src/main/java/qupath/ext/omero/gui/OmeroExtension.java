@@ -92,18 +92,15 @@ public class OmeroExtension implements QuPathExtension {
 							.build()
 					);
 
-			quPath.getStage().getScene().getWindow().addEventFilter(
-					WindowEvent.WINDOW_CLOSE_REQUEST,
-					ignored -> {
-						for (Client client: Client.getClients()) {
-                            try {
-                                client.close();
-                            } catch (Exception e) {
-                                logger.error("Error while closing {}", client, e);
-                            }
-                        }
+			quPath.addOnCloseRunnable(() -> {
+				for (Client client: Client.getClients()) {
+					try {
+						client.close();
+					} catch (Exception e) {
+						logger.error("Error while closing {}", client, e);
 					}
-			);
+				}
+			});
 		}
 	}
 
