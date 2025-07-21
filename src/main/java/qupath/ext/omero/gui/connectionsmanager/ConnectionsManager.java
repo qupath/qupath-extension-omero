@@ -2,6 +2,7 @@ package qupath.ext.omero.gui.connectionsmanager;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
@@ -23,10 +24,13 @@ import java.util.function.Consumer;
  * The user can connect, log in, log out, and remove a connection to a server.
  * <p>
  * Each connection is displayed using the {@link Connection} pane.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-public class ConnectionsManager extends Stage {
+public class ConnectionsManager extends Stage implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionsManager.class);
+    private final ListChangeListener<? super ServerPreference> serverPreferencesListener = change-> Platform.runLater(this::populate);
     private final Consumer<Client> openClientBrowser;
     @FXML
     private VBox container;
@@ -36,7 +40,7 @@ public class ConnectionsManager extends Stage {
     /**
      * Creates the connection manager window.
      *
-     * @param owner the stage that should own this window
+     * @param owner the stage that should own this window. Can be null
      * @param openClientBrowser a function that will be called to request opening the browser of a client. It will be
      *                          called from the JavaFX Application Thread
      * @throws IOException if an error occurs while creating the window
@@ -45,26 +49,25 @@ public class ConnectionsManager extends Stage {
         logger.debug("Creating connections manager window");
         this.openClientBrowser = openClientBrowser;
 
-        initUI(owner);
-        setUpListeners();
-    }
-
-    private void initUI(Stage owner) throws IOException {
         UiUtilities.loadFXML(this, ConnectionsManager.class.getResource("connections_manager.fxml"));
 
         if (owner != null) {
             initOwner(owner);
         }
         populate();
-        show();
-    }
 
-    private void setUpListeners() {
         Client.addListenerToClients(() -> Platform.runLater(this::populate));
-        PreferencesManager.addListenerToServerPreferences(() -> Platform.runLater(this::populate));
+        PreferencesManager.addServerPreferencesListener(serverPreferencesListener);
 
         noClients.visibleProperty().bind(Bindings.isEmpty(container.getChildren()));
         noClients.managedProperty().bind(noClients.visibleProperty());
+
+        show();
+    }
+
+    @Override
+    public void close() {
+        PreferencesManager.removeServerPreferencesListener(serverPreferencesListener);
     }
 
     private void populate() {

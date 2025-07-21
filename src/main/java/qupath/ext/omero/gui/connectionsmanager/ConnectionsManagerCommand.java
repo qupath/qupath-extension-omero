@@ -12,8 +12,10 @@ import java.util.function.Consumer;
 
 /**
  * Command that starts a {@link ConnectionsManager}.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-public class ConnectionsManagerCommand implements Runnable {
+public class ConnectionsManagerCommand implements Runnable, AutoCloseable {
 
 	private static final Logger logger = LoggerFactory.getLogger(ConnectionsManagerCommand.class);
 	private static final ResourceBundle resources = Utils.getResources();
@@ -24,7 +26,7 @@ public class ConnectionsManagerCommand implements Runnable {
 	/**
 	 * Creates a new connection manager command.
 	 *
-	 * @param owner the stage that should own the connection manager window
+	 * @param owner the stage that should own the connection manager window. Can be null
 	 * @param openClientBrowser a function that will be called to request opening the browser of a client. It will be
 	 *                          called from the JavaFX Application Thread
 	 */
@@ -47,6 +49,13 @@ public class ConnectionsManagerCommand implements Runnable {
 			logger.debug("Connections manager window already exists. Showing it");
 			connectionsManager.show();
 			connectionsManager.requestFocus();
+		}
+	}
+
+	@Override
+	public void close() throws Exception {
+		if (connectionsManager != null) {
+			connectionsManager.close();
 		}
 	}
 

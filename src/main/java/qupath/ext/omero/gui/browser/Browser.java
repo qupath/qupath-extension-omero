@@ -234,7 +234,7 @@ class Browser extends Stage {
             var selectedItem = hierarchy.getSelectionModel().getSelectedItem();
             RepositoryEntity selectedObject = selectedItem == null ? null : selectedItem.getValue();
 
-            if (selectedObject instanceof Image image && image.isSupported().get()) {
+            if (selectedObject instanceof Image image && image.isSupported(client.getSelectedPixelApi().get())) {
                 logger.debug("Double click on tree detected while {} is selected and supported. Opening it", image);
                 ImageOpener.openImageFromUris(List.of(client.getApisHandler().getEntityUri(image)), client.getApisHandler());
             }
@@ -434,7 +434,7 @@ class Browser extends Stage {
                 browserModel.getSelectedGroup(),
                 predicateTextField.predicateProperty()
         ));
-        hierarchy.setCellFactory(n -> new HierarchyCellFactory(client.getApisHandler()));
+        hierarchy.setCellFactory(n -> new HierarchyCellFactory(client));
 
         filterContainer.getChildren().addFirst(predicateTextField);
 
@@ -615,7 +615,7 @@ class Browser extends Stage {
                 .filter(Objects::nonNull)
                 .filter(repositoryEntity -> {
                     if (repositoryEntity instanceof Image image) {
-                        return image.isSupported().get();
+                        return image.isSupported(client.getSelectedPixelApi().get());
                     } else {
                         return repositoryEntity instanceof ServerEntity;
                     }
