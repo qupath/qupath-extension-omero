@@ -238,12 +238,12 @@ public class IceApi implements PixelApi {
     public synchronized void close() throws Exception {
         logger.debug("Closing ICE API of {}", apisHandler);
 
-        if (gatewayWrapper != null) {
-            gatewayWrapper.close();
-        }
-
         for (IceReader reader: readers) {
             reader.close();
+        }
+
+        if (gatewayWrapper != null) {
+            gatewayWrapper.close();
         }
     }
 
