@@ -19,6 +19,7 @@ import qupath.lib.images.servers.ImageServerBuilder;
 import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +43,9 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     private static final String PIXEL_API_ARG = "--pixelAPI";
     private static final float SUPPORT_LEVEL = 4;
     private static final List<String> ACCEPTED_SCHEMES = List.of("http", "https");
+    private static final List<ClientUri> reachableUrisWithSpecificClient = new ArrayList<>();
     private record ClientPixelApiArgsWrapper(Client client, PixelApi pixelApi, List<String> args) {}
+    private record ClientUri(Client client, URI uri) {}
 
     /**
      * Attempt to create a {@link OmeroImageServer} from the specified URL.
@@ -320,7 +323,13 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 .map(client -> {
                     try {
                         URI entityUri = new URI(client.getApisHandler().getEntityUri(entity));
-                        client.getApisHandler().isLinkReachable(entityUri, RequestSender.RequestType.GET).get();
+
+                        synchronized (OmeroImageServerBuilder.class) {
+                            if (!reachableUrisWithSpecificClient.contains(new ClientUri(client, entityUri))) {
+                                client.getApisHandler().isLinkReachable(entityUri, RequestSender.RequestType.GET).get();
+                                reachableUrisWithSpecificClient.add(new ClientUri(client, entityUri));
+                            }
+                        }
 
                         logger.debug("{} is reachable. {} can access entity with ID {}. Using it", entityUri, client, entity.getId());
                         return client;
