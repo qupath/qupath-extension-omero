@@ -41,11 +41,11 @@ class IceReader implements PixelApiReader {
     private final SecurityContext context;
     private final ImageData imageData;
     private final ObjectPool<RawPixelsStorePrx> readerPool;
-    private final int numberOfResolutionLevels;
     private final int nChannels;
     private final int effectiveNChannels;
     private final PixelType pixelType;
     private final ColorModel colorModel;
+    private int numberOfResolutionLevels = -1;
 
     /**
      * Creates a new Ice reader.
@@ -94,14 +94,6 @@ class IceReader implements PixelApiReader {
                 }
         );
 
-        var reader = readerPool.get();
-        if (reader.isPresent()) {
-            numberOfResolutionLevels = reader.get().getResolutionLevels();
-            readerPool.giveBack(reader.get());
-        } else {
-            throw new IllegalStateException("Cannot create RawPixelsStorePrx. Impossible to get the number of resolution levels");
-        }
-
         nChannels = channels.size();
         effectiveNChannels = pixelsData.getSizeC();
         pixelType = switch (pixelsData.getPixelType()) {
@@ -130,6 +122,12 @@ class IceReader implements PixelApiReader {
         try {
             reader = readerPool.get();
             if (reader.isPresent()) {
+                synchronized (this) {
+                    if (numberOfResolutionLevels == -1) {
+                        numberOfResolutionLevels = reader.get().getResolutionLevels();
+                    }
+                }
+
                 reader.get().setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
 
                 for (int channel = 0; channel < effectiveNChannels; channel++) {
