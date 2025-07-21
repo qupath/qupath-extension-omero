@@ -118,38 +118,34 @@ class IceReader implements PixelApiReader {
 
         byte[][] bytes = new byte[effectiveNChannels][];
 
-        Optional<RawPixelsStorePrx> reader = Optional.empty();
+        RawPixelsStorePrx reader = null;
         try {
-            reader = readerPool.get();
-            if (reader.isPresent()) {
-                synchronized (this) {
-                    if (numberOfResolutionLevels == -1) {
-                        numberOfResolutionLevels = reader.get().getResolutionLevels();
-                    }
-                }
+            reader = readerPool.get().orElseThrow();
 
-                reader.get().setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
-
-                for (int channel = 0; channel < effectiveNChannels; channel++) {
-                    bytes[channel] = reader.get().getTile(
-                            tileRequest.getZ(),
-                            channel,
-                            tileRequest.getT(),
-                            tileRequest.getTileX(),
-                            tileRequest.getTileY(),
-                            tileRequest.getTileWidth(),
-                            tileRequest.getTileHeight()
-                    );
+            synchronized (this) {
+                if (numberOfResolutionLevels == -1) {
+                    numberOfResolutionLevels = reader.getResolutionLevels();
                 }
-            } else {
-                throw new IOException(String.format("Cannot create RawPixelsStorePrx. Tile %s won't be read", tileRequest));
+            }
+
+            reader.setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
+
+            for (int channel = 0; channel < effectiveNChannels; channel++) {
+                bytes[channel] = reader.getTile(
+                        tileRequest.getZ(),
+                        channel,
+                        tileRequest.getT(),
+                        tileRequest.getTileX(),
+                        tileRequest.getTileY(),
+                        tileRequest.getTileWidth(),
+                        tileRequest.getTileHeight()
+                );
             }
         } catch (Exception e) {
             throw new IOException(e);
         } finally {
-            reader.ifPresent(readerPool::giveBack);
+            readerPool.giveBack(reader);
         }
-
 
         if (isRgb && (effectiveNChannels == 3 || effectiveNChannels == 4)) {
             int[] rgbArray = new int[bytes[0].length];
@@ -223,8 +219,9 @@ class IceReader implements PixelApiReader {
             return originalMetadata;
         }
 
+        RawPixelsStorePrx reader = null;
         try {
-            RawPixelsStorePrx reader = readerPool.get().orElseThrow();
+            reader = readerPool.get().orElseThrow();
 
             var resolutionBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(originalMetadata.getWidth(), originalMetadata.getHeight());
             ResolutionDescription[] levelDescriptions = reader.getResolutionDescriptions();
@@ -255,6 +252,8 @@ class IceReader implements PixelApiReader {
 
             logger.debug("Cannot apply VSI resolution fix. Returning original metadata", e);
             return originalMetadata;
+        } finally {
+            readerPool.giveBack(reader);
         }
     }
 }
