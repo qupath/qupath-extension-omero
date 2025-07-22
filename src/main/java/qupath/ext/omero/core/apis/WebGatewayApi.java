@@ -2,8 +2,8 @@ package qupath.ext.omero.core.apis;
 
 import com.google.gson.JsonObject;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ObservableIntegerValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
@@ -74,7 +74,7 @@ class WebGatewayApi {
      * @return the number of thumbnails currently being loaded.
      * This property may be updated from any thread
      */
-    public ReadOnlyIntegerProperty getNumberOfThumbnailsLoading() {
+    public ObservableIntegerValue getNumberOfThumbnailsLoading() {
         return numberOfThumbnailsLoading;
     }
 

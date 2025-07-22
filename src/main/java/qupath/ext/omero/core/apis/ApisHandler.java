@@ -3,9 +3,9 @@ package qupath.ext.omero.core.apis;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableIntegerValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
@@ -402,14 +402,14 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link JsonApi#getNumberOfEntitiesLoading}.
      */
-    public ReadOnlyIntegerProperty getNumberOfEntitiesLoading() {
+    public ObservableIntegerValue getNumberOfEntitiesLoading() {
         return jsonApi.getNumberOfEntitiesLoading();
     }
 
     /**
      * See {@link WebGatewayApi#getNumberOfThumbnailsLoading()}.
      */
-    public ReadOnlyIntegerProperty getNumberOfThumbnailsLoading() {
+    public ObservableIntegerValue getNumberOfThumbnailsLoading() {
         return webGatewayApi.getNumberOfThumbnailsLoading();
     }
 
@@ -538,14 +538,14 @@ public class ApisHandler implements AutoCloseable {
      * @return whether orphaned images are currently being loaded.
      * This property may be updated from any thread
      */
-    public ReadOnlyBooleanProperty areOrphanedImagesLoading() {
+    public ObservableBooleanValue areOrphanedImagesLoading() {
         return areOrphanedImagesLoading;
     }
 
     /**
      * See {@link JsonApi#getNumberOfOrphanedImagesLoaded()}.
      */
-    public ReadOnlyIntegerProperty getNumberOfOrphanedImagesLoaded() {
+    public ObservableIntegerValue getNumberOfOrphanedImagesLoaded() {
         return jsonApi.getNumberOfOrphanedImagesLoaded();
     }
 

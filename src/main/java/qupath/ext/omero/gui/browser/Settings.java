@@ -2,6 +2,7 @@ package qupath.ext.omero.gui.browser;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.value.ChangeListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -25,14 +26,21 @@ import java.util.regex.Pattern;
 
 /**
  * Window allowing to change settings related to a {@link Client}.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-class Settings extends Stage {
+class Settings extends Stage implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Settings.class);
     private static final ResourceBundle resources = Utils.getResources();
     private final WebApi webApi;
     private final IceApi iceApi;
     private final MsPixelBufferApi msPixelBufferApi;
+    private final ChangeListener<? super Number> webJpegQualityListener;
+    private final ChangeListener<? super String> omeroAddressListener;
+    private final ChangeListener<? super Number> omeroPortListener;
+    private final ChangeListener<? super Number> numberOfIceReadersListener;
+    private final ChangeListener<? super Number> msPixelBufferAPIPortListener;
     @FXML
     private CustomTextField webJpegQuality;
     @FXML
@@ -47,51 +55,36 @@ class Settings extends Stage {
     /**
      * Creates the settings window.
      *
-     * @param ownerWindow the stage who should own this window
+     * @param owner the stage who should own this window
      * @param client the client whose settings should be displayed
      * @throws IOException if an error occurs while creating the window
      */
-    public Settings(Stage ownerWindow, Client client) throws IOException {
+    public Settings(Stage owner, Client client) throws IOException {
         logger.debug("Creating settings window for {}", client);
 
         this.webApi = client.getPixelAPI(WebApi.class);
         this.iceApi = client.getPixelAPI(IceApi.class);
         this.msPixelBufferApi = client.getPixelAPI(MsPixelBufferApi.class);
+        this.webJpegQualityListener = (p, o, n) -> Platform.runLater(() ->
+                webJpegQuality.setText(String.valueOf(n))
+        );
+        this.omeroAddressListener = (p, o, n) -> Platform.runLater(() ->
+                omeroAddress.setText(n)
+        );
+        this.omeroPortListener = (p, o, n) -> Platform.runLater(() ->
+                omeroPort.setText(String.valueOf(n))
+        );
+        this.numberOfIceReadersListener = (p, o, n) -> Platform.runLater(() ->
+                numberOfIceReaders.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                        iceApi.getMinNumberOfReaders(),
+                        iceApi.getMaxNumberOfReaders(),
+                        n.intValue()
+                ))
+        );
+        this.msPixelBufferAPIPortListener = (p, o, n) -> Platform.runLater(() ->
+                msPixelBufferAPIPort.setText(String.valueOf(n))
+        );
 
-        initUI(ownerWindow);
-        setUpListeners();
-    }
-
-    /**
-     * Reset the text fields of this window to the values of the pixel APIs
-     */
-    public void resetEntries() {
-        logger.debug("Resetting entries to values of pixel APIs");
-
-        webJpegQuality.setText(String.valueOf(webApi.getJpegQuality().get()));
-        omeroAddress.setText(iceApi.getServerAddress().get());
-        omeroPort.setText(String.valueOf(iceApi.getServerPort().get()));
-        numberOfIceReaders.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
-                iceApi.getMinNumberOfReaders(),
-                iceApi.getMaxNumberOfReaders(),
-                iceApi.getNumberOfReaders().get()
-        ));
-        msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferApi.getPort().get()));
-    }
-
-    @FXML
-    private void onOKClicked(ActionEvent ignoredEvent) {
-        if (save()) {
-            close();
-        }
-    }
-
-    @FXML
-    private void onCancelClicked(ActionEvent ignoredEvent) {
-        close();
-    }
-
-    private void initUI(Stage ownerWindow) throws IOException {
         UiUtilities.loadFXML(this, Settings.class.getResource("settings.fxml"));
 
         UnaryOperator<TextFormatter.Change> floatFilter = change ->
@@ -124,30 +117,11 @@ class Settings extends Stage {
 
         resetEntries();
 
-        initOwner(ownerWindow);
-        show();
-    }
-
-    private void setUpListeners() {
-        webApi.getJpegQuality().addListener((p, o, n) -> Platform.runLater(() ->
-                webJpegQuality.setText(String.valueOf(n))
-        ));
-        iceApi.getServerAddress().addListener((p, o, n) -> Platform.runLater(() ->
-                omeroAddress.setText(n)
-        ));
-        iceApi.getServerPort().addListener((p, o, n) -> Platform.runLater(() ->
-                omeroPort.setText(String.valueOf(n))
-        ));
-        iceApi.getNumberOfReaders().addListener((p, o, n) -> Platform.runLater(() ->
-                numberOfIceReaders.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
-                        iceApi.getMinNumberOfReaders(),
-                        iceApi.getMaxNumberOfReaders(),
-                        n.intValue()
-                ))
-        ));
-        msPixelBufferApi.getPort().addListener((p, o, n) -> Platform.runLater(() ->
-                msPixelBufferAPIPort.setText(String.valueOf(n))
-        ));
+        webApi.getJpegQuality().addListener(webJpegQualityListener);
+        iceApi.getServerAddress().addListener(omeroAddressListener);
+        iceApi.getServerPort().addListener(omeroPortListener);
+        iceApi.getNumberOfReaders().addListener(numberOfIceReadersListener);
+        msPixelBufferApi.getPort().addListener(msPixelBufferAPIPortListener);
 
         getScene().addEventFilter(
                 KeyEvent.KEY_PRESSED,
@@ -164,6 +138,47 @@ class Settings extends Stage {
                     }
                 }
         );
+
+        initOwner(owner);
+        show();
+    }
+
+    @Override
+    public void close() {
+        webApi.getJpegQuality().removeListener(webJpegQualityListener);
+        iceApi.getServerAddress().removeListener(omeroAddressListener);
+        iceApi.getServerPort().removeListener(omeroPortListener);
+        iceApi.getNumberOfReaders().removeListener(numberOfIceReadersListener);
+        msPixelBufferApi.getPort().removeListener(msPixelBufferAPIPortListener);
+    }
+
+    /**
+     * Reset the text fields of this window to the values of the pixel APIs
+     */
+    public void resetEntries() {
+        logger.debug("Resetting entries to values of pixel APIs");
+
+        webJpegQuality.setText(String.valueOf(webApi.getJpegQuality().get()));
+        omeroAddress.setText(iceApi.getServerAddress().get());
+        omeroPort.setText(String.valueOf(iceApi.getServerPort().get()));
+        numberOfIceReaders.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(
+                iceApi.getMinNumberOfReaders(),
+                iceApi.getMaxNumberOfReaders(),
+                iceApi.getNumberOfReaders().get()
+        ));
+        msPixelBufferAPIPort.setText(String.valueOf(msPixelBufferApi.getPort().get()));
+    }
+
+    @FXML
+    private void onOKClicked(ActionEvent ignoredEvent) {
+        if (save()) {
+            close();
+        }
+    }
+
+    @FXML
+    private void onCancelClicked(ActionEvent ignoredEvent) {
+        close();
     }
 
     private boolean save() {

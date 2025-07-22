@@ -8,8 +8,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ObservableIntegerValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
@@ -221,7 +221,7 @@ class JsonApi {
      * @return the number of OMERO entities (e.g. datasets, images) currently being loaded by the API.
      * This property may be updated from any thread
      */
-    public ReadOnlyIntegerProperty getNumberOfEntitiesLoading() {
+    public ObservableIntegerValue getNumberOfEntitiesLoading() {
         return numberOfEntitiesLoading;
     }
 
@@ -452,7 +452,7 @@ class JsonApi {
      * @return the number of orphaned images which have been loaded.
      * This property may be updated from any thread
      */
-    public ReadOnlyIntegerProperty getNumberOfOrphanedImagesLoaded() {
+    public ObservableIntegerValue getNumberOfOrphanedImagesLoaded() {
         return numberOfOrphanedImagesLoaded;
     }
 
