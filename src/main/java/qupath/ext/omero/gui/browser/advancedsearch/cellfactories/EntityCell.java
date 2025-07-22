@@ -6,9 +6,9 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEn
 import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 
 /**
- * Cell factory that displays a server entity name in the cell and in an associated tooltip.
+ * Cell that displays a server entity name in the cell and in an associated tooltip.
  */
-public class EntityCellFactory<T extends ServerEntity> extends TableCell<SearchResultWithParentInfo, T> {
+public class EntityCell<T extends ServerEntity> extends TableCell<SearchResultWithParentInfo, T> {
 
     @Override
     protected void updateItem(T item, boolean empty) {

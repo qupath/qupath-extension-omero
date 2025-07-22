@@ -1,6 +1,7 @@
 package qupath.ext.omero.gui.browser;
 
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,14 +21,17 @@ import java.util.function.Consumer;
 
 /**
  * Command that starts a {@link Browser browser} corresponding to a URI.
+ * <p>
+ * This command must be {@link #close() closed} once no longer used.
  */
-class BrowserCommand implements Runnable {
+class BrowserCommand implements Runnable, AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(BrowserCommand.class);
     private static final ResourceBundle resources = Utils.getResources();
     private final URI uri;
     private final Stage owner;
     private final Consumer<Client> onClientCreated;
+    private final ListChangeListener<? super Client> clientListener;
     private Browser browser;
     private Client client;
     private LoginForm loginForm;
@@ -45,16 +49,18 @@ class BrowserCommand implements Runnable {
         this.uri = uri;
         this.owner = owner;
         this.onClientCreated = onClientCreated;
-
-        Client.addListenerToClients(() -> Platform.runLater(() -> {
+        this.clientListener = change -> Platform.runLater(() -> {
             if (client != null && !Client.getClients().contains(client)) {
                 if (browser != null) {
                     browser.close();
+                    browser.hide();
                 }
                 browser = null;
                 client = null;
             }
-        }));
+        });
+
+        Client.addClientsListener(clientListener);
     }
 
     @Override
@@ -92,6 +98,15 @@ class BrowserCommand implements Runnable {
             logger.debug("Browser doesn't exist but login form already exists. Showing it");
             loginForm.show();
             loginForm.requestFocus();
+        }
+    }
+
+    @Override
+    public void close() {
+        Client.removeClientsListener(clientListener);
+
+        if (browser != null) {
+            browser.close();
         }
     }
 

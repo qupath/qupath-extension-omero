@@ -33,7 +33,7 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.gui.ImageOpener;
-import qupath.ext.omero.gui.browser.hierarchy.HierarchyCellFactory;
+import qupath.ext.omero.gui.browser.hierarchy.HierarchyCell;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyItem;
 import qupath.ext.omero.gui.login.LoginForm;
 import qupath.fx.controls.PredicateTextField;
@@ -52,6 +52,7 @@ import qupath.ext.omero.core.pixelapis.PixelApi;
 
 import java.io.IOException;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -70,12 +71,15 @@ import java.util.stream.IntStream;
  * It can launch a window that performs a search on OMERO entities, described in {@link qupath.ext.omero.gui.browser.advancedsearch advanced_search}.
  * <p>
  * It uses a {@link BrowserModel} to update its state.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-class Browser extends Stage {
+class Browser extends Stage implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Browser.class);
     private static final float DESCRIPTION_ATTRIBUTE_PROPORTION = 0.25f;
     private static final ResourceBundle resources = Utils.getResources();
+    private final List<HierarchyCell> hierarchyCells = new ArrayList<>();
     private final Client client;
     private final Server server;
     private final Consumer<Client> onClientCreated;
@@ -132,7 +136,7 @@ class Browser extends Stage {
     private Settings settings = null;
 
     /**
-     * Create the browser window.
+     * Create and show the browser window.
      *
      * @param owner the owner of this window
      * @param client the client which will be used by this browser to retrieve data from the corresponding OMERO server
@@ -153,6 +157,23 @@ class Browser extends Stage {
 
         initUI(owner);
         setUpListeners();
+    }
+
+    @Override
+    public void close() {
+        if (hierarchy.getRoot() instanceof HierarchyItem hierarchyItem) {
+            hierarchyItem.close();
+        }
+
+        for (HierarchyCell hierarchyCell: hierarchyCells) {
+            hierarchyCell.close();
+        }
+
+        if (settings != null) {
+            settings.close();
+        }
+
+        browserModel.close();
     }
 
     @FXML
@@ -234,7 +255,7 @@ class Browser extends Stage {
             var selectedItem = hierarchy.getSelectionModel().getSelectedItem();
             RepositoryEntity selectedObject = selectedItem == null ? null : selectedItem.getValue();
 
-            if (selectedObject instanceof Image image && image.isSupported(client.getSelectedPixelApi().get())) {
+            if (selectedObject instanceof Image image && image.isSupported(client.getSelectedPixelApi().getValue())) {
                 logger.debug("Double click on tree detected while {} is selected and supported. Opening it", image);
                 ImageOpener.openImageFromUris(List.of(client.getApisHandler().getEntityUri(image)), client.getApisHandler());
             }
@@ -390,7 +411,7 @@ class Browser extends Stage {
                 return null;
             }
         });
-        pixelAPI.getSelectionModel().select(browserModel.getSelectedPixelAPI().get());
+        pixelAPI.getSelectionModel().select(browserModel.getSelectedPixelAPI().getValue());
 
         group.getItems().setAll(Group.getAllGroupsGroup());
         group.getItems().addAll(server.getGroups());
@@ -434,7 +455,11 @@ class Browser extends Stage {
                 browserModel.getSelectedGroup(),
                 predicateTextField.predicateProperty()
         ));
-        hierarchy.setCellFactory(n -> new HierarchyCellFactory(client));
+        hierarchy.setCellFactory(n -> {
+            HierarchyCell hierarchyCell = new HierarchyCell(client);
+            hierarchyCells.add(hierarchyCell);
+            return hierarchyCell;
+        });
 
         filterContainer.getChildren().addFirst(predicateTextField);
 
@@ -477,7 +502,7 @@ class Browser extends Stage {
         numberOpenImages.textProperty().bind(Bindings.size(browserModel.getOpenedImagesURIs()).asString());
 
         BooleanBinding rawPixelBindings = Bindings.createBooleanBinding(
-                () -> browserModel.getSelectedPixelAPI().get() != null && browserModel.getSelectedPixelAPI().get().canAccessRawPixels(),
+                () -> browserModel.getSelectedPixelAPI().getValue() != null && browserModel.getSelectedPixelAPI().getValue().canAccessRawPixels(),
                 browserModel.getSelectedPixelAPI()
         );
         rawPixelAccess.textProperty().bind(Bindings
@@ -543,8 +568,9 @@ class Browser extends Stage {
             updateImportButton();
         });
 
-        BooleanBinding isSelectedItemOrphanedFolderBinding = Bindings.createBooleanBinding(() ->
-                        hierarchy.getSelectionModel().getSelectedItem() != null && hierarchy.getSelectionModel().getSelectedItem().getValue() instanceof OrphanedFolder,
+        BooleanBinding isSelectedItemOrphanedFolderBinding = Bindings.createBooleanBinding(
+                () -> hierarchy.getSelectionModel().getSelectedItem() != null &&
+                        hierarchy.getSelectionModel().getSelectedItem().getValue() instanceof OrphanedFolder,
                 hierarchy.getSelectionModel().selectedItemProperty()
         );
         moreInfo.disableProperty().bind(isSelectedItemOrphanedFolderBinding);
@@ -559,10 +585,11 @@ class Browser extends Stage {
                 .otherwise(new Label(resources.getString("Browser.ServerBrowser.multipleElementsSelected")))
         );
 
-        canvas.managedProperty().bind(Bindings.createBooleanBinding(() ->
-                        hierarchy.getSelectionModel().getSelectedItems().size() == 1 &&
-                                hierarchy.getSelectionModel().getSelectedItems().getFirst().getValue() instanceof Image,
-                hierarchy.getSelectionModel().getSelectedItems()));
+        canvas.managedProperty().bind(Bindings.createBooleanBinding(
+                () -> hierarchy.getSelectionModel().getSelectedItems().size() == 1 &&
+                        hierarchy.getSelectionModel().getSelectedItems().getFirst().getValue() instanceof Image,
+                hierarchy.getSelectionModel().getSelectedItems()
+        ));
 
         browserModel.getSelectedPixelAPI().addListener(change -> updateImportButton());
     }
@@ -615,7 +642,7 @@ class Browser extends Stage {
                 .filter(Objects::nonNull)
                 .filter(repositoryEntity -> {
                     if (repositoryEntity instanceof Image image) {
-                        return image.isSupported(client.getSelectedPixelApi().get());
+                        return image.isSupported(client.getSelectedPixelApi().getValue());
                     } else {
                         return repositoryEntity instanceof ServerEntity;
                     }

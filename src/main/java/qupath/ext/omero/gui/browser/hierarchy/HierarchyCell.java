@@ -24,17 +24,19 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Cell factory of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
+ * Cell of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
  * {@link RepositoryEntity RepositoryEntity} elements .</p>
  * <p>
  * It displays the name of each OMERO entity, a corresponding icon, the number of children (if any),
  * and additional information with a tooltip.
  * <p>
  * If the entity is an {@link Image Image}, a complex tooltip described in {@link ImageTooltip} is used.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
+public class HierarchyCell extends TreeCell<RepositoryEntity> implements AutoCloseable {
 
-    private static final Logger logger = LoggerFactory.getLogger(HierarchyCellFactory.class);
+    private static final Logger logger = LoggerFactory.getLogger(HierarchyCell.class);
     private static final double SUPPORTED_IMAGE_OPACITY = 1;
     private static final double UNSUPPORTED_IMAGE_OPACITY = 0.5;
     private static final List<Class<? extends RepositoryEntity>> ACCEPTED_ICONS_TYPES = List.of(
@@ -51,11 +53,11 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
     private ChangeListener<? super PixelApi> selectedPixelApiListener;
 
     /**
-     * Creates the cell factory.
+     * Creates the cell.
      *
      * @param client the client to use when making requests
      */
-    public HierarchyCellFactory(Client client) {
+    public HierarchyCell(Client client) {
         this.client = client;
     }
 
@@ -89,7 +91,7 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
                 selectedPixelApiListener = (p, o, n) -> Platform.runLater(() ->
                         setOpacity(image.isSupported(n) ? SUPPORTED_IMAGE_OPACITY : UNSUPPORTED_IMAGE_OPACITY)
                 );
-                selectedPixelApiListener.changed(client.getSelectedPixelApi(), null, client.getSelectedPixelApi().get());
+                selectedPixelApiListener.changed(client.getSelectedPixelApi(), null, client.getSelectedPixelApi().getValue());
                 client.getSelectedPixelApi().addListener(selectedPixelApiListener);
 
                 try {
@@ -100,6 +102,17 @@ public class HierarchyCellFactory extends TreeCell<RepositoryEntity> {
             }
 
             setTooltip(tooltip);
+        }
+    }
+
+    @Override
+    public void close() {
+        if (selectedPixelApiListener != null) {
+            client.getSelectedPixelApi().removeListener(selectedPixelApiListener);
+        }
+
+        if (getTooltip() != null && getTooltip().getGraphic() != null && getTooltip().getGraphic() instanceof ImageTooltip imageTooltip) {
+            imageTooltip.close();
         }
     }
 

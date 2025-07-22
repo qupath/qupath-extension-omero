@@ -33,7 +33,7 @@ public class TestClient extends OmeroServer {
             PixelApi expectedPixelApi = client.getPixelAPI(WebApi.class);
             client.setSelectedPixelAPI(expectedPixelApi);
 
-            PixelApi pixelAPI = client.getSelectedPixelApi().get();
+            PixelApi pixelAPI = client.getSelectedPixelApi().getValue();
 
             Assertions.assertEquals(expectedPixelApi, pixelAPI);
         }

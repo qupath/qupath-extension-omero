@@ -9,16 +9,16 @@ import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.lib.gui.QuPathGUI;
 
 /**
- * Cell factory that displays a button that opens the link of a search result in a browser.
+ * Cell that displays a button that opens the link of a search result in a browser.
  */
-public class LinkCellFactory extends TableCell<SearchResultWithParentInfo, SearchResult> {
+public class LinkCell extends TableCell<SearchResultWithParentInfo, SearchResult> {
 
     private final Hyperlink hyperlink = new Hyperlink();
 
     /**
-     * Create the cell factory.
+     * Create the cell.
      */
-    public LinkCellFactory() {
+    public LinkCell() {
         hyperlink.setTextOverrun(OverrunStyle.LEADING_WORD_ELLIPSIS);
     }
 

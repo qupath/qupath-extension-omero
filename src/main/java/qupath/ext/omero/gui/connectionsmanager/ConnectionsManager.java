@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ListChangeListener;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -31,6 +32,7 @@ public class ConnectionsManager extends Stage implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionsManager.class);
     private final ListChangeListener<? super ServerPreference> serverPreferencesListener = change-> Platform.runLater(this::populate);
+    private final ListChangeListener<? super Client> clientsListener = change-> Platform.runLater(this::populate);
     private final Consumer<Client> openClientBrowser;
     @FXML
     private VBox container;
@@ -56,7 +58,7 @@ public class ConnectionsManager extends Stage implements AutoCloseable {
         }
         populate();
 
-        Client.addListenerToClients(() -> Platform.runLater(this::populate));
+        Client.addClientsListener(clientsListener);
         PreferencesManager.addServerPreferencesListener(serverPreferencesListener);
 
         noClients.visibleProperty().bind(Bindings.isEmpty(container.getChildren()));
@@ -67,7 +69,14 @@ public class ConnectionsManager extends Stage implements AutoCloseable {
 
     @Override
     public void close() {
+        Client.removeClientsListener(clientsListener);
         PreferencesManager.removeServerPreferencesListener(serverPreferencesListener);
+
+        for (Node node: container.getChildren()) {
+            if (node instanceof Connection connection) {
+                connection.close();
+            }
+        }
     }
 
     private void populate() {
@@ -85,6 +94,9 @@ public class ConnectionsManager extends Stage implements AutoCloseable {
                         )
                 )
                 .toList();
+        for (Connection connection: connectionsToRemove) {
+            connection.close();
+        }
         container.getChildren().removeAll(connectionsToRemove);
         logger.debug("Removed connections {}", connectionsToRemove.stream().map(Connection::getServerURI).toList());
 

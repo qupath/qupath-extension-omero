@@ -37,10 +37,10 @@ import qupath.ext.omero.core.entities.search.SearchResult;
 import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.ext.omero.gui.ImageOpener;
 import qupath.ext.omero.gui.UiUtilities;
-import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.EntityCellFactory;
-import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.LinkCellFactory;
-import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TextCellFactory;
-import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TypeCellFactory;
+import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.EntityCell;
+import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.LinkCell;
+import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TextCell;
+import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TypeCell;
 import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
@@ -249,18 +249,18 @@ public class AdvancedSearch extends Stage {
         plateAcquisitionColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().parentPlateAcquisition()));
         wellColumn.setCellValueFactory(n -> new ReadOnlyObjectWrapper<>(n.getValue().parentWell()));
 
-        typeColumn.setCellFactory(n -> new TypeCellFactory(apisHandler));
-        nameColumn.setCellFactory(n -> new TextCellFactory());
-        acquiredColumn.setCellFactory(n -> new TextCellFactory());
-        importedColumn.setCellFactory(n -> new TextCellFactory());
-        groupColumn.setCellFactory(n -> new TextCellFactory());
-        linkColumn.setCellFactory(n -> new LinkCellFactory());
-        projectColumn.setCellFactory(n -> new EntityCellFactory<>());
-        datasetColumn.setCellFactory(n -> new EntityCellFactory<>());
-        screenColumn.setCellFactory(n -> new EntityCellFactory<>());
-        plateColumn.setCellFactory(n -> new EntityCellFactory<>());
-        plateAcquisitionColumn.setCellFactory(n -> new EntityCellFactory<>());
-        wellColumn.setCellFactory(n -> new EntityCellFactory<>());
+        typeColumn.setCellFactory(n -> new TypeCell(apisHandler));
+        nameColumn.setCellFactory(n -> new TextCell());
+        acquiredColumn.setCellFactory(n -> new TextCell());
+        importedColumn.setCellFactory(n -> new TextCell());
+        groupColumn.setCellFactory(n -> new TextCell());
+        linkColumn.setCellFactory(n -> new LinkCell());
+        projectColumn.setCellFactory(n -> new EntityCell<>());
+        datasetColumn.setCellFactory(n -> new EntityCell<>());
+        screenColumn.setCellFactory(n -> new EntityCell<>());
+        plateColumn.setCellFactory(n -> new EntityCell<>());
+        plateAcquisitionColumn.setCellFactory(n -> new EntityCell<>());
+        wellColumn.setCellFactory(n -> new EntityCell<>());
 
         initOwner(ownerWindow);
         show();

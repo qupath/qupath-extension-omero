@@ -179,7 +179,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
                 PixelApi pixelApi = getPixelAPIFromArgs(client, args).orElse(null);
                 if (pixelApi == null) {
-                    pixelApi = client.getSelectedPixelApi().get();
+                    pixelApi = client.getSelectedPixelApi().getValue();
 
                     if (pixelApi == null) {
                         logger.debug("No supplied pixel API and no selected pixel API. Can't open {}", uri);

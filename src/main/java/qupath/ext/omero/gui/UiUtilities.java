@@ -1,6 +1,7 @@
 package qupath.ext.omero.gui;
 
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.beans.value.WritableValue;
 import javafx.collections.ListChangeListener;
@@ -145,17 +146,22 @@ public class UiUtilities {
      *
      * @param propertyToUpdate the property to update
      * @param propertyToListen the property to listen
+     * @return the listener that was added to the property to listen, so that it can be removed when needed
      * @param <T> the type of the property
      */
-    public static <T> void bindPropertyInUIThread(WritableValue<T> propertyToUpdate, ObservableValue<T> propertyToListen) {
+    public static <T> ChangeListener<? super T> bindPropertyInUIThread(WritableValue<T> propertyToUpdate, ObservableValue<T> propertyToListen) {
         propertyToUpdate.setValue(propertyToListen.getValue());
-        propertyToListen.addListener((p, o, n) -> {
+
+        ChangeListener<? super T> listener = (p, o, n) -> {
             if (Platform.isFxApplicationThread()) {
                 propertyToUpdate.setValue(n);
             } else {
                 Platform.runLater(() -> propertyToUpdate.setValue(n));
             }
-        });
+        };
+        propertyToListen.addListener(listener);
+
+        return listener;
     }
 
     /**
@@ -165,12 +171,13 @@ public class UiUtilities {
      *
      * @param setToUpdate the set to update
      * @param setToListen the set to listen
+     * @return the listener that was added to the set to listen, so that it can be removed when needed
      * @param <T> the type of the elements of the sets
      */
-    public static <T> void bindSetInUIThread(ObservableSet<T> setToUpdate, ObservableSet<T> setToListen) {
+    public static <T> SetChangeListener<? super T> bindSetInUIThread(ObservableSet<T> setToUpdate, ObservableSet<T> setToListen) {
         setToUpdate.addAll(setToListen);
 
-        setToListen.addListener((SetChangeListener<? super T>) change -> {
+        SetChangeListener<? super T> listener = change -> {
             if (Platform.isFxApplicationThread()) {
                 if (change.wasAdded()) {
                     setToUpdate.add(change.getElementAdded());
@@ -188,7 +195,10 @@ public class UiUtilities {
                     }
                 });
             }
-        });
+        };
+        setToListen.addListener(listener);
+
+        return listener;
     }
 
     /**
@@ -198,12 +208,13 @@ public class UiUtilities {
      *
      * @param listToUpdate the list to update
      * @param listToListen the list to listen
+     * @return the listener that was added to the list to listen, so that it can be removed when needed
      * @param <T> the type of the elements of the lists
      */
-    public static <T> void bindListInUIThread(ObservableList<T> listToUpdate, ObservableList<T> listToListen) {
+    public static <T> ListChangeListener<? super T> bindListInUIThread(ObservableList<T> listToUpdate, ObservableList<T> listToListen) {
         listToUpdate.addAll(listToListen);
 
-        listToListen.addListener((ListChangeListener<? super T>) change -> Platform.runLater(() -> {
+        ListChangeListener<? super T> listener = change -> {
             if (Platform.isFxApplicationThread()) {
                 while (change.next()) {
                     if (change.wasAdded()) {
@@ -227,6 +238,9 @@ public class UiUtilities {
                     change.reset();
                 });
             }
-        }));
+        };
+        listToListen.addListener(listener);
+
+        return listener;
     }
 }

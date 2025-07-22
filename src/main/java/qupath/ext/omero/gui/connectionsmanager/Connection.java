@@ -35,8 +35,10 @@ import java.util.function.Consumer;
  * <p>
  * It also displays the list of images of this server that are currently opened using the
  * {@link Image Image} label.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-class Connection extends VBox {
+class Connection extends VBox implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
     private static final ResourceBundle resources = Utils.getResources();
@@ -44,6 +46,7 @@ class Connection extends VBox {
     private final Client client;
     private final URI serverURI;
     private final Consumer<Client> openClientBrowser;
+    private final SetChangeListener<? super URI> openedImagesURIsListener;
     @FXML
     private Label uri;
     @FXML
@@ -98,9 +101,73 @@ class Connection extends VBox {
         this.client = client;
         this.serverURI = serverURI;
         this.openClientBrowser = openClientBrowser;
+        this.openedImagesURIsListener = client == null ? null :change -> Platform.runLater(() -> {
+            imagesPane.setText(String.format(
+                    "%d %s",
+                    client.getOpenedImagesURIs().size(),
+                    resources.getString(client.getOpenedImagesURIs().size() > 1 ?
+                            "ConnectionsManager.Connection.images" :
+                            "ConnectionsManager.Connection.image"
+                    )
+            ));
 
-        initUI();
-        setUpListeners();
+            if (change.wasAdded()) {
+                try {
+                    imagesContainer.getChildren().add(new Image(client.getApisHandler(), change.getElementAdded()));
+                } catch (IOException e) {
+                    logger.error("Error while creating image pane", e);
+                }
+            }
+            if (change.wasRemoved()) {
+                imagesContainer.getChildren().removeAll(imagesContainer.getChildren().stream()
+                        .filter(node -> node instanceof Image)
+                        .map(node -> (Image) node)
+                        .filter(image -> image.getImageUri().equals(change.getElementRemoved()))
+                        .toList());
+            }
+        });
+
+        UiUtilities.loadFXML(this, Connection.class.getResource("connection.fxml"));
+
+        if (client == null) {
+            uri.setText(serverURI.toString());
+            uri.setGraphic(UiUtilities.createStateNode(false));
+
+            buttons.getChildren().removeAll(browse, login, disconnect);
+        } else {
+            uri.setText(switch (client.getApisHandler().getCredentials().userType()) {
+                case PUBLIC_USER -> serverURI.toString();
+                case REGULAR_USER -> String.format("%s (%s)", serverURI, client.getApisHandler().getCredentials().username());
+            });
+            uri.setGraphic(UiUtilities.createStateNode(true));
+
+            buttons.getChildren().remove(connect);
+            if (client.getApisHandler().getCredentials().userType().equals(Credentials.UserType.REGULAR_USER)) {
+                buttons.getChildren().remove(login);
+            }
+
+            imagesPane.setText(String.format(
+                    "%d %s",
+                    client.getOpenedImagesURIs().size(),
+                    resources.getString(client.getOpenedImagesURIs().size() > 1 ?
+                            "ConnectionsManager.Connection.images" :
+                            "ConnectionsManager.Connection.image"
+                    )
+            ));
+
+            for (URI uri: client.getOpenedImagesURIs()) {
+                imagesContainer.getChildren().add(new Image(client.getApisHandler(), uri));
+            }
+
+            client.getOpenedImagesURIs().addListener(openedImagesURIsListener);
+        }
+    }
+
+    @Override
+    public void close() {
+        if (client != null) {
+            client.getOpenedImagesURIs().removeListener(openedImagesURIsListener);
+        }
     }
 
     /**
@@ -232,71 +299,6 @@ class Connection extends VBox {
             disconnect();
         }
         PreferencesManager.removeServer(serverURI);
-    }
-
-    private void initUI() throws IOException {
-        UiUtilities.loadFXML(this, Connection.class.getResource("connection.fxml"));
-
-        if (client == null) {
-            uri.setText(serverURI.toString());
-            uri.setGraphic(UiUtilities.createStateNode(false));
-
-            buttons.getChildren().removeAll(browse, login, disconnect);
-        } else {
-            uri.setText(switch (client.getApisHandler().getCredentials().userType()) {
-                case PUBLIC_USER -> serverURI.toString();
-                case REGULAR_USER -> String.format("%s (%s)", serverURI, client.getApisHandler().getCredentials().username());
-            });
-            uri.setGraphic(UiUtilities.createStateNode(true));
-
-            buttons.getChildren().remove(connect);
-            if (client.getApisHandler().getCredentials().userType().equals(Credentials.UserType.REGULAR_USER)) {
-                buttons.getChildren().remove(login);
-            }
-
-            imagesPane.setText(String.format(
-                    "%d %s",
-                    client.getOpenedImagesURIs().size(),
-                    resources.getString(client.getOpenedImagesURIs().size() > 1 ?
-                            "ConnectionsManager.Connection.images" :
-                            "ConnectionsManager.Connection.image"
-                    )
-            ));
-
-            for (URI uri: client.getOpenedImagesURIs()) {
-                imagesContainer.getChildren().add(new Image(client.getApisHandler(), uri));
-            }
-        }
-    }
-
-    private void setUpListeners() {
-        if (client != null) {
-            client.getOpenedImagesURIs().addListener((SetChangeListener<? super URI>) change -> Platform.runLater(() -> {
-                imagesPane.setText(String.format(
-                        "%d %s",
-                        client.getOpenedImagesURIs().size(),
-                        resources.getString(client.getOpenedImagesURIs().size() > 1 ?
-                                        "ConnectionsManager.Connection.images" :
-                                        "ConnectionsManager.Connection.image"
-                        )
-                ));
-
-                if (change.wasAdded()) {
-                    try {
-                        imagesContainer.getChildren().add(new Image(client.getApisHandler(), change.getElementAdded()));
-                    } catch (IOException e) {
-                        logger.error("Error while creating image pane", e);
-                    }
-                }
-                if (change.wasRemoved()) {
-                    imagesContainer.getChildren().removeAll(imagesContainer.getChildren().stream()
-                            .filter(node -> node instanceof Image)
-                            .map(node -> (Image) node)
-                            .filter(image -> image.getImageUri().equals(change.getElementRemoved()))
-                            .toList());
-                }
-            }));
-        }
     }
 
     private void disconnect() {

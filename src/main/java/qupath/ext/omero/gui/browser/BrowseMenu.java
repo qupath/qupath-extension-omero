@@ -75,6 +75,10 @@ public class BrowseMenu extends Menu implements AutoCloseable {
     @Override
     public void close() {
         PreferencesManager.removeServerPreferencesListener(preferencesListener);
+
+        for (var entry: browserCommands.entrySet()) {
+            entry.getValue().close();
+        }
     }
 
     /**

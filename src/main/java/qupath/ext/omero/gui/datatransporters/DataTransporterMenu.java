@@ -11,8 +11,10 @@ import java.util.List;
 
 /**
  * A menu whose items represent a list of {@link DataTransporter}.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-public class DataTransporterMenu extends Menu {
+public class DataTransporterMenu extends Menu implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(DataTransporterMenu.class);
     /**
@@ -39,11 +41,21 @@ public class DataTransporterMenu extends Menu {
                                     quPath.getProject() != null,
                                     quPath.getImageData() != null && quPath.getViewer().getServer().getMetadata().isRGB()
                             ),
-                            quPath.projectProperty(), quPath.imageDataProperty()
+                            quPath.projectProperty(),
+                            quPath.imageDataProperty()
                     ));
 
                     return menuItem;
                 })
                 .toList());
+    }
+
+    @Override
+    public void close() {
+        disableProperty().unbind();
+
+        for (MenuItem menuItem: getItems()) {
+            menuItem.disableProperty().unbind();
+        }
     }
 }

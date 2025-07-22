@@ -53,7 +53,7 @@ class ImageTooltip extends VBox implements AutoCloseable {
         pixelApiListener = (p, o, n) -> Platform.runLater(() ->
                 setErrorLine(image, n)
         );
-        pixelApiListener.changed(client.getSelectedPixelApi(), null, client.getSelectedPixelApi().get());
+        pixelApiListener.changed(client.getSelectedPixelApi(), null, client.getSelectedPixelApi().getValue());
         client.getSelectedPixelApi().addListener(pixelApiListener);
 
         client.getApisHandler().getThumbnail(image.getId()).whenComplete((thumbnail, error) -> Platform.runLater(() -> {

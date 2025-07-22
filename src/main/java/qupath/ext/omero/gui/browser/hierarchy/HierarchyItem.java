@@ -36,8 +36,10 @@ import java.util.function.Predicate;
  * The items can be filtered by {@link Owner owner}, {@link Group group}, and name.
  * <p>
  * When an item is expanded, a web request is started to retrieve its children (if they don't already exist).
+ * <p>
+ * This item must be {@link #close() closed} once no longer used.
  */
-public class HierarchyItem extends TreeItem<RepositoryEntity> {
+public class HierarchyItem extends TreeItem<RepositoryEntity> implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(HierarchyItem.class);
     private static final Map<Class<? extends RepositoryEntity>, Integer> CLASS_ORDER = Map.of(
@@ -55,6 +57,7 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
                     .comparingInt((TreeItem<RepositoryEntity> item) -> CLASS_ORDER.getOrDefault(item.getValue().getClass(), 0))
                     .thenComparing(item -> item.getValue().getLabel())
     );  // not converted to local variable because otherwise it might get deleted by the garbage collector
+    private final ListChangeListener<? super RepositoryEntity> childrenListener;
     private boolean computed = false;
 
     /**
@@ -74,6 +77,22 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
     ) {
         super(repositoryEntity);
 
+        this.childrenListener = change -> Platform.runLater(() -> {
+            for (TreeItem<RepositoryEntity> item: children) {
+                if (item instanceof HierarchyItem hierarchyItem) {
+                    hierarchyItem.close();
+                }
+            }
+
+            // Make a copy of the children to make sure no one is added while iterating
+            List<? extends RepositoryEntity> newChildren = new ArrayList<>(getValue().getChildren());
+
+            children.setAll(newChildren.stream()
+                    .map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate))
+                    .toList()
+            );
+        });
+
         Bindings.bindContent(
                 getChildren(),
                 sortedChildren
@@ -85,15 +104,10 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
                 computed = true;
 
                 children.setAll(getValue().getChildren().stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
-                getValue().getChildren().addListener((ListChangeListener<? super RepositoryEntity>) change -> Platform.runLater(() -> {
-                    // Make a copy of the children to make sure no one is added while iterating
-                    List<? extends RepositoryEntity> newChildren = new ArrayList<>(getValue().getChildren());
-
-                    children.setAll(newChildren.stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
-                }));
+                getValue().getChildren().addListener(childrenListener);
 
                 filteredChildren.predicateProperty().bind(Bindings.createObjectBinding(
-                        () -> (Predicate<TreeItem<RepositoryEntity>>) item -> {
+                        () -> item -> {
                             if (item.getValue() instanceof Image image) {
                                 return labelPredicate.getValue().test(image) &&
                                         image.isFilteredByGroupOwner(groupBinding.getValue(), ownerBinding.getValue());
@@ -103,8 +117,10 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
                                 return true;
                             }
                         },
-                        groupBinding, ownerBinding, labelPredicate)
-                );
+                        groupBinding,
+                        ownerBinding,
+                        labelPredicate
+                ));
             }
         });
     }
@@ -112,5 +128,18 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> {
     @Override
     public boolean isLeaf() {
         return !getValue().hasChildren();
+    }
+
+    @Override
+    public void close() {
+        filteredChildren.predicateProperty().unbind();
+
+        for (TreeItem<RepositoryEntity> item: children) {
+            if (item instanceof HierarchyItem hierarchyItem) {
+                hierarchyItem.close();
+            }
+        }
+
+        getValue().getChildren().removeListener(childrenListener);
     }
 }
