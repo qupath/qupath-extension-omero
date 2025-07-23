@@ -128,12 +128,14 @@ class Settings extends Stage implements AutoCloseable {
                 keyEvent -> {
                     switch (keyEvent.getCode()) {
                         case ENTER:
-                            logger.debug("Enter key pressed. Saving settings");
-                            onOKClicked(null);
+                            logger.debug("Enter key pressed. Saving settings and hiding settings window");
+                            if (save()) {
+                                hide();
+                            }
                             break;
                         case ESCAPE:
-                            logger.debug("Escape key pressed. Closing settings window");
-                            close();
+                            logger.debug("Escape key pressed. Hiding settings window");
+                            hide();
                             break;
                     }
                 }
@@ -172,13 +174,13 @@ class Settings extends Stage implements AutoCloseable {
     @FXML
     private void onOKClicked(ActionEvent ignoredEvent) {
         if (save()) {
-            close();
+            hide();
         }
     }
 
     @FXML
     private void onCancelClicked(ActionEvent ignoredEvent) {
-        close();
+        hide();
     }
 
     private boolean save() {
