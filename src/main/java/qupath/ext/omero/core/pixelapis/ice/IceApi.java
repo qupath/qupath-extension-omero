@@ -22,7 +22,6 @@ import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -46,7 +45,7 @@ public class IceApi implements PixelApi {
     private static final int DEFAULT_NUMBER_OF_READERS = Math.min(MAX_NUMBER_OF_READERS, 10);           // The "10" parameter comes from
                                                                                                         // https://omero.readthedocs.io/en/stable/sysadmins/config.html#omero.threads.min_threads
     private static final boolean gatewayAvailable;
-    private final Map<Long, IceReader> readers = new HashMap<>();
+    private final List<IceReader> readers = new ArrayList<>();
     private final ApisHandler apisHandler;
     private final StringProperty serverAddress;
     private final IntegerProperty serverPort;
@@ -127,8 +126,9 @@ public class IceApi implements PixelApi {
      * Creates an {@link IceReader} that will be used to read pixel values of an image.
      * This may take a few seconds.
      * <p>
-     * Note that you shouldn't {@link PixelApiReader#close() close} this reader when it's
-     * no longer used. This pixel API will close them when it itself is closed.
+     * Note that you should {@link PixelApiReader#close() close} the returned reader when it's
+     * no longer used. As a precaution, this pixel API will (if needed) close them when it itself
+     * is closed, but it's better if they are closed as soon as possible.
      * <p>
      * Note that if this API is not available (see {@link #isAvailable()}), calling this function
      * will result in undefined behavior.
@@ -200,19 +200,14 @@ public class IceApi implements PixelApi {
             closeReadersWithDifferentGroups(imageId, groupId);
 
             try {
-                if (readers.containsKey(imageId)) {
-                    logger.debug("Reader for image with ID {} found. Using it", imageId);
-                    return readers.get(imageId);
-                } else {
-                    logger.debug("No reader for image with ID {} found. Creating one...", imageId);
+                logger.debug("Creating reader for image with ID {}...", imageId);
 
-                    try {
-                        IceReader reader = new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels(), numberOfReaders.get());
-                        readers.put(imageId, reader);
-                        return reader;
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
+                try {
+                    IceReader reader = new IceReader(gatewayWrapper, imageId, groupId, metadata.getChannels(), metadata.isRGB(), numberOfReaders.get());
+                    readers.add(reader);
+                    return reader;
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
             } catch (RuntimeException e) {
                 throw new ExecutionException(e);
@@ -243,12 +238,12 @@ public class IceApi implements PixelApi {
     public synchronized void close() throws Exception {
         logger.debug("Closing ICE API of {}", apisHandler);
 
-        if (gatewayWrapper != null) {
-            gatewayWrapper.close();
+        for (IceReader reader: readers) {
+            reader.close();
         }
 
-        for (IceReader reader: readers.values()) {
-            reader.close();
+        if (gatewayWrapper != null) {
+            gatewayWrapper.close();
         }
     }
 
@@ -358,8 +353,8 @@ public class IceApi implements PixelApi {
      *                group than the provided one exists, it will be closed
      */
     private void closeReadersWithDifferentGroups(long imageId, long groupId) {
-        List<Map.Entry<Long, IceReader>> readersWithDifferentGroups = readers.entrySet().stream()
-                .filter(entry -> entry.getValue().getGroupId() != groupId)
+        List<IceReader> readersWithDifferentGroups = readers.stream()
+                .filter(reader -> reader.getGroupId() != groupId)
                 .toList();
         if (!readersWithDifferentGroups.isEmpty()) {
             logger.debug(
@@ -369,14 +364,14 @@ public class IceApi implements PixelApi {
                     imageId
             );
 
-            for (var entry: readersWithDifferentGroups) {
+            for (IceReader reader: readersWithDifferentGroups) {
                 try {
-                    entry.getValue().close();
+                    reader.close();
                 } catch (Exception e) {
                     logger.warn("Cannot close reader", e);
                 }
 
-                readers.remove(entry.getKey(), entry.getValue());
+                readers.remove(reader);
             }
         }
     }

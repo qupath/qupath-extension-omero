@@ -106,11 +106,23 @@ public class PreferencesManager {
     /**
      * Add a listener that will be called each time a preference is added or removed.
      *
-     * @param listener the listener to call when a preference is added or removed
+     * @param listener the listener that will be called when a preference is added or removed. Note that it is not recommended
+     *                 to use the {@link ListChangeListener.Change}, as the internal list of preferences may be updated at
+     *                 any time
      */
-    public static synchronized void addListenerToServerPreferences(Runnable listener) {
-        serverPreferences.addListener((ListChangeListener<? super ServerPreference>) change -> listener.run());
+    public static synchronized void addServerPreferencesListener(ListChangeListener<? super ServerPreference> listener) {
+        serverPreferences.addListener(listener);
         logger.debug("Adding listener to server preferences");
+    }
+
+    /**
+     * Remove a listener that was given to {@link #addServerPreferencesListener(ListChangeListener)}.
+     *
+     * @param listener the listener to remove
+     */
+    public static synchronized void removeServerPreferencesListener(ListChangeListener<? super ServerPreference> listener) {
+        serverPreferences.removeListener(listener);
+        logger.debug("Removing listener from server preferences");
     }
 
     /**

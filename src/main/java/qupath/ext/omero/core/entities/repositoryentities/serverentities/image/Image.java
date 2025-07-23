@@ -1,16 +1,11 @@
 package qupath.ext.omero.core.entities.repositoryentities.serverentities.image;
 
 import com.google.gson.annotations.SerializedName;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
@@ -48,8 +43,6 @@ public class Image extends ServerEntity {
             resources.getString("Entities.Image.pixelSizeZ"),
             resources.getString("Entities.Image.pixelType")
     };
-    private transient EnumSet<UnsupportedReason> unsupportedReasons;
-    private transient BooleanProperty isSupported;
     @SerializedName(value = "AcquisitionDate") private long acquisitionDate;
     @SerializedName(value = "Pixels") private PixelInfo pixels;
     /**
@@ -193,76 +186,65 @@ public class Image extends ServerEntity {
     }
 
     /**
-     * @return whether this image can be opened within QuPath. This property may be updated
-     * from any thread
-     * @throws IllegalStateException when the web server URI has not been set
+     * Indicate whether this image can be open with the provided pixel API.
+     *
+     * @param pixelApi the pixel API that could potentially open this image. Can be null, in which case false is returned
+     * @return whether this image can be open with the provided pixel API
      */
-    public ReadOnlyBooleanProperty isSupported() {
-        setUpSupported();
-        return isSupported;
+    public synchronized boolean isSupported(PixelApi pixelApi) {
+        if (pixelApi == null) {
+            return false;
+        }
+
+        if (!Optional.ofNullable(pixels)
+                .map(PixelInfo::imageType)
+                .map(ImageType::value)
+                .flatMap(ApisHandler::getPixelType)
+                .map(pixelApi::canReadImage)
+                .orElse(false)
+        ) {
+            return false;
+        }
+
+        return Optional.ofNullable(pixels)
+                .map(PixelInfo::numberOfChannels)
+                .map(pixelApi::canReadImage)
+                .orElse(false);
     }
 
     /**
-     * @return the reasons why this image is unsupported (empty if this image is supported)
-     * @throws IllegalStateException when the web server URI has not been set
+     * Indicate the reasons why this image is potentially unsupported by the provided pixel API.
+     *
+     * @param pixelApi the pixel API that could potentially open this image. Can be null, in which case
+     *                 {@link UnsupportedReason#PIXEL_API_UNAVAILABLE} is returned
+     * @return a set of reasons of why this image is unsupported by the provided pixel API (which is empty
+     * if this image is actually supported)
      */
-    public synchronized Set<UnsupportedReason> getUnsupportedReasons() {
-        setUpSupported();
+    public synchronized Set<UnsupportedReason> getUnsupportedReasons(PixelApi pixelApi) {
+        if (pixelApi == null) {
+            return EnumSet.of(UnsupportedReason.PIXEL_API_UNAVAILABLE);
+        }
+
+        EnumSet<UnsupportedReason> unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
+
+        if (!Optional.ofNullable(pixels)
+                .map(PixelInfo::imageType)
+                .map(ImageType::value)
+                .flatMap(ApisHandler::getPixelType)
+                .map(pixelApi::canReadImage)
+                .orElse(false)
+        ) {
+            unsupportedReasons.add(UnsupportedReason.PIXEL_TYPE);
+        }
+
+        if (!Optional.ofNullable(pixels)
+                .map(PixelInfo::numberOfChannels)
+                .map(pixelApi::canReadImage)
+                .orElse(false)
+        ) {
+            unsupportedReasons.add(UnsupportedReason.NUMBER_OF_CHANNELS);
+        }
+
         return unsupportedReasons;
-    }
-
-    private synchronized void setUpSupported() {
-        if (isSupported == null) {
-            if (webServerURI == null) {
-                throw new IllegalStateException("The web server URI has not been set on this image. Cannot check if supported");
-            }
-
-            isSupported = new SimpleBooleanProperty(false);
-            unsupportedReasons = EnumSet.noneOf(UnsupportedReason.class);
-
-            Optional<ReadOnlyObjectProperty<PixelApi>> selectedPixelAPI = Client.getClientFromURI(webServerURI)
-                    .map(Client::getSelectedPixelApi);
-
-            if (selectedPixelAPI.isPresent()) {
-                setSupported(selectedPixelAPI.get());
-                selectedPixelAPI.get().addListener(change -> setSupported(selectedPixelAPI.get()));
-            } else {
-                logger.warn(
-                        "Could not find the web client corresponding to {}. Impossible to determine if this image ({}) is supported.",
-                        webServerURI,
-                        this
-                );
-            }
-        }
-    }
-
-    private synchronized void setSupported(ReadOnlyObjectProperty<PixelApi> selectedPixelAPI) {
-        isSupported.set(true);
-        unsupportedReasons.clear();
-
-        if (selectedPixelAPI == null) {
-            isSupported.set(false);
-            unsupportedReasons.add(UnsupportedReason.PIXEL_API_UNAVAILABLE);
-        } else {
-            if (!Optional.ofNullable(pixels)
-                    .map(PixelInfo::imageType)
-                    .map(ImageType::value)
-                    .flatMap(ApisHandler::getPixelType)
-                    .map(pixelType -> selectedPixelAPI.get().canReadImage(pixelType))
-                    .orElse(false)
-            ) {
-                isSupported.set(false);
-                unsupportedReasons.add(UnsupportedReason.PIXEL_TYPE);
-            }
-
-            if (!Optional.ofNullable(pixels)
-                    .map(PixelInfo::numberOfChannels)
-                    .map(c -> selectedPixelAPI.get().canReadImage(c))
-                    .orElse(false)
-            ) {
-                isSupported.set(false);
-                unsupportedReasons.add(UnsupportedReason.NUMBER_OF_CHANNELS);
-            }
-        }
     }
 }

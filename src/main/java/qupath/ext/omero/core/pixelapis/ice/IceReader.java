@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ObjectPool;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.color.ColorModelFactory;
+import qupath.lib.common.ColorTools;
 import qupath.lib.common.GeneralTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -36,14 +37,15 @@ class IceReader implements PixelApiReader {
 
     private static final Logger logger = LoggerFactory.getLogger(IceReader.class);
     private final long groupId;
+    private final boolean isRgb;
     private final SecurityContext context;
     private final ImageData imageData;
     private final ObjectPool<RawPixelsStorePrx> readerPool;
-    private final int numberOfResolutionLevels;
     private final int nChannels;
     private final int effectiveNChannels;
     private final PixelType pixelType;
     private final ColorModel colorModel;
+    private int numberOfResolutionLevels = -1;
 
     /**
      * Creates a new Ice reader.
@@ -52,13 +54,15 @@ class IceReader implements PixelApiReader {
      * @param imageId the ID of the image to open
      * @param groupId the ID of the group owning the image to open
      * @param channels the channels of the image to open
+     * @param isRgb whether the returned tiles should have the RGB or ARGB format
      * @param numberOfReaders the maximum number of threads to use when reading tiles
      * @throws Exception when the reader creation fails
      */
-    public IceReader(GatewayWrapper gatewayWrapper, long imageId, long groupId, List<ImageChannel> channels, int numberOfReaders) throws Exception {
+    public IceReader(GatewayWrapper gatewayWrapper, long imageId, long groupId, List<ImageChannel> channels, boolean isRgb, int numberOfReaders) throws Exception {
         logger.debug("Creating ICE reader for image of ID {} with group of ID {}...", imageId, groupId);
 
         this.groupId = groupId;
+        this.isRgb = isRgb;
 
         context = new SecurityContext(groupId);
         BrowseFacility browser = gatewayWrapper.getGateway().getFacility(BrowseFacility.class);
@@ -90,14 +94,6 @@ class IceReader implements PixelApiReader {
                 }
         );
 
-        var reader = readerPool.get();
-        if (reader.isPresent()) {
-            numberOfResolutionLevels = reader.get().getResolutionLevels();
-            readerPool.giveBack(reader.get());
-        } else {
-            throw new IllegalStateException("Cannot create RawPixelsStorePrx. Impossible to get the number of resolution levels");
-        }
-
         nChannels = channels.size();
         effectiveNChannels = pixelsData.getSizeC();
         pixelType = switch (pixelsData.getPixelType()) {
@@ -122,40 +118,65 @@ class IceReader implements PixelApiReader {
 
         byte[][] bytes = new byte[effectiveNChannels][];
 
-        Optional<RawPixelsStorePrx> reader = Optional.empty();
+        RawPixelsStorePrx reader = null;
         try {
-            reader = readerPool.get();
-            if (reader.isPresent()) {
-                reader.get().setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
+            reader = readerPool.get().orElseThrow();
 
-                for (int channel = 0; channel < effectiveNChannels; channel++) {
-                    bytes[channel] = reader.get().getTile(
-                            tileRequest.getZ(),
-                            channel,
-                            tileRequest.getT(),
-                            tileRequest.getTileX(),
-                            tileRequest.getTileY(),
-                            tileRequest.getTileWidth(),
-                            tileRequest.getTileHeight()
-                    );
+            synchronized (this) {
+                if (numberOfResolutionLevels == -1) {
+                    numberOfResolutionLevels = reader.getResolutionLevels();
                 }
-            } else {
-                throw new IOException(String.format("Cannot create RawPixelsStorePrx. Tile %s won't be read", tileRequest));
+            }
+
+            reader.setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
+
+            for (int channel = 0; channel < effectiveNChannels; channel++) {
+                bytes[channel] = reader.getTile(
+                        tileRequest.getZ(),
+                        channel,
+                        tileRequest.getT(),
+                        tileRequest.getTileX(),
+                        tileRequest.getTileY(),
+                        tileRequest.getTileWidth(),
+                        tileRequest.getTileHeight()
+                );
             }
         } catch (Exception e) {
             throw new IOException(e);
         } finally {
-            reader.ifPresent(readerPool::giveBack);
+            readerPool.giveBack(reader);
         }
 
-        return new OMEPixelParser.Builder()
-                .isInterleaved(false)
-                .pixelType(pixelType)
-                .byteOrder(ByteOrder.BIG_ENDIAN)
-                .normalizeFloats(false)
-                .effectiveNChannels(effectiveNChannels)
-                .build()
-                .parse(bytes, tileRequest.getTileWidth(), tileRequest.getTileHeight(), nChannels, colorModel);
+        if (isRgb && (effectiveNChannels == 3 || effectiveNChannels == 4)) {
+            int[] rgbArray = new int[bytes[0].length];
+
+            if (effectiveNChannels == 3) {
+                for (int i=0; i<rgbArray.length; i++) {
+                    rgbArray[i] = ColorTools.packRGB(bytes[0][i], bytes[1][i], bytes[2][i]);
+                }
+            } else {
+                for (int i=0; i<rgbArray.length; i++) {
+                    rgbArray[i] = ColorTools.packARGB(bytes[0][i], bytes[1][i], bytes[2][i], bytes[3][i]);
+                }
+            }
+
+            BufferedImage image = new BufferedImage(
+                    tileRequest.getTileWidth(),
+                    tileRequest.getTileHeight(),
+                    effectiveNChannels == 3 ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB
+            );
+            image.setRGB(0, 0, image.getWidth(), image.getHeight(), rgbArray, 0, image.getWidth());
+            return image;
+        } else {
+            return new OMEPixelParser.Builder()
+                    .isInterleaved(false)
+                    .pixelType(pixelType)
+                    .byteOrder(ByteOrder.BIG_ENDIAN)
+                    .normalizeFloats(false)
+                    .effectiveNChannels(effectiveNChannels)
+                    .build()
+                    .parse(bytes, tileRequest.getTileWidth(), tileRequest.getTileHeight(), nChannels, colorModel);
+        }
     }
 
     @Override
@@ -198,8 +219,9 @@ class IceReader implements PixelApiReader {
             return originalMetadata;
         }
 
+        RawPixelsStorePrx reader = null;
         try {
-            RawPixelsStorePrx reader = readerPool.get().orElseThrow();
+            reader = readerPool.get().orElseThrow();
 
             var resolutionBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(originalMetadata.getWidth(), originalMetadata.getHeight());
             ResolutionDescription[] levelDescriptions = reader.getResolutionDescriptions();
@@ -230,6 +252,8 @@ class IceReader implements PixelApiReader {
 
             logger.debug("Cannot apply VSI resolution fix. Returning original metadata", e);
             return originalMetadata;
+        } finally {
+            readerPool.giveBack(reader);
         }
     }
 }

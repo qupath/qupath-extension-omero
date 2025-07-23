@@ -1,6 +1,7 @@
 package qupath.ext.omero.gui.browser;
 
 import javafx.application.Platform;
+import javafx.collections.ListChangeListener;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
@@ -24,12 +25,13 @@ import java.util.ResourceBundle;
  * Menu allowing to create a connection with a new server using a {@link LoginForm}, or to browse an already
  * connected server (see {@link BrowserCommand}).
  */
-public class BrowseMenu extends Menu {
+public class BrowseMenu extends Menu implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(BrowseMenu.class);
     private static final ResourceBundle resources = Utils.getResources();
     private final Map<URI, BrowserCommand> browserCommands = new HashMap<>();
     private final MenuItem newServerItem = new MenuItem(resources.getString("Browser.BrowseMenu.newServer"));
+    private final ListChangeListener<? super ServerPreference> preferencesListener = ignored -> Platform.runLater(this::createURIItems);
     private final Stage owner;
     private LoginForm loginForm;
 
@@ -42,20 +44,6 @@ public class BrowseMenu extends Menu {
         logger.debug("Creating browse menu");
         this.owner = owner;
 
-        initUI();
-        setUpListeners();
-    }
-
-    /**
-     * Open the browser of the provided client. It will be created if it doesn't already exist.
-     *
-     * @param client the client that should be displayed in the browser to open
-     */
-    public void openBrowserOfClient(Client client) {
-        getBrowserCommand(client.getApisHandler().getWebServerURI()).run();
-    }
-
-    private void initUI() {
         setText(resources.getString("Browser.BrowseMenu.browseServer"));
 
         newServerItem.setOnAction(ignoredEvent -> {
@@ -80,10 +68,26 @@ public class BrowseMenu extends Menu {
         });
 
         createURIItems();
+
+        PreferencesManager.addServerPreferencesListener(preferencesListener);
     }
 
-    private void setUpListeners() {
-        PreferencesManager.addListenerToServerPreferences(() -> Platform.runLater(this::createURIItems));
+    @Override
+    public void close() {
+        PreferencesManager.removeServerPreferencesListener(preferencesListener);
+
+        for (var entry: browserCommands.entrySet()) {
+            entry.getValue().close();
+        }
+    }
+
+    /**
+     * Open the browser of the provided client. It will be created if it doesn't already exist.
+     *
+     * @param client the client that should be displayed in the browser to open
+     */
+    public void openBrowserOfClient(Client client) {
+        getBrowserCommand(client.getApisHandler().getWebServerURI()).run();
     }
 
     private void createURIItems() {

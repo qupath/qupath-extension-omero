@@ -17,6 +17,7 @@ import qupath.lib.objects.PathObjectReader;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.lang.ref.Cleaner;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
@@ -31,6 +32,7 @@ import java.util.concurrent.ExecutionException;
 public class OmeroImageServer extends AbstractTileableImageServer implements PathObjectReader  {
 
     private static final Logger logger = LoggerFactory.getLogger(OmeroImageServer.class);
+    private static final Cleaner cleaner = Cleaner.create();
     private final URI imageUri;
     private final Client client;
     private final long id;
@@ -38,6 +40,16 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
     private final PixelApiReader pixelAPIReader;
     private final String apiName;
     private final List<String> args;
+    private final Cleaner.Cleanable cleanable;
+    private record OmeroImageServerState(PixelApiReader pixelApiReader) implements Runnable {
+        public void run() {
+            try {
+                pixelApiReader.close();
+            } catch (Exception e) {
+                logger.error("Error when closing pixel API reader", e);
+            }
+        }
+    }
 
     /**
      * Create an OmeroImageServer. This may take a few seconds as it will send a request to retrieve
@@ -71,6 +83,8 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
         this.apiName = pixelApi.getName();
         this.args = args;
+        this.cleanable = cleaner.register(this, new OmeroImageServerState(pixelAPIReader));
+
         this.client.addOpenedImage(imageUri);
 
         logger.debug("OMERO image server to open {} created", imageUri);
@@ -149,6 +163,11 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
             logger.error("Error reading path objects", e);
             return List.of();
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        cleanable.clean();
     }
 
     @Override

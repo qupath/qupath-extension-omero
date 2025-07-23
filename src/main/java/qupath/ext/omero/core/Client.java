@@ -1,8 +1,8 @@
 package qupath.ext.omero.core;
 
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -64,6 +64,18 @@ public class Client implements AutoCloseable {
     private final List<PixelApi> allPixelApis;
     private ScheduledExecutorService pingScheduler;
     private CompletableFuture<Server> server;
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            for (Client client: Client.getClients()) {
+                try {
+                    client.close();
+                } catch (Exception e) {
+                    logger.error("Error while closing {}", client, e);
+                }
+            }
+        }));
+    }
 
     private Client(URI webServerUri, Credentials credentials, Consumer<Client> onPingFailed) throws ExecutionException, InterruptedException, URISyntaxException {
         this.apisHandler = new ApisHandler(webServerUri, credentials);
@@ -280,11 +292,23 @@ public class Client implements AutoCloseable {
     /**
      * Add a listener that will be called each time a client is added or removed.
      *
-     * @param listener the listener to call when a client is added or removed
+     * @param listener the listener that will be called when a client is added or removed. Note that it is not recommended
+     *                 to use the {@link ListChangeListener.Change}, as the internal list of clients may be updated at
+     *                 any time
      */
-    public static synchronized void addListenerToClients(Runnable listener) {
-        clients.addListener((ListChangeListener<? super Client>) change -> listener.run());
-        logger.debug("Adding listener to clients");
+    public static synchronized void addClientsListener(ListChangeListener<? super Client> listener) {
+        clients.addListener(listener);
+        logger.debug("Added listener to clients");
+    }
+
+    /**
+     * Remove a listener that was given to {@link #addClientsListener(ListChangeListener)}.
+     *
+     * @param listener the listener to remove
+     */
+    public static synchronized void removeClientsListener(ListChangeListener<? super Client> listener) {
+        clients.removeListener(listener);
+        logger.debug("Removed listener from clients");
     }
 
     /**
@@ -332,7 +356,7 @@ public class Client implements AutoCloseable {
      * @return the currently selected pixel API. This property may be updated from any thread
      * and may be null
      */
-    public ReadOnlyObjectProperty<PixelApi> getSelectedPixelApi() {
+    public ObservableValue<PixelApi> getSelectedPixelApi() {
         return selectedPixelAPI;
     }
 

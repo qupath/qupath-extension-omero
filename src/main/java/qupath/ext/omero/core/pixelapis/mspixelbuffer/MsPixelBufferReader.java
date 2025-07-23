@@ -123,9 +123,7 @@ class MsPixelBufferReader implements PixelApiReader {
     }
 
     @Override
-    public void close() {
-        logger.debug("Closing pixel buffer microservice reader of image with ID {}", imageID);
-    }
+    public void close() {}
 
     @Override
     public String toString() {

@@ -19,6 +19,7 @@ import qupath.lib.images.servers.ImageServerBuilder;
 import java.awt.image.BufferedImage;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -42,7 +43,9 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     private static final String PIXEL_API_ARG = "--pixelAPI";
     private static final float SUPPORT_LEVEL = 4;
     private static final List<String> ACCEPTED_SCHEMES = List.of("http", "https");
+    private static final List<ClientUri> reachableUrisWithSpecificClient = new ArrayList<>();
     private record ClientPixelApiArgsWrapper(Client client, PixelApi pixelApi, List<String> args) {}
+    private record ClientUri(Client client, URI uri) {}
 
     /**
      * Attempt to create a {@link OmeroImageServer} from the specified URL.
@@ -112,8 +115,11 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     )
                     .join()
                     .stream()
-                    .map(uri -> createServerBuilder(uri, clientArgsWrapper.get()))
-                    .flatMap(Optional::stream)
+                    .map(uri -> DefaultImageServerBuilder.createInstance(
+                            OmeroImageServerBuilder.class,
+                            uri,
+                            clientArgsWrapper.get().args.toArray(new String[0])
+                    ))
                     .toList();
             logger.debug("Got builders {} for {}", builders, entityURI);
 
@@ -173,7 +179,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
 
                 PixelApi pixelApi = getPixelAPIFromArgs(client, args).orElse(null);
                 if (pixelApi == null) {
-                    pixelApi = client.getSelectedPixelApi().get();
+                    pixelApi = client.getSelectedPixelApi().getValue();
 
                     if (pixelApi == null) {
                         logger.debug("No supplied pixel API and no selected pixel API. Can't open {}", uri);
@@ -196,32 +202,6 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             });
         } catch (Exception e) {
             logger.debug("Cannot create OMERO client for {}", uri, e);
-
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-
-            return Optional.empty();
-        }
-    }
-
-    private static Optional<ServerBuilder<BufferedImage>> createServerBuilder(URI uri, ClientPixelApiArgsWrapper clientPixelApiArgsWrapper) {
-        logger.debug("Creating server builder for {} with {}", uri, clientPixelApiArgsWrapper);
-
-        try (OmeroImageServer imageServer = new OmeroImageServer(
-                uri,
-                clientPixelApiArgsWrapper.client,
-                clientPixelApiArgsWrapper.pixelApi,
-                clientPixelApiArgsWrapper.args
-        )) {
-            return Optional.of(DefaultImageServerBuilder.createInstance(
-                    OmeroImageServerBuilder.class,
-                    imageServer.getMetadata(),
-                    uri,
-                    clientPixelApiArgsWrapper.args.toArray(new String[0])
-            ));
-        } catch (Exception e) {
-            logger.debug("Cannot create image server for {}", uri, e);
 
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
@@ -343,7 +323,13 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 .map(client -> {
                     try {
                         URI entityUri = new URI(client.getApisHandler().getEntityUri(entity));
-                        client.getApisHandler().isLinkReachable(entityUri, RequestSender.RequestType.GET).get();
+
+                        synchronized (OmeroImageServerBuilder.class) {
+                            if (!reachableUrisWithSpecificClient.contains(new ClientUri(client, entityUri))) {
+                                client.getApisHandler().isLinkReachable(entityUri, RequestSender.RequestType.GET).get();
+                                reachableUrisWithSpecificClient.add(new ClientUri(client, entityUri));
+                            }
+                        }
 
                         logger.debug("{} is reachable. {} can access entity with ID {}. Using it", entityUri, client, entity.getId());
                         return client;

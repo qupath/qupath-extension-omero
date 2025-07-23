@@ -41,3 +41,6 @@ println "Image metadata: " + server.getMetadata()
 
 // Close image
 server.close()
+
+// Close client connection. This is needed to release resources on the OMERO server
+client.close()

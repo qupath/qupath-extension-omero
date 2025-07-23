@@ -68,11 +68,18 @@ public class ObjectPool<T> implements AutoCloseable {
      * If defined, the objectCloser parameter of {@link #ObjectPool(int,Supplier,Consumer)} will be
      * called on each object currently present in the pool, but not on objects taken from the pool
      * and not given back yet.
+     * <p>
+     * This function can be called multiple times, but only the first call does something.
      *
      * @throws Exception when an error occurs while waiting for the object creation to end
      */
     @Override
     public void close() throws Exception {
+        if (objectCreationService.isShutdown()) {
+            logger.debug("Object pool already closed before. Not doing anything");
+            return;
+        }
+
         logger.debug("Closing object pool");
 
         objectCreationService.shutdown();
