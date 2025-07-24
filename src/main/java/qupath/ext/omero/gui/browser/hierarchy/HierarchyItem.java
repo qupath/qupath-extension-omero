@@ -103,7 +103,9 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> implements AutoClo
                 logger.debug("Item of {} expanded for the first time. Getting its children", getValue());
                 computed = true;
 
-                children.setAll(getValue().getChildren().stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
+                // Make a copy of the children to make sure no one is added while iterating
+                List<? extends RepositoryEntity> newChildren = new ArrayList<>(getValue().getChildren());
+                children.setAll(newChildren.stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
                 getValue().getChildren().addListener(childrenListener);
 
                 filteredChildren.predicateProperty().bind(Bindings.createObjectBinding(
