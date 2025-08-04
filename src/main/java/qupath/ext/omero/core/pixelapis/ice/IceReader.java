@@ -26,7 +26,6 @@ import java.awt.image.ColorModel;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Read pixel values using the <a href="https://omero.readthedocs.io/en/v5.6.7/developers/Java.html">OMERO gateway</a>.
