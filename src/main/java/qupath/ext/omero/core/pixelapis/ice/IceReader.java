@@ -185,7 +185,7 @@ class IceReader implements PixelApiReader {
     }
 
     @Override
-    public void close() throws Exception {}
+    public void close() {}
 
     @Override
     public String toString() {
