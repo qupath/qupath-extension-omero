@@ -10,7 +10,7 @@ import omero.gateway.model.ImageData;
 import omero.gateway.model.PixelsData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.ObjectPool2;
+import qupath.ext.omero.core.ObjectPool;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.color.ColorModelFactory;
 import qupath.lib.common.ColorTools;
@@ -38,7 +38,7 @@ class IceReader implements PixelApiReader {
     private final long groupId;
     private final boolean isRgb;
     private final ImageData imageData;
-    private final ObjectPool2<RawPixelsStorePrx> readerPool;
+    private final ObjectPool<RawPixelsStorePrx> readerPool;
     private final int nChannels;
     private final int effectiveNChannels;
     private final PixelType pixelType;
@@ -67,14 +67,14 @@ class IceReader implements PixelApiReader {
         this.imageData = browser.getImage(context, imageId);
         PixelsData pixelsData = imageData.getDefaultPixels();
 
-        this.readerPool = new ObjectPool2<>(
+        this.readerPool = new ObjectPool<>(
                 numberOfReaders,
                 () -> {
                     try {
                         RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
                         reader.setPixelsId(pixelsData.getId(), false);
 
-                        logger.debug("RawPixelsStorePrx for image with ID {} created", imageId);
+                        logger.trace("RawPixelsStorePrx for image with ID {} created", imageId);
                         return reader;
                     } catch (DSOutOfServiceException | ServerError e) {
                         logger.error("Error when creating RawPixelsStorePrx", e);
@@ -85,7 +85,7 @@ class IceReader implements PixelApiReader {
                     try {
                         reader.close();
 
-                        logger.debug("RawPixelsStorePrx for image with ID {} closed", imageId);
+                        logger.trace("RawPixelsStorePrx for image with ID {} closed", imageId);
                     } catch (Exception e) {
                         logger.warn("Error when closing RawPixelsStorePrx", e);
                     }
