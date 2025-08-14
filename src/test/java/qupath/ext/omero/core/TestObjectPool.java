@@ -6,125 +6,105 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 public class TestObjectPool {
 
     @Test
-    void Check_Only_One_Object_Created_When_Given_Back_Between_Get_Calls() throws Exception {
-        ObjectPool<Object1> objectPool = new ObjectPool<>(10, Object1::new);
-        Object1 object1;
+    void Check_Failed_Creation_Returns_Empty() throws InterruptedException {
+        ObjectPool<Object1> pool = new ObjectPool<>(10, Object1::new, object -> {});
 
-        for (int i=0; i<5; i++) {
-            object1 = objectPool.get().orElse(null);
-            objectPool.giveBack(object1);
-        }
+        Optional<Object1> object = pool.createObject();
 
-        Assertions.assertEquals(1, Object1.creationCounter);
-
-        objectPool.close();
+        Assertions.assertTrue(object.isEmpty());
     }
 
     @Test
-    void Check_Failed_Creation_Returns_Empty() throws Exception {
-        ObjectPool<Object2> objectPool = new ObjectPool<>(10, () -> {
-            throw new IllegalArgumentException("Expected exception");
-        });
+    void Check_Successful_Object_Creation() throws InterruptedException {
+        ObjectPool<Object2> pool = new ObjectPool<>(10, Object2::new, object -> {});
 
-        Optional<Object2> object2 = objectPool.get();
+        Optional<Object2> object = pool.createObject();
 
-        Assertions.assertTrue(object2.isEmpty());
+        Assertions.assertTrue(object.isPresent());
+    }
 
-        objectPool.close();
+    @Test
+    void Check_Failed_Deletion() throws InterruptedException {
+        ObjectPool<Object3> pool = new ObjectPool<>(10, Object3::new, Object3::close);
+        Object3 object = pool.createObject().orElse(null);
+
+        Assertions.assertDoesNotThrow(() -> pool.destroyObject(object));
     }
 
     @Test
     void Check_Objects_Closed() throws Exception {
-        ObjectPool<Object3> objectPool = new ObjectPool<>(10, Object3::new, Object3::close);
-        List<Object3> objects3 = new ArrayList<>();
+        ObjectPool<Object4> pool = new ObjectPool<>(10, Object4::new, Object4::close);
+        List<Object4> objects = new ArrayList<>();
         for (int i=0; i<5; i++) {
-            objects3.add(objectPool.get().orElse(null));
-        }
-        for (Object3 object3: objects3) {
-            objectPool.giveBack(object3);
+            objects.add(pool.createObject().orElse(null));
         }
 
-        objectPool.close();
+        for (Object4 object : objects) {
+            pool.destroyObject(object);
+        }
 
-        Assertions.assertTrue(Object3.allInstancesDeleted());
+        Assertions.assertTrue(Object4.allInstancesDeleted());
     }
 
     @Test
-    void Check_Objects_Non_Given_Back_Not_Closed() throws Exception {
-        ObjectPool<Object4> objectPool = new ObjectPool<>(10, Object4::new, Object4::close);
-        for (int i=0; i<5; i++) {
-            objectPool.get();
-        }
-
-        objectPool.close();
-
-        Assertions.assertEquals(0, Object4.numberInstancesDeleted);
-    }
-
-    @Test
-    void Check_Three_Objects_Created() throws Exception {
-        int expectedNumberOfObjectsCreated = 3;
-        ObjectPool<Object5> objectPool = new ObjectPool<>(10, Object5::new);
-        List<Object5> objects5 = new ArrayList<>();
-        for (int i=0; i<expectedNumberOfObjectsCreated; i++) {
-            objects5.add(objectPool.get().orElse(null));
-        }
-        for (Object5 object5: objects5) {
-            objectPool.giveBack(object5);
-        }
-        for (int i=0; i<10; i++) {
-            Object5 object5 = objectPool.get().orElse(null);
-            objectPool.giveBack(object5);
-        }
-
-        Assertions.assertEquals(expectedNumberOfObjectsCreated, Object5.creationCounter);
-
-        objectPool.close();
-    }
-
-    @Test
-    void Check_Wait_For_Object_Available() throws Exception {
-        int size = 2;
-        ObjectPool<Object6> objectPool = new ObjectPool<>(size, Object6::new);
-
-        IntStream.range(0, 10)
-                .parallel()
-                .forEach(i -> {
+    void Check_Creation_Waits_For_Pool_Capacity() throws InterruptedException {
+        int capacity = 10;
+        AtomicInteger objectProcessedCounter = new AtomicInteger(0);
+        ObjectPool<Object2> pool = new ObjectPool<>(capacity, Object2::new, object -> {});
+        List<Object2> objects = IntStream.range(0, capacity)
+                .mapToObj(i -> {
                     try {
-                        Object6 object6 = objectPool.get().orElse(null);
-                        Thread.sleep(50);
-                        objectPool.giveBack(object6);
-                    } catch (InterruptedException | ExecutionException e) {
+                        return pool.createObject().orElse(null);
+                    } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-                });
+                })
+                .toList();
+        ExecutorService executor = Executors.newFixedThreadPool(capacity);
+        for (int i=0; i<capacity; i++) {
+            int finalI = i;
+            executor.execute(() -> {
+                try {
+                    Thread.sleep(500);
+                    objectProcessedCounter.incrementAndGet();
+                    pool.destroyObject(objects.get(finalI));
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
 
-        Assertions.assertTrue(Object6.creationCounter <= size);        // with some unlucky timing, fewer objects than size
-                                                                                // could be created
+        pool.createObject();
 
-        objectPool.close();
+        Assertions.assertTrue(objectProcessedCounter.get() > 0);    // at least one object processed
+
+        executor.close();
     }
 
-
     private static class Object1 {
-        private static int creationCounter = 0;
-
         public Object1() {
-            creationCounter++;
+            throw new RuntimeException();
         }
     }
     private static class Object2 {}
     private static class Object3 {
+        public void close() {
+            throw new RuntimeException();
+        }
+    }
+    private static class Object4 {
         private static int numberInstancesCreated = 0;
         private static int numberInstancesDeleted = 0;
 
-        public Object3() {
+        public Object4() {
             numberInstancesCreated++;
         }
 
@@ -134,27 +114,6 @@ public class TestObjectPool {
 
         public static boolean allInstancesDeleted() {
             return numberInstancesCreated == numberInstancesDeleted;
-        }
-    }
-    private static class Object4 {
-        private static int numberInstancesDeleted = 0;
-
-        public void close() {
-            numberInstancesDeleted++;
-        }
-    }
-    private static class Object5 {
-        private static int creationCounter = 0;
-
-        public Object5() {
-            creationCounter++;
-        }
-    }
-    private static class Object6 {
-        private static int creationCounter = 0;
-
-        public Object6() {
-            creationCounter++;
         }
     }
 }

@@ -4,176 +4,97 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * A pool of objects of fixed size. Objects are created on demand.
+ * A pool of objects of fixed size that can create and destroy objects.
  * <p>
- * Once no longer used, this pool must be {@link #close() closed}.
+ * This class should be used when only a fixed amount of instances of a class are allowed to exist at the
+ * same time.
  * <p>
  * This class is thread-safe.
  *
  * @param <T> the type of object to store
  */
-public class ObjectPool<T> implements AutoCloseable {
+public class ObjectPool<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(ObjectPool.class);
-    private final ExecutorService objectCreationService = Executors.newCachedThreadPool();
-    private final ArrayBlockingQueue<T> queue;
-    private final int queueSize;
+    private final Semaphore semaphore;
     private final Supplier<T> objectCreator;
     private final Consumer<T> objectCloser;
-    private int numberOfObjectsCreated = 0;
-    private record ObjectWrapper<V>(Optional<V> object, boolean useThisObject) {}
 
     /**
      * Create the pool of objects. This will not create any object yet.
      *
-     * @param size the capacity of the pool (greater than 0)
+     * @param maxNumberOfElements the capacity of the pool (greater than 0). There will never be more existing objects than this capacity
      * @param objectCreator a function to create an object. It is allowed to return null
-     * @throws IllegalArgumentException when size is less than 1
+     * @param objectCloser a function to delete an object
+     * @throws IllegalArgumentException if the provided maximum number of elements is less than 1
      */
-    public ObjectPool(int size, Supplier<T> objectCreator) {
-        this(size, objectCreator, null);
-    }
+    public ObjectPool(int maxNumberOfElements, Supplier<T> objectCreator, Consumer<T> objectCloser) {
+        if (maxNumberOfElements < 1) {
+            throw new IllegalArgumentException(String.format("The provided maximum number of elements %d is less than 1", maxNumberOfElements));
+        }
 
-    /**
-     * Create the pool of objects. This will not create any object yet.
-     *
-     * @param size the capacity of the pool (greater than 0)
-     * @param objectCreator a function to create an object. It is allowed to return null
-     * @param objectCloser a function that will be called on each object of this pool when it is closed
-     * @throws IllegalArgumentException when size is less than 1
-     */
-    public ObjectPool(int size, Supplier<T> objectCreator, Consumer<T> objectCloser) {
-        logger.debug("Creating object pool of size {}", size);
-
-        this.queue = new ArrayBlockingQueue<>(size);
-        this.queueSize = size;
+        this.semaphore = new Semaphore(maxNumberOfElements);
         this.objectCreator = objectCreator;
         this.objectCloser = objectCloser;
     }
 
     /**
-     * Close this pool. If some objects are being created, this function will wait
-     * for their creation to end.
+     * Attempt to create an object of this pool.
      * <p>
-     * If defined, the objectCloser parameter of {@link #ObjectPool(int,Supplier,Consumer)} will be
-     * called on each object currently present in the pool, but not on objects taken from the pool
-     * and not given back yet.
+     * If the pool capacity doesn't allow an object to be created, this function blocks until the pool capacity changes. Then, a new object
+     * is created and returned. If for some reason the object creation fails (or return null), an empty Optional is returned (and the possible
+     * exception is logged).
      * <p>
-     * This function can be called multiple times, but only the first call does something.
-     *
-     * @throws Exception when an error occurs while waiting for the object creation to end
-     */
-    @Override
-    public void close() throws Exception {
-        if (objectCreationService.isShutdown()) {
-            logger.debug("Object pool already closed before. Not doing anything");
-            return;
-        }
-
-        logger.debug("Closing object pool");
-
-        objectCreationService.shutdown();
-        objectCreationService.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-
-        if (objectCloser != null) {
-            queue.forEach(objectCloser);
-        }
-    }
-
-    /**
-     * Attempt to retrieve an object from this pool.
-     * <ul>
-     *     <li>
-     *         If an object is available in the pool, it will be directly returned.
-     *     </li>
-     *     <li>
-     *         If no object is available in the pool and the pool capacity allows to create a new
-     *         object, a new object is created and returned. If for some reason the object creation
-     *         fails (or return null), an empty Optional is returned.
-     *     </li>
-     *     <li>
-     *         If no object is available in the pool and the pool capacity doesn't allow creating
-     *         a new object, this function blocks until an object becomes available in the pool.
-     *     </li>
-     * </ul>
-     * <p>
-     * The caller of this function will have a full control on the returned object. As soon as the
-     * object is not used anymore, it must be given back to this pool using the {@link #giveBack(Object)}
-     * function.
+     * If this function returns a non-null object, this pool's capacity will be reduced. Use the {@link #destroyObject(Object)} function
+     * to increase back this pool's capacity.
      *
      * @return an object from this pool, or an empty Optional if the creation failed
-     * @throws InterruptedException  when creating an object or waiting for an object to become available is interrupted
-     * @throws ExecutionException  when an error occurs while creating an object
+     * @throws InterruptedException  if waiting for the pool capacity to increase is interrupted
      */
-    public Optional<T> get() throws InterruptedException, ExecutionException {
-        logger.trace("Getting object from pool");
-        T object = queue.poll();
+    public Optional<T> createObject() throws InterruptedException {
+        semaphore.acquire();
 
-        if (object == null) {
-            ObjectWrapper<T> objectWrapper = computeObjectIfPossible().get();
+        try {
+            T object = objectCreator.get();
 
-            if (objectWrapper.useThisObject()) {
-                logger.trace("Object {} created. Returning it", objectWrapper.object());
-                return objectWrapper.object();
+            if (object == null) {
+                semaphore.release();
+                return Optional.empty();
             } else {
-                logger.trace("Pool empty and the maximum number of objects have been created. Waiting for an object to become available");
-                return Optional.of(queue.take());
+                return Optional.of(object);
             }
-        } else {
-            logger.trace("The pool was not empty, so the object {} was retrieved from the pool", object);
-            return Optional.of(object);
+        } catch (Exception e) {
+            logger.error("Error when creating object in pool", e);
+            semaphore.release();
+
+            return Optional.empty();
         }
     }
 
     /**
-     * Give an object back to this pool. This function must be used once an object
-     * returned {@link #get()} is not used anymore.
+     * Delete an object and increase this pool's capacity. This function must be used once an object
+     * returned by {@link #createObject()} is not used anymore.
+     * <p>
+     * If an exception is thrown while closing the object, it will be logged but not propagated.
      *
      * @param object the object to give back. Nothing will happen if the object is null
      */
-    public void giveBack(T object) {
-        if (object != null) {
-            logger.trace("Object {} gave back to pool", object);
-            queue.offer(object);
+    public void destroyObject(T object) {
+        if (object == null) {
+            return;
         }
-    }
 
-    private synchronized CompletableFuture<ObjectWrapper<T>> computeObjectIfPossible() {
-        if (numberOfObjectsCreated < queueSize) {
-            logger.trace("Pool empty but another object can be created. Doing that");
-            numberOfObjectsCreated++;
-
-            return CompletableFuture.supplyAsync(
-                    () -> {
-                        T object = null;
-
-                        try {
-                            object = objectCreator.get();
-                        } catch (Exception e) {
-                            logger.error("Error when creating object in pool", e);
-                        }
-
-                        if (object == null) {
-                            synchronized (this) {
-                                numberOfObjectsCreated--;
-                            }
-                        }
-                        return new ObjectWrapper<>(Optional.ofNullable(object), true);
-                    },
-                    objectCreationService
-            );
-        } else {
-            return CompletableFuture.completedFuture(new ObjectWrapper<>(Optional.empty(), false));
+        try {
+            objectCloser.accept(object);
+        } catch (Exception e) {
+            logger.error("Error when closing {}", object, e);
+        } finally {
+            semaphore.release();
         }
     }
 }

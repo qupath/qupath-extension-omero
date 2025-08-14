@@ -37,7 +37,6 @@ class IceReader implements PixelApiReader {
     private static final Logger logger = LoggerFactory.getLogger(IceReader.class);
     private final long groupId;
     private final boolean isRgb;
-    private final SecurityContext context;
     private final ImageData imageData;
     private final ObjectPool<RawPixelsStorePrx> readerPool;
     private final int nChannels;
@@ -63,19 +62,19 @@ class IceReader implements PixelApiReader {
         this.groupId = groupId;
         this.isRgb = isRgb;
 
-        context = new SecurityContext(groupId);
+        SecurityContext context = new SecurityContext(groupId);
         BrowseFacility browser = gatewayWrapper.getGateway().getFacility(BrowseFacility.class);
-        imageData = browser.getImage(context, imageId);
+        this.imageData = browser.getImage(context, imageId);
         PixelsData pixelsData = imageData.getDefaultPixels();
 
-        readerPool = new ObjectPool<>(
+        this.readerPool = new ObjectPool<>(
                 numberOfReaders,
                 () -> {
                     try {
                         RawPixelsStorePrx reader = gatewayWrapper.getGateway().getPixelsStore(context);
                         reader.setPixelsId(pixelsData.getId(), false);
 
-                        logger.debug("RawPixelsStorePrx for image with ID {} created", imageId);
+                        logger.trace("RawPixelsStorePrx for image with ID {} created", imageId);
                         return reader;
                     } catch (DSOutOfServiceException | ServerError e) {
                         logger.error("Error when creating RawPixelsStorePrx", e);
@@ -86,7 +85,7 @@ class IceReader implements PixelApiReader {
                     try {
                         reader.close();
 
-                        logger.debug("RawPixelsStorePrx for image with ID {} closed", imageId);
+                        logger.trace("RawPixelsStorePrx for image with ID {} closed", imageId);
                     } catch (Exception e) {
                         logger.warn("Error when closing RawPixelsStorePrx", e);
                     }
@@ -119,7 +118,7 @@ class IceReader implements PixelApiReader {
 
         RawPixelsStorePrx reader = null;
         try {
-            reader = readerPool.get().orElseThrow();
+            reader = readerPool.createObject().orElseThrow();
 
             synchronized (this) {
                 if (numberOfResolutionLevels == -1) {
@@ -143,7 +142,7 @@ class IceReader implements PixelApiReader {
         } catch (Exception e) {
             throw new IOException(e);
         } finally {
-            readerPool.giveBack(reader);
+            readerPool.destroyObject(reader);
         }
 
         if (isRgb && (effectiveNChannels == 3 || effectiveNChannels == 4)) {
@@ -186,11 +185,7 @@ class IceReader implements PixelApiReader {
     }
 
     @Override
-    public void close() throws Exception {
-        logger.debug("Closing ICE reader of image with ID {}", imageData.getId());
-
-        readerPool.close();
-    }
+    public void close() {}
 
     @Override
     public String toString() {
@@ -220,7 +215,7 @@ class IceReader implements PixelApiReader {
 
         RawPixelsStorePrx reader = null;
         try {
-            reader = readerPool.get().orElseThrow();
+            reader = readerPool.createObject().orElseThrow();
 
             var resolutionBuilder = new ImageServerMetadata.ImageResolutionLevel.Builder(originalMetadata.getWidth(), originalMetadata.getHeight());
             ResolutionDescription[] levelDescriptions = reader.getResolutionDescriptions();
@@ -252,7 +247,7 @@ class IceReader implements PixelApiReader {
             logger.debug("Cannot apply VSI resolution fix. Returning original metadata", e);
             return originalMetadata;
         } finally {
-            readerPool.giveBack(reader);
+            readerPool.destroyObject(reader);
         }
     }
 }
