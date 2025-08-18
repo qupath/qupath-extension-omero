@@ -40,12 +40,26 @@ public class TestClient extends OmeroServer {
 
         @Test
         void Check_Opened_Images_When_One_Image_Added() {
-            int expectedSize = client.getOpenedImagesURIs().size() + 1;
+            URI expectedUri = URI.create("http://someUri");
 
-            client.addOpenedImage(URI.create(OmeroServer.getWebServerURI()));
-            Set<URI> openedImagesURIs = client.getOpenedImagesURIs();
+            client.addOpenedImage(expectedUri);
 
-            Assertions.assertEquals(expectedSize, openedImagesURIs.size());
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    Set.of(expectedUri),
+                    client.getOpenedImagesURIs()
+            );
+
+            client.removeOpenedImage(expectedUri);
+        }
+
+        @Test
+        void Check_Opened_Images_When_One_Image_Added_And_Removed() {
+            URI uri = URI.create("http://someUri");
+            client.addOpenedImage(uri);
+
+            client.removeOpenedImage(uri);
+
+            Assertions.assertTrue(client.getOpenedImagesURIs().isEmpty());
         }
 
         @Test
