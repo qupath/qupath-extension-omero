@@ -167,6 +167,8 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
     @Override
     public void close() throws Exception {
+        client.removeOpenedImage(imageUri);
+
         cleanable.clean();
     }
 

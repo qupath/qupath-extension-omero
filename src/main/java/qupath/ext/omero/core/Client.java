@@ -418,7 +418,8 @@ public class Client implements AutoCloseable {
      * This class does not automatically detect if new images are opened, so this function
      * actually only returns the URIs given to {@link #addOpenedImage(URI) addOpenedImage}.
      * <p>
-     * This function returns an unmodifiable list, use {@link #addOpenedImage(URI) addOpenedImage} to update its state.
+     * This function returns an unmodifiable list, use {@link #addOpenedImage(URI) addOpenedImage}
+     * or {@link #removeOpenedImage(URI)} to update its state.
      * <p>
      * This set may be updated from any thread.
      *
@@ -432,10 +433,20 @@ public class Client implements AutoCloseable {
      * Add an image URI to the list of currently opened images given by
      * {@link #getOpenedImagesURIs() getOpenedImagesURIs}.
      *
-     * @param imageURI the image URI
+     * @param imageUri the image URI to add
      */
-    public synchronized void addOpenedImage(URI imageURI) {
-        openedImagesURIs.add(imageURI);
+    public synchronized void addOpenedImage(URI imageUri) {
+        openedImagesURIs.add(imageUri);
+    }
+
+    /**
+     * Remove an image URI from the list of currently opened images given by
+     * {@link #getOpenedImagesURIs() getOpenedImagesURIs}.
+     *
+     * @param imageUri the image URI to remove
+     */
+    public synchronized void removeOpenedImage(URI imageUri) {
+        openedImagesURIs.remove(imageUri);
     }
 
     /**
