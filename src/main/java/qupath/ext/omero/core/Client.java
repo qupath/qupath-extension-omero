@@ -22,6 +22,7 @@ import qupath.lib.gui.viewer.QuPathViewer;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -33,6 +34,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * A class representing a connection to an OMERO web server.
@@ -54,6 +57,7 @@ public class Client implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private static final int PING_DELAY_SECONDS = 60;
     private static final int MAX_NUMBER_OF_PING_ATTEMPTS = 3;
+    private static final List<String> OMERO_PATHS = List.of("webclient", "webgateway", "iviewer", "api");
     private static final ObservableList<Client> clients = FXCollections.observableArrayList();
     private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableList(new CopyOnWriteArrayList<>());
     private final ObservableList<PixelApi> availablePixelAPIsImmutable = FXCollections.unmodifiableObservableList(availablePixelApis);
@@ -178,13 +182,14 @@ public class Client implements AutoCloseable {
      * This will send a few requests to get basic information on the server and authenticate if necessary,
      * so it can take a few seconds. However, this operation is cancellable.
      *
-     * @param url the URL to the OMERO web server to connect to
+     * @param url the URL to the OMERO web server to connect to. It will be passed to {@link #getServerURI(URI)} before being processed
      * @param credentials the credentials to use for the authentication
      * @param onPingFailed a function that will be called after a ping fails. In that situation, the connection to the server will
      *                     automatically be closed, so this parameter allows to display some information to the user. This function
      *                     may be called from any thread. Can be null
      * @return a connection to the provided server
      * @throws URISyntaxException if a link to the server cannot be created
+     * @throws NullPointerException if the provided URL doesn't contain a {@link URI#getScheme() scheme} or {@link URI#getAuthority() authority}
      * @throws ExecutionException if a request to the server fails or if a response does not contain expected elements.
      * This can happen if the server is unreachable or if the authentication fails for example
      * @throws InterruptedException if the running thread is interrupted
@@ -198,7 +203,7 @@ public class Client implements AutoCloseable {
 
         synchronized (Client.class) {
             Optional<Client> existingClientWithUrl = clients.stream()
-                    .filter(client -> client.apisHandler.getWebServerURI().getAuthority().equals(webServerURI.getAuthority()))
+                    .filter(client -> client.apisHandler.getWebServerURI().equals(webServerURI))
                     .findAny();
             if (existingClientWithUrl.isPresent()) {
                 if (existingClientWithUrl.get().apisHandler.getCredentials().equals(credentials)) {
@@ -319,6 +324,43 @@ public class Client implements AutoCloseable {
      */
     public static synchronized Optional<Client> getClientFromURI(URI uri) {
         return clients.stream().filter(client -> client.getApisHandler().getWebServerURI().equals(uri)).findAny();
+    }
+
+    /**
+     * Create a new {@link URI} by removing parts of the provided URI so that it links to the base URL of an OMERO server.
+     * <p>
+     * More precisely:
+     * <ul>
+     *     <li>The {@link URI#getScheme() scheme} and the {@link URI#getAuthority() authority} of the provided URI are kept.</li>
+     *     <li>
+     *         Only part of the {@link URI#getPath() path} of the provided URI before the "webclient", "webgateway", "iviewer", and "api"
+     *         path segments is kept.
+     *     </li>
+     *     <li>The {@link URI#getQuery() query} and the {@link URI#getFragment() fragment} of the provided URI are discarded.</li>
+     * </ul>
+     *
+     * @param uri a URI pointing to a link of an OMERO server
+     * @return a new {@link URI} by removing parts of the provided URI so that it links to the base URL of an OMERO server
+     * @throws URISyntaxException if the new URI cannot be created
+     * @throws NullPointerException if the provided URI doesn't have a scheme or authority
+     */
+    public static URI getServerURI(URI uri) throws URISyntaxException {
+        String delimiter = "/";
+        String[] paths = uri.getPath().split(delimiter);
+        String path = Arrays.stream(paths)
+                .limit(IntStream.range(0, paths.length)
+                        .filter(i -> OMERO_PATHS.contains(paths[i]))
+                        .findFirst()
+                        .orElse(paths.length)
+                )
+                .collect(Collectors.joining(delimiter));
+
+        return new URI(String.format(
+                "%s://%s%s",
+                Objects.requireNonNull(uri.getScheme()),
+                Objects.requireNonNull(uri.getAuthority()),
+                path
+        ));
     }
 
     /**
@@ -493,9 +535,5 @@ public class Client implements AutoCloseable {
                         .orElse(availablePixelApis.getFirst()));
             }
         });
-    }
-
-    private static URI getServerURI(URI uri) throws URISyntaxException {
-        return new URI(String.format("%s://%s", uri.getScheme(), uri.getAuthority()));
     }
 }
