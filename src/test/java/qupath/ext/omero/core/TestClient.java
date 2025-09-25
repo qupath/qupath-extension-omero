@@ -11,6 +11,7 @@ import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -306,5 +307,72 @@ public class TestClient extends OmeroServer {
         TestUtilities.assertCollectionsEqualsWithoutOrder(List.of(client), Client.getClients());
 
         client.close();
+    }
+
+    @Test
+    void Check_Server_Uri_Without_Scheme() throws URISyntaxException {
+        URI uri = new URI("some_autority.com");
+
+        Assertions.assertThrows(NullPointerException.class, () -> Client.getServerURI(uri));
+    }
+
+    @Test
+    void Check_Server_Uri_Without_Path() throws URISyntaxException {
+        URI uri = new URI("https://some_autority.com");
+        URI expectedServerUri = new URI("https://some_autority.com");
+
+        URI serverURI = Client.getServerURI(uri);
+
+        Assertions.assertEquals(expectedServerUri, serverURI);
+    }
+
+    @Test
+    void Check_Server_Uri_With_Single_Slash_Path() throws URISyntaxException {
+        URI uri = new URI("https://some_autority.com/");
+        URI expectedServerUri = new URI("https://some_autority.com");
+
+        URI serverURI = Client.getServerURI(uri);
+
+        Assertions.assertEquals(expectedServerUri, serverURI);
+    }
+
+    @Test
+    void Check_Server_Uri_With_Double_Slash_Path() throws URISyntaxException {
+        URI uri = new URI("https://some_autority.com//");
+        URI expectedServerUri = new URI("https://some_autority.com");
+
+        URI serverURI = Client.getServerURI(uri);
+
+        Assertions.assertEquals(expectedServerUri, serverURI);
+    }
+
+    @Test
+    void Check_Server_Uri_Without_Omero_Path_Segment() throws URISyntaxException {
+        URI uri = new URI("https://some_autority.com/some/path/");
+        URI expectedServerUri = new URI("https://some_autority.com/some/path");
+
+        URI serverURI = Client.getServerURI(uri);
+
+        Assertions.assertEquals(expectedServerUri, serverURI);
+    }
+
+    @Test
+    void Check_Server_Uri_With_One_Omero_Path_Segment() throws URISyntaxException {
+        URI uri = new URI("https://some_autority.com/some/path/webclient/asd/");
+        URI expectedServerUri = new URI("https://some_autority.com/some/path");
+
+        URI serverURI = Client.getServerURI(uri);
+
+        Assertions.assertEquals(expectedServerUri, serverURI);
+    }
+
+    @Test
+    void Check_Server_Uri_With_Two_Omero_Path_Segments() throws URISyntaxException {
+        URI uri = new URI("https://some_autority.com/some/path/webclient/asd/iviewer/gdf/dghdfg");
+        URI expectedServerUri = new URI("https://some_autority.com/some/path");
+
+        URI serverURI = Client.getServerURI(uri);
+
+        Assertions.assertEquals(expectedServerUri, serverURI);
     }
 }

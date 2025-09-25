@@ -388,7 +388,7 @@ class Browser extends Stage implements AutoCloseable {
     }
 
     private void initUI(Stage ownerWindow) {
-        serverHost.setText(client.getApisHandler().getWebServerURI().getHost());
+        serverHost.setText(client.getApisHandler().getWebServerURI().toString());
 
         username.setText(switch (client.getApisHandler().getCredentials().userType()) {
             case PUBLIC_USER -> resources.getString("Browser.ServerBrowser.publicUser");
