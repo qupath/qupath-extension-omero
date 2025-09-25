@@ -3,6 +3,7 @@ package qupath.ext.omero.core.entities.shapes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -51,7 +52,8 @@ public class TestPoint {
                     "oldId": "454:713",
                     "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Point",
                     "x": 10,
-                    "y": 20
+                    "y": 20,
+                    "TheT": 1
                 }
                 """);    // -16776961 is the integer representation of the red color in the BGR format
     }
@@ -59,7 +61,7 @@ public class TestPoint {
     private Shape createPointFromPathObject() {
         return Shape.createFromPathObject(
                 PathObjects.createAnnotationObject(
-                        ROIs.createPointsROI(10, 20, null)
+                        ROIs.createPointsROI(10, 20, ImagePlane.getPlane(0, 1))
                 ),
                 true
         ).getFirst();

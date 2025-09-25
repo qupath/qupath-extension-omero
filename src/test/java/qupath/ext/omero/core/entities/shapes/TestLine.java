@@ -3,6 +3,7 @@ package qupath.ext.omero.core.entities.shapes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -53,7 +54,9 @@ public class TestLine {
                     "x1": 10,
                     "y1": 20,
                     "x2": 50,
-                    "y2": 100
+                    "y2": 100,
+                    "TheZ": 2,
+                    "TheT": 4
                 }
                 """);    // -16776961 is the integer representation of the red color in the BGR format
     }
@@ -61,7 +64,7 @@ public class TestLine {
     private Shape createLineFromPathObject() {
         return Shape.createFromPathObject(
                 PathObjects.createAnnotationObject(
-                        ROIs.createLineROI(10, 20, 50, 100, null)
+                        ROIs.createLineROI(10, 20, 50, 100, ImagePlane.getPlane(2, 4))
                 ),
                 true
         ).get(0);

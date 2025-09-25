@@ -91,10 +91,14 @@ public abstract class Shape {
         );
 
         int color = pathObject.getPathClass() == null ? PathPrefs.colorDefaultObjectsProperty().get() : pathObject.getPathClass().getColor();
-        this.strokeColor = ARGBToRGBA(color);
         this.fillColor = colorToRGBA(fillColor ? ColorToolsAwt.getMoreTranslucentColor(new Color(color)) : new Color(0, 0, 0, 0));
+        this.strokeColor = ARGBToRGBA(color);
 
         this.locked = pathObject.isLocked();
+
+        this.c = pathObject.getROI().getC();
+        this.z = pathObject.getROI().getZ();
+        this.t = pathObject.getROI().getT();
     }
 
     /**

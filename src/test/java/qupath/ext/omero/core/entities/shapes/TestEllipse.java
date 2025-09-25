@@ -3,6 +3,7 @@ package qupath.ext.omero.core.entities.shapes;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import qupath.lib.objects.PathObjects;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -53,7 +54,10 @@ public class TestEllipse {
                     "x": 50,
                     "y": 100,
                     "radiusX": 10,
-                    "radiusY": 20
+                    "radiusY": 20,
+                    "TheC": 2,
+                    "TheZ": 4,
+                    "TheT": 1
                 }
                 """);    // -16776961 is the integer representation of the red color in the BGR format
     }
@@ -61,7 +65,7 @@ public class TestEllipse {
     private Shape createEllipseFromPathObject() {
         return Shape.createFromPathObject(
                 PathObjects.createAnnotationObject(
-                        ROIs.createEllipseROI(40, 80, 20, 40, null)
+                        ROIs.createEllipseROI(40, 80, 20, 40, ImagePlane.getPlaneWithChannel(2, 4, 1))
                 ),
                 true
         ).getFirst();
