@@ -1,6 +1,11 @@
 package qupath.ext.omero.core.entities.repositoryentities;
 
 import javafx.collections.ObservableList;
+import qupath.ext.omero.core.entities.permissions.Group;
+import qupath.ext.omero.core.entities.permissions.Owner;
+
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * An element belonging to the OMERO entity hierarchy.
@@ -25,6 +30,10 @@ public interface RepositoryEntity {
      * @return an unmodifiable observable list of children of this element
      */
     ObservableList<? extends RepositoryEntity> getChildren();
+
+    default CompletableFuture<List<? extends RepositoryEntity>> getChildren(Owner owner, Group group) {
+        return CompletableFuture.supplyAsync(this::getChildren);
+    }
 
     /**
      * @return a text describing the entity
