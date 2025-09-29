@@ -15,16 +15,11 @@ import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
 import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Screen;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.entities.shapes.Shape;
@@ -467,6 +462,34 @@ public class ApisHandler implements AutoCloseable {
      */
     public CompletableFuture<List<Dataset>> getDatasets(long projectId) {
         return jsonApi.getDatasets(projectId);
+    }
+
+    public CompletableFuture<List<Project>> getProjects(long ownerId, long groupId) {
+        return jsonApi.getProjects(ownerId, groupId);
+    }
+
+    public CompletableFuture<List<Dataset>> getDatasets(long projectId, long ownerId, long groupId) {
+        return jsonApi.getDatasets(projectId, ownerId, groupId);
+    }
+
+    public CompletableFuture<List<Dataset>> getOrphanedDatasets(long ownerId, long groupId) {
+        return jsonApi.getOrphanedDatasets(ownerId, groupId);
+    }
+
+    public CompletableFuture<List<Image>> getImages(long datasetId, long ownerId, long groupId) {
+        return jsonApi.getImages(datasetId, ownerId, groupId);
+    }
+
+    public CompletableFuture<List<Image>> getOrphanedImages(long ownerId, long groupId) {
+        return jsonApi.getOrphanedImages(ownerId, groupId);
+    }
+
+    public CompletableFuture<List<Screen>> getScreens(long ownerId, long groupId) {
+        return jsonApi.getScreens(ownerId, groupId);
+    }
+
+    public CompletableFuture<List<Plate>> getOrphanedPlates(long ownerId, long groupId) {
+        return jsonApi.getOrphanedPlates(ownerId, groupId);
     }
 
     /**

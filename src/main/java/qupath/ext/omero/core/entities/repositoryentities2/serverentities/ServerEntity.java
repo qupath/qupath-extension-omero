@@ -1,47 +1,45 @@
 package qupath.ext.omero.core.entities.repositoryentities2.serverentities;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import qupath.ext.omero.core.entities.permissions.Group;
+import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroDataset;
 
 import java.net.URI;
+import java.util.List;
 
 public abstract class ServerEntity implements RepositoryEntity {
 
-    private static final String TYPE = "@type";
-    private static final Gson gson = new Gson();
     protected final long id;
-    protected final URI webServerURI;
+    protected final String name;
+    protected final Owner owner;
+    protected final Group group;
+    protected final URI webServerUri;
 
-    protected ServerEntity(long id, URI webServerURI) {
+    protected ServerEntity(long id, String name, Owner owner, Group group, URI webServerUri) {
         this.id = id;
-        this.webServerURI = webServerURI;
+        this.name = name;
+        this.owner = owner;
+        this.group = group;
+        this.webServerUri = webServerUri;
     }
 
-    public static ServerEntity createFromJsonElement(JsonElement jsonElement, URI webServerUri) {
-        if (!jsonElement.isJsonObject()) {
-            throw new IllegalArgumentException(String.format("The provided JSON element %s is not a JSON object", jsonElement));
-        }
-        JsonObject jsonObject = jsonElement.getAsJsonObject();
-
-        if (!jsonObject.has(TYPE) || !jsonObject.get(TYPE).isJsonPrimitive()) {
-            throw new IllegalArgumentException(String.format("The provided JSON object %s doesn't have a %s member", jsonObject, TYPE));
-        }
-        String type = jsonObject.get(TYPE).getAsString();
-
-        //TODO: other entities
-        if (Dataset.isDataset(type)) {
-            return new Dataset(gson.fromJson(jsonObject, OmeroDataset.class), webServerUri);
-        } else {
-            throw new IllegalArgumentException(String.format("The provided JSON object %s was not recognized", jsonObject));
-        }
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this)
+            return true;
+        if (!(obj instanceof ServerEntity serverEntity))
+            return false;
+        return serverEntity.id == this.id;
     }
 
-    public abstract String getAttributeName(int informationIndex);
+    @Override
+    public int hashCode() {
+        return Long.hashCode(id);
+    }
 
-    public abstract String getAttributeValue(int informationIndex);
+    public long getId() {
+        return id;
+    }
 
-    public abstract int getNumberOfAttributes();
+    public abstract List<Attribute> getAttributes();
 }

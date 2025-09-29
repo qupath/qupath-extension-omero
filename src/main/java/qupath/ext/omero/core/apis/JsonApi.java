@@ -1,5 +1,7 @@
 package qupath.ext.omero.core.apis;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -17,14 +19,17 @@ import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.entities.LoginResponse;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroDataset;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroPlate;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroProject;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroScreen;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.image.OmeroImage;
 import qupath.ext.omero.core.entities.serverinformation.OmeroApi;
 import qupath.ext.omero.core.entities.serverinformation.OmeroServerList;
 import qupath.ext.omero.core.entities.shapes.Shape;
@@ -42,6 +47,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 /**
  * The OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html">JSON API</a>.
@@ -52,6 +58,7 @@ import java.util.concurrent.ExecutionException;
 class JsonApi {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonApi.class);
+    private static final int SERVER_ENTITIES_CACHE_SIZE = 1000;
     private static final String OWNERS_URL_KEY = "url:experimenters";
     private static final String GROUPS_URL_KEY = "url:experimentergroups";
     private static final String PROJECTS_URL_KEY = "url:projects";
@@ -65,9 +72,16 @@ class JsonApi {
     private static final String API_URL = "%s/api/";
     private static final String GROUPS_OF_USER_URL = "%s%d/experimentergroups/";
     private static final String PROJECTS_URL = "%s?childCount=true";
+    private static final String PROJECTS_URL2 = "%s?childCount=true&owner=%d&group=%d";
     private static final String DATASETS_URL = "%s%d/datasets/?childCount=true";
+    private static final String DATASETS_IN_PROJECT_URL = "%s%d/datasets/?childCount=true&owner=%d&group=%d";
+    private static final String ORPHANED_DATASETS_URL2 = "%s?childCount=true&orphaned=true&owner=%d&group=%d";
     private static final String IMAGES_URL = "%s%d/images/?childCount=true";
+    private static final String IMAGES_IN_DATASET_URL = "%s%d/images/?childCount=true&owner=%d&group=%d";
+    private static final String ORPHANED_IMAGES_URL = "%s?childCount=true&orphaned=true&owner=%d&group=%d";
     private static final String ORPHANED_DATASETS_URL = "%s?childCount=true&orphaned=true";
+    private static final String SCREENS_URL2 = "%s?childCount=true&owner=%d&group=%d";
+    private static final String ORPHANED_PLATES_URL2 = "%s?orphaned=true&owner=%d&group=%d";    //TODO: don't need childCount=true?
     private static final String SCREENS_URL = "%s?childCount=true";
     private static final String PLATES_URL = "%s%d/plates/";
     private static final String ORPHANED_PLATES_URL = "%s?orphaned=true";
@@ -79,6 +93,21 @@ class JsonApi {
     private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%d%s";
     private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
     private static final Gson gson = new Gson();
+    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Project>>> projectsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+            .build();
+    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Dataset>>> datasetsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+            .build();
+    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Image>>> imagesCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+            .build();
+    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Screen>>> screensCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+            .build();
+    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Plate>>> platesCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+            .build();
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
     private final URI webServerUri;
@@ -89,6 +118,7 @@ class JsonApi {
     private final int port;
     private final String token;
     private final LoginResponse loginResponse;
+    private record ServerEntityCacheKey(long parentId, long ownerId, long groupId) {}
 
     /**
      * Create a JSON API client. This will send a few requests to get basic information on the server and
@@ -370,6 +400,74 @@ class JsonApi {
         logger.debug("Getting dataset with ID {}", datasetId);
 
         return getEntity(urls.get(DATASETS_URL_KEY) + datasetId, Dataset.class);
+    }
+
+    public CompletableFuture<List<Project>> getProjects(long ownerId, long groupId) {
+        return getChildren(
+                projectsCache,
+                new ServerEntityCacheKey(-1, ownerId, groupId),
+                String.format(PROJECTS_URL2, urls.get(PROJECTS_URL_KEY), ownerId, groupId),
+                jsonElement -> new Project(gson.fromJson(jsonElement, OmeroProject.class), webServerUri)
+        );
+    }
+
+    public CompletableFuture<List<Dataset>> getDatasets(long projectId, long ownerId, long groupId) {
+        return getChildren(
+                datasetsCache,
+                new ServerEntityCacheKey(projectId, ownerId, groupId),
+                String.format(DATASETS_IN_PROJECT_URL, urls.get(PROJECTS_URL_KEY), projectId, ownerId, groupId),
+                jsonElement -> new Dataset(gson.fromJson(jsonElement, OmeroDataset.class), webServerUri)
+        );
+    }
+
+    public CompletableFuture<List<Dataset>> getOrphanedDatasets(long ownerId, long groupId) {
+        return getChildren(
+                datasetsCache,
+                new ServerEntityCacheKey(-1, ownerId, groupId),
+                String.format(ORPHANED_DATASETS_URL2, urls.get(PROJECTS_URL_KEY), ownerId, groupId),
+                jsonElement -> new Dataset(gson.fromJson(jsonElement, OmeroDataset.class), webServerUri)
+        );
+    }
+
+    //TODO: handle https://omero.readthedocs.io/en/stable/developers/json-api.html#normalizing-experimenters-and-groups
+    //Throws:
+    //    ExecutionException - if a checked exception was thrown while loading the value
+    //    UncheckedExecutionException - if an unchecked exception was thrown while loading the value
+    //    ExecutionError - if an error was thrown while loading the value
+    public CompletableFuture<List<Image>> getImages(long datasetId, long ownerId, long groupId) {
+        return getChildren(
+                imagesCache,
+                new ServerEntityCacheKey(datasetId, ownerId, groupId),
+                String.format(IMAGES_IN_DATASET_URL, urls.get(DATASETS_URL_KEY), datasetId, ownerId, groupId),
+                jsonElement -> new Image(gson.fromJson(jsonElement, OmeroImage.class), webServerUri)
+        );
+    }
+
+    public CompletableFuture<List<Image>> getOrphanedImages(long ownerId, long groupId) {
+        return getChildren(
+                imagesCache,
+                new ServerEntityCacheKey(-1, ownerId, groupId),
+                String.format(ORPHANED_IMAGES_URL, urls.get(IMAGES_URL_KEY), ownerId, groupId),
+                jsonElement -> new Image(gson.fromJson(jsonElement, OmeroImage.class), webServerUri)
+        );
+    }
+
+    public CompletableFuture<List<Screen>> getScreens(long ownerId, long groupId) {
+        return getChildren(
+                screensCache,
+                new ServerEntityCacheKey(-1, ownerId, groupId),
+                String.format(SCREENS_URL2, urls.get(SCREENS_URL_KEY), ownerId, groupId),
+                jsonElement -> new Screen(gson.fromJson(jsonElement, OmeroScreen.class), webServerUri)
+        );
+    }
+
+    public CompletableFuture<List<Plate>> getOrphanedPlates(long ownerId, long groupId) {
+        return getChildren(
+                platesCache,
+                new ServerEntityCacheKey(-1, ownerId, groupId),
+                String.format(ORPHANED_PLATES_URL2, urls.get(PLATES_URL_KEY), ownerId, groupId),
+                jsonElement -> new Plate(gson.fromJson(jsonElement, OmeroPlate.class), webServerUri)
+        );
     }
 
     /**
@@ -690,6 +788,7 @@ class JsonApi {
 
     private static Map<String, String> getUrls(RequestSender requestSender, URI apiUri) throws ExecutionException, InterruptedException, URISyntaxException {
         OmeroApi omeroAPI = requestSender.getAndConvert(apiUri, OmeroApi.class).get();
+        //TODO: select v0 if possible, warn if not
 
         if (omeroAPI.getLatestVersionURL().isPresent()) {
             return requestSender.getAndConvert(new URI(omeroAPI.getLatestVersionURL().get()), new TypeToken<Map<String, String>>() {}).get();
@@ -749,6 +848,55 @@ class JsonApi {
         );
 
         return authenticate(requestSender, urls, token, body);
+    }
+
+    private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(
+            Cache<ServerEntityCacheKey, CompletableFuture<List<T>>> cache,
+            ServerEntityCacheKey key,
+            String url,
+            Function<JsonElement, T> serverEntityCreator
+    ) {
+        try {
+            return cache.get(
+                    key,
+                    () -> {
+                        logger.debug(
+                                "Fetching children of parent with ID {}, belonging to owner with ID {} and group with ID {}",
+                                key.parentId(),
+                                key.ownerId(),
+                                key.groupId()
+                        );
+
+                        URI uri;
+                        try {
+                            uri = new URI(url);
+                        } catch (URISyntaxException e) {
+                            return CompletableFuture.failedFuture(e);
+                        }
+
+                        synchronized (this) {
+                            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
+                        }
+
+                        return requestSender.getPaginated(uri)
+                                .thenApply(jsonElements -> jsonElements.stream()
+                                        .map(serverEntityCreator)
+                                        .toList()
+                                )
+                                .whenComplete((entities, error) -> {
+                                    synchronized (this) {
+                                        numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
+                                    }
+                                });
+                    }
+            ).whenComplete((entities, error) -> {
+                if (error != null) {
+                    cache.invalidate(key);
+                }
+            });
+        } catch (ExecutionException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(String url, Class<T> type) {

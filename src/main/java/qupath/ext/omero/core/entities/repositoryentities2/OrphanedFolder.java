@@ -2,8 +2,6 @@ package qupath.ext.omero.core.entities.repositoryentities2;
 
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
 
 import java.util.List;
 import java.util.Objects;
@@ -14,24 +12,19 @@ public class OrphanedFolder implements RepositoryEntity {
 
     private static final ResourceBundle resources = Utils.getResources();
     private final ApisHandler apisHandler;
-    private final boolean hasChildren;
 
     public OrphanedFolder(ApisHandler apisHandler) {
         this.apisHandler = apisHandler;
-
-        this.hasChildren = true;    //TODO: determine
     }
 
     @Override
     public boolean hasChildren() {
-        return hasChildren;
+        return true;
     }
 
     @Override
-    public CompletableFuture<List<? extends RepositoryEntity>> getChildren(Owner owner, Group group) {
-        //TODO: get orphaned images of owner and group
-
-        return null;
+    public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
+        return apisHandler.getOrphanedImages(ownerId, groupId);
     }
 
     @Override

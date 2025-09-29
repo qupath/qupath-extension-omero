@@ -6,7 +6,9 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.ServerEntity;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -77,10 +79,32 @@ public class Server implements RepositoryEntity {
     }
 
     @Override
-    public CompletableFuture<List<? extends RepositoryEntity>> getChildren(Owner owner, Group group) {
-        //TODO: get projects, screens, orphaned datasets, orphaned plates, orphaned folder of provided owner and group
+    public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
+        return CompletableFuture.supplyAsync(() -> {
+            List<CompletableFuture<? extends List<? extends ServerEntity>>> requests = List.of(
+                    apisHandler.getProjects(ownerId, groupId),
+                    apisHandler.getScreens(ownerId, groupId),
+                    apisHandler.getOrphanedDatasets(ownerId, groupId),
+                    apisHandler.getOrphanedPlates(ownerId, groupId)
+            );
 
-        return null;
+            List<RepositoryEntity> children = new ArrayList<>();
+            for (var request: requests) {
+                try {
+                    children.addAll(request.get());
+                } catch (InterruptedException | ExecutionException e) {
+                    logger.error(
+                            "Error when getting some children of server belonging to owner with ID {} and group with ID {}",
+                            ownerId,
+                            groupId
+                    );
+                }
+            }
+
+            children.add(new OrphanedFolder(apisHandler));
+
+            return children;
+        });
     }
 
     @Override

@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
-public record OmeroDataset(
+public record OmeroScreen(
         @SerializedName(value = "@type") String type,
         @SerializedName(value = "@id") long id,
         @SerializedName(value = "Name") String name,
@@ -12,9 +12,9 @@ public record OmeroDataset(
         @SerializedName(value = "omero:childCount") int childCount,
         @SerializedName(value = "omero:details:") OmeroDetails omeroDetails
 ) {
-    private static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Dataset";
+    private static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Screen";
 
-    public OmeroDataset {
+    public OmeroScreen {
         if (!TYPE.equalsIgnoreCase(type)) {
             throw new IllegalArgumentException(String.format(
                     "The provided type %s does not correspond to the expected type %s",
