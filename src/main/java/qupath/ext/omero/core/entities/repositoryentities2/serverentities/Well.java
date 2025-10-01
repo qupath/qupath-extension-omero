@@ -1,11 +1,10 @@
 package qupath.ext.omero.core.entities.repositoryentities2.serverentities;
 
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
 import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroWell;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroWellSample;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.image.OmeroImage;
 
 import java.net.URI;
 import java.util.List;
@@ -21,6 +20,7 @@ public class Well extends ServerEntity {
     private final int row;
     private final long plateAcquisitionOwnerId;
     private final List<Attribute> attributes;
+    private final boolean hasChildren;
 
     public Well(OmeroWell omeroWell, long plateAcquisitionOwnerId, URI webServerUri) {
         super(omeroWell.id(), omeroWell.name(), omeroWell.owner(), omeroWell.group(), webServerUri);
@@ -44,16 +44,8 @@ public class Well extends ServerEntity {
                 new Attribute(resources.getString("Entities.Well.column"), String.valueOf(column)),
                 new Attribute(resources.getString("Entities.Well.row"), String.valueOf(row))
         );
-    }
 
-    @Override
-    public List<Attribute> getAttributes() {
-        return attributes;
-    }
-
-    @Override
-    public boolean hasChildren() {
-        return wellSamples != null && wellSamples.stream()
+        this.hasChildren = wellSamples != null && wellSamples.stream()
                 .anyMatch(wellSample -> {
                     if (plateAcquisitionOwnerId > -1) {
                         return wellSample.plateAcquisition() != null && wellSample.plateAcquisition().id() == plateAcquisitionOwnerId;
@@ -64,10 +56,32 @@ public class Well extends ServerEntity {
     }
 
     @Override
-    public CompletableFuture<List<? extends RepositoryEntity>> getChildren(Owner owner, Group group) {
-        //TODO: get children
+    public List<Attribute> getAttributes() {
+        return attributes;
+    }
 
-        return null;
+    @Override
+    public boolean hasChildren() {
+        return hasChildren;
+    }
+
+    @Override
+    public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
+        //TODO: initial implementation was more complex
+        return CompletableFuture.completedFuture(wellSamples.stream()
+                .filter(wellSample -> {
+                    if (plateAcquisitionOwnerId > -1) {
+                        return wellSample.plateAcquisition() != null && wellSample.plateAcquisition().id() == plateAcquisitionOwnerId;
+                    } else {
+                        return wellSample.plateAcquisition() == null;
+                    }
+                })
+                .map(OmeroWellSample::image)
+                .filter(Objects::nonNull)
+                .map(omeroImage -> new Image(omeroImage, webServerUri))
+                .filter(image -> image.getOwner().id() == ownerId && image.getGroup().getId() == groupId)
+                .toList()
+        );
     }
 
     @Override
@@ -87,7 +101,7 @@ public class Well extends ServerEntity {
                 )
                 .map(OmeroWellSample::image)
                 .filter(Objects::nonNull)
-                .map(ServerEntity::getId)
+                .map(OmeroImage::id)
                 .toList();
     }
 }

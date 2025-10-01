@@ -31,10 +31,10 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
-import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.entities.repositoryentities2.Server;
 import qupath.ext.omero.gui.ImageOpener;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyCell;
-import qupath.ext.omero.gui.browser.hierarchy.HierarchyItem;
+import qupath.ext.omero.gui.browser.hierarchy.HierarchyItem2;
 import qupath.ext.omero.gui.login.LoginForm;
 import qupath.fx.controls.PredicateTextField;
 import qupath.lib.gui.QuPathGUI;
@@ -43,10 +43,10 @@ import qupath.ext.omero.gui.browser.advancedsearch.AdvancedSearch;
 import qupath.ext.omero.gui.browser.advancedinformation.AdvancedInformation;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
+import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
+import qupath.ext.omero.core.entities.repositoryentities2.OrphanedFolder;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 
@@ -161,7 +161,7 @@ class Browser extends Stage implements AutoCloseable {
 
     @Override
     public void close() {
-        if (hierarchy.getRoot() instanceof HierarchyItem hierarchyItem) {
+        if (hierarchy.getRoot() instanceof HierarchyItem2 hierarchyItem) {
             hierarchyItem.close();
         }
 
@@ -449,7 +449,7 @@ class Browser extends Stage implements AutoCloseable {
         HBox.setHgrow(predicateTextField, Priority.ALWAYS);
 
         hierarchy.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        hierarchy.setRoot(new HierarchyItem(
+        hierarchy.setRoot(new HierarchyItem2(
                 server,
                 browserModel.getSelectedOwner(),
                 browserModel.getSelectedGroup(),

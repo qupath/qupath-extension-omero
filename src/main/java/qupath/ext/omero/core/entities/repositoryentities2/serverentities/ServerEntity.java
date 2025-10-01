@@ -41,5 +41,13 @@ public abstract class ServerEntity implements RepositoryEntity {
         return id;
     }
 
+    public Owner getOwner() {//TODO: can be null
+        return owner;
+    }
+
+    public Group getGroup() {
+        return group;
+    }
+
     public abstract List<Attribute> getAttributes();
 }

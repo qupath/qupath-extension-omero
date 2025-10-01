@@ -1,6 +1,7 @@
 package qupath.ext.omero.core.entities.repositoryentities2.serverentities;
 
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroScreen;
 
@@ -52,9 +53,17 @@ public class Screen extends ServerEntity {
 
     @Override
     public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
-        //TODO: get plate of screen with group and owner
+        var client = Client.getClientFromURI(webServerUri);
 
-        return null;
+        if (client.isPresent()) {
+            return client.get().getApisHandler().getPlates(id, ownerId, groupId);
+        } else {
+            return CompletableFuture.failedFuture(new IllegalStateException(String.format(
+                    "Could not find the web client corresponding to %s. Impossible to get the children of this screen (%s).",
+                    webServerUri,
+                    this
+            )));
+        }
     }
 
     @Override

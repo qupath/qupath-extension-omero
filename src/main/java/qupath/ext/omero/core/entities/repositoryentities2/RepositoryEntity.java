@@ -23,6 +23,7 @@ public interface RepositoryEntity {
      * @param groupId the ID of the group that should own the entities to retrieve
      * @return a CompletableFuture (that may complete exceptionally) with the list of children of this entity
      */
+    //TODO: handle when parameter is null, and when parameter is all owners / all groups
     CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId);
 
     /**

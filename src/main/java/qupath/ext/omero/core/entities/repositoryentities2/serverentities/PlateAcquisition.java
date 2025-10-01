@@ -1,8 +1,7 @@
 package qupath.ext.omero.core.entities.repositoryentities2.serverentities;
 
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
+import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroPlateAcquisition;
 
@@ -14,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.IntStream;
 
 public class PlateAcquisition extends ServerEntity {
 
@@ -64,10 +64,25 @@ public class PlateAcquisition extends ServerEntity {
     }
 
     @Override
-    public CompletableFuture<List<? extends RepositoryEntity>> getChildren(Owner owner, Group group) {
-        //TODO: get wells from plate acquisition
+    public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
+        var client = Client.getClientFromURI(webServerUri);
 
-        return null;
+        if (client.isPresent()) {
+            //TODO: initial implementation was more complex
+            return CompletableFuture.supplyAsync(() -> IntStream.range(wellSampleIndices.getFirst(), wellSampleIndices.get(1)+1)
+                    .mapToObj(i -> client.get().getApisHandler().getWellsFromPlateAcquisition(id, ownerId, groupId, i))
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .filter(Well::hasChildren)
+                    .toList()
+            );
+        } else {
+            return CompletableFuture.failedFuture(new IllegalStateException(String.format(
+                    "Could not find the web client corresponding to %s. Impossible to get the children of this plate acquisition (%s).",
+                    webServerUri,
+                    this
+            )));
+        }
     }
 
     @Override

@@ -13,13 +13,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.entities.repositoryentities2.OrphanedFolder;
+import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -130,8 +130,8 @@ public class HierarchyItem2 extends TreeItem<RepositoryEntity> implements AutoCl
         RepositoryEntity repositoryEntity = getValue();
 
         request = repositoryEntity.getChildren(
-                ownerBinding.getValue(),
-                groupBinding.getValue()
+                ownerBinding.getValue().id(),
+                groupBinding.getValue().getId()
         ).handle((repositoryEntities, error) -> {
             if (error != null) {
                 logger.error("Error when getting children of {}", repositoryEntity, error);
@@ -153,7 +153,7 @@ public class HierarchyItem2 extends TreeItem<RepositoryEntity> implements AutoCl
 
     private void clearChildren() {
         for (TreeItem<RepositoryEntity> item: children) {
-            if (item instanceof HierarchyItem hierarchyItem) {
+            if (item instanceof HierarchyItem2 hierarchyItem) {
                 hierarchyItem.close();
             }
         }

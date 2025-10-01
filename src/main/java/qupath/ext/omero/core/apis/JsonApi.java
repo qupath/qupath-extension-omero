@@ -8,7 +8,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableIntegerValue;
@@ -18,20 +17,31 @@ import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.entities.LoginResponse;
 import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
+import qupath.ext.omero.core.entities.permissions2.Experimenter;
+import qupath.ext.omero.core.entities.permissions2.ExperimenterGroup;
+import qupath.ext.omero.core.entities.permissions2.omeroentities.OmeroExperimenter;
+import qupath.ext.omero.core.entities.permissions2.omeroentities.OmeroExperimenterGroup;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Dataset;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.PlateAcquisition;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Project;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Screen;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroDataset;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroPlate;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroPlateAcquisition;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroProject;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroScreen;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.OmeroWell;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.omeroentities.image.OmeroImage;
-import qupath.ext.omero.core.entities.serverinformation.OmeroApi;
-import qupath.ext.omero.core.entities.serverinformation.OmeroServerList;
+import qupath.ext.omero.core.entities.serverinformation.Links;
+import qupath.ext.omero.core.entities.serverinformation.OmeroServer;
+import qupath.ext.omero.core.entities.serverinformation.OmeroServers;
+import qupath.ext.omero.core.entities.serverinformation.SupportedVersion;
+import qupath.ext.omero.core.entities.serverinformation.SupportedVersions;
+import qupath.ext.omero.core.entities.serverinformation.Token;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.lib.io.GsonTools;
 
@@ -40,7 +50,6 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -59,19 +68,14 @@ class JsonApi {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonApi.class);
     private static final int SERVER_ENTITIES_CACHE_SIZE = 1000;
-    private static final String OWNERS_URL_KEY = "url:experimenters";
-    private static final String GROUPS_URL_KEY = "url:experimentergroups";
+    private static final String EXPECTED_API_VERSION = "0";
     private static final String PROJECTS_URL_KEY = "url:projects";
     private static final String DATASETS_URL_KEY = "url:datasets";
     private static final String IMAGES_URL_KEY = "url:images";
     private static final String SCREENS_URL_KEY = "url:screens";
     private static final String PLATES_URL_KEY = "url:plates";
-    private static final String TOKEN_URL_KEY = "url:token";
-    private static final String SERVERS_URL_KEY = "url:servers";
-    private static final String LOGIN_URL_KEY = "url:login";
     private static final String API_URL = "%s/api/";
     private static final String GROUPS_OF_USER_URL = "%s%d/experimentergroups/";
-    private static final String PROJECTS_URL = "%s?childCount=true";
     private static final String PROJECTS_URL2 = "%s?childCount=true&owner=%d&group=%d";
     private static final String DATASETS_URL = "%s%d/datasets/?childCount=true";
     private static final String DATASETS_IN_PROJECT_URL = "%s%d/datasets/?childCount=true&owner=%d&group=%d";
@@ -81,7 +85,11 @@ class JsonApi {
     private static final String ORPHANED_IMAGES_URL = "%s?childCount=true&orphaned=true&owner=%d&group=%d";
     private static final String ORPHANED_DATASETS_URL = "%s?childCount=true&orphaned=true";
     private static final String SCREENS_URL2 = "%s?childCount=true&owner=%d&group=%d";
+    private static final String PLATES_IN_SCREEN_URL = "%s%d/plates/?owner=%d&group=%d";    //TODO: don't need childCount=true?
     private static final String ORPHANED_PLATES_URL2 = "%s?orphaned=true&owner=%d&group=%d";    //TODO: don't need childCount=true?
+    private static final String PLATE_ACQUISITIONS_IN_PLATE_URL = "%s/api/v0/m/plates/%d/plateacquisitions/?owner=%d&group=%d";  //TODO: don't need childCount=true?
+    private static final String WELLS_IN_PLATE_URL = "%s/api/v0/m/plates/%d/wells/?owner=%d&group=%d"; //TODO: don't need childCount=true?
+    private static final String WELLS_IN_PLATE_ACQUISITION_URL2 = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/?owner=%d&group=%d"; //TODO: don't need childCount=true?
     private static final String SCREENS_URL = "%s?childCount=true";
     private static final String PLATES_URL = "%s%d/plates/";
     private static final String ORPHANED_PLATES_URL = "%s?orphaned=true";
@@ -108,14 +116,17 @@ class JsonApi {
     private final Cache<ServerEntityCacheKey, CompletableFuture<List<Plate>>> platesCache = CacheBuilder.newBuilder()
             .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
             .build();
+    private final Cache<ServerEntityCacheKey, CompletableFuture<List<PlateAcquisition>>> plateAcquisitionsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+            .build();
+    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Well>>> wellCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+            .build();
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
-    private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
     private final URI webServerUri;
     private final RequestSender requestSender;
-    private final Map<String, String> urls;
-    private final String serverUri;
-    private final int serverId;
-    private final int port;
+    private final Links links;
+    private final OmeroServer omeroServer;
     private final String token;
     private final LoginResponse loginResponse;
     private record ServerEntityCacheKey(long parentId, long ownerId, long groupId) {}
@@ -136,30 +147,23 @@ class JsonApi {
     public JsonApi(URI webServerUri, RequestSender requestSender, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
         this.webServerUri = webServerUri;
         this.requestSender = requestSender;
-        this.urls = getUrls(requestSender, new URI(String.format(API_URL, webServerUri)));
 
-        CompletableFuture<String> tokenRequest = getToken(requestSender, this.urls);
-        CompletableFuture<OmeroServerList> serverInformationRequest = getServerInformation(requestSender, this.urls);
+        this.links = getLinks(requestSender, getLinksUrl(requestSender, webServerUri));
+        logger.debug("Got links {} from {}", links, webServerUri);
 
-        OmeroServerList serverInformation = serverInformationRequest.get();
-        if (serverInformation.getServerHost().isPresent() &&
-                serverInformation.getServerId().isPresent() &&
-                serverInformation.getServerPort().isPresent()) {
-            this.serverUri = serverInformation.getServerHost().get();
-            this.serverId = serverInformation.getServerId().getAsInt();
-            this.port = serverInformation.getServerPort().getAsInt();
+        // Send requests in parallel
+        CompletableFuture<String> tokenRequest = getToken(requestSender, this.links);
+        CompletableFuture<OmeroServer> omeroServersRequest = getOmeroServer(requestSender, this.links);
 
-            logger.debug("OMERO.server information set: {}:{}", this.serverUri, this.port);
-        } else {
-            throw new IllegalArgumentException(String.format(
-                    "The retrieved server information %s does not have all the required information (host, id, and port)",
-                    serverInformation
-            ));
-        }
+        this.omeroServer = omeroServersRequest.get();
+        logger.debug("Got OMERO server {} from {}", omeroServer, webServerUri);
 
         this.token = tokenRequest.get();
+        logger.debug("Got token {} from {}", token, webServerUri);
+
         if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
-            this.loginResponse = login(this.requestSender, credentials, this.urls, this.serverId, token).get();
+            this.loginResponse = login(this.requestSender, credentials, links.login(), omeroServer.id(), token).get();
+
             logger.debug(
                     "Created JSON API with authenticated {} user of ID {} and default group {}",
                     loginResponse.isAdmin() ? "admin" : "non admin",
@@ -197,7 +201,7 @@ class JsonApi {
      * @return the server host
      */
     public String getServerUri() {
-        return serverUri;
+        return omeroServer.host();
     }
 
     /**
@@ -205,7 +209,7 @@ class JsonApi {
      * port and may be different from the OMERO web port
      */
     public int getServerPort() {
-        return port;
+        return omeroServer.port();
     }
 
     /**
@@ -256,7 +260,7 @@ class JsonApi {
     }
 
     /**
-     * Attempt to retrieve all groups of a user or of the server.
+     * Attempt to retrieve all experimenter groups of a user or of the server.
      * <ul>
      *     <li>
      *         When retrieving the groups of a user, private groups won't be populated by their members (excluding the provided user),
@@ -272,7 +276,7 @@ class JsonApi {
      * @param userId the ID of the user that belong to the returned groups. Can be negative to retrieve all groups
      * @return a CompletableFuture (that may complete exceptionally) with the list containing all groups of the provided user
      */
-    public CompletableFuture<List<Group>> getGroups(long userId) {
+    public CompletableFuture<List<ExperimenterGroup>> getGroups(long userId) {
         boolean retrieveAllGroups = userId < 0;
 
         if (retrieveAllGroups) {
@@ -283,64 +287,52 @@ class JsonApi {
 
         URI uri;
         try {
-            uri = new URI(retrieveAllGroups ? urls.get(GROUPS_URL_KEY) : String.format(GROUPS_OF_USER_URL, urls.get(OWNERS_URL_KEY), userId));
+            uri = new URI(retrieveAllGroups ? links.groups() : String.format(GROUPS_OF_USER_URL, links.owners(), userId));
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
 
-        return requestSender.getPaginated(uri).thenApplyAsync(jsonElements -> {
-            List<Group> groups = jsonElements.stream()
-                    .map(jsonElement -> gson.fromJson(jsonElement, Group.class))
-                    .toList();
-            List<Group> filteredGroups = groups.stream()
-                    .filter(group -> retrieveAllGroups || !GROUPS_TO_EXCLUDE.contains(group.getName()))
-                    .toList();
-            logger.debug("Groups {} filtered to {} retrieved", groups, filteredGroups);
+        return requestSender.getPaginated(uri).thenApplyAsync(jsonElements -> jsonElements.stream()
+                .map(jsonElement -> gson.fromJson(jsonElement, OmeroExperimenterGroup.class))
+                .filter(OmeroExperimenterGroup::idNameAndExperimenterUrlDefined)
+                .filter(omeroGroup -> retrieveAllGroups || !GROUPS_TO_EXCLUDE.contains(omeroGroup.name()))
+                .map(omeroGroup -> {
+                    try {
+                        return new ExperimenterGroup(
+                                omeroGroup,
+                                requestSender.getPaginated(new URI(omeroGroup.experimentersUrl())).get().stream()
+                                        .map(jsonElement -> new Experimenter(gson.fromJson(jsonElement, OmeroExperimenter.class)))
+                                        .filter(experimenter -> {
+                                            if (retrieveAllGroups) {
+                                                return true;
+                                            } else if (loginResponse != null && userId == loginResponse.userId()) {
+                                                return switch (omeroGroup.getPermissionLevel()) {
+                                                    case PRIVATE -> experimenter.getId() == userId || loginResponse.ownedGroupIds().contains(omeroGroup.id());
+                                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
+                                                    case UNKNOWN -> experimenter.getId() == userId;
+                                                };
+                                            } else {
+                                                return switch (omeroGroup.getPermissionLevel()) {
+                                                    case PRIVATE, UNKNOWN -> experimenter.getId() == userId;
+                                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
+                                                };
+                                            }
+                                        })
+                                        .toList()
+                        );
+                    } catch (ExecutionException | InterruptedException | URISyntaxException | IllegalArgumentException e) {
+                        logger.error("Cannot create experimenter group corresponding to {}. Skipping it", omeroGroup, e);
 
-            for (Group group: filteredGroups) {
-                URI experimenterLink = URI.create(group.getExperimentersLink());
-                List<Owner> owners = requestSender.getPaginated(experimenterLink).join().stream()
-                        .map(jsonElement -> gson.fromJson(jsonElement, Owner.class))
-                        .toList();
+                        if (e instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
+                        }
 
-                group.setOwners(owners.stream()
-                        .filter(owner -> {
-                            if (retrieveAllGroups) {
-                                return true;
-                            } else if (loginResponse != null && userId == loginResponse.userId()) {
-                                return switch (group.getPermissionLevel()) {
-                                    case PRIVATE -> owner.id() == userId || loginResponse.ownedGroupIds().contains(group.getId());
-                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
-                                    case UNKNOWN -> owner.id() == userId;
-                                };
-                            } else {
-                                return switch (group.getPermissionLevel()) {
-                                    case PRIVATE, UNKNOWN -> owner.id() == userId;
-                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
-                                };
-                            }
-                        })
-                        .toList()
-                );
-                logger.debug("Owners {} have been filtered to {} and assigned to {}", owners, group.getOwners(), group);
-            }
-
-            return filteredGroups;
-        });
-    }
-
-    /**
-     * Attempt to retrieve all projects visible by the current user.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all projects of this server
-     */
-    public CompletableFuture<List<Project>> getProjects() {
-        logger.debug("Getting all projects visible by the current user");
-
-        return getChildren(String.format(PROJECTS_URL, urls.get(PROJECTS_URL_KEY)), Project.class);
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .toList()
+        );
     }
 
     /**
@@ -406,7 +398,7 @@ class JsonApi {
         return getChildren(
                 projectsCache,
                 new ServerEntityCacheKey(-1, ownerId, groupId),
-                String.format(PROJECTS_URL2, urls.get(PROJECTS_URL_KEY), ownerId, groupId),
+                String.format(PROJECTS_URL2, links.projects(), ownerId, groupId),
                 jsonElement -> new Project(gson.fromJson(jsonElement, OmeroProject.class), webServerUri)
         );
     }
@@ -461,6 +453,15 @@ class JsonApi {
         );
     }
 
+    public CompletableFuture<List<Plate>> getPlates(long screenId, long ownerId, long groupId) {
+        return getChildren(
+                platesCache,
+                new ServerEntityCacheKey(screenId, ownerId, groupId),
+                String.format(PLATES_IN_SCREEN_URL, urls.get(SCREENS_URL_KEY), screenId, ownerId, groupId),
+                jsonElement -> new Plate(gson.fromJson(jsonElement, OmeroPlate.class), webServerUri)
+        );
+    }
+
     public CompletableFuture<List<Plate>> getOrphanedPlates(long ownerId, long groupId) {
         return getChildren(
                 platesCache,
@@ -469,6 +470,47 @@ class JsonApi {
                 jsonElement -> new Plate(gson.fromJson(jsonElement, OmeroPlate.class), webServerUri)
         );
     }
+
+    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId, long ownerId, long groupId, int numberOfWells) {
+        return getChildren(
+                plateAcquisitionsCache,
+                new ServerEntityCacheKey(plateId, ownerId, groupId),
+                String.format(PLATE_ACQUISITIONS_IN_PLATE_URL, webServerUri, plateId, ownerId, groupId),
+                jsonElement -> new PlateAcquisition(
+                        gson.fromJson(jsonElement, OmeroPlateAcquisition.class),
+                        numberOfWells,
+                        webServerUri
+                )
+        );
+    }
+
+    public CompletableFuture<List<Well>> getWellsFromPlate(long plateId, long ownerId, long groupId) {
+        return getChildren(
+                wellCache,
+                new ServerEntityCacheKey(plateId, ownerId, groupId),
+                String.format(WELLS_IN_PLATE_URL, webServerUri, plateId, ownerId, groupId),
+                jsonElement -> new Well(
+                        gson.fromJson(jsonElement, OmeroWell.class),
+                        -1,
+                        webServerUri
+                )
+        );
+    }
+
+    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, long ownerId, long groupId, int wellSampleIndex) {
+        return getChildren(
+                wellCache,
+                new ServerEntityCacheKey(-plateAcquisitionId, ownerId, groupId),        // use negative ID to use same cache
+                String.format(WELLS_IN_PLATE_ACQUISITION_URL2, webServerUri, plateAcquisitionId, wellSampleIndex, ownerId, groupId),
+                jsonElement -> new Well(
+                        gson.fromJson(jsonElement, OmeroWell.class),
+                        plateAcquisitionId,
+                        webServerUri
+                )
+        );
+    }
+
+
 
     /**
      * Attempt to retrieve all images of a dataset visible by the current user.
@@ -775,69 +817,109 @@ class JsonApi {
 
         return authenticate(
                 requestSender,
-                urls,
+                links.login(),
                 token,
                 String.join(
                         "&",
-                        String.format("server=%d", serverId),
+                        String.format("server=%d", omeroServer.id()),
                         String.format("username=%s", loginResponse.sessionUuid()),
                         String.format("password=%s", loginResponse.sessionUuid())
                 ).getBytes(StandardCharsets.UTF_8)
         ).thenAccept(loginResponse -> {});
     }
 
-    private static Map<String, String> getUrls(RequestSender requestSender, URI apiUri) throws ExecutionException, InterruptedException, URISyntaxException {
-        OmeroApi omeroAPI = requestSender.getAndConvert(apiUri, OmeroApi.class).get();
-        //TODO: select v0 if possible, warn if not
+    private static String getLinksUrl(RequestSender requestSender, URI webServerUri) throws URISyntaxException, ExecutionException, InterruptedException {
+        URI apiUri = new URI(String.format(API_URL, webServerUri));
+        SupportedVersions supportedVersions = requestSender.getAndConvert(apiUri, SupportedVersions.class).get();
 
-        if (omeroAPI.getLatestVersionURL().isPresent()) {
-            return requestSender.getAndConvert(new URI(omeroAPI.getLatestVersionURL().get()), new TypeToken<Map<String, String>>() {}).get();
+        if (supportedVersions.supportedVersions() == null) {
+            throw new IllegalArgumentException(String.format("Unexpected response from %s. Cannot get JSON API version", apiUri));
+        }
+        List<SupportedVersion> supportedVersionsList = supportedVersions.supportedVersions();
+
+        Optional<String> expectedVersion = supportedVersionsList.stream()
+                .filter(supportedVersion -> EXPECTED_API_VERSION.equals(supportedVersion.version()))
+                .map(SupportedVersion::versionURL)
+                .filter(Objects::nonNull)
+                .findAny();
+        if (expectedVersion.isPresent()) {
+            return expectedVersion.get();
+        }
+
+        Optional<SupportedVersion> unexpectedVersion = supportedVersionsList.stream()
+                .filter(supportedVersion -> supportedVersion.version() != null && supportedVersion.versionURL() != null)
+                .findAny();
+        if (unexpectedVersion.isPresent()) {
+            logger.warn(
+                    "The expected version {} was not found, so version {} was chosen instead. This might cause issues later",
+                    EXPECTED_API_VERSION,
+                    unexpectedVersion.get().version()
+            );
+            return unexpectedVersion.get().versionURL();
+        }
+
+        throw new IllegalArgumentException(String.format("No supported version found in response of %s", apiUri));
+    }
+
+    private static Links getLinks(RequestSender requestSender, String linksUrl) throws URISyntaxException, ExecutionException, InterruptedException {
+        URI linksUri = new URI(linksUrl);
+        Links links = requestSender.getAndConvert(linksUri, Links.class).get();
+
+        if (links.allLinksDefined()) {
+            return links;
         } else {
-            throw new IllegalArgumentException("The latest version of the API supported by the server was not found");
+            throw new IllegalArgumentException(String.format("Unexpected response from %s: not all expected links are present", linksUri));
         }
     }
 
-    private static CompletableFuture<String> getToken(RequestSender requestSender, Map<String, String> urls) {
-        if (!urls.containsKey(TOKEN_URL_KEY)) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The %s token was not found in %s", TOKEN_URL_KEY, urls)
-            ));
-        }
-
+    private static CompletableFuture<String> getToken(RequestSender requestSender, Links links) {
         URI uri;
         try {
-            uri = new URI(urls.get(TOKEN_URL_KEY));
+            uri = new URI(links.token());
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
 
-        return requestSender.getAndConvert(uri, new TypeToken<Map<String, String>>() {}).thenApply(response -> {
-            if (response.containsKey("data")) {
-                return response.get("data");
+        return requestSender.getAndConvert(uri, Token.class).thenApply(token -> {
+            if (token.token() == null) {
+                throw new IllegalArgumentException(String.format("Unexpected response from %s: no token found", uri));
             } else {
-                throw new IllegalArgumentException(String.format("'data' field not found in %s", response));
+                return token.token();
             }
         });
     }
 
-    private static CompletableFuture<OmeroServerList> getServerInformation(RequestSender requestSender, Map<String, String> urls) {
-        if (!urls.containsKey(SERVERS_URL_KEY)) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The %s token was not found in %s", SERVERS_URL_KEY, urls)
-            ));
-        }
-
+    private static CompletableFuture<OmeroServer> getOmeroServer(RequestSender requestSender, Links links) {
+        URI uri;
         try {
-            return requestSender.getAndConvert(new URI(urls.get(SERVERS_URL_KEY)), OmeroServerList.class);
+            uri = new URI(links.servers());
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }
+
+        return requestSender.getAndConvert(uri, OmeroServers.class).thenApply(omeroServers -> {
+            List<OmeroServer> filteredList = omeroServers.servers() == null ?
+                    List.of() :
+                    omeroServers.servers().stream().filter(OmeroServer::allFieldsDefined).toList();
+
+            if (filteredList.isEmpty()) {
+                throw new IllegalArgumentException(String.format("Unexpected response from %s: no servers found", uri));
+            } else {
+                OmeroServer omeroServer = filteredList.getFirst();
+
+                if (filteredList.size() > 1) {
+                    logger.warn("Several OMERO servers found: {}. {} will be used", omeroServers.servers(), omeroServer);
+                }
+
+                return omeroServer;
+            }
+        });
     }
 
     private static CompletableFuture<LoginResponse> login(
             RequestSender requestSender,
             Credentials credentials,
-            Map<String, String> urls,
+            String url,
             int serverId,
             String token
     ) {
@@ -847,7 +929,7 @@ class JsonApi {
                 encodedPassword
         );
 
-        return authenticate(requestSender, urls, token, body);
+        return authenticate(requestSender, url, token, body);
     }
 
     private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(
@@ -966,19 +1048,13 @@ class JsonApi {
 
     private static CompletableFuture<LoginResponse> authenticate(
             RequestSender requestSender,
-            Map<String, String> urls,
+            String url,
             String token,
             byte[] body
     ) {
-        if (!urls.containsKey(LOGIN_URL_KEY)) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException(
-                    String.format("The %s token was not found in %s", LOGIN_URL_KEY, urls)
-            ));
-        }
-
         URI uri;
         try {
-            uri = new URI(urls.get(LOGIN_URL_KEY));
+            uri = new URI(url);
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }

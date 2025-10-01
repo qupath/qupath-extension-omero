@@ -15,11 +15,14 @@ import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
 import qupath.ext.omero.core.entities.permissions.Group;
+import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Dataset;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.PlateAcquisition;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Project;
 import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Well;
 import qupath.ext.omero.core.entities.search.SearchQuery;
 import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.entities.shapes.Shape;
@@ -79,6 +82,7 @@ public class ApisHandler implements AutoCloseable {
     private static final Pattern PLATE_PATTERN = Pattern.compile("/webclient/\\?show=plate-(\\d+)");
     private static final Pattern SCREEN_PATTERN = Pattern.compile("/webclient/\\?show=screen-(\\d+)");
     private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
+    //TODO: put caches in their specific API
     private final Cache<Long, CompletableFuture<Image>> imagesCache = CacheBuilder.newBuilder()
             .build();
     private final Cache<Class<? extends RepositoryEntity>, CompletableFuture<BufferedImage>> omeroIconsCache = CacheBuilder.newBuilder()
@@ -488,8 +492,24 @@ public class ApisHandler implements AutoCloseable {
         return jsonApi.getScreens(ownerId, groupId);
     }
 
+    public CompletableFuture<List<Plate>> getPlates(long screenId, long ownerId, long groupId) {
+        return jsonApi.getPlates(screenId, ownerId, groupId);
+    }
+
     public CompletableFuture<List<Plate>> getOrphanedPlates(long ownerId, long groupId) {
         return jsonApi.getOrphanedPlates(ownerId, groupId);
+    }
+
+    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId, long ownerId, long groupId, int numberOfWells) {
+        return jsonApi.getPlateAcquisitions(plateId, ownerId, groupId, numberOfWells);
+    }
+
+    public CompletableFuture<List<Well>> getWellsFromPlate(long plateId, long ownerId, long groupId) {
+        return jsonApi.getWellsFromPlate(plateId, ownerId, groupId);
+    }
+
+    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, long ownerId, long groupId, int wellSampleIndex) {
+        return jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, ownerId, groupId, wellSampleIndex);
     }
 
     /**
