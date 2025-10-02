@@ -1,11 +1,11 @@
 package qupath.ext.omero.core.entities.search;
 
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Well;
 
 /**
  * The result of a search query, with additional information on the parent entities if the result is

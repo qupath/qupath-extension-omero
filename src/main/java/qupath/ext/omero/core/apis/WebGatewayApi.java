@@ -1,5 +1,8 @@
 package qupath.ext.omero.core.apis;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.gson.JsonObject;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -20,6 +23,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -32,6 +36,8 @@ import java.util.stream.IntStream;
 class WebGatewayApi {
 
     private static final Logger logger = LoggerFactory.getLogger(WebGatewayApi.class);
+    private static final int THUMBNAIL_CACHE_SIZE = 1000;
+    private static final int METADATA_CACHE_SIZE = 50;
     private static final String ICON_URL = "%s/static/webgateway/img/%s";
     private static final String PROJECT_ICON_NAME = "folder16.png";
     private static final String DATASET_ICON_NAME = "folder_image16.png";
@@ -50,6 +56,9 @@ class WebGatewayApi {
     private final URI webServerUri;
     private final RequestSender requestSender;
     private final String token;
+    private final LoadingCache<IdSizeWrapper, BufferedImage> thumbnailsCache;
+    private final LoadingCache<Long, ImageServerMetadata> metadataCache;
+    private record IdSizeWrapper(long id, int size) {}
 
     /**
      * Creates a web gateway client.
@@ -63,6 +72,38 @@ class WebGatewayApi {
         this.webServerUri = webServerUri;
         this.requestSender = requestSender;
         this.token = token;
+
+        this.thumbnailsCache = CacheBuilder.newBuilder()
+                .maximumSize(THUMBNAIL_CACHE_SIZE)
+                .build(new CacheLoader<>() {
+                    @Override
+                    public BufferedImage load(IdSizeWrapper idSizeWrapper) throws ExecutionException, InterruptedException, URISyntaxException {
+                        logger.debug("Fetching thumbnail with ID {} and size {} (not already in cache)", idSizeWrapper.id(), idSizeWrapper.size());
+
+                        synchronized (this) {
+                            numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() + 1);
+                        }
+
+                        return requestSender.getImage(new URI(String.format(THUMBNAIL_URL, webServerUri, idSizeWrapper.id(), idSizeWrapper.size())))
+                                .whenComplete((thumbnail, error) -> {
+                                    synchronized (this) {
+                                        numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() - 1);
+                                    }
+                                }).get();
+                    }
+                });
+        this.metadataCache = CacheBuilder.newBuilder()
+                .maximumSize(METADATA_CACHE_SIZE)
+                .build(new CacheLoader<>() {
+                    @Override
+                    public ImageServerMetadata load(Long imageId) throws ExecutionException, InterruptedException, URISyntaxException {
+                        logger.debug("Fetching metadata of image with ID {} (not already in cache)", imageId);
+
+                        return requestSender.getAndConvert(new URI(String.format(IMAGE_DATA_URL, webServerUri, imageId)), JsonObject.class)
+                                .thenApplyAsync(ImageMetadataResponseParser::createMetadataFromJson)
+                                .get();
+                    }
+                });
     }
 
     @Override
@@ -155,6 +196,8 @@ class WebGatewayApi {
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
+     * <p>
+     * Thumbnails are cached in a cache of size {@link #THUMBNAIL_CACHE_SIZE}.
      *
      * @param imageId the OMERO image ID
      * @param size the max width and max height the thumbnail should have
@@ -163,20 +206,7 @@ class WebGatewayApi {
     public CompletableFuture<BufferedImage> getThumbnail(long imageId, int size) {
         logger.debug("Getting thumbnail of image with ID {} and with size {}", imageId, size);
 
-        synchronized (this) {
-            numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() + 1);
-        }
-
-        try {
-            return requestSender.getImage(new URI(String.format(THUMBNAIL_URL, webServerUri, imageId, size)))
-                    .whenComplete((thumbnail, error) -> {
-                        synchronized (this) {
-                            numberOfThumbnailsLoading.set(numberOfThumbnailsLoading.get() - 1);
-                        }
-                    });
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
+        return CompletableFuture.supplyAsync(() -> thumbnailsCache.getUnchecked(new IdSizeWrapper(imageId, size)));
     }
 
     /**
@@ -184,6 +214,8 @@ class WebGatewayApi {
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
+     * <p>
+     * Metadata are cached in a cache of size {@link #METADATA_CACHE_SIZE}.
      *
      * @param imageId the OMERO image ID
      * @return a CompletableFuture (that may complete exceptionally) with the metadata
@@ -191,15 +223,7 @@ class WebGatewayApi {
     public CompletableFuture<ImageServerMetadata> getImageMetadata(long imageId) {
         logger.debug("Getting metadata of image with ID {}", imageId);
 
-        URI uri;
-        try {
-            uri = new URI(String.format(IMAGE_DATA_URL, webServerUri, imageId));
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        return requestSender.getAndConvert(uri, JsonObject.class).thenApplyAsync(ImageMetadataResponseParser::createMetadataFromJson);
-
+        return CompletableFuture.supplyAsync(() -> metadataCache.getUnchecked(imageId));
     }
 
     /**

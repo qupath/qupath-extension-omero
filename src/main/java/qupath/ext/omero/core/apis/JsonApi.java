@@ -2,12 +2,12 @@ package qupath.ext.omero.core.apis;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.Lists;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableIntegerValue;
@@ -52,9 +52,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
@@ -67,60 +65,47 @@ import java.util.function.Function;
 class JsonApi {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonApi.class);
+    private static final int SERVER_ENTITIES_IDS_CACHE_SIZE = 10000;
     private static final int SERVER_ENTITIES_CACHE_SIZE = 1000;
     private static final String EXPECTED_API_VERSION = "0";
-    private static final String PROJECTS_URL_KEY = "url:projects";
-    private static final String DATASETS_URL_KEY = "url:datasets";
-    private static final String IMAGES_URL_KEY = "url:images";
-    private static final String SCREENS_URL_KEY = "url:screens";
-    private static final String PLATES_URL_KEY = "url:plates";
     private static final String API_URL = "%s/api/";
     private static final String GROUPS_OF_USER_URL = "%s%d/experimentergroups/";
-    private static final String PROJECTS_URL2 = "%s?childCount=true&owner=%d&group=%d";
-    private static final String DATASETS_URL = "%s%d/datasets/?childCount=true";
+    private static final String PROJECTS_URL = "%s?childCount=true&owner=%d&group=%d";
     private static final String DATASETS_IN_PROJECT_URL = "%s%d/datasets/?childCount=true&owner=%d&group=%d";
-    private static final String ORPHANED_DATASETS_URL2 = "%s?childCount=true&orphaned=true&owner=%d&group=%d";
-    private static final String IMAGES_URL = "%s%d/images/?childCount=true";
+    private static final String ORPHANED_DATASETS_URL = "%s?childCount=true&orphaned=true&owner=%d&group=%d";
     private static final String IMAGES_IN_DATASET_URL = "%s%d/images/?childCount=true&owner=%d&group=%d";
     private static final String ORPHANED_IMAGES_URL = "%s?childCount=true&orphaned=true&owner=%d&group=%d";
-    private static final String ORPHANED_DATASETS_URL = "%s?childCount=true&orphaned=true";
-    private static final String SCREENS_URL2 = "%s?childCount=true&owner=%d&group=%d";
+    private static final String SCREENS_URL = "%s?childCount=true&owner=%d&group=%d";
     private static final String PLATES_IN_SCREEN_URL = "%s%d/plates/?owner=%d&group=%d";    //TODO: don't need childCount=true?
-    private static final String ORPHANED_PLATES_URL2 = "%s?orphaned=true&owner=%d&group=%d";    //TODO: don't need childCount=true?
-    private static final String PLATE_ACQUISITIONS_IN_PLATE_URL = "%s/api/v0/m/plates/%d/plateacquisitions/?owner=%d&group=%d";  //TODO: don't need childCount=true?
-    private static final String WELLS_IN_PLATE_URL = "%s/api/v0/m/plates/%d/wells/?owner=%d&group=%d"; //TODO: don't need childCount=true?
-    private static final String WELLS_IN_PLATE_ACQUISITION_URL2 = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/?owner=%d&group=%d"; //TODO: don't need childCount=true?
-    private static final String SCREENS_URL = "%s?childCount=true";
-    private static final String PLATES_URL = "%s%d/plates/";
-    private static final String ORPHANED_PLATES_URL = "%s?orphaned=true";
-    private static final String PLATE_ACQUISITIONS_URL = "%s/api/v0/m/plates/%d/plateacquisitions/";
-    private static final String PLATE_WELLS_URL = "%s/api/v0/m/plates/%d/wells/";
-    private static final String WELLS_IN_PLATE_ACQUISITION_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/";
+    private static final String ORPHANED_PLATES_URL = "%s?orphaned=true&owner=%d&group=%d";    //TODO: don't need childCount=true?
     private static final String PLATE_ACQUISITION_URL = "%s/api/v0/m/plateacquisitions/%d";
+    private static final String PLATE_ACQUISITIONS_IN_PLATE_URL = "%s/api/v0/m/plates/%d/plateacquisitions/?owner=%d&group=%d";  //TODO: don't need childCount=true?
     private static final String WELLS_URL = "%s/api/v0/m/wells/%d";
+    private static final String WELLS_IN_PLATE_URL = "%s/api/v0/m/plates/%d/wells/?owner=%d&group=%d"; //TODO: don't need childCount=true?
+    private static final String WELLS_IN_PLATE_ACQUISITION_URL = "%s/api/v0/m/plateacquisitions/%d/wellsampleindex/%d/wells/?owner=%d&group=%d"; //TODO: don't need childCount=true?
     private static final String ROIS_URL = "%s/api/v0/m/rois/?image=%d%s";
     private static final List<String> GROUPS_TO_EXCLUDE = List.of("system", "user");
     private static final Gson gson = new Gson();
-    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Project>>> projectsCache = CacheBuilder.newBuilder()
-            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+    private final Cache<ServerEntityCacheKey, List<Long>> projectIdsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_IDS_CACHE_SIZE)
             .build();
-    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Dataset>>> datasetsCache = CacheBuilder.newBuilder()
-            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+    private final Cache<ServerEntityCacheKey, List<Long>> datasetIdsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_IDS_CACHE_SIZE)
             .build();
-    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Image>>> imagesCache = CacheBuilder.newBuilder()
-            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+    private final Cache<ServerEntityCacheKey, List<Long>> imageIdsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_IDS_CACHE_SIZE)
             .build();
-    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Screen>>> screensCache = CacheBuilder.newBuilder()
-            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+    private final Cache<ServerEntityCacheKey, List<Long>> screenIdsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_IDS_CACHE_SIZE)
             .build();
-    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Plate>>> platesCache = CacheBuilder.newBuilder()
-            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+    private final Cache<ServerEntityCacheKey, List<Long>> plateIdsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_IDS_CACHE_SIZE)
             .build();
-    private final Cache<ServerEntityCacheKey, CompletableFuture<List<PlateAcquisition>>> plateAcquisitionsCache = CacheBuilder.newBuilder()
-            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+    private final Cache<ServerEntityCacheKey, List<Long>> plateAcquisitionIdsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_IDS_CACHE_SIZE)
             .build();
-    private final Cache<ServerEntityCacheKey, CompletableFuture<List<Well>>> wellCache = CacheBuilder.newBuilder()
-            .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+    private final Cache<ServerEntityCacheKey, List<Long>> wellIdsCache = CacheBuilder.newBuilder()
+            .maximumSize(SERVER_ENTITIES_IDS_CACHE_SIZE)
             .build();
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
     private final URI webServerUri;
@@ -129,8 +114,17 @@ class JsonApi {
     private final OmeroServer omeroServer;
     private final String token;
     private final LoginResponse loginResponse;
+    private final LoadingCache<Long, Project> projectsCache;
+    private final LoadingCache<Long, Dataset> datasetsCache;
+    private final LoadingCache<Long, Image> imagesCache;
+    private final LoadingCache<Long, Screen> screensCache;
+    private final LoadingCache<Long, Plate> platesCache;
+    private final LoadingCache<Long, PlateAcquisition> plateAcquisitionsCache;
+    private final LoadingCache<Long, Well> wellsCache;
     private record ServerEntityCacheKey(long parentId, long ownerId, long groupId) {}
 
+    //TODO: handle https://omero.readthedocs.io/en/stable/developers/json-api.html#normalizing-experimenters-and-groups
+    //TODO: handle when owner / group is -1 (+ javadoc)
     /**
      * Create a JSON API client. This will send a few requests to get basic information on the server and
      * authenticate if necessary, so it can take a few seconds. However, this operation is cancellable.
@@ -174,6 +168,35 @@ class JsonApi {
             this.loginResponse = null;
             logger.debug("Created JSON API with unauthenticated user");
         }
+
+        this.projectsCache = createCache(
+                projectId -> String.format("%s%d", links.projects(), projectId),
+                jsonElement -> new Project(gson.fromJson(jsonElement, OmeroProject.class), webServerUri)
+        );
+        this.datasetsCache = createCache(
+                datasetId -> String.format("%s%d", links.datasets(), datasetId),
+                jsonElement -> new Dataset(gson.fromJson(jsonElement, OmeroDataset.class), webServerUri)
+        );
+        this.imagesCache = createCache(
+                imageId -> String.format("%s%d", links.images(), imageId),
+                jsonElement -> new Image(gson.fromJson(jsonElement, OmeroImage.class), webServerUri)
+        );
+        this.screensCache = createCache(
+                screenId -> String.format("%s%d", links.screens(), screenId),
+                jsonElement -> new Screen(gson.fromJson(jsonElement, OmeroScreen.class), webServerUri)
+        );
+        this.platesCache = createCache(
+                plateId -> String.format("%s%d", links.plates(), plateId),
+                jsonElement -> new Plate(gson.fromJson(jsonElement, OmeroPlate.class), webServerUri)
+        );
+        this.plateAcquisitionsCache = createCache(
+                plateAcquisitionId -> String.format(PLATE_ACQUISITION_URL, webServerUri, plateAcquisitionId),
+                jsonElement -> new PlateAcquisition(gson.fromJson(jsonElement, OmeroPlateAcquisition.class), -1, webServerUri)
+        );
+        this.wellsCache = createCache(
+                wellId -> String.format(WELLS_URL, webServerUri, wellId),
+                jsonElement -> new Well(gson.fromJson(jsonElement, OmeroWell.class), -1, webServerUri)
+        );
     }
 
     @Override
@@ -336,143 +359,285 @@ class JsonApi {
     }
 
     /**
-     * Attempt to retrieve a project entity from a project ID.
+     * Attempt to retrieve projects belonging to the provided owner and group and visible by the current user.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
-     * @param projectId the ID of the project
+     * @param ownerId the ID of the owner that should own the projects
+     * @param groupId the ID of the group that should own the projects
+     * @return a CompletableFuture (that may complete exceptionally) with all projects belonging to the provided owner and group
+     * and visible by the current user
+     */
+    public CompletableFuture<List<Project>> getProjects(long ownerId, long groupId) {
+        logger.debug("Getting projects belonging to owner with ID {} and group with ID {}", ownerId, groupId);
+
+        return getChildren(
+                projectIdsCache,
+                projectsCache,
+                new ServerEntityCacheKey(-1, ownerId, groupId),
+                String.format(PROJECTS_URL, links.projects(), ownerId, groupId),
+                jsonElement -> new Project(gson.fromJson(jsonElement, OmeroProject.class), webServerUri)
+        );
+    }
+
+    /**
+     * Attempt to retrieve a project from a project ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param projectId the ID of the project to get
      * @return a CompletableFuture (that may complete exceptionally) with the project
      */
     public CompletableFuture<Project> getProject(long projectId) {
         logger.debug("Getting project with ID {}", projectId);
 
-        return getEntity(urls.get(PROJECTS_URL_KEY) + projectId, Project.class);
+        return CompletableFuture.supplyAsync(() -> projectsCache.getUnchecked(projectId));
     }
 
     /**
-     * Attempt to retrieve all orphaned datasets visible by the current user.
+     * Attempt to retrieve all datasets belonging to the provided project, owner and group.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all orphaned datasets of this server
+     * @param projectId the ID of the project whose datasets should be retrieved
+     * @param ownerId the ID of the owner that should own the datasets
+     * @param groupId the ID of the group that should own the datasets
+     * @return a CompletableFuture (that may complete exceptionally) with all datasets belonging to the provided
+     * project, owner and group
      */
-    public CompletableFuture<List<Dataset>> getOrphanedDatasets() {
-        logger.debug("Getting all orphaned datasets visible by the current user");
+    public CompletableFuture<List<Dataset>> getDatasets(long projectId, long ownerId, long groupId) {
+        logger.debug("Getting datasets belonging to project with ID {}, owner with ID {} and group with ID {}", projectId, ownerId, groupId);
 
-        return getChildren(String.format(ORPHANED_DATASETS_URL, urls.get(DATASETS_URL_KEY)), Dataset.class);
+        return getChildren(
+                datasetIdsCache,
+                datasetsCache,
+                new ServerEntityCacheKey(projectId, ownerId, groupId),
+                String.format(DATASETS_IN_PROJECT_URL, links.projects(), projectId, ownerId, groupId),
+                jsonElement -> new Dataset(gson.fromJson(jsonElement, OmeroDataset.class), webServerUri)
+        );
     }
 
     /**
-     * Attempt to retrieve all datasets of the provided project.
+     * Attempt to retrieve all orphaned datasets belonging to the provided owner and group and visible by the current user.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
-     * @param projectId the project ID whose datasets should be retrieved
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all datasets of the project
+     * @param ownerId the ID of the owner that should own the datasets
+     * @param groupId the ID of the group that should own the datasets
+     * @return a CompletableFuture (that may complete exceptionally) with all orphaned datasets belonging to the provided
+     * owner and group
      */
-    public CompletableFuture<List<Dataset>> getDatasets(long projectId) {
-        logger.debug("Getting all datasets of project with ID {}", projectId);
+    public CompletableFuture<List<Dataset>> getOrphanedDatasets(long ownerId, long groupId) {
+        logger.debug("Getting orphaned datasets belonging to owner with ID {} and group with ID {}", ownerId, groupId);
 
-        return getChildren(String.format(DATASETS_URL, urls.get(PROJECTS_URL_KEY), projectId), Dataset.class);
+        return getChildren(
+                datasetIdsCache,
+                datasetsCache,
+                new ServerEntityCacheKey(-1, ownerId, groupId),
+                String.format(ORPHANED_DATASETS_URL, links.projects(), ownerId, groupId),
+                jsonElement -> new Dataset(gson.fromJson(jsonElement, OmeroDataset.class), webServerUri)
+        );
     }
 
     /**
-     * Attempt to retrieve a dataset entity from a dataset ID.
+     * Attempt to retrieve a dataset from a dataset ID.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
-     * @param datasetId the ID of the dataset
+     * @param datasetId the ID of the dataset to get
      * @return a CompletableFuture (that may complete exceptionally) with the dataset
      */
     public CompletableFuture<Dataset> getDataset(long datasetId) {
         logger.debug("Getting dataset with ID {}", datasetId);
 
-        return getEntity(urls.get(DATASETS_URL_KEY) + datasetId, Dataset.class);
+        return CompletableFuture.supplyAsync(() -> datasetsCache.getUnchecked(datasetId));
     }
 
-    public CompletableFuture<List<Project>> getProjects(long ownerId, long groupId) {
-        return getChildren(
-                projectsCache,
-                new ServerEntityCacheKey(-1, ownerId, groupId),
-                String.format(PROJECTS_URL2, links.projects(), ownerId, groupId),
-                jsonElement -> new Project(gson.fromJson(jsonElement, OmeroProject.class), webServerUri)
-        );
-    }
-
-    public CompletableFuture<List<Dataset>> getDatasets(long projectId, long ownerId, long groupId) {
-        return getChildren(
-                datasetsCache,
-                new ServerEntityCacheKey(projectId, ownerId, groupId),
-                String.format(DATASETS_IN_PROJECT_URL, urls.get(PROJECTS_URL_KEY), projectId, ownerId, groupId),
-                jsonElement -> new Dataset(gson.fromJson(jsonElement, OmeroDataset.class), webServerUri)
-        );
-    }
-
-    public CompletableFuture<List<Dataset>> getOrphanedDatasets(long ownerId, long groupId) {
-        return getChildren(
-                datasetsCache,
-                new ServerEntityCacheKey(-1, ownerId, groupId),
-                String.format(ORPHANED_DATASETS_URL2, urls.get(PROJECTS_URL_KEY), ownerId, groupId),
-                jsonElement -> new Dataset(gson.fromJson(jsonElement, OmeroDataset.class), webServerUri)
-        );
-    }
-
-    //TODO: handle https://omero.readthedocs.io/en/stable/developers/json-api.html#normalizing-experimenters-and-groups
-    //Throws:
-    //    ExecutionException - if a checked exception was thrown while loading the value
-    //    UncheckedExecutionException - if an unchecked exception was thrown while loading the value
-    //    ExecutionError - if an error was thrown while loading the value
+    /**
+     * Attempt to retrieve all images belonging to the provided dataset, owner and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param datasetId the ID of the dataset whose images should be retrieved
+     * @param ownerId the ID of the owner that should own the images
+     * @param groupId the ID of the group that should own the images
+     * @return a CompletableFuture (that may complete exceptionally) with all images belonging to the provided
+     * dataset, owner and group
+     */
     public CompletableFuture<List<Image>> getImages(long datasetId, long ownerId, long groupId) {
+        logger.debug("Getting images belonging to dataset with ID {}, owner with ID {} and group with ID {}", datasetId, ownerId, groupId);
+
         return getChildren(
+                imageIdsCache,
                 imagesCache,
                 new ServerEntityCacheKey(datasetId, ownerId, groupId),
-                String.format(IMAGES_IN_DATASET_URL, urls.get(DATASETS_URL_KEY), datasetId, ownerId, groupId),
+                String.format(IMAGES_IN_DATASET_URL, links.datasets(), datasetId, ownerId, groupId),
                 jsonElement -> new Image(gson.fromJson(jsonElement, OmeroImage.class), webServerUri)
         );
     }
 
+    /**
+     * Attempt to retrieve all orphaned images belonging to the provided owner and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param ownerId the ID of the owner that should own the images
+     * @param groupId the ID of the group that should own the images
+     * @return a CompletableFuture (that may complete exceptionally) with all orphaned images belonging to the provided
+     * owner and group
+     */
     public CompletableFuture<List<Image>> getOrphanedImages(long ownerId, long groupId) {
+        logger.debug("Getting orphaned images belonging to owner with ID {} and group with ID {}", ownerId, groupId);
+
         return getChildren(
+                imageIdsCache,
                 imagesCache,
                 new ServerEntityCacheKey(-1, ownerId, groupId),
-                String.format(ORPHANED_IMAGES_URL, urls.get(IMAGES_URL_KEY), ownerId, groupId),
+                String.format(ORPHANED_IMAGES_URL, links.images(), ownerId, groupId),
                 jsonElement -> new Image(gson.fromJson(jsonElement, OmeroImage.class), webServerUri)
         );
     }
 
+    /**
+     * Attempt to retrieve an image from an image ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param imageId the ID of the image to get
+     * @return a CompletableFuture (that may complete exceptionally) with the image
+     */
+    public CompletableFuture<Image> getImage(long imageId) {
+        logger.debug("Getting image with ID {}", imageId);
+
+        return CompletableFuture.supplyAsync(() -> imagesCache.getUnchecked(imageId));
+    }
+
+    /**
+     * Attempt to retrieve screens belonging to the provided owner and group and visible by the current user.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param ownerId the ID of the owner that should own the screens
+     * @param groupId the ID of the group that should own the screens
+     * @return a CompletableFuture (that may complete exceptionally) with all screens belonging to the provided owner and group
+     * and visible by the current user
+     */
     public CompletableFuture<List<Screen>> getScreens(long ownerId, long groupId) {
+        logger.debug("Getting screens belonging to owner with ID {} and group with ID {}", ownerId, groupId);
+
         return getChildren(
+                screenIdsCache,
                 screensCache,
                 new ServerEntityCacheKey(-1, ownerId, groupId),
-                String.format(SCREENS_URL2, urls.get(SCREENS_URL_KEY), ownerId, groupId),
+                String.format(SCREENS_URL, links.screens(), ownerId, groupId),
                 jsonElement -> new Screen(gson.fromJson(jsonElement, OmeroScreen.class), webServerUri)
         );
     }
 
+    /**
+     * Attempt to retrieve a screen from a screen ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param screenId the ID of the screen to get
+     * @return a CompletableFuture (that may complete exceptionally) with the screen
+     */
+    public CompletableFuture<Screen> getScreen(long screenId) {
+        logger.debug("Getting screen with ID {}", screenId);
+
+        return CompletableFuture.supplyAsync(() -> screensCache.getUnchecked(screenId));
+    }
+
+    /**
+     * Attempt to retrieve all plates belonging to the provided screen, owner and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param screenId the ID of the screen whose plates should be retrieved
+     * @param ownerId the ID of the owner that should own the plates
+     * @param groupId the ID of the group that should own the plates
+     * @return a CompletableFuture (that may complete exceptionally) with all plates belonging to the provided
+     * screen, owner and group
+     */
     public CompletableFuture<List<Plate>> getPlates(long screenId, long ownerId, long groupId) {
+        logger.debug("Getting plates belonging to screen with ID {}, owner with ID {} and group with ID {}", screenId, ownerId, groupId);
+
         return getChildren(
+                plateIdsCache,
                 platesCache,
                 new ServerEntityCacheKey(screenId, ownerId, groupId),
-                String.format(PLATES_IN_SCREEN_URL, urls.get(SCREENS_URL_KEY), screenId, ownerId, groupId),
+                String.format(PLATES_IN_SCREEN_URL, links.screens(), screenId, ownerId, groupId),
                 jsonElement -> new Plate(gson.fromJson(jsonElement, OmeroPlate.class), webServerUri)
         );
     }
 
+    /**
+     * Attempt to retrieve all orphaned plates belonging to the provided owner and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param ownerId the ID of the owner that should own the plates
+     * @param groupId the ID of the group that should own the plates
+     * @return a CompletableFuture (that may complete exceptionally) with all orphaned plates belonging to the provided
+     * owner and group
+     */
     public CompletableFuture<List<Plate>> getOrphanedPlates(long ownerId, long groupId) {
+        logger.debug("Getting orphaned plates belonging to owner with ID {} and group with ID {}", ownerId, groupId);
+
         return getChildren(
+                plateIdsCache,
                 platesCache,
                 new ServerEntityCacheKey(-1, ownerId, groupId),
-                String.format(ORPHANED_PLATES_URL2, urls.get(PLATES_URL_KEY), ownerId, groupId),
+                String.format(ORPHANED_PLATES_URL, links.plates(), ownerId, groupId),
                 jsonElement -> new Plate(gson.fromJson(jsonElement, OmeroPlate.class), webServerUri)
         );
     }
 
+    /**
+     * Attempt to retrieve a plate from a plate ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param plateId the ID of the plate to get
+     * @return a CompletableFuture (that may complete exceptionally) with the plate
+     */
+    public CompletableFuture<Plate> getPlate(long plateId) {
+        logger.debug("Getting plate with ID {}", plateId);
+
+        return CompletableFuture.supplyAsync(() -> platesCache.getUnchecked(plateId));
+    }
+
+    /**
+     * Attempt to retrieve all plate acquisitions belonging to the provided plate, owner and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param plateId the ID of the plate whose plate acquisitions should be retrieved
+     * @param ownerId the ID of the owner that should own the plate acquisitions
+     * @param groupId the ID of the group that should own the plate acquisitions
+     * @param numberOfWells the number of wells each returned plate acquisition should have
+     * @return a CompletableFuture (that may complete exceptionally) with all plate acquisitions belonging to the provided
+     * plate, owner and group
+     */
     public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId, long ownerId, long groupId, int numberOfWells) {
+        logger.debug("Getting plate acquisitions belonging to plate with ID {}, owner with ID {} and group with ID {}", plateId, ownerId, groupId);
+
         return getChildren(
+                plateAcquisitionIdsCache,
                 plateAcquisitionsCache,
                 new ServerEntityCacheKey(plateId, ownerId, groupId),
                 String.format(PLATE_ACQUISITIONS_IN_PLATE_URL, webServerUri, plateId, ownerId, groupId),
@@ -484,9 +649,39 @@ class JsonApi {
         );
     }
 
+    /**
+     * Attempt to retrieve a plate acquisition from a plate acquisition ID.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param plateAcquisitionId the ID of the plate acquisition to get
+     * @return a CompletableFuture (that may complete exceptionally) with the plate acquisition
+     */
+    public CompletableFuture<PlateAcquisition> getPlateAcquisition(long plateAcquisitionId) {
+        logger.debug("Getting plate acquisition with ID {}", plateAcquisitionId);
+
+        return CompletableFuture.supplyAsync(() -> plateAcquisitionsCache.getUnchecked(plateAcquisitionId));
+    }
+
+    /**
+     * Attempt to retrieve all wells belonging to the provided plate, owner and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param plateId the ID of the plate whose wells should be retrieved
+     * @param ownerId the ID of the owner that should own the wells
+     * @param groupId the ID of the group that should own the wells
+     * @return a CompletableFuture (that may complete exceptionally) with all wells belonging to the provided
+     * plate, owner and group
+     */
     public CompletableFuture<List<Well>> getWellsFromPlate(long plateId, long ownerId, long groupId) {
+        logger.debug("Getting wells belonging to plate with ID {}, owner with ID {} and group with ID {}", plateId, ownerId, groupId);
+
         return getChildren(
-                wellCache,
+                wellIdsCache,
+                wellsCache,
                 new ServerEntityCacheKey(plateId, ownerId, groupId),
                 String.format(WELLS_IN_PLATE_URL, webServerUri, plateId, ownerId, groupId),
                 jsonElement -> new Well(
@@ -497,11 +692,33 @@ class JsonApi {
         );
     }
 
+    /**
+     * Attempt to retrieve all wells belonging to the provided plate acquisition, owner and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param plateAcquisitionId the ID of the plate acquisition whose wells should be retrieved
+     * @param ownerId the ID of the owner that should own the wells
+     * @param groupId the ID of the group that should own the wells
+     * @param wellSampleIndex the index of the well sample owning the wells to retrieve
+     * @return a CompletableFuture (that may complete exceptionally) with all wells belonging to the provided
+     * plate acquisition, owner and group
+     */
     public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, long ownerId, long groupId, int wellSampleIndex) {
+        logger.debug(
+                "Getting wells belonging to plate acquisition with ID {}, owner with ID {}, group with ID {} and well sample index {}",
+                plateAcquisitionId,
+                ownerId,
+                groupId,
+                wellSampleIndex
+        );
+
         return getChildren(
-                wellCache,
+                wellIdsCache,
+                wellsCache,
                 new ServerEntityCacheKey(-plateAcquisitionId, ownerId, groupId),        // use negative ID to use same cache
-                String.format(WELLS_IN_PLATE_ACQUISITION_URL2, webServerUri, plateAcquisitionId, wellSampleIndex, ownerId, groupId),
+                String.format(WELLS_IN_PLATE_ACQUISITION_URL, webServerUri, plateAcquisitionId, wellSampleIndex, ownerId, groupId),
                 jsonElement -> new Well(
                         gson.fromJson(jsonElement, OmeroWell.class),
                         plateAcquisitionId,
@@ -510,239 +727,19 @@ class JsonApi {
         );
     }
 
-
-
     /**
-     * Attempt to retrieve all images of a dataset visible by the current user.
+     * Attempt to retrieve a well from a well ID.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
-     * @param datasetId the dataset ID whose images should be retrieved
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all images of the dataset
-     */
-    public CompletableFuture<List<Image>> getImages(long datasetId) {
-        logger.debug("Getting all images of dataset with ID {}", datasetId);
-
-        return getChildren(String.format(IMAGES_URL, urls.get(DATASETS_URL_KEY), datasetId), Image.class);
-    }
-
-    /**
-     * Attempt to retrieve an image entity from an image ID.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param imageId the ID of the image
-     * @return a CompletableFuture (that may complete exceptionally) with the image
-     */
-    public CompletableFuture<Image> getImage(long imageId) {
-        logger.debug("Getting image with ID {}", imageId);
-
-        return getEntity(urls.get(IMAGES_URL_KEY) + imageId, Image.class);
-    }
-
-    /**
-     * Populate the orphaned images with the provided IDs to the list specified in parameter.
-     * This function populates and doesn't return a list because the number of images can
-     * be large, so this operation can take tens of seconds and should be run in a background thread.
-     * <p>
-     * The list can be updated from any thread.
-     *
-     * @param children the list which should be populated by the orphaned images. It should
-     *                 be possible to add elements to this list
-     * @param orphanedImagesIds the IDs of all orphaned images that should be added to the list
-     * @throws IllegalArgumentException when an orphaned image ID is invalid
-     * @throws CancellationException when the computation is cancelled
-     * @throws CompletionException when a request fails
-     * @throws JsonSyntaxException when a conversion from JSON to image fails
-     * @throws ClassCastException when a conversion from JSON to image fails
-     */
-    public void populateOrphanedImagesIntoList(List<Image> children, List<Long> orphanedImagesIds) {
-        logger.debug("Populating orphaned images with IDs {}", orphanedImagesIds);
-
-        synchronized (this) {
-            numberOfOrphanedImagesLoaded.set(0);
-        }
-
-        List<URI> orphanedImagesURIs = orphanedImagesIds.stream()
-                .map(id -> URI.create(urls.get(IMAGES_URL_KEY) + id))
-                .toList();
-
-        // The number of parallel requests is limited to 16
-        // to avoid too many concurrent streams
-        List<List<URI>> batches = Lists.partition(orphanedImagesURIs, 16);
-        for (List<URI> batch: batches) {
-            children.addAll(batch.stream()
-                    .map(this::requestImageInfo)
-                    .map(CompletableFuture::join)
-                    .map(jsonObject -> ServerEntity.createFromJsonElement(jsonObject, webServerUri))
-                    .map(serverEntity -> (Image) serverEntity)
-                    .toList()
-            );
-            logger.debug("{} orphaned images retrieved", batch.size());
-
-            synchronized (this) {
-                numberOfOrphanedImagesLoaded.set(numberOfOrphanedImagesLoaded.get() + batch.size());
-            }
-        }
-    }
-
-    /**
-     * @return the number of orphaned images which have been loaded.
-     * This property may be updated from any thread
-     */
-    public ObservableIntegerValue getNumberOfOrphanedImagesLoaded() {
-        return numberOfOrphanedImagesLoaded;
-    }
-
-    /**
-     * Attempt to retrieve all screens visible by the current user.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @return a CompletableFuture (that may complete exceptionally) with a list containing all screen of this server
-     */
-    public CompletableFuture<List<Screen>> getScreens() {
-        logger.debug("Getting all screens visible by the current user");
-
-        return getChildren(String.format(SCREENS_URL, urls.get(SCREENS_URL_KEY)), Screen.class);
-    }
-
-    /**
-     * Attempt to retrieve a screen entity from a screen ID.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param screenId the ID of the screen
-     * @return a CompletableFuture (that may complete exceptionally) with the screen
-     */
-    public CompletableFuture<Screen> getScreen(long screenId) {
-        logger.debug("Getting screen with ID {}", screenId);
-
-        return getEntity(urls.get(SCREENS_URL_KEY) + screenId, Screen.class);
-    }
-
-    /**
-     * Attempt to retrieve all orphaned (e.g. not in any screen) plates visible by the current user.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all orphaned plates of this server
-     */
-    public CompletableFuture<List<Plate>> getOrphanedPlates() {
-        logger.debug("Getting all orphaned plates visible by the current user");
-
-        return getChildren(String.format(ORPHANED_PLATES_URL, urls.get(PLATES_URL_KEY)), Plate.class);
-    }
-
-    /**
-     * Attempt to retrieve all plates visible by the current user.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param screenId the screen ID whose plates should be retrieved
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all plates of the screen
-     */
-    public CompletableFuture<List<Plate>> getPlates(long screenId) {
-        logger.debug("Getting all plates of screen with ID {}", screenId);
-
-        return getChildren(String.format(PLATES_URL, urls.get(SCREENS_URL_KEY), screenId), Plate.class);
-    }
-
-    /**
-     * Attempt to retrieve a plate entity from a plate ID.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param plateId the ID of the plate
-     * @return a CompletableFuture (that may complete exceptionally) with the plate
-     */
-    public CompletableFuture<Plate> getPlate(long plateId) {
-        logger.debug("Getting plate with ID {}", plateId);
-
-        return getEntity(urls.get(PLATES_URL_KEY) + plateId, Plate.class);
-    }
-
-    /**
-     * Attempt to retrieve all plate acquisitions of a plate visible by the current user.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param plateId the plate ID whose plate acquisitions should be retrieved
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all plate acquisitions of the plate
-     */
-    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId) {
-        logger.debug("Getting all plate acquisitions of plate with ID {}", plateId);
-
-        return getChildren(String.format(PLATE_ACQUISITIONS_URL, webServerUri, plateId), PlateAcquisition.class);
-    }
-
-    /**
-     * Attempt to retrieve a plate acquisition entity from a plate acquisition ID.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param plateAcquisitionId the ID of the plate acquisition
-     * @return a CompletableFuture (that may complete exceptionally) with the plate acquisition
-     */
-    public CompletableFuture<PlateAcquisition> getPlateAcquisition(long plateAcquisitionId) {
-        logger.debug("Getting plate acquisition with ID {}", plateAcquisitionId);
-
-        return getEntity(String.format(PLATE_ACQUISITION_URL, webServerUri, plateAcquisitionId), PlateAcquisition.class);
-    }
-
-    /**
-     * Attempt to retrieve all wells of a plate visible by the current user.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param plateId the plate acquisition ID whose wells should be retrieved
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all wells of the plate
-     */
-    public CompletableFuture<List<Well>> getWellsFromPlate(long plateId) {
-        logger.debug("Getting all wells of plate with ID {}", plateId);
-
-        return getChildren(String.format(PLATE_WELLS_URL, webServerUri, plateId), Well.class);
-    }
-
-    /**
-     * Attempt to retrieve all wells of a plate acquisition visible by the current user.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param plateAcquisitionId the plate acquisition ID whose wells should be retrieved
-     * @param wellSampleIndex the index of the well sample
-     * @return a CompletableFuture (that may complete exceptionally) with the list containing all wells of the plate acquisition
-     */
-    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, int wellSampleIndex) {
-        logger.debug("Getting all wells of plate acquisition with ID {} and well sample of ID {}", plateAcquisitionId, wellSampleIndex);
-
-        return getChildren(String.format(WELLS_IN_PLATE_ACQUISITION_URL, webServerUri, plateAcquisitionId, wellSampleIndex), Well.class);
-    }
-
-    /**
-     * Attempt to retrieve a well entity from a well ID.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param wellId the ID of the well
+     * @param wellId the ID of the well to get
      * @return a CompletableFuture (that may complete exceptionally) with the well
      */
     public CompletableFuture<Well> getWell(long wellId) {
         logger.debug("Getting well with ID {}", wellId);
 
-        return getEntity(String.format(WELLS_URL, webServerUri, wellId), Well.class);
+        return CompletableFuture.supplyAsync(() -> wellsCache.getUnchecked(wellId));
     }
 
     /**
@@ -872,13 +869,8 @@ class JsonApi {
         }
     }
 
-    private static CompletableFuture<String> getToken(RequestSender requestSender, Links links) {
-        URI uri;
-        try {
-            uri = new URI(links.token());
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
+    private static CompletableFuture<String> getToken(RequestSender requestSender, Links links) throws URISyntaxException {
+        URI uri = new URI(links.token());
 
         return requestSender.getAndConvert(uri, Token.class).thenApply(token -> {
             if (token.token() == null) {
@@ -889,18 +881,14 @@ class JsonApi {
         });
     }
 
-    private static CompletableFuture<OmeroServer> getOmeroServer(RequestSender requestSender, Links links) {
-        URI uri;
-        try {
-            uri = new URI(links.servers());
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
+    private static CompletableFuture<OmeroServer> getOmeroServer(RequestSender requestSender, Links links) throws URISyntaxException {
+        URI uri = new URI(links.servers());
 
         return requestSender.getAndConvert(uri, OmeroServers.class).thenApply(omeroServers -> {
             List<OmeroServer> filteredList = omeroServers.servers() == null ?
                     List.of() :
                     omeroServers.servers().stream().filter(OmeroServer::allFieldsDefined).toList();
+            logger.debug("OMERO servers filtered from {} to {}", omeroServers.servers(), filteredList);
 
             if (filteredList.isEmpty()) {
                 throw new IllegalArgumentException(String.format("Unexpected response from %s: no servers found", uri));
@@ -932,116 +920,67 @@ class JsonApi {
         return authenticate(requestSender, url, token, body);
     }
 
-    private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(
-            Cache<ServerEntityCacheKey, CompletableFuture<List<T>>> cache,
-            ServerEntityCacheKey key,
-            String url,
-            Function<JsonElement, T> serverEntityCreator
-    ) {
-        try {
-            return cache.get(
-                    key,
-                    () -> {
-                        logger.debug(
-                                "Fetching children of parent with ID {}, belonging to owner with ID {} and group with ID {}",
-                                key.parentId(),
-                                key.ownerId(),
-                                key.groupId()
-                        );
+    private <T extends ServerEntity> LoadingCache<Long, T> createCache(Function<Long, String> idToUrl, Function<JsonElement, T> jsonToEntity) {
+        return CacheBuilder.newBuilder()
+                .maximumSize(SERVER_ENTITIES_CACHE_SIZE)
+                .build(new CacheLoader<>() {
+                    @Override
+                    public T load(Long entityId) throws ExecutionException, InterruptedException {
+                        logger.debug("Fetching entity with ID {} (not already in cache)", entityId);
 
-                        URI uri;
-                        try {
-                            uri = new URI(url);
-                        } catch (URISyntaxException e) {
-                            return CompletableFuture.failedFuture(e);
-                        }
-
-                        synchronized (this) {
-                            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
-                        }
-
-                        return requestSender.getPaginated(uri)
-                                .thenApply(jsonElements -> jsonElements.stream()
-                                        .map(serverEntityCreator)
-                                        .toList()
-                                )
-                                .whenComplete((entities, error) -> {
-                                    synchronized (this) {
-                                        numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
-                                    }
-                                });
-                    }
-            ).whenComplete((entities, error) -> {
-                if (error != null) {
-                    cache.invalidate(key);
-                }
-            });
-        } catch (ExecutionException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-    }
-
-    private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(String url, Class<T> type) {
-        URI uri;
-        try {
-            uri = new URI(url);
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        synchronized (this) {
-            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
-        }
-
-        return requestSender.getPaginated(uri)
-                .thenApply(jsonElements -> jsonElements.stream()
-                        .map(jsonElement -> ServerEntity.createFromJsonElement(jsonElement, webServerUri))
-                        .map(type::cast)
-                        .toList()
-                )
-                .whenComplete((entities, error) -> {
-                    synchronized (this) {
-                        numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
+                        return getEntity(
+                                idToUrl.apply(entityId),
+                                jsonToEntity
+                        ).get();
                     }
                 });
     }
 
-    private <T extends ServerEntity> CompletableFuture<T> getEntity(String url, Class<T> type) {
-        URI uri;
-        try {
-            uri = new URI(url);
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
+    private <T extends ServerEntity> CompletableFuture<List<T>> getChildren(
+            Cache<ServerEntityCacheKey, List<Long>> cache,
+            LoadingCache<Long, T> cache2,
+            ServerEntityCacheKey key,
+            String url,
+            Function<JsonElement, T> serverEntityCreator
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return cache.get(
+                        key,
+                        () -> {
+                            logger.debug(
+                                    "Fetching children of parent with ID {}, belonging to owner with ID {} and group with ID {} (not already in cache)",
+                                    key.parentId(),
+                                    key.ownerId(),
+                                    key.groupId()
+                            );
 
-        synchronized (this) {
-            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
-        }
+                            URI uri = URI.create(url);
 
-        return requestSender.getAndConvert(uri, JsonObject.class).thenApply(response -> {
-            if (!response.has("data")) {
-                throw new RuntimeException(String.format("'data' member not present in %s", response));
-            }
+                            synchronized (this) {
+                                numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
+                            }
 
-            ServerEntity serverEntity = ServerEntity.createFromJsonElement(response.get("data"), webServerUri);
-            if (serverEntity.getClass().equals(type)) {
-                return type.cast(serverEntity);
-            } else {
-                throw new RuntimeException(String.format("The returned server entity %s is not a %s", serverEntity, type));
-            }
-        }).whenComplete((entity, error) -> {
-            synchronized (this) {
-                numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
-            }
-        });
-    }
+                            try {
+                                List<T> entities = requestSender.getPaginated(uri).thenApply(jsonElements -> jsonElements.stream()
+                                        .map(serverEntityCreator)
+                                        .toList()
+                                ).get();
 
-    private CompletableFuture<JsonObject> requestImageInfo(URI uri) {
-        return requestSender.getAndConvert(uri, JsonObject.class).thenApply(response -> {
-            if (response.has("data") && response.get("data").isJsonObject()) {
-                return response.get("data").getAsJsonObject();
-            } else {
-                throw new RuntimeException(String.format("'data' JSON object not found in %s", response));
+                                for (T entity: entities) {
+                                    cache2.put(entity.getId(), entity);
+                                }
+
+                                return entities.stream().map(ServerEntity::getId).toList();
+                            } finally {
+                                synchronized (this) {
+                                    numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
+                                }
+                            }
+                        }
+                ).stream().map(cache2::getUnchecked).toList();
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
             }
         });
     }
@@ -1069,5 +1008,30 @@ class JsonApi {
                 })
                 .thenApply(response -> GsonTools.getInstance().fromJson(response, JsonObject.class))
                 .thenApply(LoginResponse::parseServerAuthenticationResponse);
+    }
+
+    private <T extends ServerEntity> CompletableFuture<T> getEntity(String url, Function<JsonElement, T> serverEntityCreator) {
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        synchronized (this) {
+            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
+        }
+
+        return requestSender.getAndConvert(uri, JsonObject.class).thenApply(response -> {
+            if (!response.has("data")) {
+                throw new RuntimeException(String.format("'data' member not present in %s", response));
+            }
+
+            return serverEntityCreator.apply(response.get("data"));
+        }).whenComplete((entity, error) -> {
+            synchronized (this) {
+                numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
+            }
+        });
     }
 }

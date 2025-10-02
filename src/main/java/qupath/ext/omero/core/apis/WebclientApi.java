@@ -1,12 +1,13 @@
 package qupath.ext.omero.core.apis;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.core.entities.PathsToObjectResponse;
+import qupath.ext.omero.core.entities.SimpleServerEntity;
 import qupath.ext.omero.core.entities.annotations.Annotation;
 import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
 import qupath.ext.omero.core.entities.annotations.FileAnnotation;
@@ -55,7 +56,6 @@ class WebclientApi implements AutoCloseable {
     private static final String PING_URL = "%s/webclient/keepalive_ping/";
     private static final String ITEM_URL = "%s/webclient/?show=%s-%d";
     private static final String LOGOUT_URL = "%s/webclient/logout/";
-    private static final String ORPHANED_IMAGES_URL = "%s/webclient/api/images/?orphaned=true";
     private static final String WEBCLIENT_URL = "%s/webclient/";
     private static final Pattern USER_ID_PATTERN = Pattern.compile("WEBCLIENT.USER = \\{'id': (.+?), 'fullName':");
     private static final String PARENTS_OF_IMAGE_URL = "%s/webclient/api/paths_to_object/?image=%d";
@@ -172,39 +172,6 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * Attempt to get the image IDs of all orphaned images of the server visible by the current user.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request or the conversion failed for example).
-     *
-     * @return a CompletableFuture (that may complete exceptionally) with a list containing the ID of all orphaned images
-     */
-    public CompletableFuture<List<Long>> getOrphanedImagesIds() {
-        logger.debug("Getting the IDs of all orphaned images of the current user");
-
-        URI uri;
-        try {
-            uri = new URI(String.format(ORPHANED_IMAGES_URL, webServerUri));
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        return requestSender.getAndConvertToJsonList(uri, "images").thenApply(elements ->
-                elements.stream()
-                        .map(jsonElement -> {
-                            if (jsonElement.isJsonObject() && jsonElement.getAsJsonObject().has("id")) {
-                                return Long.parseLong(jsonElement.getAsJsonObject().get("id").toString());
-                            } else {
-                                throw new IllegalArgumentException(String.format(
-                                        "'id' not found in %s", jsonElement
-                                ));
-                            }
-                        })
-                        .toList()
-        );
-    }
-
-    /**
      * Attempt to get the ID of the public user of the server.
      * This only works if there is no active authenticated connection with the server.
      * <p>
@@ -235,17 +202,15 @@ class WebclientApi implements AutoCloseable {
     }
 
     /**
-     * Attempt to get all parents of an image. Only {@link Screen}, {@link Plate}, {@link PlateAcquisition}, {@link Well},
-     * {@link Project}, and {@link Dataset} entities are considered.
+     * Attempt to get basic information on all parents of an image.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
      * @param imageId the ID of the image whose parents should be retrieved
-     * @return the list of parents of the provided image. Note that only the ID and the class of the returned entities
-     * is relevant
+     * @return the list of parents of the provided image
      */
-    public CompletableFuture<List<ServerEntity>> getParentsOfImage(long imageId) {
+    public CompletableFuture<List<SimpleServerEntity>> getParentsOfImage(long imageId) {
         logger.debug("Getting all parents of image with ID {}", imageId);
 
         URI uri;
@@ -255,7 +220,7 @@ class WebclientApi implements AutoCloseable {
             return CompletableFuture.failedFuture(e);
         }
 
-        return requestSender.get(uri).thenApply(PathsToObjectResponse::getServerEntitiesFromResponse);
+        return requestSender.getAndConvert(uri, JsonElement.class).thenApply(SimpleServerEntity::createFromJson);
     }
 
     /**
