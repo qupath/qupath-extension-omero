@@ -116,7 +116,7 @@ public class AnnotationSender implements DataTransporter {
                 case UNKNOWN, PRIVATE, READ_ONLY -> {
                     logger.debug("Group {} has {} permission level, which means current user can only delete its own annotations", group, group.getPermissionLevel());
 
-                    yield List.of(server.getConnectedOwner());
+                    yield List.of(server.getConnectedExperimenter());
                 }
                 case READ_ANNOTATE -> {
                     if (omeroImageServer.getClient().getApisHandler().isConnectedUserOwnerOfGroup(groupId)) {
@@ -134,7 +134,7 @@ public class AnnotationSender implements DataTransporter {
                                 group.getPermissionLevel()
                         );
 
-                        yield List.of(server.getConnectedOwner());
+                        yield List.of(server.getConnectedExperimenter());
                     }
                 }
                 case READ_WRITE -> {
@@ -224,7 +224,8 @@ public class AnnotationSender implements DataTransporter {
                     omeroImageServer.getClient().getApisHandler().deleteAttachments(
                             omeroImageServer.getId(),
                             Image.class,
-                            annotationForm.getSelectedOwnersOfDeletedMeasurements().stream().map(Owner::getFullName).toList()
+                            annotationForm.getSelectedOwnersOfDeletedMeasurements().stream().map(Owner::getFullName).toList()   //tODO: first name + last name, not full name
+                                                                                                                                //TODO: actually, can it be ID?
                     )
             );
         }

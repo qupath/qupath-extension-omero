@@ -20,7 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.repositoryentities2.Server;
+import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.entities.permissions.Group;
@@ -95,7 +95,7 @@ class BrowserModel implements AutoCloseable {
 
         this.openedImagesURIsListener = UiUtilities.bindSetInUIThread(openedImagesURIs, client.getOpenedImagesURIs());
 
-        this.selectedOwner = new SimpleObjectProperty<>(server.getConnectedOwner());
+        this.selectedOwner = new SimpleObjectProperty<>(server.getConnectedExperimenter());
         this.selectedGroup = new SimpleObjectProperty<>(server.getDefaultGroup());
 
         client.getApisHandler().getOrphanedImagesIds().handle((orphanedImageIds, error) -> {

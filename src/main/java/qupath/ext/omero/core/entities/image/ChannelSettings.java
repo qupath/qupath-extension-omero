@@ -13,7 +13,7 @@ import qupath.lib.common.ColorTools;
 public record ChannelSettings(String name, double minDisplayRange, double maxDisplayRange, int rgbColor) {
 
     /**
-     * Create a new channel settings
+     * Create a new channel settings.
      *
      * @param minDisplayRange the minimum table lookup value for this channel
      * @param maxDisplayRange the maximum table lookup value for this channel
@@ -24,7 +24,7 @@ public record ChannelSettings(String name, double minDisplayRange, double maxDis
     }
 
     /**
-     * Create a new channel settings
+     * Create a new channel settings.
      *
      * @param minDisplayRange the minimum table lookup value for this channel
      * @param maxDisplayRange the maximum table lookup value for this channel
@@ -34,7 +34,7 @@ public record ChannelSettings(String name, double minDisplayRange, double maxDis
     }
 
     /**
-     * Create a new channel settings
+     * Create a new channel settings.
      *
      * @param name the name of the channel
      */

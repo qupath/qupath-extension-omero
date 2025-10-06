@@ -32,9 +32,9 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcq
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
-import qupath.ext.omero.core.entities.search.SearchQuery;
-import qupath.ext.omero.core.entities.search.SearchResult;
-import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
+import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
+import qupath.ext.omero.core.apis.webclient.search.SearchResult;
+import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.gui.ImageOpener;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.EntityCell;

@@ -1,5 +1,5 @@
+import qupath.ext.omero.core.apis.webclient.Namespace
 import qupath.ext.omero.core.imageserver.*
-import qupath.ext.omero.core.entities.*
 
 /*
  * This script sends all key value pairs of a QuPath image to the

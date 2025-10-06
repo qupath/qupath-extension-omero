@@ -4,6 +4,9 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
+import qupath.ext.omero.core.apis.webclient.annotations.AnnotationGroup;
+import qupath.ext.omero.core.apis.webclient.annotations.CommentAnnotation;
 
 import java.util.List;
 import java.util.Map;

@@ -2,7 +2,7 @@ package qupath.ext.omero.core.apis;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.entities.SimpleServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.SimpleServerEntity;
 
 import java.net.URI;
 import java.net.URLDecoder;

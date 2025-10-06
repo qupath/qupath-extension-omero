@@ -12,9 +12,9 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
-import qupath.ext.omero.core.entities.annotations.MapAnnotation;
+import qupath.ext.omero.core.apis.webclient.Namespace;
+import qupath.ext.omero.core.apis.webclient.annotations.AnnotationGroup;
+import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
 import qupath.ext.omero.core.entities.permissions.Group;
@@ -30,8 +30,8 @@ import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.entities.search.SearchQuery;
-import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
+import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
+import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.entities.shapes.Line;
 import qupath.ext.omero.core.entities.shapes.Rectangle;
 import qupath.ext.omero.core.entities.shapes.Shape;
@@ -788,7 +788,7 @@ public class TestApisHandler extends OmeroServer {
         @Test
         @Override
         void Check_Default_Group() {
-            Optional<Group> defaultGroup = apisHandler.getDefaultGroup();
+            Optional<Group> defaultGroup = apisHandler.getDefaultGroupId();
 
             Assertions.assertTrue(defaultGroup.isEmpty());
         }
@@ -1002,7 +1002,7 @@ public class TestApisHandler extends OmeroServer {
         void Check_Default_Group() {
             Group expectedDefaultGroup = OmeroServer.getDefaultGroup(userType);
 
-            Group defaultGroup = apisHandler.getDefaultGroup().orElse(null);
+            Group defaultGroup = apisHandler.getDefaultGroupId().orElse(null);
 
             Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
         }

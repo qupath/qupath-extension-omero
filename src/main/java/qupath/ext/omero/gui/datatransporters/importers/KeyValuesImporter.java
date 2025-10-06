@@ -6,11 +6,11 @@ import javafx.scene.control.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.core.entities.annotations.Annotation;
-import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
-import qupath.ext.omero.core.entities.annotations.MapAnnotation;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
+import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.Pair;
+import qupath.ext.omero.core.apis.webclient.Namespace;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.SimpleServerEntity;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportKeyValuePairsForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -96,10 +96,13 @@ public class KeyValuesImporter implements DataTransporter {
         waitingWindow.show();
 
         logger.debug("Getting annotations for image with ID {}", omeroImageServer.getId());
-        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).whenComplete((annotationGroup, error) -> Platform.runLater(() -> {
+        omeroImageServer.getClient().getApisHandler().getAnnotations(new SimpleServerEntity(
+                SimpleServerEntity.EntityType.IMAGE,
+                omeroImageServer.getId()
+        )).whenComplete((annotations, error) -> Platform.runLater(() -> {
             waitingWindow.close();
 
-            if (annotationGroup == null) {
+            if (annotations == null) {
                 logger.error("Cannot get annotations of image with ID {}. Cannot import KVP", omeroImageServer.getId(), error);
 
                 new Dialogs.Builder()
@@ -110,10 +113,15 @@ public class KeyValuesImporter implements DataTransporter {
                         .show();
                 return;
             }
-            logger.debug("Got annotations {} for image with ID {}", annotationGroup, omeroImageServer.getId());
+            logger.debug("Got annotations {} for image with ID {}", annotations, omeroImageServer.getId());
 
-            if (annotationGroup.getAnnotationsOfClass(MapAnnotation.class).isEmpty()) {
-                logger.debug("No annotations of {} are map annotations. Not importing KVP", annotationGroup);
+            List<MapAnnotation> mapAnnotations = annotations.stream()
+                    .filter(MapAnnotation.class::isInstance)
+                    .map(MapAnnotation.class::cast)
+                    .toList();
+
+            if (mapAnnotations.isEmpty()) {
+                logger.debug("No annotations of {} are map annotations. Not importing KVP", annotations);
                 new Dialogs.Builder()
                         .alertType(Alert.AlertType.WARNING)
                         .title(resources.getString("DataTransporters.KeyValuesImporter.importKeyValues"))
@@ -125,8 +133,7 @@ public class KeyValuesImporter implements DataTransporter {
 
             ImportKeyValuePairsForm importKeyValuePairsForm;
             try {
-                importKeyValuePairsForm = new ImportKeyValuePairsForm(annotationGroup.getAnnotationsOfClass(MapAnnotation.class)
-                        .stream()
+                importKeyValuePairsForm = new ImportKeyValuePairsForm(mapAnnotations.stream()
                         .map(Annotation::getNamespace)
                         .flatMap(Optional::stream)
                         .distinct()
@@ -146,7 +153,7 @@ public class KeyValuesImporter implements DataTransporter {
                 return;
             }
 
-            setKeyValuePairs(annotationGroup, importKeyValuePairsForm.getSelectedNamespaces(), importKeyValuePairsForm.getSelectedChoice(), project);
+            setKeyValuePairs(mapAnnotations, importKeyValuePairsForm.getSelectedNamespaces(), importKeyValuePairsForm.getSelectedChoice(), project);
         }));
     }
 
@@ -155,15 +162,15 @@ public class KeyValuesImporter implements DataTransporter {
         return String.format("KVP importer for %s", quPath);
     }
 
-    private void setKeyValuePairs(AnnotationGroup annotationGroup, List<Namespace> selectedNamespaces, ImportKeyValuePairsForm.Choice selectedChoice, Project<BufferedImage> project) {
-        List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+    private void setKeyValuePairs(List<MapAnnotation> annotations, List<Namespace> selectedNamespaces, ImportKeyValuePairsForm.Choice selectedChoice, Project<BufferedImage> project) {
+        List<Pair> keyValues = annotations.stream()
                 .filter(mapAnnotation -> mapAnnotation.getNamespace().isPresent() &&
                         selectedNamespaces.contains(mapAnnotation.getNamespace().get())
                 )
                 .map(MapAnnotation::getPairs)
                 .flatMap(List::stream)
                 .toList();
-        logger.debug("{} were filtered to {} to only contain the following namespaces: {}", annotationGroup, keyValues, selectedNamespaces);
+        logger.debug("{} were filtered to {} to only contain the following namespaces: {}", annotations, keyValues, selectedNamespaces);
 
         if (keyValues.isEmpty()) {
             logger.debug("No KVP found. Not importing KVP");
@@ -183,13 +190,13 @@ public class KeyValuesImporter implements DataTransporter {
         }
 
         logger.debug("Adding {} to {}", keyValues, projectEntry);
-        List<MapAnnotation.Pair> keyValuesWritten = new ArrayList<>();
-        List<MapAnnotation.Pair> keyValuesNotWrittenBecauseDuplicate = new ArrayList<>();
-        for (MapAnnotation.Pair pair : keyValues) {
+        List<Pair> keyValuesWritten = new ArrayList<>();
+        List<Pair> keyValuesNotWrittenBecauseDuplicate = new ArrayList<>();
+        for (Pair pair : keyValues) {
             if (selectedChoice.equals(ImportKeyValuePairsForm.Choice.KEEP_EXISTING) && projectEntry.getMetadata().containsKey(pair.key())) {
                 keyValuesNotWrittenBecauseDuplicate.add(pair);
                 logger.debug("KVP {} not added to metadata of current image because it already exists", pair);
-            } else if (keyValuesWritten.stream().map(MapAnnotation.Pair::key).anyMatch(key -> pair.key().equals(key))) {
+            } else if (keyValuesWritten.stream().map(Pair::key).anyMatch(key -> pair.key().equals(key))) {
                 keyValuesNotWrittenBecauseDuplicate.add(pair);
                 logger.debug("KVP {} not added to metadata of current image because it is a duplicate of an already added pair", pair);
             } else {

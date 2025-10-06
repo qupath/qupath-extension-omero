@@ -1,9 +1,5 @@
 package qupath.ext.omero.core.entities.repositoryentities;
 
-import javafx.collections.ObservableList;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -18,30 +14,20 @@ public interface RepositoryEntity {
     boolean hasChildren();
 
     /**
-     * Returns the list of children of this element.
+     * Returns the list of children of this element belonging to the provided experimenter and group.
      * <p>
-     * Usually, the initial call to this function returns an empty list but
-     * starts populating it in the background, so changes to this list should
-     * be listened. The {@link #isPopulatingChildren()} function indicates
-     * if the populating process is currently happening.
-     * <p>
-     * This list may be updated from any thread.
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
      *
-     * @return an unmodifiable observable list of children of this element
+     * @param ownerId the ID of the experimenter that should own the entities to retrieve
+     * @param groupId the ID of the group that should own the entities to retrieve
+     * @return a CompletableFuture (that may complete exceptionally) with the list of children of this entity
      */
-    ObservableList<? extends RepositoryEntity> getChildren();
-
-    default CompletableFuture<List<? extends RepositoryEntity>> getChildren(Owner owner, Group group) {
-        return CompletableFuture.supplyAsync(this::getChildren);
-    }
+    //TODO: handle when parameter is null, and when parameter is all owners / all groups
+    CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId);
 
     /**
-     * @return a text describing the entity
+     * @return a localizable text describing the entity
      */
     String getLabel();
-
-    /**
-     * @return whether this entity is currently populating its children
-     */
-    boolean isPopulatingChildren();
 }

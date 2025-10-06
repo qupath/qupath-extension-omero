@@ -8,7 +8,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import org.controlsfx.control.CheckComboBox;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.Namespace;
+import qupath.ext.omero.core.apis.webclient.Namespace;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;

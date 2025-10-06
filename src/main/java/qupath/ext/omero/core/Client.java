@@ -10,7 +10,7 @@ import javafx.collections.ObservableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.repositoryentities2.Server;
+import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.ice.IceApi;
@@ -189,7 +189,8 @@ public class Client implements AutoCloseable {
      *                     may be called from any thread. Can be null
      * @return a connection to the provided server
      * @throws URISyntaxException if a link to the server cannot be created
-     * @throws NullPointerException if the provided URL doesn't contain a {@link URI#getScheme() scheme} or {@link URI#getAuthority() authority}
+     * @throws NullPointerException if the provided URL doesn't contain a {@link URI#getScheme() scheme} or {@link URI#getAuthority() authority},
+     * of if the server doesn't return all necessary information
      * @throws ExecutionException if a request to the server fails or if a response does not contain expected elements.
      * This can happen if the server is unreachable or if the authentication fails for example
      * @throws InterruptedException if the running thread is interrupted

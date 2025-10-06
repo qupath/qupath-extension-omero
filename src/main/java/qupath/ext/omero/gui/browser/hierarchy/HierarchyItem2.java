@@ -11,15 +11,15 @@ import javafx.collections.transformation.SortedList;
 import javafx.scene.control.TreeItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities2.OrphanedFolder;
-import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
+import qupath.ext.omero.core.entities.permissions.Experimenter;
+import qupath.ext.omero.core.entities.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
+import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Image;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -30,7 +30,7 @@ import java.util.function.Predicate;
  * Item of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
  * {@link RepositoryEntity RepositoryEntity} elements .
  * <p>
- * Items can be filtered by {@link Owner owner}, {@link Group group}, and image name.
+ * Items can be filtered by {@link Experimenter}, {@link ExperimenterGroup}, and image name.
  * <p>
  * This item must be {@link #close() closed} once no longer used.
  * <p>
@@ -55,10 +55,12 @@ public class HierarchyItem2 extends TreeItem<RepositoryEntity> implements AutoCl
                     .comparingInt((TreeItem<RepositoryEntity> item) -> CLASS_ORDER.getOrDefault(item.getValue().getClass(), 0))
                     .thenComparing(item -> item.getValue().getLabel())
     );  // not converted to local variable because otherwise it might get deleted by the garbage collector TODO: check
-    private final ChangeListener<? super Owner> ownerListener = (p, o, n) -> fetchChildrenIfExpanded();
-    private final ChangeListener<? super Group> groupListener = (p, o, n) -> fetchChildrenIfExpanded();
-    private final ObservableValue<? extends Owner> ownerBinding;
-    private final ObservableValue<? extends Group> groupBinding;
+    private final ChangeListener<? super Experimenter> ownerListener = (p, o, n) ->
+            fetchChildrenIfExpanded();
+    private final ChangeListener<? super ExperimenterGroup> groupListener = (p, o, n) ->
+            fetchChildrenIfExpanded();
+    private final ObservableValue<? extends Experimenter> ownerBinding;
+    private final ObservableValue<? extends ExperimenterGroup> groupBinding;
     private final ObservableValue<Predicate<RepositoryEntity>> labelPredicate;
     private CompletableFuture<Void> request;
 
@@ -66,15 +68,15 @@ public class HierarchyItem2 extends TreeItem<RepositoryEntity> implements AutoCl
      * Creates a hierarchy item.
      *
      * @param repositoryEntity the OMERO entity that will be displayed by this item
-     * @param ownerBinding the children of this item won't be shown if they are not owned by this owner
+     * @param ownerBinding the children of this item won't be shown if they are not owned by this experimenter
      * @param groupBinding the children of this item won't be shown if they are not owned by this group
      * @param labelPredicate the children of this item won't be shown if they are images and don't match
      *                       this predicate (which is based on the label of this item)
      */
     public HierarchyItem2(
             RepositoryEntity repositoryEntity,
-            ObservableValue<? extends Owner> ownerBinding,
-            ObservableValue<? extends Group> groupBinding,
+            ObservableValue<? extends Experimenter> ownerBinding,
+            ObservableValue<? extends ExperimenterGroup> groupBinding,
             ObservableValue<Predicate<RepositoryEntity>> labelPredicate
     ) {
         super(repositoryEntity);
@@ -130,7 +132,7 @@ public class HierarchyItem2 extends TreeItem<RepositoryEntity> implements AutoCl
         RepositoryEntity repositoryEntity = getValue();
 
         request = repositoryEntity.getChildren(
-                ownerBinding.getValue().id(),
+                ownerBinding.getValue().getId(),
                 groupBinding.getValue().getId()
         ).handle((repositoryEntities, error) -> {
             if (error != null) {

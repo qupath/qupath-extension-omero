@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
-import qupath.ext.omero.core.entities.repositoryentities2.Server;
+import qupath.ext.omero.core.entities.repositoryentities.Server;
 import qupath.ext.omero.gui.ImageOpener;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyCell;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyItem2;
@@ -43,10 +43,10 @@ import qupath.ext.omero.gui.browser.advancedsearch.AdvancedSearch;
 import qupath.ext.omero.gui.browser.advancedinformation.AdvancedInformation;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
-import qupath.ext.omero.core.entities.repositoryentities2.OrphanedFolder;
+import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Image;
+import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 
@@ -430,7 +430,7 @@ class Browser extends Stage implements AutoCloseable {
 
         owner.getItems().setAll(Owner.getAllMembersOwner());
         owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
-        owner.getSelectionModel().select(server.getConnectedOwner());
+        owner.getSelectionModel().select(server.getConnectedExperimenter());
         owner.setConverter(new StringConverter<>() {
             @Override
             public String toString(Owner object) {
@@ -546,13 +546,13 @@ class Browser extends Stage implements AutoCloseable {
                 owner.getSelectionModel().selectFirst();
             } else {
                 if (n.equals(Group.getAllGroupsGroup())) {
-                    owner.getItems().addAll(server.getOwners());
+                    owner.getItems().addAll(server.getExperimenters());
                     owner.getSelectionModel().select(Owner.getAllMembersOwner());
                 } else {
                     owner.getItems().addAll(n.getOwners());
 
-                    if (n.getOwners().contains(server.getConnectedOwner())) {
-                        owner.getSelectionModel().select(server.getConnectedOwner());
+                    if (n.getOwners().contains(server.getConnectedExperimenter())) {
+                        owner.getSelectionModel().select(server.getConnectedExperimenter());
                     } else {
                         owner.getSelectionModel().selectFirst();
                     }

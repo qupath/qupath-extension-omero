@@ -8,25 +8,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.core.entities.SimpleServerEntity;
-import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
+import qupath.ext.omero.core.apis.json.JsonApi;
+import qupath.ext.omero.core.apis.webclient.WebclientApi;
+import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
+import qupath.ext.omero.core.apis.webgateway.WebGatewayApi;
+import qupath.ext.omero.core.apis.webclient.Namespace;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.SimpleServerEntity;
 import qupath.ext.omero.core.entities.image.ChannelSettings;
 import qupath.ext.omero.core.entities.image.ImageSettings;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions2.ExperimenterGroup;
-import qupath.ext.omero.core.entities.repositoryentities2.OrphanedFolder;
-import qupath.ext.omero.core.entities.repositoryentities2.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Image;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities2.serverentities.Well;
-import qupath.ext.omero.core.entities.search.SearchQuery;
-import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
+import qupath.ext.omero.core.entities.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
+import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Image;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
+import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.entities.shapes.Shape;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
@@ -86,6 +88,7 @@ public class ApisHandler implements AutoCloseable {
      * This can happen if the server is unreachable or if the authentication fails for example
      * @throws InterruptedException if the running thread is interrupted
      * @throws IllegalArgumentException if the server doesn't return all necessary information on it
+     * @throws NullPointerException if the server doesn't return all necessary information
      */
     public ApisHandler(URI webServerUri, Credentials credentials) throws URISyntaxException, ExecutionException, InterruptedException {
         this.webServerUri = webServerUri;
@@ -240,10 +243,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getDefaultGroup()}.
+     * See {@link JsonApi#getDefaultGroupId()}.
      */
-    public Optional<Group> getDefaultGroup() {
-        return jsonApi.getDefaultGroup();
+    public Optional<Long> getDefaultGroupId() {
+        return jsonApi.getDefaultGroupId();
     }
 
     /**
@@ -334,9 +337,9 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#getEntityUri(ServerEntity)}.
+     * See {@link WebclientApi#getEntityUri(SimpleServerEntity)}.
      */
-    public String getEntityUri(ServerEntity entity) {
+    public String getEntityUri(SimpleServerEntity entity) {
         return webclientApi.getEntityUri(entity);
     }
 
@@ -378,29 +381,29 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link JsonApi#getProjects(long, long)}.
      */
-    public CompletableFuture<List<Project>> getProjects(long ownerId, long groupId) {
-        return jsonApi.getProjects(ownerId, groupId);
+    public CompletableFuture<List<Project>> getProjects(long experimenterId, long groupId) {
+        return jsonApi.getProjects(experimenterId, groupId);
     }
 
     /**
      * See {@link JsonApi#getDatasets(long, long, long)}.
      */
-    public CompletableFuture<List<Dataset>> getDatasets(long projectId, long ownerId, long groupId) {
-        return jsonApi.getDatasets(projectId, ownerId, groupId);
+    public CompletableFuture<List<Dataset>> getDatasets(long projectId, long experimenterId, long groupId) {
+        return jsonApi.getDatasets(projectId, experimenterId, groupId);
     }
 
     /**
      * See {@link JsonApi#getOrphanedDatasets(long, long)}.
      */
-    public CompletableFuture<List<Dataset>> getOrphanedDatasets(long ownerId, long groupId) {
-        return jsonApi.getOrphanedDatasets(ownerId, groupId);
+    public CompletableFuture<List<Dataset>> getOrphanedDatasets(long experimenterId, long groupId) {
+        return jsonApi.getOrphanedDatasets(experimenterId, groupId);
     }
 
     /**
      * See {@link JsonApi#getImages(long, long, long)}.
      */
-    public CompletableFuture<List<Image>> getImages(long datasetId, long ownerId, long groupId) {
-        return jsonApi.getImages(datasetId, ownerId, groupId);
+    public CompletableFuture<List<Image>> getImages(long datasetId, long experimenterId, long groupId) {
+        return jsonApi.getImages(datasetId, experimenterId, groupId);
     }
 
     /**
@@ -413,50 +416,50 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link JsonApi#getOrphanedImages(long, long)}.
      */
-    public CompletableFuture<List<Image>> getOrphanedImages(long ownerId, long groupId) {
-        return jsonApi.getOrphanedImages(ownerId, groupId);
+    public CompletableFuture<List<Image>> getOrphanedImages(long experimenterId, long groupId) {
+        return jsonApi.getOrphanedImages(experimenterId, groupId);
     }
 
     /**
      * See {@link JsonApi#getScreens(long, long)}.
      */
-    public CompletableFuture<List<Screen>> getScreens(long ownerId, long groupId) {
-        return jsonApi.getScreens(ownerId, groupId);
+    public CompletableFuture<List<Screen>> getScreens(long experimenterId, long groupId) {
+        return jsonApi.getScreens(experimenterId, groupId);
     }
 
     /**
      * See {@link JsonApi#getPlates(long, long, long)}.
      */
-    public CompletableFuture<List<Plate>> getPlates(long screenId, long ownerId, long groupId) {
-        return jsonApi.getPlates(screenId, ownerId, groupId);
+    public CompletableFuture<List<Plate>> getPlates(long screenId, long experimenterId, long groupId) {
+        return jsonApi.getPlates(screenId, experimenterId, groupId);
     }
 
     /**
      * See {@link JsonApi#getOrphanedPlates(long, long)}.
      */
-    public CompletableFuture<List<Plate>> getOrphanedPlates(long ownerId, long groupId) {
-        return jsonApi.getOrphanedPlates(ownerId, groupId);
+    public CompletableFuture<List<Plate>> getOrphanedPlates(long experimenterId, long groupId) {
+        return jsonApi.getOrphanedPlates(experimenterId, groupId);
     }
 
     /**
      * See {@link JsonApi#getPlateAcquisitions(long, long, long, int)}.
      */
-    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId, long ownerId, long groupId, int numberOfWells) {
-        return jsonApi.getPlateAcquisitions(plateId, ownerId, groupId, numberOfWells);
+    public CompletableFuture<List<PlateAcquisition>> getPlateAcquisitions(long plateId, long experimenterId, long groupId, int numberOfWells) {
+        return jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, numberOfWells);
     }
 
     /**
      * See {@link JsonApi#getWellsFromPlate(long, long, long)}.
      */
-    public CompletableFuture<List<Well>> getWellsFromPlate(long plateId, long ownerId, long groupId) {
-        return jsonApi.getWellsFromPlate(plateId, ownerId, groupId);
+    public CompletableFuture<List<Well>> getWellsFromPlate(long plateId, long experimenterId, long groupId) {
+        return jsonApi.getWellsFromPlate(plateId, experimenterId, groupId);
     }
 
     /**
      * See {@link JsonApi#getWellsFromPlateAcquisition(long, long, long, int)}.
      */
-    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, long ownerId, long groupId, int wellSampleIndex) {
-        return jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, ownerId, groupId, wellSampleIndex);
+    public CompletableFuture<List<Well>> getWellsFromPlateAcquisition(long plateAcquisitionId, long experimenterId, long groupId, int wellSampleIndex) {
+        return jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, wellSampleIndex);
     }
 
     /**
@@ -467,13 +470,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#getAnnotations(long, Class)}.
+     * See {@link WebclientApi#getAnnotations(SimpleServerEntity)}.
      */
-    public CompletableFuture<AnnotationGroup> getAnnotations(
-            long entityId,
-            Class<? extends RepositoryEntity> entityClass
-    ) {
-        return webclientApi.getAnnotations(entityId, entityClass);
+    public CompletableFuture<List<Annotation>> getAnnotations(SimpleServerEntity entity) {
+        return webclientApi.getAnnotations(entity);
     }
 
     /**
@@ -672,22 +672,17 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link WebclientApi#sendAttachment(long, Class, String, String)}.
+     * See {@link WebclientApi#sendAttachment(SimpleServerEntity, String, String)}.
      */
-    public CompletableFuture<Void> sendAttachment(
-            long entityId,
-            Class<? extends RepositoryEntity> entityClass,
-            String attachmentName,
-            String attachmentContent
-    ) {
-        return webclientApi.sendAttachment(entityId, entityClass, attachmentName, attachmentContent);
+    public CompletableFuture<Void> sendAttachment(SimpleServerEntity entity, String attachmentName, String attachmentContent) {
+        return webclientApi.sendAttachment(entity, attachmentName, attachmentContent);
     }
 
     /**
-     * See {@link WebclientApi#deleteAttachments(long, Class, List)}.
+     * See {@link WebclientApi#deleteAttachments(SimpleServerEntity, List)}.
      */
-    public CompletableFuture<Void> deleteAttachments(long entityId, Class<? extends RepositoryEntity> entityClass, List<String> ownerFullNames) {
-        return webclientApi.deleteAttachments(entityId, entityClass, ownerFullNames);
+    public CompletableFuture<Void> deleteAttachments(SimpleServerEntity entity, List<String> experimenterFullNames) {
+        return webclientApi.deleteAttachments(entity, experimenterFullNames);
     }
 
     private CompletableFuture<List<URI>> getImageUrisOfProject(long projectId) {
@@ -712,6 +707,7 @@ public class ApisHandler implements AutoCloseable {
             logger.debug("Found images {} belonging to dataset with ID {}. Now creating image URIs of them", images, datasetId);
 
             return images.stream()
+                    .map(image -> new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, image.getId()))
                     .map(this::getEntityUri)
                     .map(URI::create)
                     .distinct()
@@ -719,16 +715,33 @@ public class ApisHandler implements AutoCloseable {
         });
     }
 
-    private CompletableFuture<List<URI>> getImageUrisOfWell(long wellId, long plateAcquisitionOwnerId) {
-        logger.debug("Finding image URIs contained in well with ID {} and belonging to plate acquisition with ID {}", wellId, plateAcquisitionOwnerId);
+    private CompletableFuture<List<URI>> getImageUrisOfScreen(long screenId) {
+        logger.debug("Finding image URIs contained in screen with ID {}", screenId);
 
-        return getWell(wellId).thenApply(well -> {
-            logger.debug("Got well {}. Now getting image URIs of it", well);
+        return getPlates(screenId, -1, -1).thenApplyAsync(plates -> {
+            logger.debug("Found plates {} belonging to screen with ID {}. Now finding image URIs of them", plates, screenId);
 
-            return well.getImageIds(plateAcquisitionOwnerId).stream()
-                    .map(Image::new)
-                    .map(this::getEntityUri)
-                    .map(URI::create)
+            return plates.stream()
+                    .map(ServerEntity::getId)
+                    .map(this::getImageUrisOfPlate)
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
+                    .distinct()
+                    .toList();
+        });
+    }
+
+    private CompletableFuture<List<URI>> getImageUrisOfPlate(long plateId) {
+        logger.debug("Finding image URIs contained in plate with ID {}", plateId);
+
+        return getWellsFromPlate(plateId, -1, -1).thenApplyAsync(wells -> {
+            logger.debug("Found wells {} belonging to plate with ID {}. Now finding image URIs of them", wells, plateId);
+
+            return wells.stream()
+                    .map(ServerEntity::getId)
+                    .map(wellId -> getImageUrisOfWell(wellId, -1))
+                    .map(CompletableFuture::join)
+                    .flatMap(List::stream)
                     .distinct()
                     .toList();
         });
@@ -766,33 +779,16 @@ public class ApisHandler implements AutoCloseable {
         });
     }
 
-    private CompletableFuture<List<URI>> getImageUrisOfPlate(long plateId) {
-        logger.debug("Finding image URIs contained in plate with ID {}", plateId);
+    private CompletableFuture<List<URI>> getImageUrisOfWell(long wellId, long plateAcquisitionOwnerId) {
+        logger.debug("Finding image URIs contained in well with ID {} and belonging to plate acquisition with ID {}", wellId, plateAcquisitionOwnerId);
 
-        return getWellsFromPlate(plateId, -1, -1).thenApplyAsync(wells -> {
-            logger.debug("Found wells {} belonging to plate with ID {}. Now finding image URIs of them", wells, plateId);
+        return getWell(wellId).thenApply(well -> {
+            logger.debug("Got well {}. Now getting image URIs of it", well);
 
-            return wells.stream()
-                    .map(ServerEntity::getId)
-                    .map(wellId -> getImageUrisOfWell(wellId, -1))
-                    .map(CompletableFuture::join)
-                    .flatMap(List::stream)
-                    .distinct()
-                    .toList();
-        });
-    }
-
-    private CompletableFuture<List<URI>> getImageUrisOfScreen(long screenId) {
-        logger.debug("Finding image URIs contained in screen with ID {}", screenId);
-
-        return getPlates(screenId, -1, -1).thenApplyAsync(plates -> {
-            logger.debug("Found plates {} belonging to screen with ID {}. Now finding image URIs of them", plates, screenId);
-
-            return plates.stream()
-                    .map(ServerEntity::getId)
-                    .map(this::getImageUrisOfPlate)
-                    .map(CompletableFuture::join)
-                    .flatMap(List::stream)
+            return well.getImageIds(plateAcquisitionOwnerId).stream()
+                    .map(id -> new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, id))
+                    .map(this::getEntityUri)
+                    .map(URI::create)
                     .distinct()
                     .toList();
         });
