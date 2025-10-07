@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.SimpleEntity;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.preferences.PreferencesManager;
@@ -146,7 +147,7 @@ public class IceApi implements PixelApi {
      * @return a new web reader corresponding to this API
      * @throws ExecutionException if an error occurred while creating the reader
      * @throws InterruptedException if the calling thread is interrupted while creating the reader
-     * @throws IllegalArgumentException when the provided image cannot be read by this API
+     * @throws IllegalArgumentException if the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
@@ -195,7 +196,9 @@ public class IceApi implements PixelApi {
                 logger.debug("Gateway not null, using it");
             }
 
-            long groupId = apisHandler.getImage(imageId).get().getGroupId();
+            long groupId = apisHandler.getImage(imageId).get().getGroup().map(SimpleEntity::id).orElseThrow(() -> new ExecutionException(
+                    new IllegalArgumentException(String.format("Cannot get the ID of the group owning image with %d", imageId))
+            ));
 
             closeReadersWithDifferentGroups(imageId, groupId);
 

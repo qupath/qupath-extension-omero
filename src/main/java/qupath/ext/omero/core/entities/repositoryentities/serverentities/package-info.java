@@ -1,1 +1,0 @@
-package qupath.ext.omero.core.entities.repositoryentities.serverentities;

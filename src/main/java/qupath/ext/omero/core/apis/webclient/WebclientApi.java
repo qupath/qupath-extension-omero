@@ -11,7 +11,7 @@ import qupath.ext.omero.core.apis.webclient.annotations.AnnotationCreator;
 import qupath.ext.omero.core.apis.webclient.annotations.FileAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.Pair;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
 import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
 import qupath.ext.omero.core.apis.webclient.search.SearchResult;
 import qupath.ext.omero.core.RequestSender;

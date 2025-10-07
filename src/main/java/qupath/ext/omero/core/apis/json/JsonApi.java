@@ -5,7 +5,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
@@ -17,32 +16,33 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.permissions.Experimenter;
-import qupath.ext.omero.core.entities.permissions.ExperimenterGroup;
-import qupath.ext.omero.core.entities.omeroentities.experimenters.OmeroExperimenter;
-import qupath.ext.omero.core.entities.omeroentities.experimenters.OmeroExperimenterGroup;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Image;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
-import qupath.ext.omero.core.entities.omeroentities.server.OmeroDataset;
-import qupath.ext.omero.core.entities.omeroentities.server.OmeroPlate;
-import qupath.ext.omero.core.entities.omeroentities.server.OmeroPlateAcquisition;
-import qupath.ext.omero.core.entities.omeroentities.server.OmeroProject;
-import qupath.ext.omero.core.entities.omeroentities.server.OmeroScreen;
-import qupath.ext.omero.core.entities.omeroentities.server.OmeroWell;
-import qupath.ext.omero.core.entities.omeroentities.server.image.OmeroImage;
+import qupath.ext.omero.core.apis.json.permissions.Experimenter;
+import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
+import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroDataset;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlate;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlateAcquisition;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroProject;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroScreen;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroWell;
+import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroImage;
 import qupath.ext.omero.core.apis.json.serverinformation.Links;
 import qupath.ext.omero.core.apis.json.serverinformation.OmeroServer;
 import qupath.ext.omero.core.apis.json.serverinformation.OmeroServers;
 import qupath.ext.omero.core.apis.json.serverinformation.SupportedVersion;
 import qupath.ext.omero.core.apis.json.serverinformation.SupportedVersions;
 import qupath.ext.omero.core.apis.json.serverinformation.Token;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
+import qupath.ext.omero.core.apis.commonentities.shapes.ShapeCreator;
 import qupath.lib.io.GsonTools;
 
 import java.net.URI;
@@ -824,9 +824,6 @@ public class JsonApi {
             return CompletableFuture.failedFuture(e);
         }
 
-        Gson gson = new GsonBuilder().registerTypeAdapter(Shape.class, new Shape.GsonShapeDeserializer())
-                .create();
-
         return requestSender.getPaginated(uri).thenApply(jsonElements -> jsonElements.stream()
                 .map(jsonElement -> {
                     if (!jsonElement.isJsonObject()) {
@@ -839,7 +836,7 @@ public class JsonApi {
                     ) {
                         throw new RuntimeException(String.format("The number '@id' was not found in %s", jsonObject));
                     }
-                    int roiID = jsonObject.get("@id").getAsInt();
+                    int roiId = jsonObject.get("@id").getAsInt();
 
                     if (!jsonObject.has("shapes") || !jsonObject.get("shapes").isJsonArray()) {
                         throw new RuntimeException(String.format("The array 'shapes' was not found in %s", jsonObject));
@@ -847,9 +844,7 @@ public class JsonApi {
                     List<JsonElement> shapes = jsonElement.getAsJsonObject().getAsJsonArray("shapes").asList();
 
                     return shapes.stream()
-                            .map(shape -> gson.fromJson(shape, Shape.class))
-                            .filter(Objects::nonNull)
-                            .peek(shape -> shape.setOldId(roiID))
+                            .map(shape -> ShapeCreator.createShape(shape, roiId))
                             .toList();
                 })
                 .flatMap(List::stream)

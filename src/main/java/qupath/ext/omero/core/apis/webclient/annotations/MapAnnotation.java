@@ -21,6 +21,7 @@ public class MapAnnotation extends Annotation {
      *
      * @param omeroMapAnnotation the OMERO annotation to create this annotation from
      * @param experimenters a list of experimenters that should contain the adder and owner of this annotation
+     * @throws NullPointerException if one of the provided parameters is null
      */
     public MapAnnotation(OmeroMapAnnotation omeroMapAnnotation, List<OmeroSimpleExperimenter> experimenters) {
         super(

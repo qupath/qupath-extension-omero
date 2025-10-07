@@ -1,5 +1,5 @@
 import qupath.ext.omero.core.imageserver.*
-import qupath.ext.omero.core.entities.shapes.Shape
+import qupath.ext.omero.core.apis.commonentities.shapes.Shape
 
 /*
  * This script send all annotations of the current image to the OMERO server.

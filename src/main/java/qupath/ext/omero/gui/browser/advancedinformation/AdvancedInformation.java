@@ -13,6 +13,7 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Attribute;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
 import qupath.ext.omero.core.apis.webclient.annotations.CommentAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.FileAnnotation;
@@ -20,7 +21,7 @@ import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.Pair;
 import qupath.ext.omero.core.apis.webclient.annotations.RatingAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.TagAnnotation;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
@@ -77,12 +78,11 @@ public class AdvancedInformation extends Stage {
     }
 
     private Node createObjectDetailPane() throws IOException {
-        logger.debug("Creating entity details pane with {} attributes", serverEntity.getNumberOfAttributes());
-
         FormPane formPane = new FormPane(resources.getString("Browser.ServerBrowser.AdvancedInformation.details"));
-        for (int i=0; i<serverEntity.getNumberOfAttributes(); ++i) {
-            formPane.addRow(serverEntity.getAttributeName(i), serverEntity.getAttributeValue(i));
+        for (Attribute attribute: serverEntity.getAttributes()) {
+            formPane.addRow(attribute.label(), attribute.value());
         }
+
         return formPane;
     }
 

@@ -11,7 +11,7 @@ import java.util.Objects;
  * @param firstName the first name of the experimenter. Optional
  * @param lastName the last name of the experimenter. Optional
  */
-record OmeroSimpleExperimenter(
+public record OmeroSimpleExperimenter(
         Long id,
         String firstName,
         String lastName

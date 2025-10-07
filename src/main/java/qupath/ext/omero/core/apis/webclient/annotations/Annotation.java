@@ -6,6 +6,8 @@ import qupath.ext.omero.core.apis.webclient.Namespace;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * An OMERO annotation is <b>not</b> similar to a QuPath annotation.
@@ -26,6 +28,7 @@ public abstract class Annotation {
      * @param adder the experimenter who added the annotation. Can be null
      * @param owner the experimenter who owns the annotation. Can be null
      * @param experimenters a list of experimenters, potentially containing the adder and owner of this annotation
+     * @throws NullPointerException if the provided list of experimenters is null
      */
     protected Annotation(
             long id,
@@ -72,16 +75,14 @@ public abstract class Annotation {
      * @return the name (first name + last name) of the experimenter that added this annotation, or an empty Optional if not defined
      */
     public Optional<String> getAdderName() {
-        return Optional.ofNullable(adder)
-                .map(experimenter -> String.format("%s %s", experimenter.firstName(), experimenter.lastName()));
+        return Optional.ofNullable(adder).map(Annotation::getExperimenterName);
     }
 
     /**
      * @return the name (first name + last name) of the experimenter that owns this annotation, or an empty Optional if not defined
      */
     public Optional<String> getOwnerName() {
-        return Optional.ofNullable(owner)
-                .map(experimenter -> String.format("%s %s", experimenter.firstName(), experimenter.lastName()));
+        return Optional.ofNullable(owner).map(Annotation::getExperimenterName);
     }
 
     private static OmeroSimpleExperimenter findExperimenter(List<OmeroSimpleExperimenter> experimenters, OmeroAnnotationExperimenter experimenter) {
@@ -93,5 +94,11 @@ public abstract class Annotation {
                     .findAny()
                     .orElse(null);
         }
+    }
+
+    private static String getExperimenterName(OmeroSimpleExperimenter experimenter) {
+        return Stream.of(experimenter.firstName(), experimenter.lastName())
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(" "));
     }
 }

@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
 import qupath.ext.omero.core.apis.webclient.Namespace;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.gui.datatransporters.forms.SendKeyValuePairsForm;

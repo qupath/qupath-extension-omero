@@ -34,6 +34,7 @@ public class AnnotationCreator {
      * @param json a JSON object containing a list of annotations
      * @return a list of annotations corresponding to the provided JSON object
      * @throws IllegalArgumentException if the provided JSON object has an unexpected format
+     * @throws NullPointerException if the provided JSON is null
      */
     public static List<Annotation> createAnnotations(JsonElement json) {
         if (!json.isJsonObject()) {
