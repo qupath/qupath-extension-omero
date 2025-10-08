@@ -17,10 +17,12 @@ public class ExperimenterGroup {
     private static final ExperimenterGroup ALL_GROUPS = new ExperimenterGroup(
             -1,
             resources.getString("Entities.Permissions.Group.allGroups"),
+            PermissionLevel.UNKNOWN,
             List.of()
     );
     private final long id;
     private final String name;
+    private final PermissionLevel permissionLevel;
     private final List<Experimenter> experimenters;
 
     /**
@@ -31,12 +33,13 @@ public class ExperimenterGroup {
      * @throws NullPointerException if one of the provided parameters is null
      */
     public ExperimenterGroup(OmeroExperimenterGroup omeroExperimenterGroup, List<Experimenter> experimenters) {
-        this(omeroExperimenterGroup.id(), omeroExperimenterGroup.name(), Objects.requireNonNull(experimenters));
+        this(omeroExperimenterGroup.id(), omeroExperimenterGroup.name(), omeroExperimenterGroup.getPermissionLevel(), Objects.requireNonNull(experimenters));
     }
 
-    private ExperimenterGroup(long id, String name, List<Experimenter> experimenters) {
+    private ExperimenterGroup(long id, String name, PermissionLevel permissionLevel, List<Experimenter> experimenters) {
         this.id = id;
         this.name = name;
+        this.permissionLevel = permissionLevel;
         this.experimenters = experimenters;
     }
 
@@ -74,16 +77,23 @@ public class ExperimenterGroup {
     }
 
     /**
-     * @return the experimenters that belong to this group
-     */
-    public List<Experimenter> getExperimenters() {
-        return experimenters;
-    }
-
-    /**
      * @return the name of the group, or an empty Optional if not defined
      */
     public Optional<String> getName() {
         return Optional.ofNullable(name);
+    }
+
+    /**
+     * @return the {@link PermissionLevel} of this group
+     */
+    public PermissionLevel getPermissionLevel() {
+        return permissionLevel;
+    }
+
+    /**
+     * @return the experimenters that belong to this group
+     */
+    public List<Experimenter> getExperimenters() {
+        return experimenters;
     }
 }

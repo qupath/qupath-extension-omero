@@ -9,7 +9,6 @@ import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.*;
 
 import java.net.URI;
 import java.text.DateFormat;

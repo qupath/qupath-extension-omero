@@ -8,7 +8,7 @@ import javafx.scene.control.ChoiceBox;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.permissions.Owner;
+import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
@@ -23,17 +23,17 @@ public class SendAnnotationForm extends VBox {
     private static final ResourceBundle resources = Utils.getResources();
     private static final String ONLY_SELECTED_ANNOTATIONS = resources.getString("DataTransporters.Forms.SendAnnotations.onlySelectedAnnotations");
     private static final String ALL_ANNOTATIONS = resources.getString("DataTransporters.Forms.SendAnnotations.allAnnotations");
-    private final List<Owner> owners;
+    private final List<Experimenter> owners;
     @FXML
     private ChoiceBox<String> selectedAnnotationChoice;
     @FXML
     private CheckBox deleteExistingAnnotations;
     @FXML
-    private ChoiceBox<Owner> ownerAnnotations;
+    private ChoiceBox<Experimenter> ownerAnnotations;
     @FXML
     private CheckBox deleteExistingMeasurements;
     @FXML
-    private ChoiceBox<Owner> ownerMeasurements;
+    private ChoiceBox<Experimenter> ownerMeasurements;
     @FXML
     private CheckBox sendAnnotationMeasurements;
     @FXML
@@ -48,7 +48,7 @@ public class SendAnnotationForm extends VBox {
      * @param detectionExist whether detections exist on the current image
      * @throws IOException when an error occurs while creating the form
      */
-    public SendAnnotationForm(List<Owner> owners, boolean projectOpened, boolean annotationsExist, boolean detectionExist) throws IOException {
+    public SendAnnotationForm(List<Experimenter> owners, boolean projectOpened, boolean annotationsExist, boolean detectionExist) throws IOException {
         this.owners = owners;
 
         UiUtilities.loadFXML(this, SendAnnotationForm.class.getResource("send_annotation_form.fxml"));
@@ -86,7 +86,7 @@ public class SendAnnotationForm extends VBox {
      * @return the list of owners whose OMERO annotations should be deleted (if {@link #deleteExistingAnnotations()} is
      * true). Can be empty if no owners were provided to this form
      */
-    public List<Owner> getSelectedOwnersOfDeletedAnnotations() {
+    public List<Experimenter> getSelectedOwnersOfDeletedAnnotations() {
         return getSelectedOwners(ownerAnnotations);
     }
 
@@ -101,7 +101,7 @@ public class SendAnnotationForm extends VBox {
      * @return the list of owners whose OMERO measurements should be deleted (if {@link #deleteExistingMeasurements()} is
      * true). Can be empty if no owners were provided to this form
      */
-    public List<Owner> getSelectedOwnersOfDeletedMeasurements() {
+    public List<Experimenter> getSelectedOwnersOfDeletedMeasurements() {
         return getSelectedOwners(ownerMeasurements);
     }
 
@@ -119,21 +119,21 @@ public class SendAnnotationForm extends VBox {
         return sendDetectionMeasurements.isSelected();
     }
 
-    private void setUpOwnerChoiceBox(ChoiceBox<Owner> choiceBox, ReadOnlyBooleanProperty enableProperty) {
+    private void setUpOwnerChoiceBox(ChoiceBox<Experimenter> choiceBox, ReadOnlyBooleanProperty enableProperty) {
         choiceBox.setConverter(new StringConverter<>() {
             @Override
-            public String toString(Owner object) {
+            public String toString(Experimenter object) {
                 return object == null ? "" : object.getFullName();
             }
 
             @Override
-            public Owner fromString(String string) {
+            public Experimenter fromString(String string) {
                 return null;
             }
         });
 
         if (owners.size() > 1) {
-            choiceBox.getItems().add(Owner.getAllMembersOwner());
+            choiceBox.getItems().add(Experimenter.getAllExperimenters());
         }
         choiceBox.getItems().addAll(owners);
         choiceBox.getSelectionModel().selectFirst();
@@ -141,7 +141,7 @@ public class SendAnnotationForm extends VBox {
         choiceBox.disableProperty().bind(Bindings.not(enableProperty));
     }
 
-    private List<Owner> getSelectedOwners(ChoiceBox<Owner> choiceBox) {
+    private List<Experimenter> getSelectedOwners(ChoiceBox<Experimenter> choiceBox) {
         if (owners.size() > 1 && choiceBox.getSelectionModel().getSelectedIndex() == 0) {
             return owners;
         } else {

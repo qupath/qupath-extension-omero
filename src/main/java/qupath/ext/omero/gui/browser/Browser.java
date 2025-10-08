@@ -104,8 +104,6 @@ class Browser extends Stage implements AutoCloseable {
     @FXML
     private Label loadingObjects;
     @FXML
-    private Label loadingOrphaned;
-    @FXML
     private Label loadingThumbnail;
     @FXML
     private ChoiceBox<ExperimenterGroup> group;
@@ -273,7 +271,7 @@ class Browser extends Stage implements AutoCloseable {
         if (selectedItem != null && selectedItem.getValue() instanceof ServerEntity serverEntity) {
             logger.debug("More info menu clicked on {}. Fetching annotations of it", serverEntity);
 
-            client.getApisHandler().getAnnotations(serverEntity.getId(), serverEntity.getClass()).whenComplete((annotations, error) -> Platform.runLater(() -> {
+            client.getApisHandler().getAnnotations(new SimpleServerEntity(serverEntity)).whenComplete((annotations, error) -> Platform.runLater(() -> {
                 if (annotations == null) {
                     logger.error("Error while retrieving annotations of {}. Cannot open advanced information window", serverEntity, error);
 
@@ -304,7 +302,7 @@ class Browser extends Stage implements AutoCloseable {
 
         if (selectedItem != null && selectedItem.getValue() instanceof ServerEntity serverEntity) {
             logger.debug("Open in browser menu clicked on {}. Opening it", serverEntity);
-            QuPathGUI.openInBrowser(client.getApisHandler().getEntityUri(serverEntity));
+            QuPathGUI.openInBrowser(client.getApisHandler().getEntityUri(new SimpleServerEntity(serverEntity)));
         }
     }
 
@@ -315,7 +313,7 @@ class Browser extends Stage implements AutoCloseable {
         List<String> URIs = hierarchy.getSelectionModel().getSelectedItems().stream()
                 .map(item -> {
                     if (item.getValue() instanceof ServerEntity serverEntity) {
-                        return client.getApisHandler().getEntityUri(serverEntity);
+                        return client.getApisHandler().getEntityUri(new SimpleServerEntity(serverEntity));
                     } else {
                         return null;
                     }
@@ -384,7 +382,7 @@ class Browser extends Stage implements AutoCloseable {
                         })
                         .filter(Objects::nonNull)
                         .map(serverEntity ->
-                                client.getApisHandler().getEntityUri(serverEntity)
+                                client.getApisHandler().getEntityUri(new SimpleServerEntity(serverEntity))
                         )
                         .toList(),
                 client.getApisHandler()
@@ -530,17 +528,6 @@ class Browser extends Stage implements AutoCloseable {
 
         loadingObjects.visibleProperty().bind(Bindings.notEqual(browserModel.getNumberOfEntitiesLoading(), 0));
         loadingObjects.managedProperty().bind(loadingObjects.visibleProperty());
-
-        loadingOrphaned.textProperty().bind(Bindings.concat(
-                resources.getString("Browser.ServerBrowser.loadingOrphanedImages"),
-                " (",
-                browserModel.getNumberOfOrphanedImagesLoaded(),
-                "/",
-                browserModel.getNumberOfOrphanedImages(),
-                ")"
-        ));
-        loadingOrphaned.visibleProperty().bind(browserModel.areOrphanedImagesLoading());
-        loadingOrphaned.managedProperty().bind(loadingOrphaned.visibleProperty());
 
         loadingThumbnail.visibleProperty().bind(Bindings.notEqual(browserModel.getNumberOfThumbnailsLoading(), 0));
         loadingThumbnail.managedProperty().bind(loadingThumbnail.visibleProperty());

@@ -2,9 +2,17 @@ package qupath.ext.omero.core.apis.commonentities;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
 
 import java.util.Arrays;
 import java.util.List;
@@ -64,11 +72,35 @@ public record SimpleServerEntity(EntityType entityType, long id) {
     private record Entity(String type, Long id) {}
 
     /**
+     * Create an instance of this class from a {@link ServerEntity}.
+     *
+     * @param serverEntity the server entity to use when creating this simple server entity
+     */
+    public SimpleServerEntity(ServerEntity serverEntity) {
+        this(
+                switch (serverEntity) {
+                    case Dataset ignored -> EntityType.DATASET;
+                    case Image image -> EntityType.IMAGE;
+                    case Plate plate -> EntityType.PLATE;
+                    case PlateAcquisition plateAcquisition -> EntityType.PLATE_ACQUISITION;
+                    case Project project -> EntityType.PROJECT;
+                    case Screen screen -> EntityType.SCREEN;
+                    case Well well -> EntityType.WELL;
+                    default -> throw new IllegalStateException(String.format(
+                            "Unexpected server entity %s. Cannot create simple server entity",
+                            serverEntity.getClass()
+                    ));
+                },
+                serverEntity.getId()
+        );
+    }
+
+    /**
      * Attempt to parse the server entities present in the provided JSON. Only entity types of {@link EntityType} are considered.
      *
      * @param json a JSON element containing the response to parse
      * @return a list of server entities present in the provided JSON element
-     * @throws com.google.gson.JsonSyntaxException if the provided JSON is not a valid representation of the expected JSON
+     * @throws JsonSyntaxException if the provided JSON is not a valid representation of the expected JSON
      * @throws IllegalArgumentException if the provided JSON has an unexpected format
      */
     public static List<SimpleServerEntity> createFromJson(JsonElement json) {
