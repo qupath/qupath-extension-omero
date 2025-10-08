@@ -23,18 +23,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.Server;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
-import qupath.ext.omero.core.entities.search.SearchQuery;
-import qupath.ext.omero.core.entities.search.SearchResult;
-import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
+import qupath.ext.omero.core.apis.json.permissions.Experimenter;
+import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
+import qupath.ext.omero.core.apis.webclient.search.SearchResult;
+import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.gui.ImageOpener;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.EntityCell;
@@ -84,9 +84,9 @@ public class AdvancedSearch extends Stage {
     @FXML
     private CheckBox screens;
     @FXML
-    private ComboBox<Group> group;
+    private ComboBox<ExperimenterGroup> group;
     @FXML
-    private ComboBox<Owner> owner;
+    private ComboBox<Experimenter> owner;
     @FXML
     private Button search;
     @FXML
@@ -144,7 +144,7 @@ public class AdvancedSearch extends Stage {
         }
 
         group.getSelectionModel().select(server.getDefaultGroup());
-        owner.getSelectionModel().select(server.getConnectedOwner());
+        owner.getSelectionModel().select(server.getConnectedExperimenter());
 
         results.getItems().clear();
     }
@@ -170,8 +170,8 @@ public class AdvancedSearch extends Stage {
                 wells.isSelected(),
                 plates.isSelected(),
                 screens.isSelected(),
-                group.getSelectionModel().getSelectedItem(),
-                owner.getSelectionModel().getSelectedItem()
+                group.getSelectionModel().getSelectedItem().getId(),
+                owner.getSelectionModel().getSelectedItem().getId()
         )).whenComplete((searchResults, error) -> Platform.runLater(() -> {
             search.setGraphic(null);
             search.setText(resources.getString("Browser.ServerBrowser.AdvancedSearch.search"));
@@ -201,31 +201,32 @@ public class AdvancedSearch extends Stage {
     private void initUI(Stage ownerWindow) throws IOException {
         UiUtilities.loadFXML(this, AdvancedSearch.class.getResource("advanced_search.fxml"));
 
-        group.getItems().setAll(Group.getAllGroupsGroup());
+        group.getItems().setAll(ExperimenterGroup.getAllGroups());
         group.getItems().addAll(server.getGroups());
         group.getSelectionModel().select(server.getDefaultGroup());
         group.setConverter(new StringConverter<>() {
             @Override
-            public String toString(Group object) {
-                return object == null ? "" : object.getName();
+            public String toString(ExperimenterGroup object) {
+                return object == null || object.getName().isEmpty() ? "" : object.getName().get();
             }
 
             @Override
-            public Group fromString(String string) {
+            public ExperimenterGroup fromString(String string) {
                 return null;
             }
         });
 
-        owner.getItems().setAll(Owner.getAllMembersOwner());
-        owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
-        owner.getSelectionModel().select(server.getConnectedOwner());
+        owner.getItems().setAll(Experimenter.getAllExperimenters());
+        owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getExperimenters());
+        owner.getSelectionModel().select(server.getConnectedExperimenter());
         owner.setConverter(new StringConverter<>() {
             @Override
-            public String toString(Owner owner) {
+            public String toString(Experimenter owner) {
                 return owner == null ? "" : owner.getFullName();
             }
+
             @Override
-            public Owner fromString(String string) {
+            public Experimenter fromString(String string) {
                 return null;
             }
         });
@@ -268,19 +269,19 @@ public class AdvancedSearch extends Stage {
 
     private void setUpListeners() {
         group.getSelectionModel().selectedItemProperty().addListener((p, o, n) -> {
-            owner.getItems().setAll(Owner.getAllMembersOwner());
+            owner.getItems().setAll(Experimenter.getAllExperimenters());
 
             if (n == null) {
                 owner.getSelectionModel().selectFirst();
             } else {
-                if (n.equals(Group.getAllGroupsGroup())) {
-                    owner.getItems().addAll(server.getOwners());
-                    owner.getSelectionModel().select(Owner.getAllMembersOwner());
+                if (n.equals(ExperimenterGroup.getAllGroups())) {
+                    owner.getItems().addAll(server.getExperimenters());
+                    owner.getSelectionModel().select(Experimenter.getAllExperimenters());
                 } else {
-                    owner.getItems().addAll(n.getOwners());
+                    owner.getItems().addAll(n.getExperimenters());
 
-                    if (n.getOwners().contains(server.getConnectedOwner())) {
-                        owner.getSelectionModel().select(server.getConnectedOwner());
+                    if (n.getExperimenters().contains(server.getConnectedExperimenter())) {
+                        owner.getSelectionModel().select(server.getConnectedExperimenter());
                     } else {
                         owner.getSelectionModel().selectFirst();
                     }

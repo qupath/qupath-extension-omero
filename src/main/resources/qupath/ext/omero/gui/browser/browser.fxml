@@ -100,14 +100,6 @@
                                 <Tooltip text="%Browser.ServerBrowser.entitiesLoadedBackground" />
                             </tooltip>
                         </Label>
-                        <Label fx:id="loadingOrphaned">
-                            <graphic>
-                                <ProgressIndicator prefHeight="15.0" prefWidth="15.0" />
-                            </graphic>
-                            <tooltip>
-                                <Tooltip text="%Browser.ServerBrowser.orphanedImagesLoadedBackground" />
-                            </tooltip>
-                        </Label>
                         <Label fx:id="loadingThumbnail" text="%Browser.ServerBrowser.loadingThumbnails">
                             <graphic>
                                 <ProgressIndicator prefHeight="15.0" prefWidth="15.0" />

@@ -1,5 +1,5 @@
+import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings
 import qupath.ext.omero.core.imageserver.*
-import qupath.ext.omero.core.entities.image.*
 import qupath.lib.images.servers.*
 
 /*

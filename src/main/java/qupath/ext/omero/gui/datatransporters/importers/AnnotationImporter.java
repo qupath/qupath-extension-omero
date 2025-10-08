@@ -4,7 +4,7 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportAnnotationForm;
 import qupath.ext.omero.gui.login.WaitingWindow;
@@ -152,7 +152,7 @@ public class AnnotationImporter implements DataTransporter {
 
             List<PathObject> pathObjects = Shape.createPathObjects(shapes.stream()
                     .filter(shape -> shape.getOwnerFullName().isPresent() && annotationForm.getSelectedOwner().contains(shape.getOwnerFullName().get()))
-                    .toList());
+                    .toList());     //TODO: use id instead of name?
             logger.debug("Adding {} created from {} to {}", pathObjects, shapes, hierarchy);
             hierarchy.addObjects(pathObjects);
             hierarchy.resolveHierarchy();

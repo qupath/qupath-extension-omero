@@ -5,7 +5,7 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;

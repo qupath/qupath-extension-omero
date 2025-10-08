@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.core.apis.json.permissions.PermissionLevel;
 
 import java.util.List;
 

@@ -3,6 +3,7 @@ package qupath.ext.omero.core.entities.annotations.annotationsentities;
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.webclient.annotations.annotationsentities.Experimenter;
 
 public class TestExperimenter {
 

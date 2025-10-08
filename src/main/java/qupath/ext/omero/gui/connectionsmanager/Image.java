@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;
@@ -45,7 +45,7 @@ class Image extends HBox {
 
         UiUtilities.loadFXML(this, Image.class.getResource("image.fxml"));
 
-        Optional<Long> imageId = ApisHandler.parseEntity(imageUri).map(ServerEntity::getId);
+        Optional<Long> imageId = ApisHandler.parseEntity(imageUri).map(SimpleServerEntity::id);
         if (imageId.isPresent()) {
             logger.debug("Found image ID {} in {}. Fetching image label and thumbnail", imageId.get(), imageUri);
 

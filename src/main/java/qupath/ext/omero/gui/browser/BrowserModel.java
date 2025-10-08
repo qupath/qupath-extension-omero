@@ -1,14 +1,10 @@
 package qupath.ext.omero.gui.browser;
 
-import javafx.application.Platform;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -16,15 +12,13 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableSet;
 import javafx.collections.SetChangeListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.apis.json.permissions.Experimenter;
+import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
 
 import java.net.URI;
 
@@ -39,11 +33,7 @@ import java.net.URI;
  */
 class BrowserModel implements AutoCloseable {
 
-    private static final Logger logger = LoggerFactory.getLogger(BrowserModel.class);
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty();
-    private final BooleanProperty areOrphanedImagesLoading = new SimpleBooleanProperty(false);
-    private final IntegerProperty numberOfOrphanedImages = new SimpleIntegerProperty();
-    private final IntegerProperty numberOfOrphanedImagesLoaded = new SimpleIntegerProperty(0);
     private final IntegerProperty numberOfThumbnailsLoading = new SimpleIntegerProperty(0);
     private final ObjectProperty<PixelApi> selectedPixelAPI = new SimpleObjectProperty<>();
     private final ObservableList<PixelApi> availablePixelApis = FXCollections.observableArrayList();
@@ -52,14 +42,12 @@ class BrowserModel implements AutoCloseable {
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
     private final Client client;
     private final ChangeListener<? super Number> numberOfEntitiesLoadingListener;
-    private final ChangeListener<? super Boolean> areOrphanedImagesLoadingListener;
-    private final ChangeListener<? super Number> numberOfOrphanedImagesLoadedListener;
     private final ChangeListener<? super Number> numberOfThumbnailsLoadingListener;
     private final ChangeListener<? super PixelApi> selectedPixelAPIListener;
     private final ListChangeListener<? super PixelApi> availablePixelApisListener;
     private final SetChangeListener<? super URI> openedImagesURIsListener;
-    private final ObjectProperty<Owner> selectedOwner;
-    private final ObjectProperty<Group> selectedGroup;
+    private final ObjectProperty<Experimenter> selectedOwner;
+    private final ObjectProperty<ExperimenterGroup> selectedGroup;
 
     /**
      * Creates a new browser model
@@ -74,14 +62,6 @@ class BrowserModel implements AutoCloseable {
                 numberOfEntitiesLoading,
                 client.getApisHandler().getNumberOfEntitiesLoading()
         );
-        this.areOrphanedImagesLoadingListener = UiUtilities.bindPropertyInUIThread(
-                areOrphanedImagesLoading,
-                client.getApisHandler().areOrphanedImagesLoading()
-        );
-        this.numberOfOrphanedImagesLoadedListener = UiUtilities.bindPropertyInUIThread(
-                numberOfOrphanedImagesLoaded,
-                client.getApisHandler().getNumberOfOrphanedImagesLoaded()
-        );
         this.numberOfThumbnailsLoadingListener = UiUtilities.bindPropertyInUIThread(
                 numberOfThumbnailsLoading,
                 client.getApisHandler().getNumberOfThumbnailsLoading()
@@ -95,26 +75,13 @@ class BrowserModel implements AutoCloseable {
 
         this.openedImagesURIsListener = UiUtilities.bindSetInUIThread(openedImagesURIs, client.getOpenedImagesURIs());
 
-        this.selectedOwner = new SimpleObjectProperty<>(server.getConnectedOwner());
+        this.selectedOwner = new SimpleObjectProperty<>(server.getConnectedExperimenter());
         this.selectedGroup = new SimpleObjectProperty<>(server.getDefaultGroup());
-
-        client.getApisHandler().getOrphanedImagesIds().handle((orphanedImageIds, error) -> {
-            if (error == null) {
-                return orphanedImageIds.size();
-            } else {
-                logger.error("Error when retrieving orphanedImages ids", error);
-                return 0;
-            }
-        }).thenAccept(numberOfOrphanedImages -> Platform.runLater(() ->
-                this.numberOfOrphanedImages.set(numberOfOrphanedImages)
-        ));
     }
 
     @Override
     public void close() {
         client.getApisHandler().getNumberOfEntitiesLoading().removeListener(numberOfEntitiesLoadingListener);
-        client.getApisHandler().areOrphanedImagesLoading().removeListener(areOrphanedImagesLoadingListener);
-        client.getApisHandler().getNumberOfOrphanedImagesLoaded().removeListener(numberOfOrphanedImagesLoadedListener);
         client.getApisHandler().getNumberOfThumbnailsLoading().removeListener(numberOfThumbnailsLoadingListener);
         client.getSelectedPixelApi().removeListener(selectedPixelAPIListener);
 
@@ -128,27 +95,6 @@ class BrowserModel implements AutoCloseable {
      */
     public ObservableIntegerValue getNumberOfEntitiesLoading() {
         return numberOfEntitiesLoading;
-    }
-
-    /**
-     * See {@link ApisHandler#areOrphanedImagesLoading()}.
-     */
-    public ObservableBooleanValue areOrphanedImagesLoading() {
-        return areOrphanedImagesLoading;
-    }
-
-    /**
-     * Size of {@link ApisHandler#getOrphanedImagesIds()}.
-     */
-    public ObservableIntegerValue getNumberOfOrphanedImages() {
-        return numberOfOrphanedImages;
-    }
-
-    /**
-     * See {@link ApisHandler#getNumberOfOrphanedImagesLoaded()}.
-     */
-    public ObservableIntegerValue getNumberOfOrphanedImagesLoaded() {
-        return numberOfOrphanedImagesLoaded;
     }
 
     /**
@@ -182,14 +128,14 @@ class BrowserModel implements AutoCloseable {
     /**
      * @return the currently selected owner of the browser
      */
-    public ObjectProperty<Owner> getSelectedOwner() {
+    public ObjectProperty<Experimenter> getSelectedOwner() {
         return selectedOwner;
     }
 
     /**
      * @return the currently selected group of the browser
      */
-    public ObjectProperty<Group> getSelectedGroup() {
+    public ObjectProperty<ExperimenterGroup> getSelectedGroup() {
         return selectedGroup;
     }
 }

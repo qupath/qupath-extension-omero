@@ -7,7 +7,7 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.login.LoginForm;
@@ -310,7 +310,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<Client> getExistingClient(URI uri) {
-        ServerEntity entity = ApisHandler.parseEntity(uri).orElseThrow(() -> new NoSuchElementException(String.format(
+        SimpleServerEntity entity = ApisHandler.parseEntity(uri).orElseThrow(() -> new NoSuchElementException(String.format(
                 "The provided URI %s was not recognized",
                 uri
         )));
@@ -331,10 +331,10 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                             }
                         }
 
-                        logger.debug("{} is reachable. {} can access entity with ID {}. Using it", entityUri, client, entity.getId());
+                        logger.debug("{} is reachable. {} can access entity {}. Using it", entityUri, client, entity);
                         return client;
                     } catch (ExecutionException | InterruptedException | URISyntaxException e) {
-                        logger.debug("{} cannot access entity with ID {}. Skipping it", client, entity.getId(), e);
+                        logger.debug("{} cannot access entity {}. Skipping it", client, entity, e);
                         return null;
                     }
                 })

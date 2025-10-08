@@ -5,7 +5,7 @@ import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;

@@ -4,10 +4,10 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.commonentities.shapes.ShapeCreator;
+import qupath.ext.omero.core.apis.json.permissions.Experimenter;
+import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.SendAnnotationForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -104,9 +104,9 @@ public class AnnotationSender implements DataTransporter {
             logger.debug("Got server {} of {}", server, omeroImageServer.getClient());
 
             logger.debug("Getting image with ID {} to get ID of group owning the image", omeroImageServer.getId());
-            long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroupId();
+            long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroup().orElseThrow().id();
 
-            Group group = server.getGroups().stream()
+            ExperimenterGroup group = server.getGroups().stream()
                     .filter(g -> g.getId() == groupId)
                     .findAny()
                     .orElseThrow(() -> new NoSuchElementException(String.format("Cannot find group with ID %d", groupId)));
@@ -116,7 +116,7 @@ public class AnnotationSender implements DataTransporter {
                 case UNKNOWN, PRIVATE, READ_ONLY -> {
                     logger.debug("Group {} has {} permission level, which means current user can only delete its own annotations", group, group.getPermissionLevel());
 
-                    yield List.of(server.getConnectedOwner());
+                    yield List.of(server.getConnectedExperimenter());
                 }
                 case READ_ANNOTATE -> {
                     if (omeroImageServer.getClient().getApisHandler().isConnectedUserOwnerOfGroup(groupId)) {
@@ -126,7 +126,7 @@ public class AnnotationSender implements DataTransporter {
                                 group.getPermissionLevel()
                         );
 
-                        yield group.getOwners();
+                        yield group.getExperimenters();
                     } else {
                         logger.debug(
                                 "Group {} has {} permission level and current user is not owner of this group, which means current user can only delete its own annotations",
@@ -134,7 +134,7 @@ public class AnnotationSender implements DataTransporter {
                                 group.getPermissionLevel()
                         );
 
-                        yield List.of(server.getConnectedOwner());
+                        yield List.of(server.getConnectedExperimenter());
                     }
                 }
                 case READ_WRITE -> {
@@ -144,7 +144,7 @@ public class AnnotationSender implements DataTransporter {
                             group.getPermissionLevel()
                     );
 
-                    yield group.getOwners();
+                    yield group.getExperimenters();
                 }
             };
         }).whenComplete((owners, error) -> Platform.runLater(() -> {
@@ -173,7 +173,7 @@ public class AnnotationSender implements DataTransporter {
         return String.format("Annotation sender for %s", quPath);
     }
 
-    private void sendAnnotations(OmeroImageServer omeroImageServer, List<Owner> owners, QuPathViewer viewer) {
+    private void sendAnnotations(OmeroImageServer omeroImageServer, List<Experimenter> owners, QuPathViewer viewer) {
         SendAnnotationForm annotationForm;
         try {
             annotationForm = new SendAnnotationForm(
@@ -213,7 +213,7 @@ public class AnnotationSender implements DataTransporter {
                     Request.DELETE_EXISTING_ANNOTATIONS,
                     omeroImageServer.getClient().getApisHandler().deleteShapes(
                             omeroImageServer.getId(),
-                            annotationForm.getSelectedOwnersOfDeletedAnnotations().stream().map(Owner::id).toList()
+                            annotationForm.getSelectedOwnersOfDeletedAnnotations().stream().map(Experimenter::getId).toList()
                     )
             );
         }
@@ -222,9 +222,9 @@ public class AnnotationSender implements DataTransporter {
             deletionRequests.put(
                     Request.DELETE_EXISTING_MEASUREMENTS,
                     omeroImageServer.getClient().getApisHandler().deleteAttachments(
-                            omeroImageServer.getId(),
-                            Image.class,
-                            annotationForm.getSelectedOwnersOfDeletedMeasurements().stream().map(Owner::getFullName).toList()
+                            new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, omeroImageServer.getId()),
+                            annotationForm.getSelectedOwnersOfDeletedMeasurements().stream().map(Experimenter::getFullName).toList()   //tODO: first name + last name, not full name
+                                                                                                                                //TODO: actually, can it be ID?
                     )
             );
         }
@@ -335,16 +335,23 @@ public class AnnotationSender implements DataTransporter {
         Map<Request, CompletableFuture<Void>> requests = new HashMap<>();
 
         logger.debug("Adding {} to image with ID {}", annotations, omeroImageServer.getId());
-        requests.put(
-                Request.SEND_ANNOTATIONS,
-                omeroImageServer.getClient().getApisHandler().addShapes(
-                        omeroImageServer.getId(),
-                        annotations.stream()
-                                .map(pathObject -> Shape.createFromPathObject(pathObject, quPath.getOverlayOptions().getFillAnnotations()))
-                                .flatMap(List::stream)
-                                .toList()
-                )
-        );
+        try {
+            requests.put(
+                    Request.SEND_ANNOTATIONS,
+                    omeroImageServer.getClient().getApisHandler().addShapes(
+                            omeroImageServer.getId(),
+                            annotations.stream()
+                                    .map(pathObject -> ShapeCreator.createShapes(pathObject, quPath.getOverlayOptions().getFillAnnotations()))
+                                    .flatMap(List::stream)
+                                    .toList()
+                    )
+            );
+        } catch (IllegalArgumentException e) {
+            requests.put(
+                    Request.SEND_ANNOTATIONS,
+                    CompletableFuture.failedFuture(e)
+            );
+        }
 
         if (sendAnnotationMeasurements) {
             requests.put(
@@ -404,8 +411,7 @@ public class AnnotationSender implements DataTransporter {
 
             logger.debug("Sending {} measurements to image with ID {}", exportType, omeroImageServer.getId());
             return omeroImageServer.getClient().getApisHandler().sendAttachment(
-                    omeroImageServer.getId(),
-                    Image.class,
+                    new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, omeroImageServer.getId()),
                     title,
                     outputStream.toString()
             );

@@ -1,3 +1,4 @@
+import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation
 import qupath.ext.omero.core.imageserver.*
 import qupath.ext.omero.core.entities.annotations.*
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.*

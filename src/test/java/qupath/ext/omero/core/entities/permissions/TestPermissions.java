@@ -3,6 +3,7 @@ package qupath.ext.omero.core.entities.permissions;
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.json.permissions.PermissionLevel;
 
 public class TestPermissions {
 

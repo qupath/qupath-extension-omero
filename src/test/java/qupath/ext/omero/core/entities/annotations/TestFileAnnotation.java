@@ -3,6 +3,7 @@ package qupath.ext.omero.core.entities.annotations;
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.webclient.annotations.FileAnnotation;
 
 import java.util.Map;
 import java.util.Optional;

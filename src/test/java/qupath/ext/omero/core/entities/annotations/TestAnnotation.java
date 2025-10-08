@@ -4,8 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.core.entities.annotations.annotationsentities.Experimenter;
+import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
+import qupath.ext.omero.core.apis.webclient.Namespace;
+import qupath.ext.omero.core.apis.webclient.annotations.annotationsentities.Experimenter;
 import qupath.ext.omero.core.entities.permissions.Owner;
 
 import java.util.List;

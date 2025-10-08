@@ -1,11 +1,10 @@
 package qupath.ext.omero.core.apis;
 
-import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.entities.image.ImageSettings;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.apis.commonentities.image.ImageSettings;
 import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -122,8 +121,7 @@ class IViewerApi {
             return CompletableFuture.failedFuture(e);
         }
 
-        Gson gson = new Gson();
-        List<String> roisToAdd = shapesToAdd.stream().map(gson::toJson).toList();
+        List<String> roisToAdd = shapesToAdd.stream().map(Shape::createJson).toList();
         String body = String.format(
                 ROIS_BODY,
                 imageId,

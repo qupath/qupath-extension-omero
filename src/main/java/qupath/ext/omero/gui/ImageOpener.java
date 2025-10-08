@@ -5,16 +5,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.core.entities.annotations.MapAnnotation;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.Namespace;
+import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.webclient.annotations.Pair;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.core.imageserver.OmeroImageServerBuilder;
 import qupath.ext.omero.gui.login.WaitingWindow;
@@ -260,35 +261,40 @@ public class ImageOpener {
 
     private static void importKvp(OmeroImageServer omeroImageServer, ProjectImageEntry<BufferedImage> projectEntry) {
         logger.debug("Getting annotations of image with ID {}", omeroImageServer.getId());
-        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).whenComplete(((annotationGroup, error) -> {
-            if (annotationGroup == null) {
-                logger.debug(
-                        "Cannot retrieve annotations of image with ID {}. Skipping key-value pairs import",
-                        omeroImageServer.getId()
-                );
-                return;
-            }
 
-            List<MapAnnotation.Pair> keyValues = annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
-                    .filter(mapAnnotation ->
-                            mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(Namespace.getDefaultNamespace())
-                    )
-                    .map(MapAnnotation::getPairs)
-                    .flatMap(List::stream)
-                    .toList();
-            Platform.runLater(() -> {
-                logger.debug("Adding key-value pairs {} to {} metadata", keyValues, projectEntry);
-
-                for (MapAnnotation.Pair pair : keyValues) {
-                    if (projectEntry.getMetadata().containsKey(pair.key())) {
-                        logger.debug("Cannot add {} to {} because the same key already exists", pair, projectEntry);
-                    } else {
-                        projectEntry.getMetadata().put(pair.key(), pair.value());
-                        logger.debug("{} added to {}", pair, projectEntry);
+        omeroImageServer.getClient().getApisHandler()
+                .getAnnotations(new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, omeroImageServer.getId()))
+                .whenComplete(((annotations, error) -> {
+                    if (annotations == null) {
+                        logger.debug(
+                                "Cannot retrieve annotations of image with ID {}. Skipping key-value pairs import",
+                                omeroImageServer.getId()
+                        );
+                        return;
                     }
-                }
-            });
-        }));
+
+                    List<Pair> keyValues = annotations.stream()
+                            .filter(MapAnnotation.class::isInstance)
+                            .map(MapAnnotation.class::cast)
+                            .filter(mapAnnotation ->
+                                    mapAnnotation.getNamespace().isPresent() && mapAnnotation.getNamespace().get().equals(Namespace.getDefaultNamespace())
+                            )
+                            .map(MapAnnotation::getPairs)
+                            .flatMap(List::stream)
+                            .toList();
+                    Platform.runLater(() -> {
+                        logger.debug("Adding key-value pairs {} to {} metadata", keyValues, projectEntry);
+
+                        for (Pair pair : keyValues) {
+                            if (projectEntry.getMetadata().containsKey(pair.key())) {
+                                logger.debug("Cannot add {} to {} because the same key already exists", pair, projectEntry);
+                            } else {
+                                projectEntry.getMetadata().put(pair.key(), pair.value());
+                                logger.debug("{} added to {}", pair, projectEntry);
+                            }
+                        }
+                    });
+                }));
     }
 
     private static void importParentIdsAndNames(OmeroImageServer omeroImageServer, ProjectImageEntry<BufferedImage> projectEntry) {
@@ -327,7 +333,7 @@ public class ImageOpener {
                     }
 
                     projectEntry.getMetadata().put(String.format(ID_LABEL, type), String.valueOf(parent.getId()));
-                    projectEntry.getMetadata().put(String.format(NAME_LABEL, type), parent.getAttributeValue(0));
+                    projectEntry.getMetadata().put(String.format(NAME_LABEL, type), parent.getName().orElse("-"));
                 }
             });
         });

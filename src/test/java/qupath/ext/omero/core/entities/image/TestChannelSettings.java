@@ -2,6 +2,7 @@ package qupath.ext.omero.core.entities.image;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
 
 public class TestChannelSettings {
 

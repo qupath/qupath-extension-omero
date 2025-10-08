@@ -2,6 +2,8 @@ package qupath.ext.omero.core.entities.shapes;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.commonentities.shapes.Rectangle;
+import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;

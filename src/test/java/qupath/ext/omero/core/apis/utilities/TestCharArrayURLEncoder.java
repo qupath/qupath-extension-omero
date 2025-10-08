@@ -2,6 +2,8 @@ package qupath.ext.omero.core.apis.utilities;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.json.CharArrayURLEncoder;
+
 import java.nio.charset.StandardCharsets;
 
 public class TestCharArrayURLEncoder {

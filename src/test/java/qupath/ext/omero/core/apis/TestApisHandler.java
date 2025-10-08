@@ -12,29 +12,29 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
-import qupath.ext.omero.core.entities.annotations.MapAnnotation;
-import qupath.ext.omero.core.entities.image.ChannelSettings;
-import qupath.ext.omero.core.entities.image.ImageSettings;
+import qupath.ext.omero.core.apis.webclient.Namespace;
+import qupath.ext.omero.core.apis.webclient.annotations.AnnotationGroup;
+import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
+import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
+import qupath.ext.omero.core.apis.commonentities.image.ImageSettings;
 import qupath.ext.omero.core.entities.permissions.Group;
 import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.Server;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.json.repositoryentities.OrphanedFolder;
+import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.entities.search.SearchQuery;
-import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
-import qupath.ext.omero.core.entities.shapes.Line;
-import qupath.ext.omero.core.entities.shapes.Rectangle;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
+import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
+import qupath.ext.omero.core.apis.commonentities.shapes.Line;
+import qupath.ext.omero.core.apis.commonentities.shapes.Rectangle;
+import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.objects.PathObjects;
@@ -788,7 +788,7 @@ public class TestApisHandler extends OmeroServer {
         @Test
         @Override
         void Check_Default_Group() {
-            Optional<Group> defaultGroup = apisHandler.getDefaultGroup();
+            Optional<Group> defaultGroup = apisHandler.getDefaultGroupId();
 
             Assertions.assertTrue(defaultGroup.isEmpty());
         }
@@ -1002,7 +1002,7 @@ public class TestApisHandler extends OmeroServer {
         void Check_Default_Group() {
             Group expectedDefaultGroup = OmeroServer.getDefaultGroup(userType);
 
-            Group defaultGroup = apisHandler.getDefaultGroup().orElse(null);
+            Group defaultGroup = apisHandler.getDefaultGroupId().orElse(null);
 
             Assertions.assertEquals(expectedDefaultGroup, defaultGroup);
         }

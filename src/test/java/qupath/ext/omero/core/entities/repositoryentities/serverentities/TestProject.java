@@ -8,9 +8,10 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
 import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;

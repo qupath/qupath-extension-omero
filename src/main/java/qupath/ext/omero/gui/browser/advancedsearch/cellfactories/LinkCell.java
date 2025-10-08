@@ -4,8 +4,8 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
-import qupath.ext.omero.core.entities.search.SearchResult;
-import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
+import qupath.ext.omero.core.apis.webclient.search.SearchResult;
+import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.lib.gui.QuPathGUI;
 
 /**

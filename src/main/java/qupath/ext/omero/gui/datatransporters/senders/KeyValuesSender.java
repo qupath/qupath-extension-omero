@@ -4,10 +4,9 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.core.entities.annotations.Annotation;
-import qupath.ext.omero.core.entities.annotations.MapAnnotation;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
+import qupath.ext.omero.core.apis.webclient.Namespace;
+import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.gui.datatransporters.forms.SendKeyValuePairsForm;
@@ -99,10 +98,13 @@ public class KeyValuesSender implements DataTransporter {
         waitingWindow.show();
 
         logger.debug("Getting annotations of image with ID {}", omeroImageServer.getId());
-        omeroImageServer.getClient().getApisHandler().getAnnotations(omeroImageServer.getId(), Image.class).whenComplete(((annotationGroup, error) -> Platform.runLater(() -> {
+        omeroImageServer.getClient().getApisHandler().getAnnotations(new SimpleServerEntity(
+                SimpleServerEntity.EntityType.IMAGE,
+                omeroImageServer.getId()
+        )).whenComplete(((annotations, error) -> Platform.runLater(() -> {
             waitingWindow.close();
 
-            if (annotationGroup == null) {
+            if (annotations == null) {
                 logger.error("Cannot get annotations of image with ID {}. Can't send KVP", omeroImageServer.getId(), error);
 
                 Dialogs.showErrorMessage(
@@ -111,12 +113,12 @@ public class KeyValuesSender implements DataTransporter {
                 );
                 return;
             }
-            logger.debug("Got annotations {} for image with ID {}", annotationGroup, omeroImageServer.getId());
+            logger.debug("Got annotations {} for image with ID {}", annotations, omeroImageServer.getId());
 
             sendKeyValuePairs(
                     omeroImageServer,
                     keyValues,
-                    annotationGroup.getAnnotationsOfClass(MapAnnotation.class).stream()
+                    annotations.stream()
                             .map(Annotation::getNamespace)
                             .flatMap(Optional::stream)
                             .distinct()

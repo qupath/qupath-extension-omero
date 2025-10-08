@@ -4,8 +4,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.lib.images.servers.AbstractTileableImageServer;
@@ -69,7 +69,7 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
 
         this.imageUri = imageUri;
         this.client = client;
-        this.id = ApisHandler.parseEntity(imageUri).map(ServerEntity::getId).orElseThrow(() -> new IllegalArgumentException(String.format(
+        this.id = ApisHandler.parseEntity(imageUri).map(SimpleServerEntity::id).orElseThrow(() -> new IllegalArgumentException(String.format(
                 "Impossible to parse an ID from the provided URI %s", imageUri
         )));
         ImageServerMetadata metadata = client.getApisHandler().getImageMetadata(id).get();
@@ -161,6 +161,11 @@ public class OmeroImageServer extends AbstractTileableImageServer implements Pat
             return Shape.createPathObjects(client.getApisHandler().getShapes(id, -1).get());
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Error reading path objects", e);
+
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+
             return List.of();
         }
     }

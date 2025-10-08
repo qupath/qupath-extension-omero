@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 
