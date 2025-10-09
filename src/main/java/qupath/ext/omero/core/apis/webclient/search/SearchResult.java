@@ -2,13 +2,7 @@ package qupath.ext.omero.core.apis.webclient.search;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.webclient.EntityType;
 
 import java.net.URI;
 import java.text.DateFormat;
@@ -130,19 +124,19 @@ public record SearchResult(
     /**
      * @return the class of the type (e.g. image, dataset) of the result, or an empty Optional if not found
      */
-    public Optional<Class<? extends RepositoryEntity>> getType() {
+    public Optional<EntityType> getType() {
         if (type.equalsIgnoreCase("image")) {
-            return Optional.of(Image.class);
+            return Optional.of(EntityType.IMAGE);
         } else if (type.equalsIgnoreCase("dataset")) {
-            return Optional.of(Dataset.class);
+            return Optional.of(EntityType.DATASET);
         } else if (type.equalsIgnoreCase("project")) {
-            return Optional.of(Project.class);
+            return Optional.of(EntityType.PROJECT);
         } else if (type.equalsIgnoreCase("screen")) {
-            return Optional.of(Screen.class);
+            return Optional.of(EntityType.SCREEN);
         } else if (type.equalsIgnoreCase("plate")) {
-            return Optional.of(Plate.class);
+            return Optional.of(EntityType.PLATE);
         } else if (type.equalsIgnoreCase("well")) {
-            return Optional.of(Well.class);
+            return Optional.of(EntityType.WELL);
         } else {
             return Optional.empty();
         }

@@ -9,7 +9,7 @@ import java.util.Objects;
  *
  * @param value a text describing the image type. Required
  */
-record OmeroImageType(String value) {
+public record OmeroImageType(String value) {
     public OmeroImageType {
         Objects.requireNonNull(value);
     }

@@ -21,9 +21,5 @@ public enum PermissionLevel {
     /**
      * The group owner and regular members can view, perform annotations, and edit and delete member data.
      */
-    READ_WRITE,
-    /**
-     * The server didn't give enough information to retrieve the permission level.
-     */
-    UNKNOWN
+    READ_WRITE
 }

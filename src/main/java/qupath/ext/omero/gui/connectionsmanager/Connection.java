@@ -77,7 +77,7 @@ class Connection extends VBox implements AutoCloseable {
      * @throws IOException if an error occurs while creating the pane
      */
     public Connection(Stage owner, Client client, Consumer<Client> openClientBrowser) throws IOException {
-        this(owner, client, client.getApisHandler().getWebServerURI(), openClientBrowser);
+        this(owner, client, client.getApisHandler().getWebServerUri(), openClientBrowser);
     }
 
     /**
@@ -308,7 +308,7 @@ class Connection extends VBox implements AutoCloseable {
                     owner,
                     MessageFormat.format(
                             resources.getString("ConnectionsManager.Connection.disconnectingFrom"),
-                            client.getApisHandler().getWebServerURI()
+                            client.getApisHandler().getWebServerUri()
                     )
             );
         } catch (IOException e) {
@@ -322,7 +322,7 @@ class Connection extends VBox implements AutoCloseable {
             try {
                 client.close();
             } catch (Exception e) {
-                logger.error("Error when closing client {}", client.getApisHandler().getWebServerURI(), e);
+                logger.error("Error when closing client {}", client.getApisHandler().getWebServerUri(), e);
 
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();

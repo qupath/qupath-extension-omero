@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;

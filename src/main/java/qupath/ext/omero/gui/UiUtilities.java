@@ -133,7 +133,7 @@ public class UiUtilities {
                     resources.getString("Utils.connectionError"),
                     MessageFormat.format(
                             resources.getString("Utils.connectionClosed"),
-                            client.getApisHandler().getWebServerURI()
+                            client.getApisHandler().getWebServerUri()
                     )
             );
         }

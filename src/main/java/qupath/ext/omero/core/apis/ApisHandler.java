@@ -9,16 +9,15 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.json.JsonApi;
+import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.WebclientApi;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
 import qupath.ext.omero.core.apis.webgateway.WebGatewayApi;
 import qupath.ext.omero.core.apis.webclient.Namespace;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
 import qupath.ext.omero.core.apis.commonentities.image.ImageSettings;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
-import qupath.ext.omero.core.apis.json.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
@@ -75,7 +74,7 @@ public class ApisHandler implements AutoCloseable {
     private final WebclientApi webclientApi;
     private final WebGatewayApi webGatewayApi;
     private final IViewerApi iViewerApi;
-    private final LoadingCache<Class<? extends RepositoryEntity>, BufferedImage> omeroIconsCache;
+    private final LoadingCache<EntityType, BufferedImage> omeroIconsCache;
 
     /**
      * Create an APIs handler. This will send a few requests to get basic information on the server and
@@ -96,36 +95,23 @@ public class ApisHandler implements AutoCloseable {
         this.jsonApi = new JsonApi(webServerUri, requestSender, credentials);
         this.webclientApi = new WebclientApi(webServerUri, requestSender, jsonApi.getToken());
         this.webGatewayApi = new WebGatewayApi(webServerUri, requestSender, jsonApi.getToken());
-        this.iViewerApi = new IViewerApi(webServerUri, requestSender);
+        this.iViewerApi = new IViewerApi(webServerUri, requestSender, jsonApi.getToken());
 
         this.omeroIconsCache = CacheBuilder.newBuilder()
                 .build(new CacheLoader<>() {
                     @Override
-                    public BufferedImage load(Class<? extends RepositoryEntity> entityClass) throws ExecutionException, InterruptedException {
-                        logger.debug("Fetching icon of entity {} (not already in cache)", entityClass);
+                    public BufferedImage load(EntityType entityType) throws ExecutionException, InterruptedException {
+                        logger.debug("Fetching icon of entity {} (not already in cache)", entityType);
 
-                        if (entityClass.equals(Project.class)) {
-                            return webGatewayApi.getProjectIcon().get();
-                        } else if (entityClass.equals(Dataset.class)) {
-                            return webGatewayApi.getDatasetIcon().get();
-                        } else if (entityClass.equals(OrphanedFolder.class)) {
-                            return webGatewayApi.getOrphanedFolderIcon().get();
-                        } else if (entityClass.equals(Well.class)) {
-                            return webGatewayApi.getWellIcon().get();
-                        } else if (entityClass.equals(Image.class)) {
-                            return webclientApi.getImageIcon().get();
-                        } else if (entityClass.equals(Screen.class)) {
-                            return webclientApi.getScreenIcon().get();
-                        } else if (entityClass.equals(Plate.class)) {
-                            return webclientApi.getPlateIcon().get();
-                        } else if (entityClass.equals(PlateAcquisition.class)) {
-                            return webclientApi.getPlateAcquisitionIcon().get();
-                        } else {
-                            throw new IllegalArgumentException(String.format(
-                                    "The provided type %s is not an orphaned folder, project, dataset, image, screen, plate or plate acquisition",
-                                    entityClass
-                            ));
-                        }
+                        return switch (entityType) {
+                            case SCREEN -> webclientApi.getScreenIcon().get();
+                            case PLATE -> webclientApi.getPlateIcon().get();
+                            case PLATE_ACQUISITION -> webclientApi.getPlateAcquisitionIcon().get();
+                            case WELL -> webGatewayApi.getWellIcon().get();
+                            case PROJECT -> webGatewayApi.getProjectIcon().get();
+                            case DATASET -> webGatewayApi.getDatasetIcon().get();
+                            case IMAGE -> webclientApi.getImageIcon().get();
+                        };
                     }
                 });
     }
@@ -173,11 +159,11 @@ public class ApisHandler implements AutoCloseable {
     /**
      * Get the URI of the OMERO <b>web server</b> (e.g. <a href="https://idr.openmicroscopy.org">https://idr.openmicroscopy.org</a>).
      * This may be different from the OMERO <b>server</b> URI.
-     * See {@link #getServerURI()} for more information.
+     * See {@link #getServerAddress()} for more information.
      *
      * @return the URI of the web server
      */
-    public URI getWebServerURI() {
+    public URI getWebServerUri() {
         return webServerUri;
     }
 
@@ -189,10 +175,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link JsonApi#getServerUri()}.
+     * See {@link JsonApi#getServerAddress()}.
      */
-    public String getServerURI() {
-        return jsonApi.getServerUri();
+    public String getServerAddress() {
+        return jsonApi.getServerAddress();
     }
 
     /**
@@ -222,7 +208,7 @@ public class ApisHandler implements AutoCloseable {
      * @param imageId the ID of the image whose parents should be retrieved
      * @return the list of parents of the provided image
      */
-    public CompletableFuture<List<ServerEntity>> getParentsOfImage(long imageId) {
+    public CompletableFuture<List<? extends ServerEntity>> getParentsOfImage(long imageId) {
         return webclientApi.getParentsOfImage(imageId).thenApplyAsync(simpleServerEntities -> {
             logger.debug("Got parents {}. Fetching now more information on them", simpleServerEntities);
 
@@ -237,7 +223,6 @@ public class ApisHandler implements AutoCloseable {
                         case IMAGE -> jsonApi.getImage(serverEntity.id());
                     })
                     .map(CompletableFuture::join)
-                    .map(serverEntity -> (ServerEntity) serverEntity)
                     .toList();
         });
     }
@@ -286,7 +271,7 @@ public class ApisHandler implements AutoCloseable {
     /**
      * Parse an OMERO server entity from a URI.
      * <p>
-     * This function may only recognize entity types of {@link SimpleServerEntity.EntityType}.
+     * This function may only recognize entity types of {@link EntityType}.
      *
      * @param uri the URI that is supposed to contain the entity. It can be URL encoded
      * @return the entity, or an empty Optional if it was not found
@@ -486,7 +471,7 @@ public class ApisHandler implements AutoCloseable {
 
             return searchResults.stream()
                     .map(searchResult -> {
-                        if (searchResult.getType().isPresent() && searchResult.getType().get().equals(Image.class)) {
+                        if (searchResult.getType().isPresent() && searchResult.getType().get().equals(EntityType.IMAGE)) {
                             logger.debug("{} refers to an image. Searching parents of it", searchResult);
 
                             return getParentsOfImage(searchResult.id()).handle((parents, error) -> {
@@ -545,8 +530,6 @@ public class ApisHandler implements AutoCloseable {
     /**
      * Attempt to retrieve the icon of an OMERO entity.
      * <p>
-     * Icons for orphaned folders, projects, datasets, images, screens, plates, plate acquisitions and wells can be retrieved.
-     * <p>
      * Icons are cached.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
@@ -555,10 +538,19 @@ public class ApisHandler implements AutoCloseable {
      * @param type the class of the entity whose icon is to be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the icon
      */
-    public CompletableFuture<BufferedImage> getOmeroIcon(Class<? extends RepositoryEntity> type) {
+    public CompletableFuture<BufferedImage> getOmeroIcon(EntityType type) {
         logger.trace("Getting OMERO icon {}", type);
 
         return CompletableFuture.supplyAsync(() -> omeroIconsCache.getUnchecked(type));
+    }
+
+    /**
+     * See {@link WebGatewayApi#getOrphanedFolderIcon()}.
+     */
+    public CompletableFuture<BufferedImage> getOrphanedFolderIcon() {
+        logger.trace("Getting OMERO orphaned folder icon");
+
+        return webGatewayApi.getOrphanedFolderIcon();
     }
 
     /**
@@ -598,12 +590,12 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebGatewayApi#changeChannelColors(long, List, List)}.
      */
-    public CompletableFuture<Void> changeChannelColors(long imageID, List<Integer> newChannelColors) {
-        logger.debug("Changing channel colors of image with ID {} to {}", imageID, newChannelColors);
+    public CompletableFuture<Void> changeChannelColors(long imageId, List<Integer> newChannelColors) {
+        logger.debug("Changing channel colors of image with ID {} to {}", imageId, newChannelColors);
 
-        return getImageSettings(imageID).thenCompose(imageSettings -> {
-            logger.debug("Got image settings {} from image with ID {}. Now changing channel colors to {}", imageSettings, imageID, newChannelColors);
-            return webGatewayApi.changeChannelColors(imageID, newChannelColors, imageSettings.getChannelSettings());
+        return getImageSettings(imageId).thenCompose(imageSettings -> {
+            logger.debug("Got image settings {} from image with ID {}. Now changing channel colors to {}", imageSettings, imageId, newChannelColors);
+            return webGatewayApi.changeChannelColors(imageId, newChannelColors, imageSettings.getChannelSettings());
         });
     }
 
@@ -622,8 +614,8 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link JsonApi#getShapes(long, long)}.
      */
-    public CompletableFuture<List<Shape>> getShapes(long id, long userId) {
-        return jsonApi.getShapes(id, userId);
+    public CompletableFuture<List<Shape>> getShapes(long imageId, long userId) {
+        return jsonApi.getShapes(imageId, userId);
     }
 
     /**
@@ -653,15 +645,15 @@ public class ApisHandler implements AutoCloseable {
                         .toList()
         ).thenCompose(shapes -> {
             logger.debug("Got shapes {} belonging to users with ID {} for image with ID {}. Deleting them now", shapes, userIds, imageId);
-            return iViewerApi.deleteShapes(imageId, shapes, jsonApi.getToken());
+            return iViewerApi.deleteShapes(imageId, shapes);
         });
     }
 
     /**
-     * See {@link IViewerApi#addShapes(long, List, String)}.
+     * See {@link IViewerApi#addShapes(long, List)}.
      */
     public CompletableFuture<Void> addShapes(long imageId, List<? extends Shape> shapesToAdd) {
-        return iViewerApi.addShapes(imageId, shapesToAdd, jsonApi.getToken());
+        return iViewerApi.addShapes(imageId, shapesToAdd);
     }
 
     /**
@@ -707,7 +699,7 @@ public class ApisHandler implements AutoCloseable {
             logger.debug("Found images {} belonging to dataset with ID {}. Now creating image URIs of them", images, datasetId);
 
             return images.stream()
-                    .map(image -> new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, image.getId()))
+                    .map(image -> new SimpleServerEntity(EntityType.IMAGE, image.getId()))
                     .map(this::getEntityUri)
                     .map(URI::create)
                     .distinct()
@@ -786,7 +778,7 @@ public class ApisHandler implements AutoCloseable {
             logger.debug("Got well {}. Now getting image URIs of it", well);
 
             return well.getImageIds(plateAcquisitionOwnerId).stream()
-                    .map(id -> new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, id))
+                    .map(id -> new SimpleServerEntity(EntityType.IMAGE, id))
                     .map(this::getEntityUri)
                     .map(URI::create)
                     .distinct()
@@ -794,7 +786,7 @@ public class ApisHandler implements AutoCloseable {
         });
     }
 
-    private static <T extends ServerEntity> T getEntityOfTypeInList(List<ServerEntity> entities, Class<T> type) {
+    private static <T extends ServerEntity> T getEntityOfTypeInList(List<? extends ServerEntity> entities, Class<T> type) {
         return entities.stream()
                 .filter(type::isInstance)
                 .map(type::cast)

@@ -5,7 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.EntityType;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.webclient.Namespace;
 import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
@@ -263,7 +264,7 @@ public class ImageOpener {
         logger.debug("Getting annotations of image with ID {}", omeroImageServer.getId());
 
         omeroImageServer.getClient().getApisHandler()
-                .getAnnotations(new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, omeroImageServer.getId()))
+                .getAnnotations(new SimpleServerEntity(EntityType.IMAGE, omeroImageServer.getId()))
                 .whenComplete(((annotations, error) -> {
                     if (annotations == null) {
                         logger.debug(
@@ -326,10 +327,8 @@ public class ImageOpener {
                     } else if (parent.getClass().equals(Dataset.class)) {
                         type = "dataset";
                     } else {
-                        throw new IllegalArgumentException(String.format(
-                                "The provided parent %s was not recognized",
-                                parent
-                        ));
+                        logger.debug("Parent {} not recognized, so not taken into account", parent);
+                        continue;
                     }
 
                     projectEntry.getMetadata().put(String.format(ID_LABEL, type), String.valueOf(parent.getId()));

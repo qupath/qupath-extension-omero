@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.gui.UiUtilities;
 
 import java.io.IOException;

@@ -38,21 +38,68 @@ class IViewerApi {
     private static final String IMAGE_SETTINGS_URL = "%s/iviewer/image_data/%d/";
     private final URI webServerUri;
     private final RequestSender requestSender;
+    private final String token;
 
     /**
      * Creates an iviewer client.
      *
      * @param webServerUri the URL to the OMERO web server to connect to
      * @param requestSender the request sender to use
+     * @param token the <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
+     *              used by this session. This is needed to perform some functions of this API.
      */
-    public IViewerApi(URI webServerUri, RequestSender requestSender) {
+    public IViewerApi(URI webServerUri, RequestSender requestSender, String token) {
         this.webServerUri = webServerUri;
         this.requestSender = requestSender;
+        this.token = token;
     }
 
     @Override
     public String toString() {
         return String.format("IViewer API of %s", webServerUri);
+    }
+
+    /**
+     * Attempt to add shapes to the provided image on the server.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
+     * if the request failed for example).
+     *
+     * @param imageId the OMERO image id
+     * @param shapesToAdd the list of shapes to add
+     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
+     */
+    public CompletableFuture<Void> addShapes(long imageId, List<? extends Shape> shapesToAdd) {
+        logger.debug("Adding shapes {} to image with ID {}", shapesToAdd, imageId);
+
+        URI uri;
+        try {
+            uri = new URI(String.format(ROIS_URL, webServerUri));
+        } catch (URISyntaxException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        List<String> roisToAdd = shapesToAdd.stream().map(Shape::createJson).toList();
+        String body = String.format(
+                ROIS_BODY,
+                imageId,
+                roisToAdd.size(),
+                "",
+                String.join(", ", roisToAdd)
+        );
+        String referer = String.format(ROIS_REFERER_URL, webServerUri, imageId);
+        logger.debug("Sending body {} with referer {} to add shapes {} to image with ID {}", body, referer, shapesToAdd, imageId);
+
+        return requestSender.post(
+                uri,
+                body,
+                referer,
+                token
+        ).thenAccept(response -> {
+            if (response.toLowerCase().contains("error")) {
+                throw new RuntimeException(String.format("Error when adding shapes: %s", response));
+            }
+        });
     }
 
     /**
@@ -63,10 +110,9 @@ class IViewerApi {
      *
      * @param imageId the OMERO image id
      * @param shapesToRemove the list of shapes to remove
-     * @param token the OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Void> deleteShapes(long imageId, List<Shape> shapesToRemove, String token) {
+    public CompletableFuture<Void> deleteShapes(long imageId, List<Shape> shapesToRemove) {
         logger.debug("Removing shapes {} from image with ID {}", shapesToRemove, imageId);
 
         URI uri;
@@ -96,50 +142,6 @@ class IViewerApi {
         ).thenAccept(response -> {
             if (response.toLowerCase().contains("error")) {
                 throw new RuntimeException(String.format("Error when sending shapes: %s", response));
-            }
-        });
-    }
-
-    /**
-     * Attempt to add shapes to the provided image on the server.
-     * <p>
-     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
-     * if the request failed for example).
-     *
-     * @param imageId the OMERO image id
-     * @param shapesToAdd the list of shapes to add
-     * @param token the OMERO <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>
-     * @return a void CompletableFuture (that completes exceptionally if the operation failed)
-     */
-    public CompletableFuture<Void> addShapes(long imageId, List<? extends Shape> shapesToAdd, String token) {
-        logger.debug("Adding shapes {} to image with ID {}", shapesToAdd, imageId);
-
-        URI uri;
-        try {
-            uri = new URI(String.format(ROIS_URL, webServerUri));
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        List<String> roisToAdd = shapesToAdd.stream().map(Shape::createJson).toList();
-        String body = String.format(
-                ROIS_BODY,
-                imageId,
-                roisToAdd.size(),
-                "",
-                String.join(", ", roisToAdd)
-        );
-        String referer = String.format(ROIS_REFERER_URL, webServerUri, imageId);
-        logger.debug("Sending body {} with referer {} to add shapes {} to image with ID {}", body, referer, shapesToAdd, imageId);
-
-        return requestSender.post(
-                uri,
-                body,
-                referer,
-                token
-        ).thenAccept(response -> {
-            if (response.toLowerCase().contains("error")) {
-                throw new RuntimeException(String.format("Error when adding shapes: %s", response));
             }
         });
     }

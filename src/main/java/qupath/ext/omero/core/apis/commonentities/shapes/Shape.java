@@ -197,7 +197,7 @@ public abstract class Shape {
     }
 
     /**
-     * Create a JSON representation of this shape corresponding to an OMERO shape.
+     * Create a compact JSON representation of this shape corresponding to an OMERO shape.
      *
      * @return a string containing a JSON representation of this shape
      */
@@ -213,7 +213,7 @@ public abstract class Shape {
     }
 
     /**
-     * @return the full name of the experimenter owning this shape, or an empty Optional if not found
+     * @return the full name (first, middle and last name) of the experimenter owning this shape, or an empty Optional if not found
      */
     public Optional<String> getOwnerFullName() {
         return Optional.ofNullable(owner).map(Experimenter::getFullName);

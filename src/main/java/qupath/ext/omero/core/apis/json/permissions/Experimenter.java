@@ -7,7 +7,7 @@ import java.util.Objects;
 import java.util.ResourceBundle;
 
 /**
- * An OMERO experimenter represents a person that own OMERO entities.
+ * An OMERO experimenter represents a person that owns OMERO entities.
  */
 public class Experimenter {
 

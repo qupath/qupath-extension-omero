@@ -28,9 +28,9 @@ public record OmeroExperimenter(
         @SerializedName(value = "FirstName") String firstName,
         @SerializedName(value = "MiddleName") String middleName,
         @SerializedName(value = "LastName") String lastName,
-        @SerializedName(value = "Email") String emailAddress,
-        @SerializedName(value = "Institution") String institution,
-        @SerializedName(value = "UserName") String username
+        @SerializedName(value = "Email") String emailAddress,           //TODO: never used?
+        @SerializedName(value = "Institution") String institution,      //TODO: never used?
+        @SerializedName(value = "UserName") String username             //TODO: never used?
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Experimenter";
     private static final Logger logger = LoggerFactory.getLogger(OmeroExperimenter.class);

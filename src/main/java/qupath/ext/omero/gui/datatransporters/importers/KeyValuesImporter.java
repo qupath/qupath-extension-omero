@@ -6,11 +6,12 @@ import javafx.scene.control.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
 import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.Pair;
 import qupath.ext.omero.core.apis.webclient.Namespace;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportKeyValuePairsForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -97,7 +98,7 @@ public class KeyValuesImporter implements DataTransporter {
 
         logger.debug("Getting annotations for image with ID {}", omeroImageServer.getId());
         omeroImageServer.getClient().getApisHandler().getAnnotations(new SimpleServerEntity(
-                SimpleServerEntity.EntityType.IMAGE,
+                EntityType.IMAGE,
                 omeroImageServer.getId()
         )).whenComplete((annotations, error) -> Platform.runLater(() -> {
             waitingWindow.close();

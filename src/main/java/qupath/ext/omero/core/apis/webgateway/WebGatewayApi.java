@@ -57,6 +57,7 @@ public class WebGatewayApi {
     private final String token;
     private final LoadingCache<IdSizeWrapper, BufferedImage> thumbnailsCache;
     private final LoadingCache<Long, ImageServerMetadata> metadataCache;
+    private CompletableFuture<BufferedImage> orphanedFolderRequest;
     private record IdSizeWrapper(long id, int size) {}
 
     /**
@@ -155,21 +156,29 @@ public class WebGatewayApi {
     }
 
     /**
-     * Attempt to retrieve the OMERO orphaned folder icon.
+     * Attempt to retrieve the icon of the orphaned folder.
+     * <p>
+     * The icon is cached.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
      *
-     * @return a CompletableFuture (that may complete exceptionally) with the orphaned folder icon
+     * @return a CompletableFuture (that may complete exceptionally) with the icon of the orphaned folder
      */
-    public CompletableFuture<BufferedImage> getOrphanedFolderIcon() {
-        logger.debug("Getting OMERO orphaned folder icon");
+    public synchronized CompletableFuture<BufferedImage> getOrphanedFolderIcon() {
+        if (orphanedFolderRequest == null) {
+            URI uri;
+            try {
+                uri = new URI(String.format(ICON_URL, webServerUri, ORPHANED_FOLDER_ICON_NAME));
+            } catch (URISyntaxException e) {
+                return CompletableFuture.failedFuture(e);
+            }
 
-        try {
-            return requestSender.getImage(new URI(String.format(ICON_URL, webServerUri, ORPHANED_FOLDER_ICON_NAME)));
-        } catch (URISyntaxException e) {
-            return CompletableFuture.failedFuture(e);
+            logger.debug("Getting OMERO orphaned folder icon");
+            orphanedFolderRequest = requestSender.getImage(uri);
         }
+
+        return orphanedFolderRequest;
     }
 
     /**

@@ -75,14 +75,14 @@ public abstract class ServerEntity implements RepositoryEntity {
     }
 
     /**
-     * @return a list of attributes of this entity
-     */
-    public abstract List<Attribute> getAttributes();
-
-    /**
      * @return the name of this entity, or an empty Optional if not defined
      */
     public Optional<String> getName() {
         return Optional.ofNullable(name);
     }
+
+    /**
+     * @return a list of attributes of this entity
+     */
+    public abstract List<Attribute> getAttributes();
 }

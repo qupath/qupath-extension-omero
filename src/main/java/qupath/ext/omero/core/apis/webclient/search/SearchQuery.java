@@ -1,9 +1,13 @@
 package qupath.ext.omero.core.apis.webclient.search;
 
+import java.util.Objects;
+
 /**
  * Contain information about a search query.
+ * <p>
+ * A {@link NullPointerException} is thrown if one required parameter is null.
  *
- * @param query the text to search
+ * @param query the text to search. Required
  * @param searchOnName whether to restrict the search on names
  * @param searchOnDescription whether to restrict the search on descriptions
  * @param searchForImages whether to includes images on the result
@@ -27,4 +31,8 @@ public record SearchQuery(
         boolean searchForScreens,
         long experimenterId,
         long groupId
-) {}
+) {
+    public SearchQuery {
+        Objects.requireNonNull(query);
+    }
+}

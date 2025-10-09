@@ -92,7 +92,7 @@ public class Client implements AutoCloseable {
         if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
             pingScheduler = Executors.newScheduledThreadPool(
                     1,
-                    runnable -> new Thread(runnable, String.format("ping-to-%s", apisHandler.getWebServerURI()))
+                    runnable -> new Thread(runnable, String.format("ping-to-%s", apisHandler.getWebServerUri()))
             );
             pingScheduler.scheduleAtFixedRate(
                     () -> {
@@ -111,7 +111,7 @@ public class Client implements AutoCloseable {
                                             "Ping attempt {}/{} to {} failed",
                                             attempt,
                                             MAX_NUMBER_OF_PING_ATTEMPTS-1,
-                                            apisHandler.getWebServerURI(),
+                                            apisHandler.getWebServerUri(),
                                             error
                                     );
                                 } else {
@@ -119,7 +119,7 @@ public class Client implements AutoCloseable {
                                             "Ping attempt {}/{} to {} failed. Attempting to re-login",
                                             attempt,
                                             MAX_NUMBER_OF_PING_ATTEMPTS-1,
-                                            apisHandler.getWebServerURI(),
+                                            apisHandler.getWebServerUri(),
                                             error
                                     );
 
@@ -127,7 +127,7 @@ public class Client implements AutoCloseable {
                                         apisHandler.reLogin().get();
                                         logger.debug("Re-login succeeded");
                                     } catch (InterruptedException | ExecutionException e) {
-                                        logger.error("Error while attempting to reconnect to {}. Closing connection", apisHandler.getWebServerURI(), e);
+                                        logger.error("Error while attempting to reconnect to {}. Closing connection", apisHandler.getWebServerUri(), e);
 
                                         if (e instanceof InterruptedException) {
                                             Thread.currentThread().interrupt();
@@ -136,7 +136,7 @@ public class Client implements AutoCloseable {
                                         try {
                                             Client.this.close();
                                         } catch (Exception closeError) {
-                                            logger.error("Error while closing {}", Client.this.apisHandler.getWebServerURI(), closeError);
+                                            logger.error("Error while closing {}", Client.this.apisHandler.getWebServerUri(), closeError);
 
                                             if (e instanceof InterruptedException) {
                                                 Thread.currentThread().interrupt();
@@ -164,7 +164,7 @@ public class Client implements AutoCloseable {
 
         PreferencesManager.addServer(webServerUri, credentials);
 
-        logger.info("Connected to the OMERO.web instance at {} with {}", apisHandler.getWebServerURI(), credentials);
+        logger.info("Connected to the OMERO.web instance at {} with {}", apisHandler.getWebServerUri(), credentials);
     }
 
     /**
@@ -204,7 +204,7 @@ public class Client implements AutoCloseable {
 
         synchronized (Client.class) {
             Optional<Client> existingClientWithUrl = clients.stream()
-                    .filter(client -> client.apisHandler.getWebServerURI().equals(webServerURI))
+                    .filter(client -> client.apisHandler.getWebServerUri().equals(webServerURI))
                     .findAny();
             if (existingClientWithUrl.isPresent()) {
                 if (existingClientWithUrl.get().apisHandler.getCredentials().equals(credentials)) {
@@ -244,7 +244,7 @@ public class Client implements AutoCloseable {
      */
     @Override
     public void close() throws Exception {
-        logger.debug("Closing connection to {}", apisHandler.getWebServerURI());
+        logger.debug("Closing connection to {}", apisHandler.getWebServerUri());
 
         synchronized (Client.class) {
             clients.remove(this);
@@ -260,12 +260,12 @@ public class Client implements AutoCloseable {
         }
         apisHandler.close();
 
-        logger.info("Disconnected from the OMERO.web instance at {}", apisHandler.getWebServerURI());
+        logger.info("Disconnected from the OMERO.web instance at {}", apisHandler.getWebServerUri());
     }
 
     @Override
     public String toString() {
-        return String.format("Client of %s with %s", apisHandler.getWebServerURI(), apisHandler.getCredentials());
+        return String.format("Client of %s with %s", apisHandler.getWebServerUri(), apisHandler.getCredentials());
     }
 
     @Override
@@ -324,7 +324,7 @@ public class Client implements AutoCloseable {
      * @return the client corresponding to the URI, or an empty Optional if not found
      */
     public static synchronized Optional<Client> getClientFromURI(URI uri) {
-        return clients.stream().filter(client -> client.getApisHandler().getWebServerURI().equals(uri)).findAny();
+        return clients.stream().filter(client -> client.getApisHandler().getWebServerUri().equals(uri)).findAny();
     }
 
     /**

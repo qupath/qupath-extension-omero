@@ -45,7 +45,7 @@ public class OrphanedFolder implements RepositoryEntity {
 
     @Override
     public String toString() {
-        return String.format("Orphaned folder of %s", apisHandler.getWebServerURI());
+        return String.format("Orphaned folder of %s", apisHandler.getWebServerUri());
     }
 
     @Override

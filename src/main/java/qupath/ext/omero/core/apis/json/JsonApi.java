@@ -215,11 +215,11 @@ public class JsonApi {
      * the returned value of this function may be {@code localhost} or any local IP.
      * Therefore, if you can't communicate with the returned value of this function,
      * you should be able to communicate with the address of OMERO web (returned by
-     * {@link ApisHandler#getWebServerURI()}.
+     * {@link ApisHandler#getWebServerUri()}.
      *
      * @return the server host
      */
-    public String getServerUri() {
+    public String getServerAddress() {
         return omeroServer.host();
     }
 
@@ -343,11 +343,10 @@ public class JsonApi {
                                                 return switch (omeroGroup.getPermissionLevel()) {
                                                     case PRIVATE -> experimenter.getId() == userId || loginResponse.ownedGroupIds().contains(omeroGroup.id());
                                                     case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
-                                                    case UNKNOWN -> experimenter.getId() == userId;
                                                 };
                                             } else {
                                                 return switch (omeroGroup.getPermissionLevel()) {
-                                                    case PRIVATE, UNKNOWN -> experimenter.getId() == userId;
+                                                    case PRIVATE -> experimenter.getId() == userId;
                                                     case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
                                                 };
                                             }

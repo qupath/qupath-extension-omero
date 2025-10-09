@@ -31,7 +31,8 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.EntityType;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
@@ -189,7 +190,7 @@ class Browser extends Stage implements AutoCloseable {
         try {
             new LoginForm(
                     this,
-                    client.getApisHandler().getWebServerURI(),
+                    client.getApisHandler().getWebServerUri(),
                     null,
                     client -> Platform.runLater(() -> {
                         logger.debug("Client {} created from login button of browser", client);
@@ -215,7 +216,7 @@ class Browser extends Stage implements AutoCloseable {
         try {
             new LoginForm(
                     this,
-                    client.getApisHandler().getWebServerURI(),
+                    client.getApisHandler().getWebServerUri(),
                     new Credentials(),
                     client -> Platform.runLater(() -> {
                         logger.debug("Client {} created from logout button of browser", client);
@@ -257,7 +258,7 @@ class Browser extends Stage implements AutoCloseable {
             if (selectedObject instanceof Image image && image.isSupported(client.getSelectedPixelApi().getValue())) {
                 logger.debug("Double click on tree detected while {} is selected and supported. Opening it", image);
                 ImageOpener.openImageFromUris(
-                        List.of(client.getApisHandler().getEntityUri(new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, image.getId()))),
+                        List.of(client.getApisHandler().getEntityUri(new SimpleServerEntity(EntityType.IMAGE, image.getId()))),
                         client.getApisHandler()
                 );
             }
@@ -390,7 +391,7 @@ class Browser extends Stage implements AutoCloseable {
     }
 
     private void initUI(Stage ownerWindow) {
-        serverHost.setText(client.getApisHandler().getWebServerURI().toString());
+        serverHost.setText(client.getApisHandler().getWebServerUri().toString());
 
         username.setText(switch (client.getApisHandler().getCredentials().userType()) {
             case PUBLIC_USER -> resources.getString("Browser.ServerBrowser.publicUser");

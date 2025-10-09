@@ -16,7 +16,7 @@ public class RatingAnnotation extends Annotation {
      * Create the annotation.
      *
      * @param omeroRatingAnnotation the OMERO annotation to create this annotation from
-     * @param experimenters a list of experimenters that should contain the adder and owner of this annotation
+     * @param experimenters a list of experimenters that may contain the adder and owner of this annotation
      * @throws NullPointerException if one of the provided parameters is null
      */
     public RatingAnnotation(OmeroRatingAnnotation omeroRatingAnnotation, List<OmeroSimpleExperimenter> experimenters) {

@@ -4,9 +4,10 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
 import qupath.ext.omero.core.apis.webclient.Namespace;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.gui.datatransporters.forms.SendKeyValuePairsForm;
@@ -99,7 +100,7 @@ public class KeyValuesSender implements DataTransporter {
 
         logger.debug("Getting annotations of image with ID {}", omeroImageServer.getId());
         omeroImageServer.getClient().getApisHandler().getAnnotations(new SimpleServerEntity(
-                SimpleServerEntity.EntityType.IMAGE,
+                EntityType.IMAGE,
                 omeroImageServer.getId()
         )).whenComplete(((annotations, error) -> Platform.runLater(() -> {
             waitingWindow.close();

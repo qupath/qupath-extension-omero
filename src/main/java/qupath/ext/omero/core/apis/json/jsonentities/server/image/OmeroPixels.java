@@ -25,7 +25,7 @@ import java.util.Optional;
  * @param physicalSizeZ the size of pixels on the z-axis. Optional
  * @param imageType the data type of the pixels. Required
  */
-record OmeroPixels(
+public record OmeroPixels(
         @SerializedName(value = "@type") String type,
         @SerializedName(value = "SizeX") Integer sizeX,
         @SerializedName(value = "SizeY") Integer sizeY,

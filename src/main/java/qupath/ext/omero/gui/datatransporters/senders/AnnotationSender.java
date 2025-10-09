@@ -4,7 +4,8 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.EntityType;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.commonentities.shapes.ShapeCreator;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
@@ -113,7 +114,7 @@ public class AnnotationSender implements DataTransporter {
             logger.debug("Got group {} owning image with ID {}", group, omeroImageServer.getId());
 
             return switch (group.getPermissionLevel()) {
-                case UNKNOWN, PRIVATE, READ_ONLY -> {
+                case PRIVATE, READ_ONLY -> {
                     logger.debug("Group {} has {} permission level, which means current user can only delete its own annotations", group, group.getPermissionLevel());
 
                     yield List.of(server.getConnectedExperimenter());
@@ -222,7 +223,7 @@ public class AnnotationSender implements DataTransporter {
             deletionRequests.put(
                     Request.DELETE_EXISTING_MEASUREMENTS,
                     omeroImageServer.getClient().getApisHandler().deleteAttachments(
-                            new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, omeroImageServer.getId()),
+                            new SimpleServerEntity(EntityType.IMAGE, omeroImageServer.getId()),
                             annotationForm.getSelectedOwnersOfDeletedMeasurements().stream().map(Experimenter::getFullName).toList()   //tODO: first name + last name, not full name
                                                                                                                                 //TODO: actually, can it be ID?
                     )
@@ -411,7 +412,7 @@ public class AnnotationSender implements DataTransporter {
 
             logger.debug("Sending {} measurements to image with ID {}", exportType, omeroImageServer.getId());
             return omeroImageServer.getClient().getApisHandler().sendAttachment(
-                    new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, omeroImageServer.getId()),
+                    new SimpleServerEntity(EntityType.IMAGE, omeroImageServer.getId()),
                     title,
                     outputStream.toString()
             );

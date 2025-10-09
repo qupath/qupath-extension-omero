@@ -90,7 +90,7 @@ public class ConnectionsManager extends Stage implements AutoCloseable {
                 .filter(connection -> connection.getClient()
                         .map(client -> !clients.contains(client))
                         .orElse(!serverPreferenceUris.contains(connection.getServerURI()) ||
-                                clients.stream().map(client -> client.getApisHandler().getWebServerURI()).toList().contains(connection.getServerURI())
+                                clients.stream().map(client -> client.getApisHandler().getWebServerUri()).toList().contains(connection.getServerURI())
                         )
                 )
                 .toList();

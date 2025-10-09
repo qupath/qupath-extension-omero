@@ -2,7 +2,8 @@ package qupath.ext.omero.core.apis;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.EntityType;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 
 import java.net.URI;
 import java.net.URLDecoder;
@@ -20,16 +21,16 @@ class EntityParser {
 
     private static final Logger logger = LoggerFactory.getLogger(EntityParser.class);
     private static final Map<Pattern, Function<Long, SimpleServerEntity>> SIMPLE_ENTITY_FROM_URI_CREATOR = Map.of(
-            Pattern.compile("/webclient/\\?show=project-(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.PROJECT, id),
-            Pattern.compile("/webclient/\\?show=dataset-(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.DATASET, id),
-            Pattern.compile("/webclient/\\?show=image-(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, id),
-            Pattern.compile("/webclient/img_detail/(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, id),
-            Pattern.compile("/webgateway/img_detail/(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, id),
-            Pattern.compile("/iviewer/\\?images=(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, id),
-            Pattern.compile("/webclient/\\?show=well-(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.WELL, id),
-            Pattern.compile("/webclient/\\?show=run-(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.PLATE_ACQUISITION, id),
-            Pattern.compile("/webclient/\\?show=plate-(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.PLATE, id),
-            Pattern.compile("/webclient/\\?show=screen-(\\d+)"), id -> new SimpleServerEntity(SimpleServerEntity.EntityType.SCREEN, id)
+            Pattern.compile("/webclient/\\?show=project-(\\d+)"), id -> new SimpleServerEntity(EntityType.PROJECT, id),
+            Pattern.compile("/webclient/\\?show=dataset-(\\d+)"), id -> new SimpleServerEntity(EntityType.DATASET, id),
+            Pattern.compile("/webclient/\\?show=image-(\\d+)"), id -> new SimpleServerEntity(EntityType.IMAGE, id),
+            Pattern.compile("/webclient/img_detail/(\\d+)"), id -> new SimpleServerEntity(EntityType.IMAGE, id),
+            Pattern.compile("/webgateway/img_detail/(\\d+)"), id -> new SimpleServerEntity(EntityType.IMAGE, id),
+            Pattern.compile("/iviewer/\\?images=(\\d+)"), id -> new SimpleServerEntity(EntityType.IMAGE, id),
+            Pattern.compile("/webclient/\\?show=well-(\\d+)"), id -> new SimpleServerEntity(EntityType.WELL, id),
+            Pattern.compile("/webclient/\\?show=run-(\\d+)"), id -> new SimpleServerEntity(EntityType.PLATE_ACQUISITION, id),
+            Pattern.compile("/webclient/\\?show=plate-(\\d+)"), id -> new SimpleServerEntity(EntityType.PLATE, id),
+            Pattern.compile("/webclient/\\?show=screen-(\\d+)"), id -> new SimpleServerEntity(EntityType.SCREEN, id)
     );
 
     private EntityParser() {

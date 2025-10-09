@@ -11,7 +11,6 @@ import qupath.ext.omero.core.apis.webclient.annotations.AnnotationCreator;
 import qupath.ext.omero.core.apis.webclient.annotations.FileAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.Pair;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
 import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
 import qupath.ext.omero.core.apis.webclient.search.SearchResult;
 import qupath.ext.omero.core.RequestSender;
@@ -592,7 +591,7 @@ public class WebclientApi implements AutoCloseable {
         }
     }
 
-    private static String getEntityLabel(SimpleServerEntity.EntityType entityType) {
+    private static String getEntityLabel(EntityType entityType) {
         return switch (entityType) {
             case SCREEN -> "screen";
             case PLATE -> "plate";
@@ -612,7 +611,7 @@ public class WebclientApi implements AutoCloseable {
     ) {
         logger.debug("Replacing KVP of namespace {} on image with ID {} contained in {}", namespace, imageId, keyValues);
 
-        return getAnnotations(new SimpleServerEntity(SimpleServerEntity.EntityType.IMAGE, imageId)).thenApply(annotations -> {
+        return getAnnotations(new SimpleServerEntity(EntityType.IMAGE, imageId)).thenApply(annotations -> {
             List<MapAnnotation> existingAnnotations = annotations.stream()
                     .filter(annotation -> annotation.getNamespace().isPresent() && annotation.getNamespace().get().equals(namespace))
                     .filter(MapAnnotation.class::isInstance)

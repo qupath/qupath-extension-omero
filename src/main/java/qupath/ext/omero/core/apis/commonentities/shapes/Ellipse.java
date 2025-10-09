@@ -51,6 +51,8 @@ public class Ellipse extends Shape {
 
     /**
      * Create an ellipse from a {@link PathObject}.
+     * <p>
+     * Note that when creating an ellipse this way, some OMERO-specific data won't be defined (e.g. null owner, IDs defined to 0, etc.).
      *
      * @param pathObject the {@link PathObject} to create the ellipse from
      * @param fillColor whether this shape should have a fill color
@@ -86,11 +88,6 @@ public class Ellipse extends Shape {
     }
 
     @Override
-    protected ROI createRoi() {
-        return ROIs.createEllipseROI(x-radiusX, y-radiusY, radiusX*2, radiusY*2, getPlane());
-    }
-
-    @Override
     public String toString() {
         return String.format("Ellipse centered at {x: %f, y: %f} of radius {x: %f, y: %f}", x, y, radiusX, radiusY);
     }
@@ -108,5 +105,10 @@ public class Ellipse extends Shape {
     @Override
     public int hashCode() {
         return Objects.hash(getId(), x, y, radiusX, radiusY);
+    }
+
+    @Override
+    protected ROI createRoi() {
+        return ROIs.createEllipseROI(x-radiusX, y-radiusY, radiusX*2, radiusY*2, getPlane());
     }
 }

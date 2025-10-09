@@ -7,7 +7,7 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.apis.commonentities.SimpleServerEntity;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.gui.UiUtilities;
 import qupath.ext.omero.gui.login.LoginForm;
@@ -319,7 +319,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         logger.debug("Finding if existing client belonging to {} can access {}", clients, uri);
 
         return clients.stream()
-                .filter(client -> client.getApisHandler().getWebServerURI().getHost().equals(uri.getHost()))
+                .filter(client -> client.getApisHandler().getWebServerUri().getHost().equals(uri.getHost()))
                 .map(client -> {
                     try {
                         URI entityUri = new URI(client.getApisHandler().getEntityUri(entity));

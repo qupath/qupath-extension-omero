@@ -9,7 +9,8 @@ import java.util.concurrent.CompletableFuture;
 public interface RepositoryEntity {
 
     /**
-     * @return whether this entity has children
+     * @return whether this entity has children. If this cannot be easily determined, then true is expected
+     * to be returned
      */
     boolean hasChildren();
 

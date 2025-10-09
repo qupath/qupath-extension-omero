@@ -10,20 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.apis.json.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.search.SearchResult;
 import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.gui.UiUtilities;
 
-import java.util.List;
 import java.util.ResourceBundle;
 
 /**
@@ -33,16 +24,6 @@ public class TypeCell extends TableCell<SearchResultWithParentInfo, SearchResult
 
     private static final Logger logger = LoggerFactory.getLogger(TypeCell.class);
     private static final ResourceBundle resources = Utils.getResources();
-    private static final List<Class<? extends RepositoryEntity>> ACCEPTED_ICONS_TYPES = List.of(
-            OrphanedFolder.class,
-            Project.class,
-            Dataset.class,
-            Image.class,
-            Screen.class,
-            Plate.class,
-            PlateAcquisition.class,
-            Well.class
-    );
     private static final int ICON_SIZE = 20;
     private static final int TOOLTIP_IMAGE_SIZE = 256;
     private final ApisHandler apisHandler;
@@ -60,7 +41,7 @@ public class TypeCell extends TableCell<SearchResultWithParentInfo, SearchResult
     protected void updateItem(SearchResult item, boolean empty) {
         super.updateItem(item, empty);
 
-        if (item == null || empty || item.getType().isEmpty() || !ACCEPTED_ICONS_TYPES.contains(item.getType().get())) {
+        if (item == null || empty || item.getType().isEmpty()) {
             setTooltip(null);
             setGraphic(null);
             return;
@@ -72,8 +53,8 @@ public class TypeCell extends TableCell<SearchResultWithParentInfo, SearchResult
         Tooltip tooltip = new Tooltip();
         setTooltip(tooltip);
 
-        Class<? extends RepositoryEntity> type = item.getType().get();
-        if (type.equals(Image.class)) {
+        EntityType type = item.getType().get();
+        if (type.equals(EntityType.IMAGE)) {
             apisHandler.getThumbnail(item.id()).whenComplete((thumbnail, error) -> Platform.runLater(() -> {
                 if (error == null) {
                     logger.debug("Got thumbnail {} for image with ID {}. Setting it to type cell", thumbnail, item.id());

@@ -17,7 +17,7 @@ public class ExperimenterGroup {
     private static final ExperimenterGroup ALL_GROUPS = new ExperimenterGroup(
             -1,
             resources.getString("Entities.Permissions.Group.allGroups"),
-            PermissionLevel.UNKNOWN,
+            PermissionLevel.PRIVATE,
             List.of()
     );
     private final long id;
