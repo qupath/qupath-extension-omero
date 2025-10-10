@@ -23,7 +23,7 @@ public class TestUtilities {
      * @param actualCollection the actual values
      * @param <T> the type of the elements of the collection
      */
-    public static <T> void assertCollectionsEqualsWithoutOrder(Collection<? extends T> expectedCollection, Collection<? extends T> actualCollection) {
+    public static <T> void assertCollectionsEqualsWithoutOrder(Collection<T> expectedCollection, Collection<T> actualCollection) {
         if (expectedCollection.size() != actualCollection.size()) {
             throw new AssertionFailedError(String.format(
                     "Expected collection size: %d but was: %d",

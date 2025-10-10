@@ -13,7 +13,6 @@ import qupath.lib.roi.ROIs;
 
 import java.util.Optional;
 
-//TODO: create Test classes for other shapes
 public class TestEllipse {
 
     @Test
@@ -129,10 +128,7 @@ public class TestEllipse {
                                         73L,
                                         "first",
                                         "middle",
-                                        "last",
-                                        null,
-                                        null,
-                                        null
+                                        "last"
                                 ),
                                 null,
                                 new OmeroPermissions(false, true, true)

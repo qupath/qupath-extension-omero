@@ -24,9 +24,6 @@ public class TestExperimenter {
                 expectedId,
                 null,
                 null,
-                null,
-                null,
-                null,
                 null
         ));
 
@@ -43,10 +40,7 @@ public class TestExperimenter {
                 54L,
                 "first",
                 "middle",
-                "last",
-                "email",
-                "institution",
-                "user"
+                "last"
         ));
 
         String fullName = experimenter.getFullName();

@@ -9,6 +9,7 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -29,7 +30,7 @@ public class TestDataset extends OmeroServer {
 
         @Test
         void Check_Has_Children() {
-            boolean expectedChildren = !OmeroServer.getImageIdsInDataset(dataset).isEmpty();
+            boolean expectedChildren = !OmeroServer.getDatasetImageIds(userType).isEmpty();
 
             boolean hasChildren = dataset.hasChildren();
 
@@ -40,49 +41,77 @@ public class TestDataset extends OmeroServer {
         void Check_Children() throws ExecutionException, InterruptedException {
             long experimenterId = -1;
             long groupId = -1;
-            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getImageIdsInDataset(dataset);
+            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType);
 
             List<? extends RepositoryEntity> children = dataset.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(Image.class::isInstance)
+                            .map(Image.class::cast)
+                            .map(Image::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Experimenter() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
-            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getImageIdsInDataset(dataset);
+            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType);
 
             List<? extends RepositoryEntity> children = dataset.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(Image.class::isInstance)
+                            .map(Image.class::cast)
+                            .map(Image::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Group() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getImageIdsInDataset(dataset);
+            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType);
 
             List<? extends RepositoryEntity> children = dataset.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(Image.class::isInstance)
+                            .map(Image.class::cast)
+                            .map(Image::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Experimenter_And_Group() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getImageIdsInDataset(dataset);
+            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType);
 
             List<? extends RepositoryEntity> children = dataset.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(Image.class::isInstance)
+                            .map(Image.class::cast)
+                            .map(Image::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Id() {
-            long expectedId = OmeroServer.getDatasetId(userType);
+            long expectedId = OmeroServer.getDataset(userType).id();
 
             long id = dataset.getId();
 
@@ -91,7 +120,7 @@ public class TestDataset extends OmeroServer {
 
         @Test
         void Check_Owner() {
-            SimpleEntity expectedOwner = OmeroServer.getOwnerOfEntity(dataset);
+            SimpleEntity expectedOwner = OmeroServer.getDatasetOwner(userType);
 
             SimpleEntity owner = dataset.getOwner().orElseThrow();
 
@@ -100,7 +129,7 @@ public class TestDataset extends OmeroServer {
 
         @Test
         void Check_Group() {
-            SimpleEntity expectedGroup = OmeroServer.getGroupOfEntity(dataset);
+            SimpleEntity expectedGroup = OmeroServer.getDatasetGroup(userType);
 
             SimpleEntity group = dataset.getGroup().orElseThrow();
 
@@ -109,7 +138,7 @@ public class TestDataset extends OmeroServer {
 
         @Test
         void Check_Name() {
-            String expectedName = OmeroServer.getNameOfEntity(dataset);
+            String expectedName = OmeroServer.getDatasetName(userType);
 
             String name = dataset.getName().orElseThrow();
 
@@ -117,12 +146,15 @@ public class TestDataset extends OmeroServer {
         }
 
         @Test
-        void Check_Attributes() {
-            List<Attribute> expectedAttributes = OmeroServer.getAttributes(dataset);
+        void Check_Attributes_Values() {
+            List<String> expectedAttributes = OmeroServer.getDatasetAttributeValues(userType);
 
             List<Attribute> attributes = dataset.getAttributes();
 
-            Assertions.assertEquals(expectedAttributes, attributes);
+            Assertions.assertEquals(
+                    expectedAttributes,
+                    attributes.stream().map(Attribute::value).toList()
+            );
         }
     }
 
@@ -130,10 +162,24 @@ public class TestDataset extends OmeroServer {
     class AuthenticatedUser extends GenericUser {
 
         @BeforeAll
-        static void createDataset() {
+        static void createDataset() throws ExecutionException, InterruptedException {
             userType = UserType.AUTHENTICATED;
             client = OmeroServer.createClient(userType);
-            dataset = OmeroServer.getDataset(userType);
+            Server server = client.getServer().get();
+
+            Project project = server.getChildren(-1, -1).get().stream()
+                    .filter(child -> child instanceof Project)
+                    .map(p -> (Project) p)
+                    .filter(p -> p.getId() == OmeroServer.getProjectIdOwningDataset(userType))
+                    .findAny()
+                    .orElseThrow();
+
+            dataset = project.getChildren(-1, -1).get().stream()
+                    .filter(child -> child instanceof Dataset)
+                    .map(d -> (Dataset) d)
+                    .filter(d -> d.getId() == OmeroServer.getDataset(userType).id())
+                    .findAny()
+                    .orElseThrow();
         }
     }
 
@@ -141,10 +187,24 @@ public class TestDataset extends OmeroServer {
     class UnauthenticatedUser extends GenericUser {
 
         @BeforeAll
-        static void createDataset() {
+        static void createDataset() throws ExecutionException, InterruptedException {
             userType = UserType.UNAUTHENTICATED;
             client = OmeroServer.createClient(userType);
-            dataset = OmeroServer.getDataset(userType);
+            Server server = client.getServer().get();
+
+            Project project = server.getChildren(-1, -1).get().stream()
+                    .filter(child -> child instanceof Project)
+                    .map(p -> (Project) p)
+                    .filter(p -> p.getId() == OmeroServer.getProjectIdOwningDataset(userType))
+                    .findAny()
+                    .orElseThrow();
+
+            dataset = project.getChildren(-1, -1).get().stream()
+                    .filter(child -> child instanceof Dataset)
+                    .map(d -> (Dataset) d)
+                    .filter(d -> d.getId() == OmeroServer.getDataset(userType).id())
+                    .findAny()
+                    .orElseThrow();
         }
     }
 }

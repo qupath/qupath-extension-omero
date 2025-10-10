@@ -11,6 +11,7 @@ import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -87,44 +88,56 @@ public class TestJsonApi extends OmeroServer {
         void Check_Projects() throws ExecutionException, InterruptedException {
             long experimenterId = -1;
             long groupId = -1;
-            List<Project> expectedProjects = OmeroServer.getProjects(userType, experimenterId, groupId);
+            List<Long> expectedProjectIds = OmeroServer.getProjectIds(userType, experimenterId, groupId);
 
             List<Project> projects = jsonApi.getProjects(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedProjects, projects);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedProjectIds,
+                    projects.stream().map(ServerEntity::getId).toList()
+            );
         }
 
         @Test
         void Check_Projects_Of_Experimenter() throws ExecutionException, InterruptedException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
-            List<Project> expectedProjects = OmeroServer.getProjects(userType, experimenterId, groupId);
+            List<Long> expectedProjectIds = OmeroServer.getProjectIds(userType, experimenterId, groupId);
 
             List<Project> projects = jsonApi.getProjects(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedProjects, projects);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedProjectIds,
+                    projects.stream().map(ServerEntity::getId).toList()
+            );
         }
 
         @Test
         void Check_Projects_Of_Group() throws ExecutionException, InterruptedException {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Project> expectedProjects = OmeroServer.getProjects(userType, experimenterId, groupId);
+            List<Long> expectedProjectIds = OmeroServer.getProjectIds(userType, experimenterId, groupId);
 
             List<Project> projects = jsonApi.getProjects(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedProjects, projects);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedProjectIds,
+                    projects.stream().map(ServerEntity::getId).toList()
+            );
         }
 
         @Test
         void Check_Projects_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Project> expectedProjects = OmeroServer.getProjects(userType, experimenterId, groupId);
+            List<Long> expectedProjectIds = OmeroServer.getProjectIds(userType, experimenterId, groupId);
 
             List<Project> projects = jsonApi.getProjects(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedProjects, projects);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedProjectIds,
+                    projects.stream().map(ServerEntity::getId).toList()
+            );
         }
 
         //TODO: other server entities

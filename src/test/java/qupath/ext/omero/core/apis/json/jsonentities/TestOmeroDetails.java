@@ -13,7 +13,7 @@ public class TestOmeroDetails {
         Assertions.assertThrows(
                 NullPointerException.class,
                 () -> new OmeroDetails(
-                        new OmeroExperimenter(null, 65L, null, null, null, null, null, null),
+                        new OmeroExperimenter(null, 65L, null, null, null),
                         new OmeroExperimenterGroup(
                                 null,
                                 87L,
@@ -29,7 +29,7 @@ public class TestOmeroDetails {
     @Test
     void Check_Created_From_Json() {
         OmeroDetails expectedOmeroDetails = new OmeroDetails(
-                new OmeroExperimenter(null, 65L, null, null, null, null, null, null),
+                new OmeroExperimenter(null, 65L, null, null, null),
                 new OmeroExperimenterGroup(
                         null,
                         87L,

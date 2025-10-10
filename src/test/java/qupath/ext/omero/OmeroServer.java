@@ -20,9 +20,12 @@ import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
 import qupath.ext.omero.core.apis.commonentities.image.ImageSettings;
+import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
+import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
+import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
+import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Attribute;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
@@ -30,7 +33,9 @@ import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAc
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
 import qupath.ext.omero.core.apis.webclient.search.SearchResult;
@@ -450,150 +455,152 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static Experimenter getOwnerOfEntity(ServerEntity serverEntity) {
-        return switch (serverEntity) {
-            case Image image -> {
-                if (image.getId() < 19) {
-                    yield getPublicUser();
-                } else if (image.getId() < 53) {
-                    yield getUser1();
-                } else if (image.getId() < 58) {
-                    yield getUser2();
-                } else if (image.getId() < 59) {
-                    yield getUser();
-                } else {
-                    throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-                }
-            }
-            case Project project -> switch ((int) project.getId()) {
-                case 1 -> getPublicUser();
-                case 2 -> getUser1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case Dataset dataset -> switch ((int) dataset.getId()) {
-                case 1, 2 -> getPublicUser();
-                case 3, 4, 5, 6 -> getUser1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case Screen screen -> switch ((int) screen.getId()) {
-                case 1 -> getPublicUser();
-                case 2, 3 -> getUser1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case Plate plate -> switch ((int) plate.getId()) {
-                case 1, 2 -> getPublicUser();
-                case 3, 4, 5, 6 -> getUser1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case PlateAcquisition plateAcquisition -> switch ((int) plateAcquisition.getId()) {
-                case 1, 2 -> getUser1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case Well well -> {
-                if (well.getId() < 9) {
-                    yield getPublicUser();
-                } else if (well.getId() < 25) {
-                    yield getUser1();
-                } else {
-                    throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-                }
-            }
-            case null, default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-        };
-    }
-
-    protected static String getNameOfEntity(ServerEntity serverEntity) {
-        //TODO: implement
-    }
-
-    protected static List<Attribute> getAttributes(ServerEntity serverEntity) {
-        //TODO: implement
-    }
-
-    protected static Project getProject(UserType userType) {
-        //TODO: implement
-    }
-
-    protected static SimpleServerEntity getSimpleProject(UserType userType) {
-        //TODO: implement
-    }
-
-    protected static List<Project> getProjects(UserType userType, long experimenterId, long groupId) {
-        //TODO: change
-        return switch (userType) {
-            case AUTHENTICATED -> List.of(new Project(2));
-            case UNAUTHENTICATED -> List.of(new Project(1));
-            case ADMIN -> List.of(new Project(1), new Project(2));
-        };
-    }
-
     protected static URI getProjectUri(long projectId) {
         return URI.create(getWebServerURI() + "/webclient/?show=project-" + projectId);
     }
 
-    protected static List<String> getProjectAttributeValue(Project project) {
-        return List.of(
-                "project",
-                String.valueOf(project.getId()),
-                "-",
-                Objects.requireNonNull(getOwnerOfEntity(project)).getFullName(),
-                Objects.requireNonNull(getGroupOfEntity(project)).getName(),
-                switch ((int) project.getId()) {
-                    case 1 -> "1";
-                    case 2 -> "2";
-                    default -> "0";
+    protected static List<Long> getProjectIds(UserType userType, long experimenterId, long groupId) {
+        return switch (userType) {
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getProjectOwner(userType).id()) &&
+                        (groupId < 0 || groupId == getProjectGroup(userType).id())
+                ) {
+                    yield List.of(2L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getProjectOwner(userType).id()) &&
+                        (groupId < 0 || groupId == getProjectGroup(userType).id())
+                ) {
+                    yield List.of(1L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case ADMIN -> List.of(1L, 2L);
+        };
+    }
+
+    protected static SimpleServerEntity getProject(UserType userType) {
+        return new SimpleServerEntity(
+                EntityType.PROJECT,
+                switch (userType) {
+                    case UNAUTHENTICATED -> 1;
+                    case AUTHENTICATED -> 2;
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
         );
     }
 
-    protected static Dataset getDataset(UserType userType) {
-        //TODO: implement
-    }
-
-    protected static SimpleServerEntity getSimpleDataset(UserType userType) {
-        //TODO: implement
-    }
-
-    protected static long getDatasetId(UserType userType) {
-        //TODO: implement
-    }
-
-    protected static List<Dataset> getDatasets(UserType userType) {
+    protected static SimpleEntity getProjectOwner(UserType userType) {
         return switch (userType) {
-            case AUTHENTICATED -> List.of(new Dataset(3), new Dataset(4));
-            case UNAUTHENTICATED -> List.of(new Dataset(1));
+            case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
+            case AUTHENTICATED -> new SimpleEntity(getUser1().getId(), getUser1().getFullName());
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static SimpleEntity getProjectGroup(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
+            case AUTHENTICATED -> new SimpleEntity(getGroup1().getId(), getGroup1().getName().orElseThrow());
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static String getProjectName(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, AUTHENTICATED -> "project";
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static List<Long> getProjectDatasetIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(1L);
+            case AUTHENTICATED -> List.of(3L, 4L);
             case ADMIN -> List.of();
         };
     }
 
-    protected static List<Long> getDatasetIdsInProject(long projectId) {
-        return switch ((int) project.getId()) {
-            case 1 -> List.of(new Dataset(1));
-            case 2 -> List.of(new Dataset(3), new Dataset(4));
-            default -> List.of();
+    protected static List<String> getProjectAttributeValues(UserType userType) {
+        return List.of(
+                getProjectName(userType),
+                String.valueOf(getProject(userType).id()),
+                "-",
+                getProjectOwner(userType).name(),
+                getProjectGroup(userType).name(),
+                String.valueOf(getProjectDatasetIds(userType).size())
+        );
+    }
+
+    protected static URI getDatasetUri(long datasetId) {
+        return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + datasetId);
+    }
+
+    protected static long getProjectIdOwningDataset(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> 1L;
+            case AUTHENTICATED -> 2L;
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
         };
     }
 
-    protected static List<String> getDatasetAttributeValue(Dataset dataset) {
-        return List.of(
-                switch ((int) dataset.getId()) {
-                    case 1 -> "dataset";
-                    case 2 -> "orphaned_dataset";
-                    case 3 -> "dataset1";
-                    case 4 -> "dataset2";
-                    case 5 -> "orphaned_dataset1";
-                    case 6 -> "orphaned_dataset2";
-                    default -> "";
-                },
-                String.valueOf(dataset.getId()),
-                "-",
-                Objects.requireNonNull(getOwnerOfEntity(dataset)).getFullName(),
-                Objects.requireNonNull(getGroupOfEntity(dataset)).getName(),
-                switch ((int) dataset.getId()) {
-                    case 1 -> "7";
-                    case 4 -> "2";
-                    default -> "0";
+    protected static SimpleServerEntity getDataset(UserType userType) {
+        return new SimpleServerEntity(
+                EntityType.DATASET,
+                switch (userType) {
+                    case UNAUTHENTICATED -> 1;
+                    case AUTHENTICATED -> 4;
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
+        );
+    }
+
+    protected static SimpleEntity getDatasetOwner(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
+            case AUTHENTICATED -> new SimpleEntity(getUser1().getId(), getUser1().getFullName());
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static SimpleEntity getDatasetGroup(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
+            case AUTHENTICATED -> new SimpleEntity(getGroup1().getId(), getGroup1().getName().orElseThrow());
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static String getDatasetName(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> "dataset";
+            case AUTHENTICATED -> "dataset2";
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static List<Long> getDatasetImageIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L);
+            case AUTHENTICATED -> List.of(19L, 20L);
+            case ADMIN -> List.of();
+        };
+    }
+
+    protected static List<String> getDatasetAttributeValues(UserType userType) {
+        return List.of(
+                getDatasetName(userType),
+                String.valueOf(getDataset(userType).id()),
+                "-",
+                getDatasetOwner(userType).name(),
+                getDatasetGroup(userType).name(),
+                String.valueOf(getDatasetImageIds(userType).size())
         );
     }
 
@@ -604,10 +611,6 @@ public abstract class OmeroServer {
             case UNAUTHENTICATED -> List.of(new Dataset(2));
             case ADMIN -> List.of(new Dataset(2), new Dataset(5), new Dataset(6));
         };
-    }
-
-    protected static URI getDatasetUri(long datasetId) {
-        return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + datasetId);
     }
 
     protected static SimpleServerEntity getRGBImage(UserType userType) {
@@ -1203,63 +1206,262 @@ public abstract class OmeroServer {
     }
 
     private static ExperimenterGroup getSystemGroup() {
-        return new Group(0, "system");
+        return new ExperimenterGroup(
+                getSystemOmeroGroup(),
+                List.of(getRootUser(), getAdminUser())
+        );
     }
 
     private static ExperimenterGroup getUserGroup() {
-        return new Group(1, "user");
+        return new ExperimenterGroup(
+                getUserOmeroGroup(),
+                List.of()
+        );
     }
 
     private static ExperimenterGroup getGuestGroup() {
-        return new Group(2, "guest");
+        return new ExperimenterGroup(
+                getGuestOmeroGroup(),
+                List.of()
+        );
     }
 
     private static ExperimenterGroup getPublicGroup() {
-        return new Group(3, "public-data");
+        return new ExperimenterGroup(
+                getPublicOmeroGroup(),
+                List.of(getPublicUser())
+        );
     }
 
     private static ExperimenterGroup getGroup1() {
-        return new Group(4, "group1");
+        return new ExperimenterGroup(
+                getGroup1OmeroGroup(),
+                List.of(getUser(), getUser1())
+        );
     }
 
     private static ExperimenterGroup getGroup2() {
-        return new Group(5, "group2");
+        return new ExperimenterGroup(
+                getGroup2OmeroGroup(),
+                List.of(getUser(), getUser2())
+        );
     }
 
     private static ExperimenterGroup getGroup3() {
-        return new Group(6, "group3");
+        return new ExperimenterGroup(
+                getGroup3OmeroGroup(),
+                List.of(getUser(), getUser3())
+        );
+    }
+
+    private static OmeroExperimenterGroup getSystemOmeroGroup() {
+        return new OmeroExperimenterGroup(
+                OmeroExperimenterGroup.TYPE,
+                0L,
+                new OmeroDetails(
+                        null,
+                        null,
+                        new OmeroPermissions(false, false, false)
+                ),
+                "system",
+                getWebServerURI() + "/api/v0/m/experimentergroups/0/experimenters/"
+        );
+    }
+
+    private static OmeroExperimenterGroup getUserOmeroGroup() {
+        return new OmeroExperimenterGroup(
+                OmeroExperimenterGroup.TYPE,
+                1L,
+                new OmeroDetails(
+                        null,
+                        null,
+                        new OmeroPermissions(false, true, false)
+                ),
+                "user",
+                getWebServerURI() + "/api/v0/m/experimentergroups/1/experimenters/"
+        );
+    }
+
+    private static OmeroExperimenterGroup getGuestOmeroGroup() {
+        return new OmeroExperimenterGroup(
+                OmeroExperimenterGroup.TYPE,
+                2L,
+                new OmeroDetails(
+                        null,
+                        null,
+                        new OmeroPermissions(false, false, false)
+                ),
+                "guest",
+                getWebServerURI() + "/api/v0/m/experimentergroups/2/experimenters/"
+        );
+    }
+
+    private static OmeroExperimenterGroup getPublicOmeroGroup() {
+        return new OmeroExperimenterGroup(
+                OmeroExperimenterGroup.TYPE,
+                3L,
+                new OmeroDetails(
+                        null,
+                        null,
+                        new OmeroPermissions(false, true, false)
+                ),
+                "public-data",
+                getWebServerURI() + "/api/v0/m/experimentergroups/3/experimenters/"
+        );
+    }
+
+    private static OmeroExperimenterGroup getGroup1OmeroGroup() {
+        return new OmeroExperimenterGroup(
+                OmeroExperimenterGroup.TYPE,
+                4L,
+                new OmeroDetails(
+                        null,
+                        null,
+                        new OmeroPermissions(false, true, true)
+                ),
+                "group1",
+                getWebServerURI() + "/api/v0/m/experimentergroups/4/experimenters/"
+        );
+    }
+
+    private static OmeroExperimenterGroup getGroup2OmeroGroup() {
+        return new OmeroExperimenterGroup(
+                OmeroExperimenterGroup.TYPE,
+                5L,
+                new OmeroDetails(
+                        null,
+                        null,
+                        new OmeroPermissions(false, true, false)
+                ),
+                "group2",
+                getWebServerURI() + "/api/v0/m/experimentergroups/5/experimenters/"
+        );
+    }
+
+    private static OmeroExperimenterGroup getGroup3OmeroGroup() {
+        return new OmeroExperimenterGroup(
+                OmeroExperimenterGroup.TYPE,
+                6L,
+                new OmeroDetails(
+                        null,
+                        null,
+                        new OmeroPermissions(false, false, false)
+                ),
+                "group3",
+                getWebServerURI() + "/api/v0/m/experimentergroups/6/experimenters/"
+        );
     }
 
     private static Experimenter getRootUser() {
-        return new Owner(0, "root", "", "root", "", "", "root");
+        return new Experimenter(getOmeroRootUser());
     }
 
     private static Experimenter getGuestUser() {
-        return new Owner(1, "Guest", "", "Account", "", "", "guest");
+        return new Experimenter(getOmeroGuestUser());
     }
 
     private static Experimenter getAdminUser() {
-        return new Owner(2, "admin", "", "admin", "", "", "admin");
+        return new Experimenter(getOmeroAdminUser());
     }
 
     private static Experimenter getPublicUser() {
-        return new Owner(3, "public", "", "access", "", "", "public");
+        return new Experimenter(getOmeroPublicUser());
     }
 
     private static Experimenter getUser1() {
-        return new Owner(4, "user1", "", "user1", "", "", "user1");
+        return new Experimenter(getOmeroUser1());
     }
 
     private static Experimenter getUser2() {
-        return new Owner(5, "user2", "", "user2", "", "", "user2");
+        return new Experimenter(getOmeroUser2());
     }
 
     private static Experimenter getUser3() {
-        return new Owner(6, "user3", "", "user3", "", "", "user3");
+        return new Experimenter(getOmeroUser3());
     }
 
     private static Experimenter getUser() {
-        return new Owner(7, "user", "", "user", "", "", "user");
+        return new Experimenter(getOmeroUser());
+    }
+
+    private static OmeroExperimenter getOmeroRootUser() {
+        return new OmeroExperimenter(
+                OmeroExperimenter.TYPE,
+                0L,
+                "root",
+                null,
+                "root"
+        );
+    }
+
+    private static OmeroExperimenter getOmeroGuestUser() {
+        return new OmeroExperimenter(
+                OmeroExperimenter.TYPE,
+                1L,
+                "Guest",
+                null,
+                "Account"
+        );
+    }
+
+    private static OmeroExperimenter getOmeroAdminUser() {
+        return new OmeroExperimenter(
+                OmeroExperimenter.TYPE,
+                2L,
+                "admin",
+                null,
+                "admin"
+        );
+    }
+
+    private static OmeroExperimenter getOmeroPublicUser() {
+        return new OmeroExperimenter(
+                OmeroExperimenter.TYPE,
+                3L,
+                "public",
+                null,
+                "access"
+        );
+    }
+
+    private static OmeroExperimenter getOmeroUser1() {
+        return new OmeroExperimenter(
+                OmeroExperimenter.TYPE,
+                4L,
+                "user1",
+                null,
+                "user1"
+        );
+    }
+
+    private static OmeroExperimenter getOmeroUser2() {
+        return new OmeroExperimenter(
+                OmeroExperimenter.TYPE,
+                5L,
+                "user2",
+                null,
+                "user2"
+        );
+    }
+
+    private static OmeroExperimenter getOmeroUser3() {
+        return new OmeroExperimenter(
+                OmeroExperimenter.TYPE,
+                6L,
+                "user3",
+                null,
+                "user3"
+        );
+    }
+
+    private static OmeroExperimenter getOmeroUser() {
+        return new OmeroExperimenter(
+                OmeroExperimenter.TYPE,
+                7L,
+                "user",
+                null,
+                "user"
+        );
     }
 
     private static ImageType getImageType(Image image) {

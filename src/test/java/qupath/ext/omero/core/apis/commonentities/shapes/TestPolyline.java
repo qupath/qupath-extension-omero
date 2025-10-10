@@ -5,22 +5,24 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
-import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLine;
+import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPolyline;
+import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
+import java.util.List;
 import java.util.Optional;
 
-public class TestLine {
+public class TestPolyline {
 
     @Test
-    void Check_Json_When_Created_From_Omero_Line() {
+    void Check_Json_When_Created_From_Omero_Polyline() {
         String expectedJson = """
             {
                 "@id": 83,
-                "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Line",
+                "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Polyline",
                 "Text": "",
                 "FillColor": 3,
                 "StrokeColor": 5,
@@ -28,35 +30,32 @@ public class TestLine {
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
-                "X1": 4.5,
-                "Y1": -7.5,
-                "X2": 12,
-                "Y2": 65.5
+                "Points": "4.5,-7.5 12,65.5 0,50"
             }
             """;
-        Line line = createFromOmeroLine();
+        Polyline polyline = createFromOmeroPolyline();
 
-        String json = line.createJson();
+        String json = polyline.createJson();
 
         Assertions.assertEquals(expectedJson, json);
     }
 
     @Test
-    void Check_Old_Id_When_Created_From_Omero_Line() {
+    void Check_Old_Id_When_Created_From_Omero_Polyline() {
         String expectedOldId = "53:83";
-        Line line = createFromOmeroLine();
+        Polyline polyline = createFromOmeroPolyline();
 
-        String oldId = line.getOldId();
+        String oldId = polyline.getOldId();
 
         Assertions.assertEquals(expectedOldId, oldId);
     }
 
     @Test
-    void Check_Owner_Full_Name_When_Created_From_Omero_Line() {
+    void Check_Owner_Full_Name_When_Created_From_Omero_Polyline() {
         String expectedOwnerFullName = "first middle last";
-        Line line = createFromOmeroLine();
+        Polyline polyline = createFromOmeroPolyline();
 
-        String ownerFullName = line.getOwnerFullName().orElse(null);
+        String ownerFullName = polyline.getOwnerFullName().orElse(null);
 
         Assertions.assertEquals(expectedOwnerFullName, ownerFullName);
     }
@@ -66,7 +65,7 @@ public class TestLine {
         String expectedJson = """
             {
                 "@id": 0,
-                "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Line",
+                "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Polyline",
                 "Text": "",
                 "FillColor": 0,
                 "StrokeColor": 5,
@@ -74,15 +73,12 @@ public class TestLine {
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
-                "X1": 4.5,
-                "Y1": -7.5,
-                "X2": 12,
-                "Y2": 65.5
+                "Points": "4.5,-7.5 12,65.5 0,50"
             }
             """;
-        Line line = createFromPathObject();
+        Polyline polyline = createFromPathObject();
 
-        String json = line.createJson();
+        String json = polyline.createJson();
 
         Assertions.assertEquals(expectedJson, json);
     }
@@ -90,27 +86,27 @@ public class TestLine {
     @Test
     void Check_Old_Id_When_Created_From_Path_Object() {
         String expectedOldId = "0:0";
-        Line line = createFromPathObject();
+        Polyline polyline = createFromPathObject();
 
-        String oldId = line.getOldId();
+        String oldId = polyline.getOldId();
 
         Assertions.assertEquals(expectedOldId, oldId);
     }
 
     @Test
     void Check_Owner_Full_Name_When_Created_From_Path_Object() {
-        Line line = createFromPathObject();
+        Polyline polyline = createFromPathObject();
 
-        Optional<String> ownerFullName = line.getOwnerFullName();
+        Optional<String> ownerFullName = polyline.getOwnerFullName();
 
         Assertions.assertTrue(ownerFullName.isEmpty());
     }
 
-    private static Line createFromOmeroLine() {
-        return new Line(
-                new OmeroLine(
+    private static Polyline createFromOmeroPolyline() {
+        return new Polyline(
+                new OmeroPolyline(
                         83L,
-                        OmeroLine.TYPE,
+                        OmeroPolyline.TYPE,
                         "",
                         3,
                         5,
@@ -118,10 +114,7 @@ public class TestLine {
                         1,
                         2,
                         3,
-                        4.5,
-                        -7.5,
-                        12d,
-                        65.5,
+                        "4.5,-7.5 12,65.5 0,50",
                         new OmeroDetails(
                                 new OmeroExperimenter(
                                         OmeroExperimenter.TYPE,
@@ -138,14 +131,15 @@ public class TestLine {
         );
     }
 
-    private static Line createFromPathObject() {
-        return new Line(
+    private static Polyline createFromPathObject() {
+        return new Polyline(
                 PathObjects.createAnnotationObject(
-                        ROIs.createLineROI(
-                                4.5,
-                                -7.5,
-                                12d,
-                                65.5,
+                        ROIs.createPolylineROI(
+                                List.of(
+                                        new Point2(4.5, -7.5),
+                                        new Point2(12, 65.5),
+                                        new Point2(0, 50)
+                                ),
                                 ImagePlane.getPlaneWithChannel(1, 2, 3)
                         ),
                         PathClass.fromString("some class", 5)

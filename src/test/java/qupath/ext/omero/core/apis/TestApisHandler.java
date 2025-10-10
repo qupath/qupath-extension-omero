@@ -162,7 +162,7 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Image_Uris_From_Dataset_Uri() throws ExecutionException, InterruptedException {
-            long datasetId = OmeroServer.getDataset(userType).getId();
+            long datasetId = OmeroServer.getDataset(userType).id();
             URI datasetUri = OmeroServer.getDatasetUri(datasetId);
             List<URI> expectedImageUris = OmeroServer.getImageIdsInDataset(datasetId).stream()
                     .map(OmeroServer::getImageUri)
@@ -175,9 +175,9 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Image_Uris_From_Project_Uri() throws ExecutionException, InterruptedException {
-            long projectId = OmeroServer.getProject(userType).getId();
+            long projectId = OmeroServer.getProject(userType).id();
             URI projectUri = OmeroServer.getProjectUri(projectId);
-            List<URI> expectedImageUris = OmeroServer.getDatasetIdsInProject(projectId).stream()
+            List<URI> expectedImageUris = OmeroServer.getProjectDatasetIds(userType).stream()
                     .map(OmeroServer::getImageIdsInDataset)
                     .flatMap(List::stream)
                     .map(OmeroServer::getImageUri)

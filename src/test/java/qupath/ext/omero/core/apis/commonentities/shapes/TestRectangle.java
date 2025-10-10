@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
-import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLine;
+import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroRectangle;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
@@ -13,14 +13,14 @@ import qupath.lib.roi.ROIs;
 
 import java.util.Optional;
 
-public class TestLine {
+public class TestRectangle {
 
     @Test
-    void Check_Json_When_Created_From_Omero_Line() {
+    void Check_Json_When_Created_From_Omero_Rectangle() {
         String expectedJson = """
             {
                 "@id": 83,
-                "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Line",
+                "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Rectangle",
                 "Text": "",
                 "FillColor": 3,
                 "StrokeColor": 5,
@@ -28,35 +28,35 @@ public class TestLine {
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
-                "X1": 4.5,
-                "Y1": -7.5,
-                "X2": 12,
-                "Y2": 65.5
+                "X": 4.5,
+                "Y": -7.5,
+                "Width": 12,
+                "Height": 65.5
             }
             """;
-        Line line = createFromOmeroLine();
+        Rectangle rectangle = createFromOmeroRectangle();
 
-        String json = line.createJson();
+        String json = rectangle.createJson();
 
         Assertions.assertEquals(expectedJson, json);
     }
 
     @Test
-    void Check_Old_Id_When_Created_From_Omero_Line() {
+    void Check_Old_Id_When_Created_From_Omero_Rectangle() {
         String expectedOldId = "53:83";
-        Line line = createFromOmeroLine();
+        Rectangle rectangle = createFromOmeroRectangle();
 
-        String oldId = line.getOldId();
+        String oldId = rectangle.getOldId();
 
         Assertions.assertEquals(expectedOldId, oldId);
     }
 
     @Test
-    void Check_Owner_Full_Name_When_Created_From_Omero_Line() {
+    void Check_Owner_Full_Name_When_Created_From_Omero_Rectangle() {
         String expectedOwnerFullName = "first middle last";
-        Line line = createFromOmeroLine();
+        Rectangle rectangle = createFromOmeroRectangle();
 
-        String ownerFullName = line.getOwnerFullName().orElse(null);
+        String ownerFullName = rectangle.getOwnerFullName().orElse(null);
 
         Assertions.assertEquals(expectedOwnerFullName, ownerFullName);
     }
@@ -66,7 +66,7 @@ public class TestLine {
         String expectedJson = """
             {
                 "@id": 0,
-                "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Line",
+                "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Rectangle",
                 "Text": "",
                 "FillColor": 0,
                 "StrokeColor": 5,
@@ -74,15 +74,15 @@ public class TestLine {
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
-                "X1": 4.5,
-                "Y1": -7.5,
-                "X2": 12,
-                "Y2": 65.5
+                "X": 4.5,
+                "Y": -7.5,
+                "Width": 12,
+                "Height": 65.5
             }
             """;
-        Line line = createFromPathObject();
+        Rectangle rectangle = createFromPathObject();
 
-        String json = line.createJson();
+        String json = rectangle.createJson();
 
         Assertions.assertEquals(expectedJson, json);
     }
@@ -90,27 +90,27 @@ public class TestLine {
     @Test
     void Check_Old_Id_When_Created_From_Path_Object() {
         String expectedOldId = "0:0";
-        Line line = createFromPathObject();
+        Rectangle rectangle = createFromPathObject();
 
-        String oldId = line.getOldId();
+        String oldId = rectangle.getOldId();
 
         Assertions.assertEquals(expectedOldId, oldId);
     }
 
     @Test
     void Check_Owner_Full_Name_When_Created_From_Path_Object() {
-        Line line = createFromPathObject();
+        Rectangle rectangle = createFromPathObject();
 
-        Optional<String> ownerFullName = line.getOwnerFullName();
+        Optional<String> ownerFullName = rectangle.getOwnerFullName();
 
         Assertions.assertTrue(ownerFullName.isEmpty());
     }
 
-    private static Line createFromOmeroLine() {
-        return new Line(
-                new OmeroLine(
+    private static Rectangle createFromOmeroRectangle() {
+        return new Rectangle(
+                new OmeroRectangle(
                         83L,
-                        OmeroLine.TYPE,
+                        OmeroRectangle.TYPE,
                         "",
                         3,
                         5,
@@ -138,10 +138,10 @@ public class TestLine {
         );
     }
 
-    private static Line createFromPathObject() {
-        return new Line(
+    private static Rectangle createFromPathObject() {
+        return new Rectangle(
                 PathObjects.createAnnotationObject(
-                        ROIs.createLineROI(
+                        ROIs.createRectangleROI(
                                 4.5,
                                 -7.5,
                                 12d,

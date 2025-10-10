@@ -78,10 +78,7 @@ public class TestOmeroDataset {
                 54L,
                 "first",
                 "middle",
-                "last",
-                "email",
-                "institution",
-                "user"
+                "last"
         );
         OmeroDataset omeroDataset = new OmeroDataset(
                 "",

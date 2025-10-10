@@ -38,7 +38,7 @@ public class TestServer extends OmeroServer {
             List<? extends RepositoryEntity> expectedChildren = Stream.concat(
                     Stream.of(
                             OmeroServer.getOrphanedDatasets(userType, experimenterId, groupId),
-                            OmeroServer.getProjects(userType, experimenterId, groupId),
+                            OmeroServer.getProjectIds(userType, experimenterId, groupId),
                             OmeroServer.getScreens(userType, experimenterId, groupId),
                             OmeroServer.getOrphanedPlates(userType, experimenterId, groupId)
                     ).flatMap(Collection::stream),
@@ -57,7 +57,7 @@ public class TestServer extends OmeroServer {
             List<? extends RepositoryEntity> expectedChildren = Stream.concat(
                     Stream.of(
                             OmeroServer.getOrphanedDatasets(userType, experimenterId, groupId),
-                            OmeroServer.getProjects(userType, experimenterId, groupId),
+                            OmeroServer.getProjectIds(userType, experimenterId, groupId),
                             OmeroServer.getScreens(userType, experimenterId, groupId),
                             OmeroServer.getOrphanedPlates(userType, experimenterId, groupId)
                     ).flatMap(Collection::stream),
@@ -76,7 +76,7 @@ public class TestServer extends OmeroServer {
             List<? extends RepositoryEntity> expectedChildren = Stream.concat(
                     Stream.of(
                             OmeroServer.getOrphanedDatasets(userType, experimenterId, groupId),
-                            OmeroServer.getProjects(userType, experimenterId, groupId),
+                            OmeroServer.getProjectIds(userType, experimenterId, groupId),
                             OmeroServer.getScreens(userType, experimenterId, groupId),
                             OmeroServer.getOrphanedPlates(userType, experimenterId, groupId)
                     ).flatMap(Collection::stream),
@@ -95,7 +95,7 @@ public class TestServer extends OmeroServer {
             List<? extends RepositoryEntity> expectedChildren = Stream.concat(
                     Stream.of(
                             OmeroServer.getOrphanedDatasets(userType, experimenterId, groupId),
-                            OmeroServer.getProjects(userType, experimenterId, groupId),
+                            OmeroServer.getProjectIds(userType, experimenterId, groupId),
                             OmeroServer.getScreens(userType, experimenterId, groupId),
                             OmeroServer.getOrphanedPlates(userType, experimenterId, groupId)
                     ).flatMap(Collection::stream),

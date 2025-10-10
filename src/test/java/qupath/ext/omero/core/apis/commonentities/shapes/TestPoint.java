@@ -8,6 +8,7 @@ import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimen
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPoint;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
+import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
 import java.util.Optional;
@@ -121,10 +122,7 @@ public class TestPoint {
                                         73L,
                                         "first",
                                         "middle",
-                                        "last",
-                                        null,
-                                        null,
-                                        null
+                                        "last"
                                 ),
                                 null,
                                 new OmeroPermissions(false, true, true)
@@ -139,7 +137,8 @@ public class TestPoint {
                 PathObjects.createAnnotationObject(
                         ROIs.createPointsROI(
                                 4.5,
-                                -7.5
+                                -7.5,
+                                ImagePlane.getPlaneWithChannel(1, 2, 3)
                         ),
                         PathClass.fromString("some class", 5)
                 ),

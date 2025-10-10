@@ -50,7 +50,7 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Dataset_Uri() {
-            SimpleServerEntity dataset = OmeroServer.getSimpleDataset(userType);
+            SimpleServerEntity dataset = OmeroServer.getDataset(userType);
             String expectedUri = OmeroServer.getDatasetUri(dataset.id()).toString();
 
             String uri = webclientApi.getEntityUri(dataset);
@@ -60,7 +60,7 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Project_Uri() {
-            SimpleServerEntity project = OmeroServer.getSimpleProject(userType);
+            SimpleServerEntity project = OmeroServer.getProject(userType);
             String expectedUri = OmeroServer.getProjectUri(project.id()).toString();
 
             String uri = webclientApi.getEntityUri(project);
@@ -130,7 +130,7 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Annotations() throws ExecutionException, InterruptedException {
-            SimpleServerEntity dataset = OmeroServer.getSimpleDataset(userType);
+            SimpleServerEntity dataset = OmeroServer.getDataset(userType);
             List<Annotation> expectedAnnotations = OmeroServer.getAnnotationsInDataset(dataset.id());
 
             List<Annotation> annotations = webclientApi.getAnnotations(dataset).get();

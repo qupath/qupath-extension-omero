@@ -42,9 +42,6 @@ public class TestExperimenterGroup {
                         64L,
                         null,
                         null,
-                        null,
-                        null,
-                        null,
                         null
                 )))
         );
@@ -72,9 +69,6 @@ public class TestExperimenterGroup {
                 List.of(new Experimenter(new OmeroExperimenter(
                         null,
                         64L,
-                        null,
-                        null,
-                        null,
                         null,
                         null,
                         null
@@ -106,9 +100,6 @@ public class TestExperimenterGroup {
                         64L,
                         null,
                         null,
-                        null,
-                        null,
-                        null,
                         null
                 )))
         );
@@ -123,9 +114,6 @@ public class TestExperimenterGroup {
         List<Experimenter> expectedExperimenters = List.of(new Experimenter(new OmeroExperimenter(
                 null,
                 64L,
-                null,
-                null,
-                null,
                 null,
                 null,
                 null

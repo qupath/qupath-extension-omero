@@ -12,7 +12,8 @@ import qupath.lib.roi.interfaces.ROI;
 import java.util.Objects;
 
 /**
- * A label.
+ * A text placed at some point.
+ * This is not supported by the extension, which will creates a point instead.
  */
 public class Label extends Shape {
 

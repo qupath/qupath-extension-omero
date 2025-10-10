@@ -15,9 +15,6 @@ public class TestOmeroExperimenter {
                         null,
                         "",
                         "",
-                        "",
-                        "",
-                        "",
                         ""
                 )
         );
@@ -31,10 +28,7 @@ public class TestOmeroExperimenter {
                 54L,
                 "first",
                 "middle",
-                "last",
-                "email",
-                "institution",
-                "user"
+                "last"
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -50,10 +44,7 @@ public class TestOmeroExperimenter {
                 54L,
                 null,
                 "middle",
-                "last",
-                "email",
-                "institution",
-                "user"
+                "last"
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -69,10 +60,7 @@ public class TestOmeroExperimenter {
                 54L,
                 "first",
                 null,
-                "last",
-                "email",
-                "institution",
-                "user"
+                "last"
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -88,10 +76,7 @@ public class TestOmeroExperimenter {
                 54L,
                 "first",
                 null,
-                null,
-                "email",
-                "institution",
-                "user"
+                null
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -107,10 +92,7 @@ public class TestOmeroExperimenter {
                 54L,
                 null,
                 null,
-                null,
-                "email",
-                "institution",
-                "user"
+                null
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -125,10 +107,7 @@ public class TestOmeroExperimenter {
                 54L,
                 "first",
                 "middle",
-                "last",
-                "email",
-                "institution",
-                "user"
+                "last"
         );
 
         OmeroExperimenter omeroExperimenter = new Gson().fromJson(
@@ -138,10 +117,7 @@ public class TestOmeroExperimenter {
                     "@id": 54,
                     "FirstName": "first",
                     "MiddleName": "middle",
-                    "LastName": "last",
-                    "Email": "email",
-                    "Institution": "institution",
-                    "UserName": "user",
+                    "LastName": "last"
                 }
                 """,
                 OmeroExperimenter.class
