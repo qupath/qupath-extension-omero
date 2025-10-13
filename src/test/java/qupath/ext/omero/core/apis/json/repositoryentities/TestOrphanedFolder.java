@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.apis.ApisHandler;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -30,44 +31,72 @@ public class TestOrphanedFolder extends OmeroServer {
         void Check_Children() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = -1;
-            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getOrphanedImages(userType, experimenterId, groupId);
+            List<Long> expectedChildrenIds = OmeroServer.getOrphanedImageIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = orphanedFolder.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(Image.class::isInstance)
+                            .map(Image.class::cast)
+                            .map(Image::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Experimenter() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
-            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getOrphanedImages(userType, experimenterId, groupId);
+            List<Long> expectedChildrenIds = OmeroServer.getOrphanedImageIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = orphanedFolder.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(Image.class::isInstance)
+                            .map(Image.class::cast)
+                            .map(Image::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Group() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getOrphanedImages(userType, experimenterId, groupId);
+            List<Long> expectedChildrenIds = OmeroServer.getOrphanedImageIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = orphanedFolder.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(Image.class::isInstance)
+                            .map(Image.class::cast)
+                            .map(Image::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Experimenter_And_Group() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<? extends RepositoryEntity> expectedChildren = OmeroServer.getOrphanedImages(userType, experimenterId, groupId);
+            List<Long> expectedChildrenIds = OmeroServer.getOrphanedImageIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = orphanedFolder.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(Image.class::isInstance)
+                            .map(Image.class::cast)
+                            .map(Image::getId)
+                            .toList()
+            );
         }
     }
 

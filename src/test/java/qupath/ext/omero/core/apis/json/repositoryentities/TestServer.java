@@ -10,6 +10,7 @@ import qupath.ext.omero.TestUtilities;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -35,76 +36,92 @@ public class TestServer extends OmeroServer {
         void Check_Children() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = -1;
-            List<? extends RepositoryEntity> expectedChildren = Stream.concat(
-                    Stream.of(
-                            OmeroServer.getOrphanedDatasets(userType, experimenterId, groupId),
-                            OmeroServer.getProjectIds(userType, experimenterId, groupId),
-                            OmeroServer.getScreens(userType, experimenterId, groupId),
-                            OmeroServer.getOrphanedPlates(userType, experimenterId, groupId)
-                    ).flatMap(Collection::stream),
-                    Stream.of(new OrphanedFolder(apisHandler))
-            ).toList();
+            List<Long> expectedChildrenIds = Stream.of(
+                    OmeroServer.getOrphanedDatasetIds(userType, experimenterId, groupId),
+                    OmeroServer.getProjectIds(userType, experimenterId, groupId),
+                    OmeroServer.getScreenIds(userType, experimenterId, groupId),
+                    OmeroServer.getOrphanedPlateIds(userType, experimenterId, groupId)
+            ).flatMap(Collection::stream).toList();     // orphaned folder is not taken into account
 
             List<? extends RepositoryEntity> children = server.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(ServerEntity.class::isInstance)
+                            .map(ServerEntity.class::cast)
+                            .map(ServerEntity::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Experimenter() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
-            List<? extends RepositoryEntity> expectedChildren = Stream.concat(
-                    Stream.of(
-                            OmeroServer.getOrphanedDatasets(userType, experimenterId, groupId),
-                            OmeroServer.getProjectIds(userType, experimenterId, groupId),
-                            OmeroServer.getScreens(userType, experimenterId, groupId),
-                            OmeroServer.getOrphanedPlates(userType, experimenterId, groupId)
-                    ).flatMap(Collection::stream),
-                    Stream.of(new OrphanedFolder(apisHandler))
-            ).toList();
+            List<Long> expectedChildrenIds = Stream.of(
+                    OmeroServer.getOrphanedDatasetIds(userType, experimenterId, groupId),
+                    OmeroServer.getProjectIds(userType, experimenterId, groupId),
+                    OmeroServer.getScreenIds(userType, experimenterId, groupId),
+                    OmeroServer.getOrphanedPlateIds(userType, experimenterId, groupId)
+            ).flatMap(Collection::stream).toList();     // orphaned folder is not taken into account
 
             List<? extends RepositoryEntity> children = server.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(ServerEntity.class::isInstance)
+                            .map(ServerEntity.class::cast)
+                            .map(ServerEntity::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Group() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<? extends RepositoryEntity> expectedChildren = Stream.concat(
-                    Stream.of(
-                            OmeroServer.getOrphanedDatasets(userType, experimenterId, groupId),
-                            OmeroServer.getProjectIds(userType, experimenterId, groupId),
-                            OmeroServer.getScreens(userType, experimenterId, groupId),
-                            OmeroServer.getOrphanedPlates(userType, experimenterId, groupId)
-                    ).flatMap(Collection::stream),
-                    Stream.of(new OrphanedFolder(apisHandler))
-            ).toList();
+            List<Long> expectedChildrenIds = Stream.of(
+                    OmeroServer.getOrphanedDatasetIds(userType, experimenterId, groupId),
+                    OmeroServer.getProjectIds(userType, experimenterId, groupId),
+                    OmeroServer.getScreenIds(userType, experimenterId, groupId),
+                    OmeroServer.getOrphanedPlateIds(userType, experimenterId, groupId)
+            ).flatMap(Collection::stream).toList();     // orphaned folder is not taken into account
 
             List<? extends RepositoryEntity> children = server.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(ServerEntity.class::isInstance)
+                            .map(ServerEntity.class::cast)
+                            .map(ServerEntity::getId)
+                            .toList()
+            );
         }
 
         @Test
         void Check_Children_Filtered_By_Experimenter_And_Group() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<? extends RepositoryEntity> expectedChildren = Stream.concat(
-                    Stream.of(
-                            OmeroServer.getOrphanedDatasets(userType, experimenterId, groupId),
-                            OmeroServer.getProjectIds(userType, experimenterId, groupId),
-                            OmeroServer.getScreens(userType, experimenterId, groupId),
-                            OmeroServer.getOrphanedPlates(userType, experimenterId, groupId)
-                    ).flatMap(Collection::stream),
-                    Stream.of(new OrphanedFolder(apisHandler))
-            ).toList();
+            List<Long> expectedChildrenIds = Stream.of(
+                    OmeroServer.getOrphanedDatasetIds(userType, experimenterId, groupId),
+                    OmeroServer.getProjectIds(userType, experimenterId, groupId),
+                    OmeroServer.getScreenIds(userType, experimenterId, groupId),
+                    OmeroServer.getOrphanedPlateIds(userType, experimenterId, groupId)
+            ).flatMap(Collection::stream).toList();     // orphaned folder is not taken into account
 
             List<? extends RepositoryEntity> children = server.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChildren, children);
+            TestUtilities.assertCollectionsEqualsWithoutOrder(
+                    expectedChildrenIds,
+                    children.stream()
+                            .filter(ServerEntity.class::isInstance)
+                            .map(ServerEntity.class::cast)
+                            .map(ServerEntity::getId)
+                            .toList()
+            );
         }
 
         @Test

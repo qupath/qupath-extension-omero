@@ -7,7 +7,7 @@ import java.util.Objects;
 /**
  * Represents a set of links pointing to OMERO entities.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param experimenters a link to get all experimenters of the server. Required
  * @param groups a link to get all groups of the server. Required

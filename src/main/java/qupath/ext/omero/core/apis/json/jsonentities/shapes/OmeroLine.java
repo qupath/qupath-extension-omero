@@ -10,7 +10,7 @@ import java.util.Objects;
 /**
  * An OMERO line as described by the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06#Line">OME specifications</a>.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param id the ID of the shape. Required
  * @param type a link to the specifications of this object ({@link #TYPE} is expected). Optional

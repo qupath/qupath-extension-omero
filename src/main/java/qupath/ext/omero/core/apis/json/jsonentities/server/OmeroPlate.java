@@ -13,7 +13,7 @@ import java.util.Optional;
 /**
  * An OMERO plate as described by the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06#Plate">OME specifications</a>.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param type a link to the specifications of this object ({@link #TYPE} is expected). Optional
  * @param id the ID of the plate. Required

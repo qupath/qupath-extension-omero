@@ -10,7 +10,7 @@ public class TestOmeroPermissions {
     @Test
     void Check_Group_Write_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroPermissions(null, false, false)
         );
     }
@@ -18,7 +18,7 @@ public class TestOmeroPermissions {
     @Test
     void Check_Group_Read_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroPermissions(false, null, false)
         );
     }
@@ -26,7 +26,7 @@ public class TestOmeroPermissions {
     @Test
     void Check_Group_Annotate_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroPermissions(false, false, null)
         );
     }

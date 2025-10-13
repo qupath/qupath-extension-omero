@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Represents the data type each pixel of an OMERO image has.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param value a text describing the image type. Required
  */

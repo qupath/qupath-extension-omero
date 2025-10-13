@@ -9,7 +9,7 @@ import java.util.Objects;
 /**
  * Represents details on an OMERO entity, such as group permissions.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param experimenter an experimenter. Optional
  * @param group an experimenter group. Optional

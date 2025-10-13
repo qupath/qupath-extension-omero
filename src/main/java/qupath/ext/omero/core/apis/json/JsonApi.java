@@ -7,7 +7,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableIntegerValue;
@@ -315,7 +314,7 @@ public class JsonApi {
                 .map(jsonElement -> {
                     try {
                         return gson.fromJson(jsonElement, OmeroExperimenterGroup.class);
-                    } catch (JsonSyntaxException | NullPointerException e) {
+                    } catch (RuntimeException e) {
                         logger.error("Cannot create experimenter group from {}", jsonElement, e);
                         return null;
                     }
@@ -330,7 +329,7 @@ public class JsonApi {
                                         .map(jsonElement -> {
                                             try {
                                                 return new Experimenter(gson.fromJson(jsonElement, OmeroExperimenter.class));
-                                            } catch (JsonSyntaxException | NullPointerException e) {
+                                            } catch (RuntimeException e) {
                                                 logger.error("Cannot create experimenter from {}", jsonElement, e);
                                                 return null;
                                             }

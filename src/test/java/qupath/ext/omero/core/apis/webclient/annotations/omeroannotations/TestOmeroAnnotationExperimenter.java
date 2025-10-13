@@ -10,7 +10,7 @@ public class TestOmeroAnnotationExperimenter {
     @Test
     void Check_Id_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroAnnotationExperimenter(
                         null
                 )

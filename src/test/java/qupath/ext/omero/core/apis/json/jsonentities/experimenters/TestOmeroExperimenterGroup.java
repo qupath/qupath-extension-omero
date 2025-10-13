@@ -12,7 +12,7 @@ public class TestOmeroExperimenterGroup {
     @Test
     void Check_Id_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroExperimenterGroup(
                         "",
                         null,
@@ -30,7 +30,7 @@ public class TestOmeroExperimenterGroup {
     @Test
     void Check_Details_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroExperimenterGroup(
                         "",
                         65L,
@@ -44,7 +44,7 @@ public class TestOmeroExperimenterGroup {
     @Test
     void Check_Experimenters_Url_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroExperimenterGroup(
                         "",
                         65L,

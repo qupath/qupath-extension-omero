@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Represents a CSRF token, which is required for any POST, PUT and DELETE requests.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param data the CSRF token. Required
  */

@@ -7,7 +7,7 @@ import java.util.Objects;
 /**
  * Represents group permissions defined by OMERO.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param isGroupWrite whether the group owner and regular members can view, perform annotations, and edit and delete member data.
  *                     Required

@@ -14,7 +14,6 @@ import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-//TODO: other entities
 public class TestDataset extends OmeroServer {
 
     abstract static class GenericUser {
@@ -120,7 +119,7 @@ public class TestDataset extends OmeroServer {
 
         @Test
         void Check_Owner() {
-            SimpleEntity expectedOwner = OmeroServer.getDatasetOwner(userType);
+            SimpleEntity expectedOwner = OmeroServer.getEntityOwner(userType);
 
             SimpleEntity owner = dataset.getOwner().orElseThrow();
 
@@ -129,7 +128,7 @@ public class TestDataset extends OmeroServer {
 
         @Test
         void Check_Group() {
-            SimpleEntity expectedGroup = OmeroServer.getDatasetGroup(userType);
+            SimpleEntity expectedGroup = OmeroServer.getEntityGroup(userType);
 
             SimpleEntity group = dataset.getGroup().orElseThrow();
 
@@ -170,7 +169,7 @@ public class TestDataset extends OmeroServer {
             Project project = server.getChildren(-1, -1).get().stream()
                     .filter(child -> child instanceof Project)
                     .map(p -> (Project) p)
-                    .filter(p -> p.getId() == OmeroServer.getProjectIdOwningDataset(userType))
+                    .filter(p -> p.getId() == OmeroServer.getProject(userType).id())
                     .findAny()
                     .orElseThrow();
 
@@ -195,7 +194,7 @@ public class TestDataset extends OmeroServer {
             Project project = server.getChildren(-1, -1).get().stream()
                     .filter(child -> child instanceof Project)
                     .map(p -> (Project) p)
-                    .filter(p -> p.getId() == OmeroServer.getProjectIdOwningDataset(userType))
+                    .filter(p -> p.getId() == OmeroServer.getProject(userType).id())
                     .findAny()
                     .orElseThrow();
 

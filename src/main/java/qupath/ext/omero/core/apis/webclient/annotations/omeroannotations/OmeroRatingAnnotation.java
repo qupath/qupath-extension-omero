@@ -9,7 +9,7 @@ import java.util.Objects;
 /**
  * Represents an OMERO annotation containing a rating (from 0 to 5).
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param id the ID of the annotation. Required
  * @param namespace the namespace of the annotation. Optional

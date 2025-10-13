@@ -6,13 +6,12 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 
-//TODO: other shapes
 public class TestOmeroEllipse {
 
     @Test
     void Check_Id_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroEllipse(
                         null,
                         "",
@@ -39,7 +38,7 @@ public class TestOmeroEllipse {
     @Test
     void Check_X_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroEllipse(
                         64L,
                         "",
@@ -66,7 +65,7 @@ public class TestOmeroEllipse {
     @Test
     void Check_Y_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroEllipse(
                         64L,
                         "",
@@ -93,7 +92,7 @@ public class TestOmeroEllipse {
     @Test
     void Check_Radius_X_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroEllipse(
                         64L,
                         "",
@@ -120,7 +119,7 @@ public class TestOmeroEllipse {
     @Test
     void Check_Radius_Y_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroEllipse(
                         64L,
                         "",
@@ -183,7 +182,13 @@ public class TestOmeroEllipse {
                     "Y": -2.54,
                     "RadiusX": 1,
                     "RadiusY": 90.3,
-                    "omero:details:": 4,
+                    "omero:details:": {
+                        "permissions": {
+                            "isGroupWrite": false,
+                            "isGroupRead": true,
+                            "isGroupAnnotate": true
+                        }
+                    }
                 }
                 """,
                 OmeroEllipse.class

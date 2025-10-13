@@ -9,7 +9,7 @@ import java.util.Objects;
 /**
  * Represents an OMERO annotation containing a text comment.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param id the ID of the annotation. Required
  * @param namespace the namespace of the annotation. Optional

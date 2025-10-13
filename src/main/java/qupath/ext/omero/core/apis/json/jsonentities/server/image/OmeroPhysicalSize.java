@@ -7,7 +7,7 @@ import java.util.Objects;
 /**
  * Represents the physical size (width or height) of pixels of an OMERO image.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param symbol a text describing the unit of the size. Required
  * @param value the size. Required

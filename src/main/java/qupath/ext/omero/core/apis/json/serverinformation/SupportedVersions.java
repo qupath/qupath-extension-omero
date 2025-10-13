@@ -8,7 +8,7 @@ import java.util.Objects;
 /**
  * Represents a list of {@link SupportedVersion}.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param supportedVersions a list of supported versions. Required
  */

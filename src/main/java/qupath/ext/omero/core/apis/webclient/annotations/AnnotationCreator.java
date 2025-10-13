@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSyntaxException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroCommentAnnotation;
@@ -33,8 +32,7 @@ public class AnnotationCreator {
      *
      * @param json a JSON object containing a list of annotations
      * @return a list of annotations corresponding to the provided JSON object
-     * @throws IllegalArgumentException if the provided JSON object has an unexpected format
-     * @throws NullPointerException if the provided JSON is null
+     * @throws RuntimeException if the provided JSON object is null or has an unexpected format
      */
     public static List<Annotation> createAnnotations(JsonElement json) {
         if (!json.isJsonObject()) {
@@ -91,7 +89,7 @@ public class AnnotationCreator {
                 .map(experimenter -> {
                     try {
                         return gson.fromJson(experimenter, OmeroSimpleExperimenter.class);
-                    } catch (JsonSyntaxException | NullPointerException e) {
+                    } catch (RuntimeException e) {
                         logger.warn("Cannot create simple experimenter from {}. Skipping it", experimenter, e);
                         return null;
                     }

@@ -14,7 +14,7 @@ import java.util.Optional;
 /**
  * An OMERO image as described by the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06#Image">OME specifications</a>.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param type a link to the specifications of this object ({@link #TYPE} is expected). Optional
  * @param id the ID of the image. Required
@@ -153,14 +153,5 @@ public record OmeroImage(
      */
     public Optional<OmeroPhysicalSize> physicalSizeZ() {
         return Optional.ofNullable(pixels.physicalSizeZ());
-    }
-
-    /**
-     * Get the data type of the pixels.
-     *
-     * @return the data type of the pixels
-     */
-    public String imageType() {
-        return pixels.imageType().value();
     }
 }

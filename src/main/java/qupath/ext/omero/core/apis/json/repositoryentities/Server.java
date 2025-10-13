@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutionException;
  * A server is the top element in the OMERO entity hierarchy.
  * <p>
  * It contains one {@link OrphanedFolder}, and zero or more projects, orphaned datasets, screen, and orphaned plates (described in
- * {@link qupath.ext.omero.core.entities.repositoryentities.serverentities}).
+ * {@link qupath.ext.omero.core.apis.json.repositoryentities.serverentities}).
  */
 public class Server implements RepositoryEntity {
 

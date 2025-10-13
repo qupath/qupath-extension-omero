@@ -50,6 +50,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -455,6 +456,22 @@ public abstract class OmeroServer {
         };
     }
 
+    protected static SimpleEntity getEntityOwner(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
+            case AUTHENTICATED -> new SimpleEntity(getUser1().getId(), getUser1().getFullName());
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static SimpleEntity getEntityGroup(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
+            case AUTHENTICATED -> new SimpleEntity(getGroup1().getId(), getGroup1().getName().orElseThrow());
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
     protected static URI getProjectUri(long projectId) {
         return URI.create(getWebServerURI() + "/webclient/?show=project-" + projectId);
     }
@@ -463,8 +480,8 @@ public abstract class OmeroServer {
         return switch (userType) {
             case AUTHENTICATED -> {
                 if (
-                        (experimenterId < 0 || experimenterId == getProjectOwner(userType).id()) &&
-                        (groupId < 0 || groupId == getProjectGroup(userType).id())
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                        (groupId < 0 || groupId == getEntityGroup(userType).id())
                 ) {
                     yield List.of(2L);
                 } else {
@@ -473,15 +490,15 @@ public abstract class OmeroServer {
             }
             case UNAUTHENTICATED -> {
                 if (
-                        (experimenterId < 0 || experimenterId == getProjectOwner(userType).id()) &&
-                        (groupId < 0 || groupId == getProjectGroup(userType).id())
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                        (groupId < 0 || groupId == getEntityGroup(userType).id())
                 ) {
                     yield List.of(1L);
                 } else {
                     yield List.of();
                 }
             }
-            case ADMIN -> List.of(1L, 2L);
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
         };
     }
 
@@ -494,22 +511,6 @@ public abstract class OmeroServer {
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
         );
-    }
-
-    protected static SimpleEntity getProjectOwner(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
-            case AUTHENTICATED -> new SimpleEntity(getUser1().getId(), getUser1().getFullName());
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
-    }
-
-    protected static SimpleEntity getProjectGroup(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
-            case AUTHENTICATED -> new SimpleEntity(getGroup1().getId(), getGroup1().getName().orElseThrow());
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
     }
 
     protected static String getProjectName(UserType userType) {
@@ -532,8 +533,8 @@ public abstract class OmeroServer {
                 getProjectName(userType),
                 String.valueOf(getProject(userType).id()),
                 "-",
-                getProjectOwner(userType).name(),
-                getProjectGroup(userType).name(),
+                getEntityOwner(userType).name(),
+                getEntityGroup(userType).name(),
                 String.valueOf(getProjectDatasetIds(userType).size())
         );
     }
@@ -542,10 +543,28 @@ public abstract class OmeroServer {
         return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + datasetId);
     }
 
-    protected static long getProjectIdOwningDataset(UserType userType) {
+    protected static List<Long> getOrphanedDatasetIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
-            case UNAUTHENTICATED -> 1L;
-            case AUTHENTICATED -> 2L;
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(5L, 6L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(2L);
+                } else {
+                    yield List.of();
+                }
+            }
             case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
         };
     }
@@ -559,22 +578,6 @@ public abstract class OmeroServer {
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
         );
-    }
-
-    protected static SimpleEntity getDatasetOwner(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
-            case AUTHENTICATED -> new SimpleEntity(getUser1().getId(), getUser1().getFullName());
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
-    }
-
-    protected static SimpleEntity getDatasetGroup(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
-            case AUTHENTICATED -> new SimpleEntity(getGroup1().getId(), getGroup1().getName().orElseThrow());
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
     }
 
     protected static String getDatasetName(UserType userType) {
@@ -598,11 +601,372 @@ public abstract class OmeroServer {
                 getDatasetName(userType),
                 String.valueOf(getDataset(userType).id()),
                 "-",
-                getDatasetOwner(userType).name(),
-                getDatasetGroup(userType).name(),
+                getEntityOwner(userType).name(),
+                getEntityGroup(userType).name(),
                 String.valueOf(getDatasetImageIds(userType).size())
         );
     }
+
+    protected static List<Long> getOrphanedImageIds(UserType userType, long experimenterId, long groupId) {
+        return switch (userType) {
+            case AUTHENTICATED -> {
+                List<Long> ids = new ArrayList<>(List.of(53L, 54L, 55L, 56L, 57L, 58L));
+
+                if (experimenterId >= 0) {
+                    if (experimenterId == getUser().getId()) {
+                        ids.removeAll(List.of(53L, 54L, 55L, 56L, 57L));
+                    } else if (experimenterId == getUser2().getId()) {
+                        ids.remove(58L);
+                    } else {
+                        ids.clear();
+                    }
+                }
+
+                if (groupId >= 0) {
+                    if (groupId == getGroup1().getId()) {
+                        ids.removeAll(List.of(53L, 54L, 55L, 56L, 57L));
+                    } else if (groupId == getGroup2().getId()) {
+                        ids.remove(58L);
+                    } else {
+                        ids.clear();
+                    }
+                }
+
+                yield ids;
+            }
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(8L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static SimpleServerEntity getImage(UserType userType) {
+        return new SimpleServerEntity(
+                EntityType.IMAGE,
+                switch (userType) {
+                    case UNAUTHENTICATED -> 1;
+                    case AUTHENTICATED -> 20;
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                }
+        );
+    }
+
+    protected static SimpleEntity getImageOwner(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
+            case AUTHENTICATED -> new SimpleEntity(getUser1().getId(), getUser1().getFullName());
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static SimpleEntity getImageGroup(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
+            case AUTHENTICATED -> new SimpleEntity(getGroup1().getId(), getGroup1().getName().orElseThrow());
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static String getImageName(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> "rgb.tiff";
+            case AUTHENTICATED -> "float32.tiff";
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static List<String> getImageAttributeValues(UserType userType) {
+        return List.of(
+                getImageName(userType),
+                String.valueOf(getImage(userType).id()),
+                getImageOwner(userType).name(),
+                getImageGroup(userType).name(),
+                "-",
+                "256 px",
+                "256 px",
+                switch (userType) {
+                    case UNAUTHENTICATED -> "0.2 MB";
+                    case AUTHENTICATED -> "7.5 MB";
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                },
+                "1",
+                "3",
+                "1",
+                "1 µm",
+                "1 µm",
+                "-",
+                switch (userType) {
+                    case UNAUTHENTICATED -> "uint8";
+                    case AUTHENTICATED -> "float";
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                }
+        );
+    }
+
+    protected static URI getScreenUri(long screenId) {
+        return URI.create(getWebServerURI() + "/webclient/?show=screen-" + screenId);
+    }
+
+    protected static List<Long> getScreenIds(UserType userType, long experimenterId, long groupId) {
+        return switch (userType) {
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(2L, 3L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(1L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static SimpleServerEntity getScreen(UserType userType) {
+        return new SimpleServerEntity(
+                EntityType.SCREEN,
+                switch (userType) {
+                    case UNAUTHENTICATED -> 1;
+                    case AUTHENTICATED -> 3;
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                }
+        );
+    }
+
+    protected static String getScreenName(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> "screen";
+            case AUTHENTICATED -> "screen2";
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static List<Long> getScreenPlateIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(1L);
+            case AUTHENTICATED -> List.of(4L);
+            case ADMIN -> List.of();
+        };
+    }
+
+    protected static List<String> getScreenAttributeValues(UserType userType) {
+        return List.of(
+                getScreenName(userType),
+                String.valueOf(getScreen(userType).id()),
+                "-",
+                getEntityOwner(userType).name(),
+                getEntityGroup(userType).name(),
+                String.valueOf(getScreenPlateIds(userType).size())
+        );
+    }
+
+    protected static URI getPlateUri(long plateId) {
+        return URI.create(getWebServerURI() + "/webclient/?show=plate-" + plateId);
+    }
+
+    protected static List<Long> getOrphanedPlateIds(UserType userType, long experimenterId, long groupId) {
+        return switch (userType) {
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(5L, 6L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(2L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static SimpleServerEntity getPlate(UserType userType) {
+        return new SimpleServerEntity(
+                EntityType.PLATE,
+                switch (userType) {
+                    case UNAUTHENTICATED -> 1;
+                    case AUTHENTICATED -> 4;
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                }
+        );
+    }
+
+    protected static String getPlateName(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> "plate";
+            case AUTHENTICATED -> "plate-plate_acquisition-well.xml";
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static List<Long> getPlatePlateAcquisitionIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> List.of();
+            case AUTHENTICATED -> List.of(1L, 2L);
+        };
+    }
+
+    protected static List<Long> getPlateWellIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(1L, 2L, 3L, 4L);
+            case AUTHENTICATED -> List.of(13L, 14L, 15L, 16L);
+            case ADMIN -> List.of();
+        };
+    }
+
+    protected static List<String> getPlateAttributeValues(UserType userType) {
+        return List.of(
+                getPlateName(userType),
+                String.valueOf(getPlate(userType).id()),
+                "-",
+                getEntityOwner(userType).name(),
+                getEntityGroup(userType).name(),
+                switch (userType) {
+                    case UNAUTHENTICATED -> "3";
+                    case AUTHENTICATED -> "2";
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                },
+                switch (userType) {
+                    case UNAUTHENTICATED -> "3";
+                    case AUTHENTICATED -> "2";
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                }
+        );
+    }
+
+    protected static URI getPlateAcquisitionUri(long plateAcquisitionId) {
+        return URI.create(getWebServerURI() + "/webclient/?show=run-" + plateAcquisitionId);
+    }
+
+    protected static SimpleServerEntity getPlateAcquisition(UserType userType) {
+        return new SimpleServerEntity(
+                EntityType.PLATE_ACQUISITION,
+                switch (userType) {
+                    case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                    case AUTHENTICATED -> 1;
+                }
+        );
+    }
+
+    protected static String getPlateAcquisitionName(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case AUTHENTICATED -> "2010-02-23 12:50:30 - 2010-02-23 12:51:29";
+        };
+    }
+
+    protected static List<Long> getPlateAcquisitionWellIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> List.of();
+            case AUTHENTICATED -> List.of(13L, 14L, 15L, 16L);
+        };
+    }
+
+    protected static List<String> getPlateAcquisitionAttributeValues(UserType userType) {
+        return List.of(
+                getPlateAcquisitionName(userType),
+                String.valueOf(getPlateAcquisition(userType).id()),
+                getEntityOwner(userType).name(),
+                getEntityGroup(userType).name(),
+                "-"
+        );
+    }
+
+    protected static int getPlateAcquisitionMinWellSampleIndex(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case AUTHENTICATED -> 0;
+        };
+    }
+
+    protected static int getPlateAcquisitionMaxWellSampleIndex(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case AUTHENTICATED -> 0;
+        };
+    }
+
+    protected static URI getWellUri(long wellId) {
+        return URI.create(getWebServerURI() + "/webclient/?show=well-" + wellId);
+    }
+
+    protected static SimpleServerEntity getWell(UserType userType) {
+        return new SimpleServerEntity(
+                EntityType.WELL,
+                switch (userType) {
+                    case UNAUTHENTICATED -> 4;
+                    case AUTHENTICATED -> 16;
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                }
+        );
+    }
+
+    protected static String getWellName(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> "A2";
+            case AUTHENTICATED -> "B2";
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static List<Long> getWellImageIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(9L);
+            case AUTHENTICATED -> List.of(26L, 36L);
+            case ADMIN -> List.of();
+        };
+    }
+
+    protected static List<String> getWellAttributeValues(UserType userType) {
+        return List.of(
+                getDatasetName(userType),
+                String.valueOf(getDataset(userType).id()),
+                getEntityOwner(userType).name(),
+                getEntityGroup(userType).name(),
+                String.valueOf(getDatasetImageIds(userType).size()),
+                switch (userType) {
+                    case UNAUTHENTICATED, AUTHENTICATED -> "1";
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                },
+                switch (userType) {
+                    case UNAUTHENTICATED -> "0";
+                    case AUTHENTICATED -> "1";
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                }
+        );
+    }
+
+
+
 
     protected static List<Dataset> getOrphanedDatasets(UserType userType, long experimenterId, long groupId) {
         //TODO: handle ids
@@ -719,40 +1083,7 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<String> getImageAttributeValue(Image image) {
-        ImageServerMetadata metadata = getImageMetadata(image);
 
-        return List.of(
-                metadata.getName(),
-                String.valueOf(image.getId()),
-                Objects.requireNonNull(getOwnerOfEntity(image)).getFullName(),
-                Objects.requireNonNull(getGroupOfEntity(image)).getName(),
-                "-",
-                metadata.getWidth() + " px",
-                metadata.getHeight() + " px",
-                switch (getImageType(image)) {
-                    case RGB -> "0.2 MB";
-                    case COMPLEX -> "7.5 MB";
-                    default -> "";
-                },
-                String.valueOf(metadata.getSizeZ()),
-                String.valueOf(metadata.getSizeC()),
-                String.valueOf(metadata.getSizeT()),
-                metadata.getPixelWidthMicrons() + " µm",
-                metadata.getPixelHeightMicrons() + " µm",
-                Double.isNaN(metadata.getZSpacingMicrons()) ? "-" : metadata.getZSpacingMicrons() + " µm",
-                switch (metadata.getPixelType()) {
-                    case UINT8 -> "uint8";
-                    case INT8 -> "int8";
-                    case UINT16 -> "uint16";
-                    case INT16 -> "int16";
-                    case UINT32 -> "uint32";
-                    case INT32 -> "int32";
-                    case FLOAT32 -> "float";
-                    case FLOAT64 -> "double";
-                }
-        );
-    }
 
     protected static List<Image> getOrphanedImages(UserType userType, long experimenterId, long groupId) {
         //TODO: handle ids
@@ -865,10 +1196,6 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static URI getScreenUri(long screenId) {
-        return URI.create(getWebServerURI() + "/webclient/?show=screen-" + screenId);
-    }
-
     protected static SimpleServerEntity getSimplePlate(UserType userType) {
 
     }
@@ -921,10 +1248,6 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static URI getPlateUri(long plateId) {
-        return URI.create(getWebServerURI() + "/webclient/?show=plate-" + plateId);
-    }
-
     protected static SimpleServerEntity getSimplePlateAcquisition(UserType userType) {
 
     }
@@ -958,9 +1281,7 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static URI getPlateAcquisitionUri(long plateAcquisitionId) {
-        return URI.create(getWebServerURI() + "/webclient/?show=run-" + plateAcquisitionId);
-    }
+
 
     protected static SimpleServerEntity getSimpleWell(UserType userType) {
 
@@ -1008,9 +1329,7 @@ public abstract class OmeroServer {
         }
     }
 
-    protected static URI getWellUri(long wellId) {
-        return URI.create(getWebServerURI() + "/webclient/?show=well-" + wellId);
-    }
+
 
     protected static List<Annotation> getAnnotationsInDataset(long datasetId) {
         if (datasetId == 1) {

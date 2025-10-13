@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Contain information about a search query.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param query the text to search. Required
  * @param searchOnName whether to restrict the search on names

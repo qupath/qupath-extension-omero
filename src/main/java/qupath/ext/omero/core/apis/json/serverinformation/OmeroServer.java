@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Represents information on an OMERO.server instance.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param host the address pointing to where the server is hosted, in regard to where the OMERO.web instance is hosted. For example,
  *             if the OMERO.server and the OMERO.web instances are installed on the same server, this field might be "localhost". Required

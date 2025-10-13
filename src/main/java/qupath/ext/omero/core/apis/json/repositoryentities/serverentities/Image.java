@@ -71,7 +71,7 @@ public class Image extends ServerEntity {
         OmeroPhysicalSize physicalSizeX = omeroImage.physicalSizeX().orElse(null);
         OmeroPhysicalSize physicalSizeY = omeroImage.physicalSizeY().orElse(null);
         OmeroPhysicalSize physicalSizeZ = omeroImage.physicalSizeZ().orElse(null);
-        String imageType = omeroImage.imageType();
+        PixelType pixelType = omeroImage.pixelType().orElse(null);
         this.attributes = List.of(
                 new Attribute(resources.getString("Entities.Image.name"), name == null || name.isEmpty() ? "-" : name),
                 new Attribute(resources.getString("Entities.Image.id"), String.valueOf(id)),
@@ -112,7 +112,7 @@ public class Image extends ServerEntity {
                         resources.getString("Entities.Image.pixelSizeZ"),
                         physicalSizeZ == null ? "-" : String.format("%f %s", physicalSizeZ.value(), physicalSizeZ.symbol())
                 ),
-                new Attribute(resources.getString("Entities.Image.pixelType"), imageType == null ? "-" : imageType)
+                new Attribute(resources.getString("Entities.Image.pixelType"), pixelType == null ? "-" : pixelType.name())
         );
     }
 

@@ -4,13 +4,12 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-//TODO: test other entities of this package
 public class TestLinks {
 
     @Test
     void Check_Experimenters_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         null,
                         "groups_url",
@@ -29,7 +28,7 @@ public class TestLinks {
     @Test
     void Check_Groups_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         null,
@@ -48,7 +47,7 @@ public class TestLinks {
     @Test
     void Check_Projects_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         "groups_url",
@@ -67,7 +66,7 @@ public class TestLinks {
     @Test
     void Check_Datasets_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         "groups_url",
@@ -86,7 +85,7 @@ public class TestLinks {
     @Test
     void Check_Images_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         "groups_url",
@@ -105,7 +104,7 @@ public class TestLinks {
     @Test
     void Check_Screens_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         "groups_url",
@@ -124,7 +123,7 @@ public class TestLinks {
     @Test
     void Check_Plates_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         "groups_url",
@@ -143,7 +142,7 @@ public class TestLinks {
     @Test
     void Check_Token_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         "groups_url",
@@ -162,7 +161,7 @@ public class TestLinks {
     @Test
     void Check_Servers_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         "groups_url",
@@ -181,7 +180,7 @@ public class TestLinks {
     @Test
     void Check_Login_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new Links(
                         "experimenters_url",
                         "groups_url",

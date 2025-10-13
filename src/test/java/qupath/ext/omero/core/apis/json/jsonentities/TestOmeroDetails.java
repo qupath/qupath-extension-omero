@@ -11,7 +11,7 @@ public class TestOmeroDetails {
     @Test
     void Check_Permissions_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroDetails(
                         new OmeroExperimenter(null, 65L, null, null, null),
                         new OmeroExperimenterGroup(

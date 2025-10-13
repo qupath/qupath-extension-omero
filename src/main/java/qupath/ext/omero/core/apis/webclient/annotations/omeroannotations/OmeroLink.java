@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Represents an OMERO link between an annotation and an experimenter.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param owner the adder of the annotation. Required
  */

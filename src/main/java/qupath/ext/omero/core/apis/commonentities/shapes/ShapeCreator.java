@@ -45,7 +45,7 @@ public class ShapeCreator {
      * @return a {@link Shape} corresponding to the provided JSON element
      * @throws IllegalArgumentException if the provided JSON object does not correspond to an expected shape
      * @throws com.google.gson.JsonSyntaxException if the provided JSON object has an unexpected format
-     * @throws NullPointerException if the provided JSON object is null or lacks mandatory fields to create a shape
+     * @throws RuntimeException if the provided JSON object is null or lacks mandatory fields to create a shape
      */
     public static Shape createShape(JsonElement json, long roiId) {
         if (!json.isJsonObject()) {

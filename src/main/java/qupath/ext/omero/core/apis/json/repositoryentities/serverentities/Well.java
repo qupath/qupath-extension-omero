@@ -116,6 +116,13 @@ public class Well extends ServerEntity {
         return String.format("Well of ID %d", id);
     }
 
+    /**
+     * Get a list of image IDs contained in the well samples of this well and belonging to the provided plate acquisition.
+     *
+     * @param plateAcquisitionOwnerId the ID of a plate acquisition that should own the returned images. Can be negative to
+     *                                retrieve all images
+     * @return a list of image IDs contained in the well samples of this well and belonging to the provided plate acquisition
+     */
     public List<Long> getImageIds(long plateAcquisitionOwnerId) {
         return wellSamples == null ? List.of() : wellSamples.stream()
                 .filter(wellSample ->

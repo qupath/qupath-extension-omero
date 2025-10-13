@@ -10,13 +10,12 @@ import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimen
 
 import java.util.Optional;
 
-//TODO: other server entities
 public class TestOmeroDataset {
 
     @Test
     void Check_Id_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroDataset(
                         "",
                         null,
@@ -35,7 +34,7 @@ public class TestOmeroDataset {
     @Test
     void Check_Child_Count_Required() {
         Assertions.assertThrows(
-                NullPointerException.class,
+                RuntimeException.class,
                 () -> new OmeroDataset(
                         "",
                         534L,
@@ -178,7 +177,7 @@ public class TestOmeroDataset {
                             "isGroupRead": true,
                             "isGroupAnnotate": true
                         }
-                    },
+                    }
                 }
                 """,
                 OmeroDataset.class

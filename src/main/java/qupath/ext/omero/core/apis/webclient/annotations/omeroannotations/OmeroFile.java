@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Represents information on a file stored alongside an OMERO entity.
  * <p>
- * A {@link NullPointerException} is thrown if one required parameter is null.
+ * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param name the name of the file. Required
  * @param mimetype the Multipurpose Internet Mail Extensions type of the file. Required
