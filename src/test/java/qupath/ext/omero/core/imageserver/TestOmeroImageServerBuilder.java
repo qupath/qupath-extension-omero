@@ -61,7 +61,7 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
 
         @BeforeAll
         static void createImage() {
-            imageId = OmeroServer.getRGBImage(userType).id();
+            imageId = OmeroServer.getRgbImage(userType).id();
         }
     }
 

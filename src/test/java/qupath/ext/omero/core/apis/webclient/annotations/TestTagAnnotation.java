@@ -4,24 +4,24 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.core.apis.webclient.Namespace;
 import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroAnnotationExperimenter;
-import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroCommentAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroLink;
+import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroTagAnnotation;
 
 import java.util.List;
 
-public class TestCommentAnnotation {
+public class TestTagAnnotation {
 
     @Test
     void Check_Id() {
         long expectedId = 234;
-        Annotation annotation = new CommentAnnotation(
-                new OmeroCommentAnnotation(
+        Annotation annotation = new TagAnnotation(
+                new OmeroTagAnnotation(
                         expectedId,
                         null,
                         null,
                         null,
                         null,
-                        "some comment"
+                        "tag"
                 ),
                 List.of()
         );
@@ -34,14 +34,14 @@ public class TestCommentAnnotation {
     @Test
     void Check_Namespace() {
         String expectedNamespace = "some namespace";
-        Annotation annotation = new CommentAnnotation(
-                new OmeroCommentAnnotation(
+        Annotation annotation = new TagAnnotation(
+                new OmeroTagAnnotation(
                         234L,
                         expectedNamespace,
                         null,
                         null,
                         null,
-                        "some comment"
+                        "tag"
                 ),
                 List.of()
         );
@@ -54,14 +54,14 @@ public class TestCommentAnnotation {
     @Test
     void Check_Adder_Name() {
         String expectedAdderName = "first_adder last_adder";
-        Annotation annotation = new CommentAnnotation(
-                new OmeroCommentAnnotation(
+        Annotation annotation = new TagAnnotation(
+                new OmeroTagAnnotation(
                         234L,
                         null,
                         null,
                         null,
                         new OmeroLink(new OmeroAnnotationExperimenter(43L)),
-                        "some comment"
+                        "tag"
                 ),
                 List.of(new OmeroSimpleExperimenter(43L, "first_adder", "last_adder"))
         );
@@ -74,14 +74,14 @@ public class TestCommentAnnotation {
     @Test
     void Check_Owner_Name() {
         String expectedOwnerName = "first_owner last_owner";
-        Annotation annotation = new CommentAnnotation(
-                new OmeroCommentAnnotation(
+        Annotation annotation = new TagAnnotation(
+                new OmeroTagAnnotation(
                         234L,
                         null,
                         null,
                         new OmeroAnnotationExperimenter(2L),
                         null,
-                        "some comment"
+                        "tag"
                 ),
                 List.of(new OmeroSimpleExperimenter(2L, "first_owner", "last_owner"))
         );
@@ -92,22 +92,22 @@ public class TestCommentAnnotation {
     }
 
     @Test
-    void Check_Comment() {
-        String expectedComment = "some comment";
-        CommentAnnotation annotation = new CommentAnnotation(
-                new OmeroCommentAnnotation(
+    void Check_Tag() {
+        String expectedTag = "tag";
+        TagAnnotation annotation = new TagAnnotation(
+                new OmeroTagAnnotation(
                         234L,
                         null,
                         null,
                         null,
                         null,
-                        expectedComment
+                        expectedTag
                 ),
                 List.of()
         );
 
-        String comment = annotation.getComment();
+        String tag = annotation.getTag();
 
-        Assertions.assertEquals(expectedComment, comment);
+        Assertions.assertEquals(expectedTag, tag);
     }
 }

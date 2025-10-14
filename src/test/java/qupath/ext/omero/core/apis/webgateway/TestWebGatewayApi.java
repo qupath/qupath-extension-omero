@@ -54,7 +54,7 @@ public class TestWebGatewayApi extends OmeroServer {
 
         @Test
         void Check_Image_Thumbnail_With_Specific_Size() throws ExecutionException, InterruptedException {
-            long imageId = OmeroServer.getRGBImage(userType).id();
+            long imageId = OmeroServer.getRgbImage(userType).id();
             int size = 30;
 
             BufferedImage image = webGatewayApi.getThumbnail(imageId, size).get();
@@ -63,9 +63,19 @@ public class TestWebGatewayApi extends OmeroServer {
         }
 
         @Test
+        void Check_Image_Thumbnail_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webGatewayApi.getThumbnail(invalidId, 20).get()
+            );
+        }
+
+        @Test
         void Check_Image_Metadata() throws ExecutionException, InterruptedException {
             long imageId = OmeroServer.getComplexImage(userType).id();
-            ImageServerMetadata expectedMetadata = OmeroServer.getImageMetadata(imageId);
+            ImageServerMetadata expectedMetadata = OmeroServer.getComplexImageMetadata();
 
             ImageServerMetadata metadata = webGatewayApi.getImageMetadata(imageId).get();
 
@@ -73,10 +83,20 @@ public class TestWebGatewayApi extends OmeroServer {
         }
 
         @Test
+        void Check_Image_Metadata_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webGatewayApi.getImageMetadata(invalidId).get()
+            );
+        }
+
+        @Test
         void Check_Tile_Size() throws ExecutionException, InterruptedException {
-            long imageId = OmeroServer.getRGBImage(userType).id();
-            int expectedWidth = OmeroServer.getImageMetadata(imageId).getWidth();
-            int expectedHeight = OmeroServer.getImageMetadata(imageId).getHeight();
+            long imageId = OmeroServer.getRgbImage(userType).id();
+            int expectedWidth = OmeroServer.getRgbImageMetadata().getWidth();
+            int expectedHeight = OmeroServer.getRgbImageMetadata().getHeight();
 
             BufferedImage tile = webGatewayApi.readTile(
                     imageId,
@@ -91,10 +111,46 @@ public class TestWebGatewayApi extends OmeroServer {
         }
 
         @Test
+        void Check_Tile_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webGatewayApi.readTile(
+                            invalidId,
+                            TileRequest.createInstance("", 0, 1, ImageRegion.createInstance(0, 0, 1, 1, 0, 0)),
+                            1,
+                            1,
+                            1
+                    ).get()
+            );
+        }
+
+        @Test
         abstract void Check_Channel_Colors_Can_Be_Changed() throws ExecutionException, InterruptedException;
 
         @Test
+        void Check_Channel_Colors_Cannot_Be_Changed_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webGatewayApi.changeChannelColors(invalidId, List.of(), List.of()).get()
+            );
+        }
+
+        @Test
         abstract void Check_Channel_Display_Ranges_Can_Be_Changed() throws ExecutionException, InterruptedException;
+
+        @Test
+        void Check_Channel_Display_Ranges_Cannot_Be_Changed_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webGatewayApi.changeChannelDisplayRanges(invalidId, List.of(), List.of()).get()
+            );
+        }
     }
 
     @Nested

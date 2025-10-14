@@ -4,7 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
@@ -76,7 +76,7 @@ public class TestImageMetadataResponseParser {
 
         ImageServerMetadata metadata = createImageMetadataResponse();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedLevels, metadata.getLevels());
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedLevels, metadata.getLevels());
     }
 
     @Test
@@ -158,7 +158,7 @@ public class TestImageMetadataResponseParser {
 
         ImageServerMetadata metadata = createImageMetadataResponse();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChannels, metadata.getChannels());
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedChannels, metadata.getChannels());
     }
 
     @Test

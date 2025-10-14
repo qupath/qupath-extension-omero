@@ -2,7 +2,7 @@ package qupath.ext.omero.core.apis.json.permissions;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
@@ -135,6 +135,6 @@ public class TestExperimenterGroup {
 
         List<Experimenter> experimenters = group.getExperimenters();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedExperimenters, experimenters);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedExperimenters, experimenters);
     }
 }

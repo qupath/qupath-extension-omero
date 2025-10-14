@@ -2,7 +2,7 @@ package qupath.ext.omero.core.imageserver;
 
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.commonentities.shapes.ShapeCreator;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutionException;
 public class TestOmeroImageServer extends OmeroServer {
 
     private static final UserType userType = UserType.AUTHENTICATED;
-    private static final long imageId = OmeroServer.getRGBImage(userType).id();
+    private static final long imageId = OmeroServer.getRgbImage(userType).id();
     private static Client client;
     private static OmeroImageServer imageServer;
 
@@ -64,7 +64,7 @@ public class TestOmeroImageServer extends OmeroServer {
 
     @Test
     void Check_Image_Metadata() {
-        ImageServerMetadata expectedMetadata = OmeroServer.getImageMetadata(imageId);
+        ImageServerMetadata expectedMetadata = OmeroServer.getRgbImageMetadata();
 
         ImageServerMetadata metadata = imageServer.getMetadata();
 
@@ -87,7 +87,7 @@ public class TestOmeroImageServer extends OmeroServer {
 
         Collection<PathObject> pathObjects = imageServer.readPathObjects();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObject.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );

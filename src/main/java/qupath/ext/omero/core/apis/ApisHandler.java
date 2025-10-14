@@ -208,7 +208,7 @@ public class ApisHandler implements AutoCloseable {
      * @param imageId the ID of the image whose parents should be retrieved
      * @return the list of parents of the provided image
      */
-    public CompletableFuture<List<? extends ServerEntity>> getParentsOfImage(long imageId) {
+    public CompletableFuture<List<ServerEntity>> getParentsOfImage(long imageId) {
         return webclientApi.getParentsOfImage(imageId).thenApplyAsync(simpleServerEntities -> {
             logger.debug("Got parents {}. Fetching now more information on them", simpleServerEntities);
 
@@ -223,6 +223,7 @@ public class ApisHandler implements AutoCloseable {
                         case IMAGE -> jsonApi.getImage(serverEntity.id());
                     })
                     .map(CompletableFuture::join)
+                    .map(serverEntity -> (ServerEntity) serverEntity)
                     .toList();
         });
     }

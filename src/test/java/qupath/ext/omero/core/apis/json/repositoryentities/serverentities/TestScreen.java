@@ -6,7 +6,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
@@ -44,7 +44,7 @@ public class TestScreen extends OmeroServer {
 
             List<? extends RepositoryEntity> children = screen.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(Screen.class::isInstance)
@@ -62,7 +62,7 @@ public class TestScreen extends OmeroServer {
 
             List<? extends RepositoryEntity> children = screen.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(Screen.class::isInstance)
@@ -80,7 +80,7 @@ public class TestScreen extends OmeroServer {
 
             List<? extends RepositoryEntity> children = screen.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(Screen.class::isInstance)
@@ -98,7 +98,7 @@ public class TestScreen extends OmeroServer {
 
             List<? extends RepositoryEntity> children = screen.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(Screen.class::isInstance)

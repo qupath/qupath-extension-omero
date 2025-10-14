@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroDataset;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlate;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlateAcquisition;
@@ -229,7 +229,7 @@ public class TestSimpleServerEntity {
 
         List<SimpleServerEntity> entities = SimpleServerEntity.createFromJson(new Gson().fromJson(json, JsonElement.class));
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedEntities, entities);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedEntities, entities);
     }
 
     private static class NewServerEntity extends ServerEntity {

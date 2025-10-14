@@ -5,7 +5,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 
@@ -35,7 +35,7 @@ public class TestOrphanedFolder extends OmeroServer {
 
             List<? extends RepositoryEntity> children = orphanedFolder.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(Image.class::isInstance)
@@ -53,7 +53,7 @@ public class TestOrphanedFolder extends OmeroServer {
 
             List<? extends RepositoryEntity> children = orphanedFolder.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(Image.class::isInstance)
@@ -71,7 +71,7 @@ public class TestOrphanedFolder extends OmeroServer {
 
             List<? extends RepositoryEntity> children = orphanedFolder.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(Image.class::isInstance)
@@ -89,7 +89,7 @@ public class TestOrphanedFolder extends OmeroServer {
 
             List<? extends RepositoryEntity> children = orphanedFolder.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(Image.class::isInstance)

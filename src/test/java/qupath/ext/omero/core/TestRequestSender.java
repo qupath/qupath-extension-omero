@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 
 import java.awt.image.BufferedImage;
 import java.net.URI;
@@ -104,7 +104,7 @@ public class TestRequestSender extends OmeroServer {
 
         List<JsonElement> response = requestSender.getAndConvertToJsonList(jsonListLink, memberName).get();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedResponse, response);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedResponse, response);
     }
 
     @Test

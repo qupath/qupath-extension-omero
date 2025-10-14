@@ -5,7 +5,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.AfterAll;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
-//TODO: tests with invalid image IDs (e.g. -1) in other APIs
 public class TestApisHandler extends OmeroServer {
 
     @Test
@@ -145,12 +144,15 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         void Check_Parents_Of_Image() throws ExecutionException, InterruptedException {
-            long imageId = OmeroServer.getRGBImage(userType).id();
-            List<? extends ServerEntity> expectedParents = OmeroServer.getParentsOfImage(imageId);
+            long imageId = OmeroServer.getRgbImage(userType).id();
+            List<SimpleServerEntity> expectedParents = OmeroServer.getParentOfRgbImage(userType);
 
-            List<? extends ServerEntity> parents = apisHandler.getParentsOfImage(imageId).get();
+            List<ServerEntity> parents = apisHandler.getParentsOfImage(imageId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedParents, parents);
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedParents,
+                    parents.stream().map(SimpleServerEntity::new).toList()
+            );
         }
 
         @Test
@@ -164,38 +166,36 @@ public class TestApisHandler extends OmeroServer {
         void Check_Image_Uris_From_Dataset_Uri() throws ExecutionException, InterruptedException {
             long datasetId = OmeroServer.getDataset(userType).id();
             URI datasetUri = OmeroServer.getDatasetUri(datasetId);
-            List<URI> expectedImageUris = OmeroServer.getImageIdsInDataset(datasetId).stream()
+            List<URI> expectedImageUris = OmeroServer.getDatasetImageIds(userType).stream()
                     .map(OmeroServer::getImageUri)
                     .toList();
 
             List<URI> imageUris = apisHandler.getImageUrisFromEntityURI(datasetUri).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
         }
 
         @Test
         void Check_Image_Uris_From_Project_Uri() throws ExecutionException, InterruptedException {
             long projectId = OmeroServer.getProject(userType).id();
             URI projectUri = OmeroServer.getProjectUri(projectId);
-            List<URI> expectedImageUris = OmeroServer.getProjectDatasetIds(userType).stream()
-                    .map(OmeroServer::getImageIdsInDataset)
-                    .flatMap(List::stream)
+            List<URI> expectedImageUris = OmeroServer.getProjectImageIds(userType).stream()
                     .map(OmeroServer::getImageUri)
                     .toList();
 
             List<URI> imageUris = apisHandler.getImageUrisFromEntityURI(projectUri).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
         }
 
         @Test
         void Check_Image_Uris_From_Image_Uri() throws ExecutionException, InterruptedException {
-            URI imageUri = OmeroServer.getImageUri(OmeroServer.getRGBImage(userType).id());
+            URI imageUri = OmeroServer.getImageUri(OmeroServer.getRgbImage(userType).id());
             List<URI> expectedImageUris = List.of(imageUri);
 
             List<URI> imageUris = apisHandler.getImageUrisFromEntityURI(imageUri).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedImageUris, imageUris);
         }
 
         @Test
@@ -224,7 +224,7 @@ public class TestApisHandler extends OmeroServer {
 
             List<SearchResultWithParentInfo> searchResults = apisHandler.getSearchResults(searchQuery).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedResults, searchResults);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedResults, searchResults);
         }
 
         @Test
@@ -364,7 +364,7 @@ public class TestApisHandler extends OmeroServer {
             Assertions.assertEquals(expectedNewImageName, newImageName);
 
             // Reset image name
-            apisHandler.changeImageName(imageId, OmeroServer.getImageMetadata(imageId).getName()).get();
+            apisHandler.changeImageName(imageId, OmeroServer.getModifiableImageName()).get();
         }
 
         @Test
@@ -380,7 +380,7 @@ public class TestApisHandler extends OmeroServer {
                     .stream()
                     .map(ChannelSettings::name)
                     .toList();
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedNewChannelNames, newChannelNames);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedNewChannelNames, newChannelNames);
 
             // Reset channel names
             apisHandler.changeChannelNames(
@@ -404,7 +404,7 @@ public class TestApisHandler extends OmeroServer {
                     .stream()
                     .map(ChannelSettings::rgbColor)
                     .toList();
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChannelColors, channelColors);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedChannelColors, channelColors);
 
             // Reset channel colors
             apisHandler.changeChannelColors(
@@ -429,7 +429,7 @@ public class TestApisHandler extends OmeroServer {
             apisHandler.changeChannelDisplayRanges(imageId, expectedChannelSettings).get();
 
             List<ChannelSettings> channelSettings = apisHandler.getImageSettings(imageId).get().getChannelSettings();
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedChannelSettings, channelSettings);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedChannelSettings, channelSettings);
 
             // Reset channel display ranges
             apisHandler.changeChannelDisplayRanges(imageId, List.of(OmeroServer.getModifiableImageChannelSettings())).get();
@@ -453,7 +453,7 @@ public class TestApisHandler extends OmeroServer {
 
             apisHandler.addShapes(imageId, expectedShapes).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, apisHandler.getShapes(imageId, userId).get());
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, apisHandler.getShapes(imageId, userId).get());
 
             apisHandler.deleteShapes(imageId, List.of(userId)).get();
         }

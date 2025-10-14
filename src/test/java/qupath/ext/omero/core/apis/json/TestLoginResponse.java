@@ -4,7 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 
 import java.util.List;
 
@@ -69,7 +69,7 @@ public class TestLoginResponse {
 
         LoginResponse loginResponse = LoginResponse.parseServerAuthenticationResponse(serverResponse);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedOwnedGroupIds, loginResponse.ownedGroupIds());
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedOwnedGroupIds, loginResponse.ownedGroupIds());
     }
 
     private static JsonObject getServerResponse() {

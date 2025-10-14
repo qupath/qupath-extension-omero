@@ -1,7 +1,7 @@
 package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
@@ -32,11 +32,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(ellipse));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
@@ -58,11 +58,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(label));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
@@ -86,11 +86,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(line));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
@@ -112,11 +112,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(point));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
@@ -141,11 +141,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(polygon));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
@@ -170,11 +170,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(polyline));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
@@ -198,11 +198,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(rectangle));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
@@ -219,11 +219,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(rectangleShape, ellipseShape));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );
@@ -241,11 +241,11 @@ public class TestShape {
         List<PathObject> pathObjects = Shape.createPathObjects(List.of(rectangleShape, ellipseShape));
 
         // PathObject does not override equals, so only the ID and the ROI are checked
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList(),
                 pathObjects.stream().map(PathObject::getROI).map(ROI::getAllPoints).toList()
         );

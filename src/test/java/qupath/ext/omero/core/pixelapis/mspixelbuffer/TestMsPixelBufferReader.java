@@ -25,7 +25,8 @@ public class TestMsPixelBufferReader extends OmeroServer {
     abstract static class GenericImage {
 
         protected static final UserType userType = UserType.UNAUTHENTICATED;
-        protected static long imageId;
+        protected static double expectedMean;
+        protected static double expectedStdDev;
         protected static Client client;
         protected static TileRequest tileRequest;
         protected static PixelApiReader reader;
@@ -46,9 +47,6 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
         @Test
         void Check_Image_Histogram() throws IOException {
-            double expectedMean = OmeroServer.getImageRedChannelMean(imageId);
-            double expectedStdDev = OmeroServer.getImageRedChannelStdDev(imageId);
-
             BufferedImage image = reader.readTile(tileRequest);
 
             Raster raster = image.getData();
@@ -75,9 +73,12 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            imageId = OmeroServer.getRGBImage(userType).id();
+            expectedMean = OmeroServer.getRgbImageRedChannelMean();
+            expectedStdDev = OmeroServer.getRgbImageRedChannelStdDev();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageUri(imageId),
@@ -107,9 +108,12 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            imageId = OmeroServer.getUint8Image(userType).getId();
+            expectedMean = OmeroServer.getUint8ImageRedChannelMean();
+            expectedStdDev = OmeroServer.getUint8ImageRedChannelStdDev();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageUri(imageId),
@@ -139,9 +143,12 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            imageId = OmeroServer.getUint16Image(userType).getId();
+            expectedMean = OmeroServer.getUint16ImageRedChannelMean();
+            expectedStdDev = OmeroServer.getUint16ImageRedChannelStdDev();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageUri(imageId),
@@ -171,9 +178,12 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            imageId = OmeroServer.getInt16Image(userType).getId();
+            expectedMean = OmeroServer.getInt16ImageRedChannelMean();
+            expectedStdDev = OmeroServer.getInt16ImageRedChannelStdDev();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageUri(imageId),
@@ -203,9 +213,12 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            imageId = OmeroServer.getInt32Image(userType).getId();
+            expectedMean = OmeroServer.getInt32ImageRedChannelMean();
+            expectedStdDev = OmeroServer.getInt32ImageRedChannelStdDev();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageUri(imageId),
@@ -235,9 +248,12 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            imageId = OmeroServer.getFloat32Image(userType).id();
+            expectedMean = OmeroServer.getFloat32ImageRedChannelMean();
+            expectedStdDev = OmeroServer.getFloat32ImageRedChannelStdDev();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageUri(imageId),
@@ -267,9 +283,12 @@ public class TestMsPixelBufferReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            imageId = OmeroServer.getFloat64Image(userType).getId();
+            expectedMean = OmeroServer.getFloat64ImageRedChannelMean();
+            expectedStdDev = OmeroServer.getFloat64ImageRedChannelStdDev();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
                     OmeroServer.getImageUri(imageId),

@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-//TODO: test other classes of package
 public class TestOmeroAnnotationExperimenter {
 
     @Test

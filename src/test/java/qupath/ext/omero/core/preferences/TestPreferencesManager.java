@@ -3,7 +3,7 @@ package qupath.ext.omero.core.preferences;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Credentials;
 
 import java.net.URI;
@@ -25,7 +25,7 @@ public class TestPreferencesManager {
 
         List<ServerPreference> preferences = PreferencesManager.getServerPreferences();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedPreferences, preferences);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedPreferences, preferences);
     }
 
     @Test
@@ -45,7 +45,7 @@ public class TestPreferencesManager {
 
         PreferencesManager.addServer(webServerUri, credentials);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPreferences,
                 PreferencesManager.getServerPreferences()
         );
@@ -60,7 +60,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(webServerUri, credentials);
         PreferencesManager.removeServer(webServerUri);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPreferences,
                 PreferencesManager.getServerPreferences()
         );

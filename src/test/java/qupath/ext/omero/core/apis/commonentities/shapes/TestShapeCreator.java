@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroEllipse;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLabel;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLine;
@@ -211,7 +211,7 @@ public class TestShapeCreator {
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
     }
 
     @Test
@@ -228,7 +228,7 @@ public class TestShapeCreator {
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
     }
 
     @Test
@@ -247,7 +247,7 @@ public class TestShapeCreator {
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
     }
 
     @Test
@@ -264,7 +264,7 @@ public class TestShapeCreator {
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
     }
 
     @Test
@@ -284,7 +284,7 @@ public class TestShapeCreator {
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
     }
 
     @Test
@@ -304,7 +304,7 @@ public class TestShapeCreator {
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
     }
 
     @Test
@@ -323,7 +323,7 @@ public class TestShapeCreator {
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
     }
 
     private static Ellipse createEllipse() {

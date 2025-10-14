@@ -6,12 +6,18 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -71,7 +77,7 @@ public class TestJsonApi extends OmeroServer {
 
             List<ExperimenterGroup> groups = jsonApi.getGroups(-1).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
         }
 
         @Test
@@ -81,7 +87,7 @@ public class TestJsonApi extends OmeroServer {
 
             List<ExperimenterGroup> groups = jsonApi.getGroups(userId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
         }
 
         @Test
@@ -92,7 +98,7 @@ public class TestJsonApi extends OmeroServer {
 
             List<Project> projects = jsonApi.getProjects(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedProjectIds,
                     projects.stream().map(ServerEntity::getId).toList()
             );
@@ -106,7 +112,7 @@ public class TestJsonApi extends OmeroServer {
 
             List<Project> projects = jsonApi.getProjects(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedProjectIds,
                     projects.stream().map(ServerEntity::getId).toList()
             );
@@ -120,7 +126,7 @@ public class TestJsonApi extends OmeroServer {
 
             List<Project> projects = jsonApi.getProjects(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedProjectIds,
                     projects.stream().map(ServerEntity::getId).toList()
             );
@@ -134,13 +140,788 @@ public class TestJsonApi extends OmeroServer {
 
             List<Project> projects = jsonApi.getProjects(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedProjectIds,
                     projects.stream().map(ServerEntity::getId).toList()
             );
         }
 
-        //TODO: other server entities
+        @Test
+        void Check_Project() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getProject(userType).id();
+
+            Project project = jsonApi.getProject(expectedId).get();
+
+            Assertions.assertEquals(expectedId, project.getId());
+        }
+
+        @Test
+        void Check_Invalid_Project() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getProject(invalidId).get()
+            );
+        }
+
+        @Test
+        void Check_Datasets() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            long projectId = OmeroServer.getProject(userType).id();
+            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType);
+
+            List<Dataset> datasets = jsonApi.getDatasets(projectId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedDatasetIds,
+                    datasets.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Datasets_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            long projectId = OmeroServer.getProject(userType).id();
+            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType);
+
+            List<Dataset> datasets = jsonApi.getDatasets(projectId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedDatasetIds,
+                    datasets.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Datasets_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long projectId = OmeroServer.getProject(userType).id();
+            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType);
+
+            List<Dataset> datasets = jsonApi.getDatasets(projectId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedDatasetIds,
+                    datasets.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Datasets_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long projectId = OmeroServer.getProject(userType).id();
+            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType);
+
+            List<Dataset> datasets = jsonApi.getDatasets(projectId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedDatasetIds,
+                    datasets.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Datasets_With_Invalid_Parent() {
+            long invalidProjectId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getDatasets(invalidProjectId, -1, -1).get()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Datasets() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            List<Long> expectedDatasetIds = OmeroServer.getOrphanedDatasetIds(userType, experimenterId, groupId);
+
+            List<Dataset> datasets = jsonApi.getOrphanedDatasets(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedDatasetIds,
+                    datasets.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Datasets_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            List<Long> expectedDatasetIds = OmeroServer.getOrphanedDatasetIds(userType, experimenterId, groupId);
+
+            List<Dataset> datasets = jsonApi.getOrphanedDatasets(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedDatasetIds,
+                    datasets.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Datasets_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            List<Long> expectedDatasetIds = OmeroServer.getOrphanedDatasetIds(userType, experimenterId, groupId);
+
+            List<Dataset> datasets = jsonApi.getOrphanedDatasets(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedDatasetIds,
+                    datasets.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Datasets_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            List<Long> expectedDatasetIds = OmeroServer.getOrphanedDatasetIds(userType, experimenterId, groupId);
+
+            List<Dataset> datasets = jsonApi.getOrphanedDatasets(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedDatasetIds,
+                    datasets.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Dataset() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getDataset(userType).id();
+
+            Dataset dataset = jsonApi.getDataset(expectedId).get();
+
+            Assertions.assertEquals(expectedId, dataset.getId());
+        }
+
+        @Test
+        void Check_Invalid_Dataset() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getDataset(invalidId).get()
+            );
+        }
+
+        @Test
+        void Check_Images() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            long datasetId = OmeroServer.getDataset(userType).id();
+            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType);
+
+            List<Image> images = jsonApi.getImages(datasetId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedImageIds,
+                    images.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Images_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            long datasetId = OmeroServer.getDataset(userType).id();
+            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType);
+
+            List<Image> images = jsonApi.getImages(datasetId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedImageIds,
+                    images.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Images_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long datasetId = OmeroServer.getDataset(userType).id();
+            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType);
+
+            List<Image> images = jsonApi.getImages(datasetId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedImageIds,
+                    images.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Images_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long datasetId = OmeroServer.getDataset(userType).id();
+            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType);
+
+            List<Image> images = jsonApi.getImages(datasetId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedImageIds,
+                    images.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Images_With_Invalid_Parent() {
+            long invalidDatasetId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getImages(invalidDatasetId, -1, -1).get()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Images() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            List<Long> expectedImageIds = OmeroServer.getOrphanedImageIds(userType, experimenterId, groupId);
+
+            List<Image> images = jsonApi.getOrphanedImages(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedImageIds,
+                    images.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Images_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            List<Long> expectedImageIds = OmeroServer.getOrphanedImageIds(userType, experimenterId, groupId);
+
+            List<Image> images = jsonApi.getOrphanedImages(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedImageIds,
+                    images.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Images_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            List<Long> expectedImageIds = OmeroServer.getOrphanedImageIds(userType, experimenterId, groupId);
+
+            List<Image> images = jsonApi.getOrphanedImages(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedImageIds,
+                    images.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Images_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            List<Long> expectedImageIds = OmeroServer.getOrphanedImageIds(userType, experimenterId, groupId);
+
+            List<Image> images = jsonApi.getOrphanedImages(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedImageIds,
+                    images.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Image() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getImage(userType).id();
+
+            Image image = jsonApi.getImage(expectedId).get();
+
+            Assertions.assertEquals(expectedId, image.getId());
+        }
+
+        @Test
+        void Check_Invalid_Image() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getImage(invalidId).get()
+            );
+        }
+
+        @Test
+        void Check_Screens() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            List<Long> expectedScreenIds = OmeroServer.getScreenIds(userType, experimenterId, groupId);
+
+            List<Screen> screens = jsonApi.getScreens(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedScreenIds,
+                    screens.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Screens_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            List<Long> expectedScreenIds = OmeroServer.getScreenIds(userType, experimenterId, groupId);
+
+            List<Screen> screens = jsonApi.getScreens(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedScreenIds,
+                    screens.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Screens_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            List<Long> expectedScreenIds = OmeroServer.getScreenIds(userType, experimenterId, groupId);
+
+            List<Screen> screens = jsonApi.getScreens(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedScreenIds,
+                    screens.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Screens_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            List<Long> expectedScreenIds = OmeroServer.getScreenIds(userType, experimenterId, groupId);
+
+            List<Screen> screens = jsonApi.getScreens(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedScreenIds,
+                    screens.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Screen() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getScreen(userType).id();
+
+            Screen screen = jsonApi.getScreen(expectedId).get();
+
+            Assertions.assertEquals(expectedId, screen.getId());
+        }
+
+        @Test
+        void Check_Invalid_Screen() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getScreen(invalidId).get()
+            );
+        }
+
+        @Test
+        void Check_Plates() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            long screenId = OmeroServer.getScreen(userType).id();
+            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType);
+
+            List<Plate> plates = jsonApi.getPlates(screenId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateIds,
+                    plates.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plates_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            long screenId = OmeroServer.getScreen(userType).id();
+            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType);
+
+            List<Plate> plates = jsonApi.getPlates(screenId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateIds,
+                    plates.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plates_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long screenId = OmeroServer.getScreen(userType).id();
+            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType);
+
+            List<Plate> plates = jsonApi.getPlates(screenId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateIds,
+                    plates.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plates_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long screenId = OmeroServer.getScreen(userType).id();
+            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType);
+
+            List<Plate> plates = jsonApi.getPlates(screenId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateIds,
+                    plates.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plates_With_Invalid_Parent() {
+            long invalidScreenId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getPlates(invalidScreenId, -1, -1).get()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Plates() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            List<Long> expectedPlateIds = OmeroServer.getOrphanedPlateIds(userType, experimenterId, groupId);
+
+            List<Plate> plates = jsonApi.getOrphanedPlates(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateIds,
+                    plates.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Plates_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            List<Long> expectedPlateIds = OmeroServer.getOrphanedPlateIds(userType, experimenterId, groupId);
+
+            List<Plate> plates = jsonApi.getOrphanedPlates(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateIds,
+                    plates.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Plates_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            List<Long> expectedPlateIds = OmeroServer.getOrphanedPlateIds(userType, experimenterId, groupId);
+
+            List<Plate> plates = jsonApi.getOrphanedPlates(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateIds,
+                    plates.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Orphaned_Plates_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            List<Long> expectedPlateIds = OmeroServer.getOrphanedPlateIds(userType, experimenterId, groupId);
+
+            List<Plate> plates = jsonApi.getOrphanedPlates(experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateIds,
+                    plates.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plate() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getPlate(userType).id();
+
+            Plate plate = jsonApi.getPlate(expectedId).get();
+
+            Assertions.assertEquals(expectedId, plate.getId());
+        }
+
+        @Test
+        void Check_Invalid_Plate() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getPlate(invalidId).get()
+            );
+        }
+
+        @Test
+        void Check_Plate_Acquisitions() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            long plateId = OmeroServer.getPlate(userType).id();
+            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType);
+
+            List<PlateAcquisition> plateAcquisitions = jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, 0).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateAcquisitionIds,
+                    plateAcquisitions.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plate_Acquisitions_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            long plateId = OmeroServer.getPlate(userType).id();
+            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType);
+
+            List<PlateAcquisition> plateAcquisitions = jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, 0).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateAcquisitionIds,
+                    plateAcquisitions.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plate_Acquisitions_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long plateId = OmeroServer.getPlate(userType).id();
+            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType);
+
+            List<PlateAcquisition> plateAcquisitions = jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, 0).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateAcquisitionIds,
+                    plateAcquisitions.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plate_Acquisitions_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long plateId = OmeroServer.getPlate(userType).id();
+            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType);
+
+            List<PlateAcquisition> plateAcquisitions = jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, 0).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedPlateAcquisitionIds,
+                    plateAcquisitions.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Plate_Acquisitions_With_Invalid_Parent() {
+            long invalidPlateId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getPlateAcquisitions(invalidPlateId, -1, -1, 0).get()
+            );
+        }
+
+        @Test
+        void Check_Plate_Acquisition() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getPlateAcquisition(userType).id();
+
+            PlateAcquisition plateAcquisition = jsonApi.getPlateAcquisition(expectedId).get();
+
+            Assertions.assertEquals(expectedId, plateAcquisition.getId());
+        }
+
+        @Test
+        void Check_Invalid_Plate_Acquisition() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getPlateAcquisition(invalidId).get()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            long plateId = OmeroServer.getPlate(userType).id();
+            List<Long> expectedWellIds = OmeroServer.getPlateWellIds(userType);
+
+            List<Well> wells = jsonApi.getWellsFromPlate(plateId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedWellIds,
+                    wells.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            long plateId = OmeroServer.getPlate(userType).id();
+            List<Long> expectedWellIds = OmeroServer.getPlateWellIds(userType);
+
+            List<Well> wells = jsonApi.getWellsFromPlate(plateId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedWellIds,
+                    wells.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long plateId = OmeroServer.getPlate(userType).id();
+            List<Long> expectedWellIds = OmeroServer.getPlateWellIds(userType);
+
+            List<Well> wells = jsonApi.getWellsFromPlate(plateId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedWellIds,
+                    wells.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long plateId = OmeroServer.getPlate(userType).id();
+            List<Long> expectedWellIds = OmeroServer.getPlateWellIds(userType);
+
+            List<Well> wells = jsonApi.getWellsFromPlate(plateId, experimenterId, groupId).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedWellIds,
+                    wells.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_With_Invalid_Parent() {
+            long invalidPlateId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getWellsFromPlate(invalidPlateId, -1, -1).get()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_Acquisition() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
+            List<Long> expectedWellIds = OmeroServer.getPlateAcquisitionWellIds(userType);
+
+            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 0).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedWellIds,
+                    wells.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_Acquisition_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
+            List<Long> expectedWellIds = OmeroServer.getPlateAcquisitionWellIds(userType);
+
+            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 0).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedWellIds,
+                    wells.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_Acquisition_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
+            List<Long> expectedWellIds = OmeroServer.getPlateAcquisitionWellIds(userType);
+
+            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 0).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedWellIds,
+                    wells.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_Acquisition_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
+            List<Long> expectedWellIds = OmeroServer.getPlateAcquisitionWellIds(userType);
+
+            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 0).get();
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(
+                    expectedWellIds,
+                    wells.stream().map(ServerEntity::getId).toList()
+            );
+        }
+
+        @Test
+        void Check_Wells_From_Plate_Acquisition_With_Invalid_Parent() {
+            long invalidPlateAcquisitionId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getWellsFromPlateAcquisition(invalidPlateAcquisitionId, -1, -1, 0).get()
+            );
+        }
+
+        @Test
+        void Check_Well() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getWell(userType).id();
+
+            Well well = jsonApi.getWell(expectedId).get();
+
+            Assertions.assertEquals(expectedId, well.getId());
+        }
+
+        @Test
+        void Check_Invalid_Well() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> jsonApi.getWell(invalidId).get()
+            );
+        }
 
         @Test
         void Check_Get_Shapes_With_Invalid_Image_Id() throws ExecutionException, InterruptedException {

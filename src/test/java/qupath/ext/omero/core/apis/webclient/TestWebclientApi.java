@@ -6,7 +6,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.json.JsonApi;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
@@ -40,7 +40,7 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Image_Uri() {
-            SimpleServerEntity image = OmeroServer.getRGBImage(userType);
+            SimpleServerEntity image = OmeroServer.getRgbImage(userType);
             String expectedUri = OmeroServer.getImageUri(image.id()).toString();
 
             String uri = webclientApi.getEntityUri(image);
@@ -70,7 +70,7 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Screen_Uri() {
-            SimpleServerEntity screen = OmeroServer.getSimpleScreen(userType);
+            SimpleServerEntity screen = OmeroServer.getScreen(userType);
             String expectedUri = OmeroServer.getScreenUri(screen.id()).toString();
 
             String uri = webclientApi.getEntityUri(screen);
@@ -80,7 +80,7 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Plate_Uri() {
-            SimpleServerEntity plate = OmeroServer.getSimplePlate(userType);
+            SimpleServerEntity plate = OmeroServer.getPlate(userType);
             String expectedUri = OmeroServer.getPlateUri(plate.id()).toString();
 
             String uri = webclientApi.getEntityUri(plate);
@@ -90,7 +90,7 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Plate_Acquisition_Uri() {
-            SimpleServerEntity plateAcquisition = OmeroServer.getSimplePlateAcquisition(userType);
+            SimpleServerEntity plateAcquisition = OmeroServer.getPlateAcquisition(userType);
             String expectedURI = OmeroServer.getPlateAcquisitionUri(plateAcquisition.id()).toString();
 
             String uri = webclientApi.getEntityUri(plateAcquisition);
@@ -100,7 +100,7 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Well_Uri() {
-            SimpleServerEntity well = OmeroServer.getSimpleWell(userType);
+            SimpleServerEntity well = OmeroServer.getWell(userType);
             String expectedUri = OmeroServer.getWellUri(well.id()).toString();
 
             String uri = webclientApi.getEntityUri(well);
@@ -118,14 +118,22 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         void Check_Parents_Of_Image() throws ExecutionException, InterruptedException {
-            long imageId = OmeroServer.getRGBImage(userType).id();
-            List<SimpleServerEntity> expectedParents = OmeroServer.getParentsOfImage(imageId).stream()
-                    .map(SimpleServerEntity::new)
-                    .toList();
+            long imageId = OmeroServer.getRgbImage(userType).id();
+            List<SimpleServerEntity> expectedParents = OmeroServer.getParentOfRgbImage(userType);
 
             List<SimpleServerEntity> parents = webclientApi.getParentsOfImage(imageId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedParents, parents);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedParents, parents);
+        }
+
+        @Test
+        void Check_Parents_Of_Image_With_Invalid_Id() {
+            long invalidImageId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webclientApi.getParentsOfImage(invalidImageId).get()
+            );
         }
 
         @Test
@@ -136,6 +144,16 @@ public class TestWebclientApi extends OmeroServer {
             List<Annotation> annotations = webclientApi.getAnnotations(dataset).get();
 
             Assertions.assertEquals(expectedAnnotations, annotations);
+        }
+
+        @Test
+        void Check_Annotations_With_Invalid_Entity() {
+            SimpleServerEntity invalidEntity = new SimpleServerEntity(EntityType.DATASET, -1);
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webclientApi.getAnnotations(invalidEntity).get()
+            );
         }
 
         @Test
@@ -157,7 +175,7 @@ public class TestWebclientApi extends OmeroServer {
 
             List<SearchResult> results = webclientApi.getSearchResults(searchQuery).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedResults, results);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedResults, results);
         }
 
         @Test
@@ -176,16 +194,66 @@ public class TestWebclientApi extends OmeroServer {
         abstract void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException;
 
         @Test
+        void Check_Key_Value_Pairs_Not_Sent_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webclientApi.sendKeyValuePairs(invalidId, new Namespace("name"), Map.of(), false).get()
+            );
+        }
+
+        @Test
         abstract void Check_Image_Name_Can_Be_Changed() throws ExecutionException, InterruptedException;
+
+        @Test
+        void Check_Image_Name_Cannot_Be_Changed_When_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webclientApi.changeImageName(invalidId, "name").get()
+            );
+        }
 
         @Test
         abstract void Check_Channel_Names_Can_Be_Changed() throws ExecutionException, InterruptedException;
 
         @Test
+        void Check_Channel_Names_Cannot_Be_Changed_When_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webclientApi.changeChannelNames(invalidId, List.of()).get()
+            );
+        }
+
+        @Test
         abstract void Check_Attachments_Sent() throws ExecutionException, InterruptedException;
 
         @Test
+        void Check_Attachments_Cannot_Be_Sent_When_Invalid_Image_Id() {
+            SimpleServerEntity invalidEntity = new SimpleServerEntity(EntityType.IMAGE, -1);
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webclientApi.sendAttachment(invalidEntity, "name", "content").get()
+            );
+        }
+
+        @Test
         abstract void Check_Existing_Attachments_Deleted() throws ExecutionException, InterruptedException;
+
+        @Test
+        void Check_Attachments_Cannot_Be_Deleted_When_Invalid_Image_Id() {
+            SimpleServerEntity invalidEntity = new SimpleServerEntity(EntityType.IMAGE, -1);
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> webclientApi.deleteAttachments(invalidEntity, List.of("name")).get()
+            );
+        }
 
         @Test
         void Check_Image_Icon() throws ExecutionException, InterruptedException {
@@ -262,7 +330,7 @@ public class TestWebclientApi extends OmeroServer {
 
             webclientApi.sendKeyValuePairs(image.id(), namespace, pairsToSend, true).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedPairs,
                     webclientApi.getAnnotations(image).get()
                             .stream()
@@ -295,7 +363,7 @@ public class TestWebclientApi extends OmeroServer {
 
             webclientApi.sendKeyValuePairs(image.id(), namespace, pairsToSend, false).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedPairs,
                     webclientApi.getAnnotations(image).get()
                             .stream()
@@ -329,7 +397,7 @@ public class TestWebclientApi extends OmeroServer {
 
             webclientApi.sendKeyValuePairs(image.id(), differentNamespace, pairsToSend, true).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedPairs,
                     webclientApi.getAnnotations(image).get()
                             .stream()
@@ -363,7 +431,7 @@ public class TestWebclientApi extends OmeroServer {
 
             webclientApi.sendKeyValuePairs(image.id(), differentNamespace, pairsToSend, false).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedPairs,
                     webclientApi.getAnnotations(image).get()
                             .stream()
@@ -385,7 +453,7 @@ public class TestWebclientApi extends OmeroServer {
             Assertions.assertDoesNotThrow(() -> webclientApi.changeImageName(imageId, newImageName).get());
 
             // Reset image name
-            webclientApi.changeImageName(imageId, OmeroServer.getImageMetadata(imageId).getName()).get();
+            webclientApi.changeImageName(imageId, OmeroServer.getModifiableImageName()).get();
         }
 
         @Test

@@ -7,9 +7,9 @@ import java.util.Collection;
 /**
  * Adds some utility functions for testing.
  */
-public class TestUtilities {
+public class TestUtils {
 
-    private TestUtilities() {
+    private TestUtils() {
         throw new AssertionError("This class is not instantiable.");
     }
 

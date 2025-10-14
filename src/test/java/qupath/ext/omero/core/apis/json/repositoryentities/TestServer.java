@@ -6,7 +6,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
@@ -45,7 +45,7 @@ public class TestServer extends OmeroServer {
 
             List<? extends RepositoryEntity> children = server.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(ServerEntity.class::isInstance)
@@ -68,7 +68,7 @@ public class TestServer extends OmeroServer {
 
             List<? extends RepositoryEntity> children = server.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(ServerEntity.class::isInstance)
@@ -91,7 +91,7 @@ public class TestServer extends OmeroServer {
 
             List<? extends RepositoryEntity> children = server.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(ServerEntity.class::isInstance)
@@ -114,7 +114,7 @@ public class TestServer extends OmeroServer {
 
             List<? extends RepositoryEntity> children = server.getChildren(experimenterId, groupId).get();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
                             .filter(ServerEntity.class::isInstance)
@@ -148,7 +148,7 @@ public class TestServer extends OmeroServer {
 
             List<ExperimenterGroup> groups = server.getGroups();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedGroups, groups);
         }
 
         @Test
@@ -157,7 +157,7 @@ public class TestServer extends OmeroServer {
 
             List<Experimenter> experimenters = server.getExperimenters();
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(expectedExperimenters, experimenters);
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedExperimenters, experimenters);
         }
     }
 

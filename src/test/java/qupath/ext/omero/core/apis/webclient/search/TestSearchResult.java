@@ -2,7 +2,7 @@ package qupath.ext.omero.core.apis.webclient.search;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.apis.webclient.EntityType;
 
 import java.net.URI;
@@ -46,7 +46,7 @@ public class TestSearchResult {
                 .flatMap(Optional::stream)
                 .toList();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedTypes, resultsTypes);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedTypes, resultsTypes);
     }
 
     @Test

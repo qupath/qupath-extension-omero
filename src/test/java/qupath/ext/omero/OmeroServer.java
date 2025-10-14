@@ -57,7 +57,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.IntStream;
 
 /**
  * An abstract class that gives access to an OMERO server hosted
@@ -528,6 +527,14 @@ public abstract class OmeroServer {
         };
     }
 
+    protected static List<Long> getProjectImageIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L);
+            case AUTHENTICATED -> List.of(19L, 20L);
+            case ADMIN -> List.of();
+        };
+    }
+
     protected static List<String> getProjectAttributeValues(UserType userType) {
         return List.of(
                 getProjectName(userType),
@@ -607,6 +614,10 @@ public abstract class OmeroServer {
         );
     }
 
+    protected static URI getImageUri(long imageId) {
+        return URI.create(getWebServerURI() + "/webclient/?show=image-" + imageId);
+    }
+
     protected static List<Long> getOrphanedImageIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
             case AUTHENTICATED -> {
@@ -657,6 +668,205 @@ public abstract class OmeroServer {
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
         );
+    }
+
+    protected static SimpleServerEntity getRgbImage(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 1);
+            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 19);
+            default -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static ImageServerMetadata getRgbImageMetadata() {
+        return new ImageServerMetadata.Builder()
+                .name("rgb.tiff")
+                .pixelType(PixelType.UINT8)
+                .width(256)
+                .height(256)
+                .rgb(true)
+                .channels(List.of(
+                        ImageChannel.getInstance("0", ColorTools.RED),
+                        ImageChannel.getInstance("1", ColorTools.GREEN),
+                        ImageChannel.getInstance("2", ColorTools.BLUE)
+                ))
+                .pixelSizeMicrons(1, 1)
+                .build();
+    }
+
+    protected static List<SimpleServerEntity> getParentOfRgbImage(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(
+                    new SimpleServerEntity(EntityType.DATASET, 1),
+                    new SimpleServerEntity(EntityType.PROJECT, 1)
+            );
+            case AUTHENTICATED -> List.of(
+                    new SimpleServerEntity(EntityType.DATASET, 4),
+                    new SimpleServerEntity(EntityType.PROJECT, 2)
+            );
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static double getRgbImageRedChannelMean() {
+        return 5.414;
+    }
+
+    protected static double getRgbImageRedChannelStdDev() {
+        return 18.447;
+    }
+
+    protected static SimpleServerEntity getUint8Image(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 2);
+            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 53);
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static double getUint8ImageRedChannelMean() {
+        return 7.134;
+    }
+
+    protected static double getUint8ImageRedChannelStdDev() {
+        return 24.279;
+    }
+
+    protected static SimpleServerEntity getUint16Image(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 3);
+            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 54);
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static double getUint16ImageRedChannelMean() {
+        return 4.295;
+    }
+
+    protected static double getUint16ImageRedChannelStdDev() {
+        return 14.650;
+    }
+
+    protected static SimpleServerEntity getInt16Image(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 4);
+            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 55);
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static double getInt16ImageRedChannelMean() {
+        return 6.730;
+    }
+
+    protected static double getInt16ImageRedChannelStdDev() {
+        return 22.913;
+    }
+
+    protected static SimpleServerEntity getInt32Image(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 5);
+            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 56);
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static double getInt32ImageRedChannelMean() {
+        return 4.574;
+    }
+
+    protected static double getInt32ImageRedChannelStdDev() {
+        return 15.597;
+    }
+
+    protected static SimpleServerEntity getFloat32Image(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 6);
+            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 20);
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static ImageSettings getFloat32ImageSettings() {
+        return new ImageSettings(
+                "float32.tiff",
+                List.of(
+                        new ChannelSettings("0", 0, 211, Integer.parseInt("FF0000", 16)),
+                        new ChannelSettings("1", 0, 248, Integer.parseInt("00FF00", 16)),
+                        new ChannelSettings("2", 0, 184, Integer.parseInt("0000FF", 16))
+                )
+        );
+    }
+
+    protected static double getFloat32ImageRedChannelMean() {
+        return 8.429;
+    }
+
+    protected static double getFloat32ImageRedChannelStdDev() {
+        return 28.605;
+    }
+
+    protected static SimpleServerEntity getFloat64Image(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 7);
+            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 57);
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static double getFloat64ImageRedChannelMean() {
+        return 7.071;
+    }
+
+    protected static double getFloat64ImageRedChannelStdDev() {
+        return 23.995;
+    }
+
+    protected static SimpleServerEntity getComplexImage(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 8);
+            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 58);
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    protected static ImageServerMetadata getComplexImageMetadata() {
+        return new ImageServerMetadata.Builder()
+                .name("complex.tiff")
+                .pixelType(PixelType.FLOAT32)
+                .width(256)
+                .height(256)
+                .sizeZ(10)
+                .sizeT(3)
+                .channels(List.of(ImageChannel.getInstance("0", ColorTools.packRGB(128, 128, 128))))
+                .pixelSizeMicrons(2.675500000484335, 2.675500000484335)
+                .zSpacingMicrons(3.947368)
+                .build();
+    }
+
+    protected static double getComplexImageRedChannelMean() {
+        return 0.0;
+    }
+
+    protected static double getComplexImageRedChannelStdDev() {
+        return 0.0;
+    }
+
+    protected static SimpleServerEntity getAnnotableImage(UserType userType) {
+        return getRgbImage(userType);
+    }
+
+    protected static SimpleServerEntity getModifiableImage(UserType userType) {
+        return getComplexImage(userType);
+    }
+
+    protected static String getModifiableImageName() {
+        return "complex.tiff";
+    }
+
+    protected static ChannelSettings getModifiableImageChannelSettings() {
+        return new ChannelSettings("0", 0, 240, Integer.parseInt("808080", 16));
     }
 
     protected static SimpleEntity getImageOwner(UserType userType) {
@@ -965,372 +1175,6 @@ public abstract class OmeroServer {
         );
     }
 
-
-
-
-    protected static List<Dataset> getOrphanedDatasets(UserType userType, long experimenterId, long groupId) {
-        //TODO: handle ids
-        return switch (userType) {
-            case AUTHENTICATED -> List.of(new Dataset(5), new Dataset(6));
-            case UNAUTHENTICATED -> List.of(new Dataset(2));
-            case ADMIN -> List.of(new Dataset(2), new Dataset(5), new Dataset(6));
-        };
-    }
-
-    protected static SimpleServerEntity getRGBImage(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> new Image(19);
-            case UNAUTHENTICATED -> new Image(1);
-            default -> throw new IllegalArgumentException(String.format("No image for %s", userType));
-        };
-    }
-
-    protected static Image getUint8Image(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> new Image(53);
-            case UNAUTHENTICATED -> new Image(2);
-            case ADMIN -> null;     //TODO: throw exceptions instead of null, also in other functions
-        };
-    }
-
-    protected static Image getUint16Image(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> new Image(54);
-            case UNAUTHENTICATED -> new Image(3);
-            case ADMIN -> null;
-        };
-    }
-
-    protected static Image getInt16Image(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> new Image(55);
-            case UNAUTHENTICATED -> new Image(4);
-            case ADMIN -> null;
-        };
-    }
-
-    protected static Image getInt32Image(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> new Image(56);
-            case UNAUTHENTICATED -> new Image(5);
-            case ADMIN -> null;
-        };
-    }
-
-    protected static SimpleServerEntity getFloat32Image(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> new Image(20);
-            case UNAUTHENTICATED -> new Image(6);
-            case ADMIN -> throw new IllegalArgumentException(String.format("No float32 image exists for %s", userType));
-        };
-    }
-
-    protected static List<ChannelSettings> getFloat32ChannelSettings() {
-        return List.of(
-                new ChannelSettings("0", 0, 211, Integer.parseInt("FF0000", 16)),
-                new ChannelSettings("1", 0, 248, Integer.parseInt("00FF00", 16)),
-                new ChannelSettings("2", 0, 184, Integer.parseInt("0000FF", 16))
-        );
-    }
-
-    protected static ImageSettings getFloat32ImageSettings() {
-        return new ImageSettings("float32.tiff", getFloat32ChannelSettings());
-    }
-
-    protected static Image getFloat64Image(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> new Image(57);
-            case UNAUTHENTICATED -> new Image(7);
-            case ADMIN -> null;
-        };
-    }
-
-    protected static SimpleServerEntity getComplexImage(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> new Image(58);
-            case UNAUTHENTICATED -> new Image(8);
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s has no complex image", userType));
-        };
-    }
-
-    protected static ImageServerMetadata getImageMetadata(long imageId) {
-        return switch (getImageType(image)) {
-            case RGB -> new ImageServerMetadata.Builder()
-                    .name("rgb.tiff")
-                    .pixelType(PixelType.UINT8)
-                    .width(256)
-                    .height(256)
-                    .rgb(true)
-                    .channels(List.of(
-                            ImageChannel.getInstance("0", ColorTools.RED),
-                            ImageChannel.getInstance("1", ColorTools.GREEN),
-                            ImageChannel.getInstance("2", ColorTools.BLUE)
-                    ))
-                    .pixelSizeMicrons(1, 1)
-                    .build();
-            case COMPLEX -> new ImageServerMetadata.Builder()
-                    .name("complex.tiff")
-                    .pixelType(PixelType.FLOAT32)
-                    .width(256)
-                    .height(256)
-                    .sizeZ(10)
-                    .sizeT(3)
-                    .channels(List.of(ImageChannel.getInstance("0", ColorTools.packRGB(128, 128, 128))))
-                    .pixelSizeMicrons(2.675500000484335, 2.675500000484335)
-                    .zSpacingMicrons(3.947368)
-                    .build();
-            default -> new ImageServerMetadata.Builder().build();
-        };
-    }
-
-
-
-    protected static List<Image> getOrphanedImages(UserType userType, long experimenterId, long groupId) {
-        //TODO: handle ids
-        return switch (userType) {
-            case AUTHENTICATED -> List.of(
-                    getComplexImage(userType),
-                    getFloat64Image(userType),
-                    getInt16Image(userType),
-                    getInt32Image(userType),
-                    getUint16Image(userType),
-                    getUint8Image(userType)
-            );
-            case UNAUTHENTICATED -> List.of(getComplexImage(userType));
-            case ADMIN -> List.of();
-        };
-    }
-
-    protected static List<Long> getImageIdsInDataset(long datasetId) {
-        return switch ((int) dataset.getId()) {
-            case 1 -> List.of(
-                    getFloat32Image(UserType.UNAUTHENTICATED),
-                    getFloat64Image(UserType.UNAUTHENTICATED),
-                    getInt16Image(UserType.UNAUTHENTICATED),
-                    getInt32Image(UserType.UNAUTHENTICATED),
-                    getRGBImage(UserType.UNAUTHENTICATED),
-                    getUint16Image(UserType.UNAUTHENTICATED),
-                    getUint8Image(UserType.UNAUTHENTICATED)
-            );
-            case 4 -> List.of(
-                    getFloat32Image(UserType.AUTHENTICATED),
-                    getRGBImage(UserType.AUTHENTICATED)
-            );
-            default -> List.of();
-        };
-    }
-
-    protected static List<ServerEntity> getParentsOfImage(long imageId) {
-
-    }
-
-    protected static SimpleServerEntity getAnnotableImage(UserType userType) {
-        return getRGBImage(userType);
-    }
-
-    //TODO: this should return the ID, as well as other similar functions
-    protected static SimpleServerEntity getModifiableImage(UserType userType) {
-        return getComplexImage(userType);
-    }
-
-    protected static ChannelSettings getModifiableImageChannelSettings() {
-        return new ChannelSettings("0", 0, 240, Integer.parseInt("808080", 16));
-    }
-
-    protected static URI getImageUri(long imageId) {
-        return URI.create(getWebServerURI() + "/webclient/?show=image-" + imageId);
-    }
-
-    protected static double getImageRedChannelMean(long imageId) {
-        return switch (getImageType(image)) {
-            case RGB -> 5.414;
-            case UINT8 -> 7.134;
-            case UINT16 -> 4.295;
-            case INT16 -> 6.730;
-            case INT32 -> 4.574;
-            case FLOAT32 -> 8.429;
-            case FLOAT64 -> 7.071;
-            case COMPLEX -> 0.0;
-        };
-    }
-
-    protected static double getImageRedChannelStdDev(long imageId) {
-        return switch (getImageType(image)) {
-            case RGB -> 18.447;
-            case UINT8 -> 24.279;
-            case UINT16 -> 14.650;
-            case INT16 -> 22.913;
-            case INT32 -> 15.597;
-            case FLOAT32 -> 28.605;
-            case FLOAT64 -> 23.995;
-            case COMPLEX -> 0.0;
-        };
-    }
-
-    protected static SimpleServerEntity getSimpleScreen(UserType userType) {
-        //TODO
-    }
-
-    protected static List<Screen> getScreens(UserType userType, long experimenterId, long groupId) {
-        //TODO: handle ids
-        return switch (userType) {
-            case AUTHENTICATED -> List.of(new Screen(2), new Screen(3));
-            case UNAUTHENTICATED -> List.of(new Screen(1));
-            case ADMIN -> List.of(new Screen(1), new Screen(2), new Screen(3));
-        };
-    }
-
-    protected static List<String> getScreenAttributeValue(Screen screen) {
-        return List.of(
-                switch ((int) screen.getId()) {
-                    case 1 -> "screen";
-                    case 2 -> "screen1";
-                    case 3 -> "screen2";
-                    default -> "";
-                },
-                String.valueOf(screen.getId()),
-                "-",
-                Objects.requireNonNull(getOwnerOfEntity(screen)).getFullName(),
-                Objects.requireNonNull(getGroupOfEntity(screen)).getName(),
-                "1"
-        );
-    }
-
-    protected static SimpleServerEntity getSimplePlate(UserType userType) {
-
-    }
-
-    protected static List<Plate> getPlates(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> List.of(new Plate(3), new Plate(4), new Plate(5), new Plate(6));
-            case UNAUTHENTICATED -> List.of(new Plate(1), new Plate(2));
-            case ADMIN -> List.of(new Plate(1), new Plate(2), new Plate(3), new Plate(4), new Plate(5), new Plate(6));
-        };
-    }
-
-    protected static List<Plate> getOrphanedPlates(UserType userType, long experimenterId, long groupId) {
-        //TODO: handle ids
-        return switch (userType) {
-            case AUTHENTICATED -> List.of(new Plate(5), new Plate(6));
-            case UNAUTHENTICATED -> List.of(new Plate(2));
-            case ADMIN -> List.of(new Plate(2), new Plate(5), new Plate(6));
-        };
-    }
-
-    protected static List<Plate> getPlatesInScreen(Screen screen) {
-        return switch ((int) screen.getId()) {
-            case 1 -> List.of(new Plate(1));
-            case 2 -> List.of(new Plate(3));
-            case 3 -> List.of(new Plate(4));
-            default -> List.of();
-        };
-    }
-    
-    protected static List<Plate> getPlatesOwningPlateAcquisition(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED, ADMIN -> List.of();
-            case AUTHENTICATED -> List.of(new Plate(4), new Plate(6));
-        };
-    }
-
-    protected static List<String> getPlateAttributeValue(Plate plate) {
-        return List.of(
-                switch ((int) plate.getId()) {
-                    case 1, 2, 3, 5 -> "plate";
-                    case 4, 6 -> "plate-plate_acquisition-well.xml";
-                    default -> "-";
-                },
-                String.valueOf(plate.getId()),
-                Objects.requireNonNull(getOwnerOfEntity(plate)).getFullName(),
-                Objects.requireNonNull(getGroupOfEntity(plate)).getName(),
-                "3",
-                "3"
-        );
-    }
-
-    protected static SimpleServerEntity getSimplePlateAcquisition(UserType userType) {
-
-    }
-
-    protected static List<PlateAcquisition> getPlateAcquisitions(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED, ADMIN -> List.of(new PlateAcquisition(1), new PlateAcquisition(2), new PlateAcquisition(3), new PlateAcquisition(4));
-            case UNAUTHENTICATED -> List.of();
-        };
-    }
-
-    protected static List<PlateAcquisition> getPlateAcquisitionsInPlate(Plate plate) {
-        return switch ((int) plate.getId()) {
-            case 4 -> List.of(new PlateAcquisition(1), new PlateAcquisition(2));
-            case 6 -> List.of(new PlateAcquisition(3), new PlateAcquisition(4));
-            default -> List.of();
-        };
-    }
-
-    protected static List<String> getPlateAcquisitionAttributeValue(PlateAcquisition plateAcquisition) {
-        return List.of(
-                String.format("Run %d", plateAcquisition.getId()),
-                String.valueOf(plateAcquisition.getId()),
-                Objects.requireNonNull(getOwnerOfEntity(plateAcquisition)).getFullName(),
-                Objects.requireNonNull(getGroupOfEntity(plateAcquisition)).getName(),
-                switch ((int) plateAcquisition.getId()) {
-                    case 1, 3 -> "2010-02-23 12:50:30";
-                    case 2, 4 -> "2010-02-23 12:49:30";
-                    default -> "-";
-                }
-        );
-    }
-
-
-
-    protected static SimpleServerEntity getSimpleWell(UserType userType) {
-
-    }
-
-    protected static List<Well> getWells(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> IntStream.range(9, 25).mapToObj(Well::new).toList();
-            case UNAUTHENTICATED -> IntStream.range(1, 9).mapToObj(Well::new).toList();
-            case ADMIN -> IntStream.range(1, 25).mapToObj(Well::new).toList();
-        };
-    }
-
-    protected static List<Well> getWellsInPlate(Plate plate) {
-        if (plate.getId() < 7) {
-            return List.of(
-                    new Well(1 + (plate.getId()-1) * 4),
-                    new Well(2 + (plate.getId()-1) * 4),
-                    new Well(3 + (plate.getId()-1) * 4),
-                    new Well(4 + (plate.getId()-1) * 4)
-            );
-        } else {
-            return List.of();
-        }
-    }
-
-    protected static long getNumberOfNonEmptyWellsInPlate(Plate plate) {
-        return switch ((int) plate.getId()) {
-            case 1, 2, 3, 5 -> 4;
-            case 4, 6 -> 1;
-            default -> 0;
-        };
-    }
-
-    protected static List<Well> getWellsInPlateAcquisition(PlateAcquisition plateAcquisition) {
-        if (plateAcquisition.getId() == 1 || plateAcquisition.getId() == 2) {
-            return List.of(
-                    new Well(13),
-                    new Well(14),
-                    new Well(15),
-                    new Well(16)
-            );
-        } else {
-            return List.of();
-        }
-    }
-
-
-
     protected static List<Annotation> getAnnotationsInDataset(long datasetId) {
         if (datasetId == 1) {
             return new AnnotationGroup(JsonParser.parseString(String.format("""
@@ -1445,70 +1289,6 @@ public abstract class OmeroServer {
                             Objects.requireNonNull(getGroupOfEntity(new Dataset(2))).getName(),
                             "/webclient/?show=dataset-2"
                     )
-            );
-            case ADMIN -> List.of();
-        };
-    }
-
-    protected static List<SearchResultWithParentInfo> getSearchResultsWithParentInfoOnDataset(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> List.of(
-                    new SearchResultWithParentInfo(new SearchResult(
-                            "dataset",
-                            3,
-                            "dataset1",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(3))).getName(),
-                            "/webclient/?show=dataset-3"
-                    )),
-                    new SearchResultWithParentInfo(new SearchResult(
-                            "dataset",
-                            4,
-                            "dataset2",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(4))).getName(),
-                            "/webclient/?show=dataset-4"
-                    )),
-                    new SearchResultWithParentInfo(new SearchResult(
-                            "dataset",
-                            5,
-                            "orphaned_dataset1",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(5))).getName(),
-                            "/webclient/?show=dataset-5"
-                    )),
-                    new SearchResultWithParentInfo(new SearchResult(
-                            "dataset",
-                            6,
-                            "orphaned_dataset2",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(6))).getName(),
-                            "/webclient/?show=dataset-6"
-                    ))
-            );
-            case UNAUTHENTICATED -> List.of(
-                    new SearchResultWithParentInfo(new SearchResult(
-                            "dataset",
-                            1,
-                            "dataset",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(1))).getName(),
-                            "/webclient/?show=dataset-1"
-                    )),
-                    new SearchResultWithParentInfo(new SearchResult(
-                            "dataset",
-                            2,
-                            "orphaned_dataset",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(2))).getName(),
-                            "/webclient/?show=dataset-2"
-                    ))
             );
             case ADMIN -> List.of();
         };
@@ -1785,7 +1565,7 @@ public abstract class OmeroServer {
 
     private static ImageType getImageType(Image image) {
         Map<Function<UserType, Image>, ImageType> imageToType = Map.of(
-                OmeroServer::getRGBImage, ImageType.RGB,
+                OmeroServer::getRgbImage, ImageType.RGB,
                 OmeroServer::getUint8Image, ImageType.UINT8,
                 OmeroServer::getUint16Image, ImageType.UINT16,
                 OmeroServer::getInt16Image, ImageType.INT16,

@@ -12,6 +12,7 @@ import qupath.ext.omero.core.apis.json.JsonApi;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class TestIViewerApi extends OmeroServer {
@@ -28,6 +29,26 @@ public class TestIViewerApi extends OmeroServer {
         }
 
         @Test
+        void Check_Shapes_Cannot_Be_Added_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> iViewerApi.addShapes(invalidId, List.of()).get()
+            );
+        }
+
+        @Test
+        void Check_Shapes_Cannot_Be_Deleted_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> iViewerApi.deleteShapes(invalidId, List.of()).get()
+            );
+        }
+
+        @Test
         void Check_Image_Settings() throws ExecutionException, InterruptedException {
             long imageId = OmeroServer.getFloat32Image(userType).id();
             ImageSettings expectedImageSettings = OmeroServer.getFloat32ImageSettings();
@@ -35,6 +56,16 @@ public class TestIViewerApi extends OmeroServer {
             ImageSettings imageSettings = iViewerApi.getImageSettings(imageId).get();
 
             Assertions.assertEquals(expectedImageSettings, imageSettings);
+        }
+
+        @Test
+        void Check_Image_Settings_Cannot_Be_Retrieved_With_Invalid_Image_Id() {
+            long invalidId = -1;
+
+            Assertions.assertThrows(
+                    ExecutionException.class,
+                    () -> iViewerApi.getImageSettings(invalidId).get()
+            );
         }
     }
 
