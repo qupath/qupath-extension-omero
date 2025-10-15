@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.SimpleEntity;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.preferences.PreferencesManager;

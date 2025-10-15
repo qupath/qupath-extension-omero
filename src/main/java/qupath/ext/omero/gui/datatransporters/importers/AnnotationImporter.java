@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImportAnnotationForm;
@@ -98,12 +99,12 @@ public class AnnotationImporter implements DataTransporter {
             }
             logger.debug("Got shapes {} from image with ID {}", shapes, omeroImageServer.getId());
 
-            List<String> ownerNames = shapes.stream()
-                    .map(Shape::getOwnerFullName)
+            List<SimpleEntity> owners = shapes.stream()
+                    .map(Shape::getOwner)
                     .flatMap(Optional::stream)
                     .distinct()
                     .toList();
-            if (ownerNames.isEmpty()) {
+            if (owners.isEmpty()) {
                 logger.debug("No single owner full name was found in {}. Not importing annotations", shapes);
                 Dialogs.showErrorMessage(
                         resources.getString("DataTransporters.AnnotationsImporter.noAnnotations"),
@@ -114,7 +115,7 @@ public class AnnotationImporter implements DataTransporter {
 
             ImportAnnotationForm annotationForm;
             try {
-                annotationForm = new ImportAnnotationForm(ownerNames);
+                annotationForm = new ImportAnnotationForm(owners);
             } catch (IOException e) {
                 logger.error("Error when creating the annotation form", e);
                 return;
@@ -151,8 +152,9 @@ public class AnnotationImporter implements DataTransporter {
             }
 
             List<PathObject> pathObjects = Shape.createPathObjects(shapes.stream()
-                    .filter(shape -> shape.getOwnerFullName().isPresent() && annotationForm.getSelectedOwner().contains(shape.getOwnerFullName().get()))
-                    .toList());     //TODO: use id instead of name?
+                    .filter(shape -> shape.getOwner().isPresent() && annotationForm.getSelectedOwner().contains(shape.getOwner().get()))
+                    .toList()
+            );
             logger.debug("Adding {} created from {} to {}", pathObjects, shapes, hierarchy);
             hierarchy.addObjects(pathObjects);
             hierarchy.resolveHierarchy();

@@ -5,6 +5,8 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.layout.VBox;
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
+import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
@@ -17,9 +19,13 @@ import java.util.ResourceBundle;
 public class ImportAnnotationForm extends VBox {
 
     private static final ResourceBundle resources = Utils.getResources();
-    private final List<String> ownerNames;
+    private static final SimpleEntity ALL_EXPERIMENTERS = new SimpleEntity(
+            Experimenter.getAllExperimenters().getId(),
+            Experimenter.getAllExperimenters().getFullName()
+    );
+    private final List<SimpleEntity> owners;
     @FXML
-    private ChoiceBox<String> owner;
+    private ChoiceBox<SimpleEntity> owner;
     @FXML
     private CheckBox deleteAnnotations;
     @FXML
@@ -28,33 +34,32 @@ public class ImportAnnotationForm extends VBox {
     /**
      * Creates the annotation form.
      *
-     * @param ownerNames the names of the owners that own some annotations to import. Must be non-empty
+     * @param owners the ID and the names of the owners that own some annotations to import. Must be non-empty
      * @throws IOException if an error occurs while creating the form
      * @throws IllegalArgumentException if the provided list of owner names is empty
      */
-    public ImportAnnotationForm(List<String> ownerNames) throws IOException {
-        if (ownerNames.isEmpty()) {
+    public ImportAnnotationForm(List<SimpleEntity> owners) throws IOException {
+        if (owners.isEmpty()) {
             throw new IllegalArgumentException("The provided list of owner names is empty");
         }
 
-        this.ownerNames = ownerNames;
+        this.owners = owners;
 
         UiUtils.loadFXML(this, ImportAnnotationForm.class.getResource("import_annotation_form.fxml"));
 
-        if (ownerNames.size() > 1) {
-            owner.getItems().add(resources.getString("DataTransporters.Forms.ImportAnnotations.all"));
+        if (owners.size() > 1) {
+            owner.getItems().add(ALL_EXPERIMENTERS);
         }
-        owner.getItems().addAll(ownerNames);
+        owner.getItems().addAll(owners);
         owner.getSelectionModel().selectFirst();
     }
 
     /**
-     * @return the full names of the owners that should own the annotations to import. This is
-     * guaranteed not to be empty
+     * @return the owners that should own the annotations to import. This is guaranteed not to be empty
      */
-    public List<String> getSelectedOwner() {
-        if (ownerNames.size() > 1 && owner.getSelectionModel().getSelectedIndex() == 0) {
-            return ownerNames;
+    public List<SimpleEntity> getSelectedOwner() {
+        if (ALL_EXPERIMENTERS.equals(owner.getSelectionModel().getSelectedItem())) {
+            return owners;
         } else {
             return List.of(owner.getValue());
         }

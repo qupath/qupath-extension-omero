@@ -2,6 +2,7 @@ package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
@@ -51,13 +52,13 @@ public class TestPolyline {
     }
 
     @Test
-    void Check_Owner_Full_Name_When_Created_From_Omero_Polyline() {
-        String expectedOwnerFullName = "first middle last";
+    void Check_Owner_When_Created_From_Omero_Polyline() {
+        SimpleEntity expectedOwner = new SimpleEntity(73, "first middle last");
         Polyline polyline = createFromOmeroPolyline();
 
-        String ownerFullName = polyline.getOwnerFullName().orElse(null);
+        SimpleEntity owner = polyline.getOwner().orElseThrow();
 
-        Assertions.assertEquals(expectedOwnerFullName, ownerFullName);
+        Assertions.assertEquals(expectedOwner, owner);
     }
 
     @Test
@@ -94,12 +95,12 @@ public class TestPolyline {
     }
 
     @Test
-    void Check_Owner_Full_Name_When_Created_From_Path_Object() {
+    void Check_Owner_When_Created_From_Path_Object() {
         Polyline polyline = createFromPathObject();
 
-        Optional<String> ownerFullName = polyline.getOwnerFullName();
+        Optional<SimpleEntity> owner = polyline.getOwner();
 
-        Assertions.assertTrue(ownerFullName.isEmpty());
+        Assertions.assertTrue(owner.isEmpty());
     }
 
     private static Polyline createFromOmeroPolyline() {

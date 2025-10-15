@@ -1,8 +1,8 @@
 package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import com.google.gson.Gson;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPolyline;
-import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.ROIs;
@@ -39,7 +39,10 @@ public class Polyline extends Shape {
                 omeroPolyline.t(),
                 omeroPolyline.omeroDetails() == null || omeroPolyline.omeroDetails().experimenter() == null ?
                         null :
-                        new Experimenter(omeroPolyline.omeroDetails().experimenter())
+                        new SimpleEntity(
+                                omeroPolyline.omeroDetails().experimenter().id(),
+                                omeroPolyline.omeroDetails().experimenter().fullName()
+                        )
         );
 
         this.points = parseStringPoints(omeroPolyline.points());

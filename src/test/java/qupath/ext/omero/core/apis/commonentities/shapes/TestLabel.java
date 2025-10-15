@@ -2,6 +2,7 @@ package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
@@ -50,13 +51,13 @@ public class TestLabel {
     }
 
     @Test
-    void Check_Owner_Full_Name_When_Created_From_Omero_Label() {
-        String expectedOwnerFullName = "first middle last";
+    void Check_Owner_When_Created_From_Omero_Label() {
+        SimpleEntity expectedOwner = new SimpleEntity(73, "first middle last");
         Label label = createFromOmeroLabel();
 
-        String ownerFullName = label.getOwnerFullName().orElse(null);
+        SimpleEntity owner = label.getOwner().orElseThrow();
 
-        Assertions.assertEquals(expectedOwnerFullName, ownerFullName);
+        Assertions.assertEquals(expectedOwner, owner);
     }
 
     @Test
@@ -94,12 +95,12 @@ public class TestLabel {
     }
 
     @Test
-    void Check_Owner_Full_Name_When_Created_From_Path_Object() {
+    void Check_Owner_When_Created_From_Path_Object() {
         Label label = createFromPathObject();
 
-        Optional<String> ownerFullName = label.getOwnerFullName();
+        Optional<SimpleEntity> owner = label.getOwner();
 
-        Assertions.assertTrue(ownerFullName.isEmpty());
+        Assertions.assertTrue(owner.isEmpty());
     }
 
     private static Label createFromOmeroLabel() {

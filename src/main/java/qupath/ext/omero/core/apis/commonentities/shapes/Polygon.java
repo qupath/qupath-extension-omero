@@ -1,8 +1,8 @@
 package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import com.google.gson.Gson;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPolygon;
-import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.ROIs;
@@ -39,7 +39,10 @@ public class Polygon extends Shape {
                 omeroPolygon.t(),
                 omeroPolygon.omeroDetails() == null || omeroPolygon.omeroDetails().experimenter() == null ?
                         null :
-                        new Experimenter(omeroPolygon.omeroDetails().experimenter())
+                        new SimpleEntity(
+                                omeroPolygon.omeroDetails().experimenter().id(),
+                                omeroPolygon.omeroDetails().experimenter().fullName()
+                        )
         );
 
         this.points = parseStringPoints(omeroPolygon.points());

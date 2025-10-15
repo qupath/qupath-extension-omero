@@ -14,7 +14,7 @@ public class Experimenter {
     private static final ResourceBundle resources = Utils.getResources();
     private static final Experimenter ALL_EXPERIMENTERS = new Experimenter(
             -1,
-            resources.getString("Entities.Permissions.Owner.allMembers")
+            resources.getString("Entities.Permissions.Experimenter.allExperimenters")
     );
     private final long id;
     private final String fullName;

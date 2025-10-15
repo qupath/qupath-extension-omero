@@ -2,7 +2,7 @@ package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.json.permissions.Experimenter;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.lib.color.ColorToolsAwt;
 import qupath.lib.geom.Point2;
 import qupath.lib.gui.prefs.PathPrefs;
@@ -50,7 +50,7 @@ public abstract class Shape {
     private final int c;
     private final int z;
     private final int t;
-    private final Experimenter owner;
+    private final SimpleEntity owner;
 
     /**
      * Create a shape from a list of parameters.
@@ -64,7 +64,7 @@ public abstract class Shape {
      * @param c the 0-based channel index of the shape
      * @param z the 0-based z-stack index of the shape
      * @param t the 0-based timepoint index of the shape
-     * @param owner the experimenter owning this shape. Can be null
+     * @param owner the ID and the full name of the experimenter owning this shape. Can be null
      */
     protected Shape(
             long id,
@@ -76,7 +76,7 @@ public abstract class Shape {
             int c,
             int z,
             int t,
-            Experimenter owner
+            SimpleEntity owner
     ) {
         this.id = id;
         this.roiId = roiId;
@@ -213,10 +213,10 @@ public abstract class Shape {
     }
 
     /**
-     * @return the full name (first, middle and last name) of the experimenter owning this shape, or an empty Optional if not found
+     * @return the ID and the full name (first, middle and last name) of the experimenter owning this shape, or an empty Optional if not found
      */
-    public Optional<String> getOwnerFullName() {
-        return Optional.ofNullable(owner).map(Experimenter::getFullName);
+    public Optional<SimpleEntity> getOwner() {
+        return Optional.ofNullable(owner);
     }
 
     /**

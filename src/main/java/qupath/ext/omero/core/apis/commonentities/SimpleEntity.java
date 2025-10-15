@@ -1,4 +1,4 @@
-package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
+package qupath.ext.omero.core.apis.commonentities;
 
 /**
  * A simple class to describe an entity with an ID and a name.

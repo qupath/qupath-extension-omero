@@ -1,5 +1,6 @@
 package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
 
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;

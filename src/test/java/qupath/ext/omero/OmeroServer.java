@@ -24,7 +24,7 @@ import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimen
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.SimpleEntity;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 

@@ -3,8 +3,8 @@ package qupath.ext.omero.core.apis.commonentities.shapes;
 import com.google.gson.Gson;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLabel;
-import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -42,7 +42,10 @@ public class Label extends Shape {
                 omeroLabel.t(),
                 omeroLabel.omeroDetails() == null || omeroLabel.omeroDetails().experimenter() == null ?
                         null :
-                        new Experimenter(omeroLabel.omeroDetails().experimenter())
+                        new SimpleEntity(
+                                omeroLabel.omeroDetails().experimenter().id(),
+                                omeroLabel.omeroDetails().experimenter().fullName()
+                        )
         );
 
         this.x = omeroLabel.x();

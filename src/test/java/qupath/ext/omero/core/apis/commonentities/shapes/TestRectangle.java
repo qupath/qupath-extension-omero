@@ -2,6 +2,7 @@ package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
@@ -52,13 +53,13 @@ public class TestRectangle {
     }
 
     @Test
-    void Check_Owner_Full_Name_When_Created_From_Omero_Rectangle() {
-        String expectedOwnerFullName = "first middle last";
+    void Check_Owner_When_Created_From_Omero_Rectangle() {
+        SimpleEntity expectedOwner = new SimpleEntity(73, "first middle last");
         Rectangle rectangle = createFromOmeroRectangle();
 
-        String ownerFullName = rectangle.getOwnerFullName().orElse(null);
+        SimpleEntity owner = rectangle.getOwner().orElse(null);
 
-        Assertions.assertEquals(expectedOwnerFullName, ownerFullName);
+        Assertions.assertEquals(expectedOwner, owner);
     }
 
     @Test
@@ -98,12 +99,12 @@ public class TestRectangle {
     }
 
     @Test
-    void Check_Owner_Full_Name_When_Created_From_Path_Object() {
+    void Check_Owner_When_Created_From_Path_Object() {
         Rectangle rectangle = createFromPathObject();
 
-        Optional<String> ownerFullName = rectangle.getOwnerFullName();
+        Optional<SimpleEntity> owner = rectangle.getOwner();
 
-        Assertions.assertTrue(ownerFullName.isEmpty());
+        Assertions.assertTrue(owner.isEmpty());
     }
 
     private static Rectangle createFromOmeroRectangle() {

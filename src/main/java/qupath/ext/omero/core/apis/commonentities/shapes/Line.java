@@ -1,8 +1,8 @@
 package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import com.google.gson.Gson;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLine;
-import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.LineROI;
 import qupath.lib.roi.ROIs;
@@ -41,7 +41,10 @@ public class Line extends Shape {
                 omeroLine.t(),
                 omeroLine.omeroDetails() == null || omeroLine.omeroDetails().experimenter() == null ?
                         null :
-                        new Experimenter(omeroLine.omeroDetails().experimenter())
+                        new SimpleEntity(
+                                omeroLine.omeroDetails().experimenter().id(),
+                                omeroLine.omeroDetails().experimenter().fullName()
+                        )
         );
 
         this.x1 = omeroLine.x1();

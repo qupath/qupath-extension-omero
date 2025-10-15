@@ -1,8 +1,8 @@
 package qupath.ext.omero.core.apis.commonentities.shapes;
 
 import com.google.gson.Gson;
+import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroRectangle;
-import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.ROIs;
 import qupath.lib.roi.interfaces.ROI;
@@ -40,7 +40,10 @@ public class Rectangle extends Shape {
                 omeroRectangle.t(),
                 omeroRectangle.omeroDetails() == null || omeroRectangle.omeroDetails().experimenter() == null ?
                         null :
-                        new Experimenter(omeroRectangle.omeroDetails().experimenter())
+                        new SimpleEntity(
+                                omeroRectangle.omeroDetails().experimenter().id(),
+                                omeroRectangle.omeroDetails().experimenter().fullName()
+                        )
         );
 
         this.x = omeroRectangle.x();
