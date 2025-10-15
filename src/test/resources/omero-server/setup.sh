@@ -107,6 +107,3 @@ screen=$(/opt/omero/server/venv3/bin/omero obj new Screen name=screen2)
 
 # Create an archive from the /OMERO directory (needed for the OMERO web container)
 tar -czvf /tmp/OMERO.tar.gz /OMERO
-
-# Print the file annotation ID (needed because it's not fixed, and a unit test needs to know its value)
-echo $analysis

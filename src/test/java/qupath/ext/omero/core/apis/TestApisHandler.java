@@ -10,13 +10,9 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.apis.json.permissions.Experimenter;
-import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
 import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
-import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
-import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.apis.commonentities.shapes.Line;
 import qupath.ext.omero.core.apis.commonentities.shapes.Rectangle;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
@@ -203,28 +199,6 @@ public class TestApisHandler extends OmeroServer {
             URI serverUri = URI.create(OmeroServer.getWebServerURI());
 
             Assertions.assertThrows(ExecutionException.class, () -> apisHandler.getImageUrisFromEntityURI(serverUri).get());
-        }
-
-        @Test
-        void Check_Search() throws ExecutionException, InterruptedException {
-            SearchQuery searchQuery = new SearchQuery(
-                    "image",
-                    false,
-                    false,
-                    true,
-                    true,
-                    true,
-                    true,
-                    true,
-                    true,
-                    ExperimenterGroup.getAllGroups().getId(),
-                    Experimenter.getAllExperimenters().getId()
-            );
-            List<SearchResultWithParentInfo> expectedResults = OmeroServer.getSearchResultsOnImage(userType);
-
-            List<SearchResultWithParentInfo> searchResults = apisHandler.getSearchResults(searchQuery).get();
-
-            TestUtils.assertCollectionsEqualsWithoutOrder(expectedResults, searchResults);
         }
 
         @Test

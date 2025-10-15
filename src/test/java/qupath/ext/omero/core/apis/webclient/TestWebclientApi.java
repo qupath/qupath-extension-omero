@@ -139,7 +139,7 @@ public class TestWebclientApi extends OmeroServer {
         @Test
         void Check_Annotations() throws ExecutionException, InterruptedException {
             SimpleServerEntity dataset = OmeroServer.getDataset(userType);
-            List<Annotation> expectedAnnotations = OmeroServer.getAnnotationsInDataset(dataset.id());
+            List<Annotation> expectedAnnotations = OmeroServer.getAnnotationsInDataset();
 
             List<Annotation> annotations = webclientApi.getAnnotations(dataset).get();
 

@@ -1,7 +1,5 @@
 package qupath.ext.omero;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.slf4j.Logger;
@@ -26,20 +24,19 @@ import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimen
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.SimpleEntity;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
+import qupath.ext.omero.core.apis.webclient.annotations.CommentAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.FileAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.OmeroSimpleExperimenter;
+import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroAnnotationExperimenter;
+import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroCommentAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroFile;
+import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroFileAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.omeroannotations.OmeroLink;
 import qupath.ext.omero.core.apis.webclient.search.SearchResult;
-import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
@@ -51,12 +48,8 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 /**
  * An abstract class that gives access to an OMERO server hosted
@@ -93,17 +86,6 @@ public abstract class OmeroServer {
     private static final GenericContainer<?> redis;
     private static final GenericContainer<?> omeroServer;
     private static final GenericContainer<?> omeroWeb;
-    private static final String analysisFileId;
-    private enum ImageType {
-        RGB,
-        UINT8,
-        UINT16,
-        INT16,
-        INT32,
-        FLOAT32,
-        FLOAT64,
-        COMPLEX
-    }
     protected enum UserType {
         UNAUTHENTICATED,
         AUTHENTICATED,
@@ -116,7 +98,6 @@ public abstract class OmeroServer {
             redis = null;
             omeroServer = null;
             omeroWeb = null;
-            analysisFileId = "64";
         } else {
             // See https://hub.docker.com/r/openmicroscopy/omero-server
             postgres = new GenericContainer<>(DockerImageName.parse("postgres"))
@@ -233,9 +214,6 @@ public abstract class OmeroServer {
                 // Set up the OMERO server (by creating users, importing images...)
                 Container.ExecResult omeroServerSetupResult = omeroServer.execInContainer("/resources/setup.sh");
                 logCommandResult(omeroServerSetupResult);
-
-                String[] logs = omeroServerSetupResult.getStdout().split("\n");
-                analysisFileId = logs[logs.length-1].split(":")[1];
 
                 // Copy the /OMERO directory from the OMERO server container to the OMERO web container.
                 // This is needed for the pixel buffer microservice to work
@@ -363,56 +341,6 @@ public abstract class OmeroServer {
             case AUTHENTICATED -> getGroup1();
             case UNAUTHENTICATED -> getPublicGroup();
             case ADMIN -> getSystemGroup();
-        };
-    }
-
-    protected static ExperimenterGroup getGroupOfEntity(ServerEntity serverEntity) {
-        return switch (serverEntity) {
-            case Image image -> {
-                if (image.getId() < 19) {
-                    yield getPublicGroup();
-                } else if (image.getId() < 53 || image.getId() == 58) {
-                    yield getGroup1();
-                } else if (image.getId() < 58) {
-                    yield getGroup2();
-                } else {
-                    throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-                }
-            }
-            case Project project -> switch ((int) project.getId()) {
-                case 1 -> getPublicGroup();
-                case 2 -> getGroup1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case Dataset dataset -> switch ((int) dataset.getId()) {
-                case 1, 2 -> getPublicGroup();
-                case 3, 4, 5, 6 -> getGroup1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case Screen screen -> switch ((int) screen.getId()) {
-                case 1 -> getPublicGroup();
-                case 2, 3 -> getGroup1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case Plate plate -> switch ((int) plate.getId()) {
-                case 1, 2 -> getPublicGroup();
-                case 3, 4, 5, 6 -> getGroup1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case PlateAcquisition plateAcquisition -> switch ((int) plateAcquisition.getId()) {
-                case 1, 2 -> getGroup1();
-                default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-            };
-            case Well well -> {
-                if (well.getId() < 9) {
-                    yield getPublicGroup();
-                } else if (well.getId() < 25) {
-                    yield getGroup1();
-                } else {
-                    throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
-                }
-            }
-            case null, default -> throw new IllegalArgumentException(String.format("Unknown entity %s", serverEntity));
         };
     }
 
@@ -614,6 +542,97 @@ public abstract class OmeroServer {
         );
     }
 
+    protected static List<Annotation> getAnnotationsInDataset() {
+        return List.of(
+                new CommentAnnotation(
+                        new OmeroCommentAnnotation(
+                              1L,
+                              null,
+                              null,
+                              new OmeroAnnotationExperimenter(2L),
+                              new OmeroLink(new OmeroAnnotationExperimenter(2L)),
+                              "comment"
+                        ),
+                        List.of(new OmeroSimpleExperimenter(2L, "public", "access"))
+                ),
+                new FileAnnotation(
+                        new OmeroFileAnnotation(
+                                2L,
+                                null,
+                                null,
+                                new OmeroAnnotationExperimenter(2L),
+                                new OmeroLink(new OmeroAnnotationExperimenter(2L)),
+                                new OmeroFile("analysis.csv", "text/csv", 15L)
+                        ),
+                        List.of(new OmeroSimpleExperimenter(2L, "public", "access"))
+                )
+        );
+    }
+
+    protected static List<SearchResult> getSearchResultsOnDataset(UserType userType) {
+        return switch (userType) {
+            case AUTHENTICATED -> List.of(
+                    new SearchResult(
+                            "dataset",
+                            3,
+                            "dataset1",
+                            null,
+                            null,
+                            getGroup1().getName().orElseThrow(),
+                            "/webclient/?show=dataset-3"
+                    ),
+                    new SearchResult(
+                            "dataset",
+                            4,
+                            "dataset2",
+                            null,
+                            null,
+                            getGroup1().getName().orElseThrow(),
+                            "/webclient/?show=dataset-4"
+                    ),
+                    new SearchResult(
+                            "dataset",
+                            5,
+                            "orphaned_dataset1",
+                            null,
+                            null,
+                            getGroup1().getName().orElseThrow(),
+                            "/webclient/?show=dataset-5"
+                    ),
+                    new SearchResult(
+                            "dataset",
+                            6,
+                            "orphaned_dataset2",
+                            null,
+                            null,
+                            getGroup1().getName().orElseThrow(),
+                            "/webclient/?show=dataset-6"
+                    )
+            );
+            case UNAUTHENTICATED -> List.of(
+                    new SearchResult(
+                            "dataset",
+                            1,
+                            "dataset",
+                            null,
+                            null,
+                            getPublicGroup().getName().orElseThrow(),
+                            "/webclient/?show=dataset-1"
+                    ),
+                    new SearchResult(
+                            "dataset",
+                            2,
+                            "orphaned_dataset",
+                            null,
+                            null,
+                            getPublicGroup().getName().orElseThrow(),
+                            "/webclient/?show=dataset-2"
+                    )
+            );
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
     protected static URI getImageUri(long imageId) {
         return URI.create(getWebServerURI() + "/webclient/?show=image-" + imageId);
     }
@@ -716,28 +735,12 @@ public abstract class OmeroServer {
         return 18.447;
     }
 
-    protected static SimpleServerEntity getUint8Image(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 2);
-            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 53);
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
-    }
-
     protected static double getUint8ImageRedChannelMean() {
         return 7.134;
     }
 
     protected static double getUint8ImageRedChannelStdDev() {
         return 24.279;
-    }
-
-    protected static SimpleServerEntity getUint16Image(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 3);
-            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 54);
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
     }
 
     protected static double getUint16ImageRedChannelMean() {
@@ -748,28 +751,12 @@ public abstract class OmeroServer {
         return 14.650;
     }
 
-    protected static SimpleServerEntity getInt16Image(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 4);
-            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 55);
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
-    }
-
     protected static double getInt16ImageRedChannelMean() {
         return 6.730;
     }
 
     protected static double getInt16ImageRedChannelStdDev() {
         return 22.913;
-    }
-
-    protected static SimpleServerEntity getInt32Image(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 5);
-            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 56);
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
     }
 
     protected static double getInt32ImageRedChannelMean() {
@@ -807,14 +794,6 @@ public abstract class OmeroServer {
         return 28.605;
     }
 
-    protected static SimpleServerEntity getFloat64Image(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 7);
-            case AUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 57);
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
-    }
-
     protected static double getFloat64ImageRedChannelMean() {
         return 7.071;
     }
@@ -843,14 +822,6 @@ public abstract class OmeroServer {
                 .pixelSizeMicrons(2.675500000484335, 2.675500000484335)
                 .zSpacingMicrons(3.947368)
                 .build();
-    }
-
-    protected static double getComplexImageRedChannelMean() {
-        return 0.0;
-    }
-
-    protected static double getComplexImageRedChannelStdDev() {
-        return 0.0;
     }
 
     protected static SimpleServerEntity getAnnotableImage(UserType userType) {
@@ -1175,125 +1146,6 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static List<Annotation> getAnnotationsInDataset(long datasetId) {
-        if (datasetId == 1) {
-            return new AnnotationGroup(JsonParser.parseString(String.format("""
-                {
-                    "annotations": [
-                        {
-                            "owner": {
-                                "id": 2
-                            },
-                            "link": {
-                                "owner": {
-                                    "id": 2
-                                }
-                            },
-                            "class": "CommentAnnotationI",
-                            "textValue": "comment"
-                        },
-                        {
-                            "owner": {
-                                "id": 2
-                            },
-                            "link": {
-                                "owner": {
-                                    "id": 2
-                                }
-                            },
-                            "class": "FileAnnotationI",
-                            "file": {
-                                "id": %s,
-                                "name": "analysis.csv",
-                                "size": 15,
-                                "path": "/resources/",
-                                "mimetype": "text/csv"
-                            }
-                        }
-                   ],
-                   "experimenters": [
-                        {
-                            "id": 2,
-                            "firstName": "public",
-                            "lastName": "access"
-                        }
-                   ]
-                }
-                """, analysisFileId)).getAsJsonObject()
-            );
-        } else {
-            return new AnnotationGroup(new JsonObject());
-        }
-    }
-
-    protected static List<SearchResultWithParentInfo> getSearchResultsOnImage(UserType userType) {
-
-    }
-
-    protected static List<SearchResult> getSearchResultsOnDataset(UserType userType) {
-        return switch (userType) {
-            case AUTHENTICATED -> List.of(
-                    new SearchResult(
-                            "dataset",
-                            3,
-                            "dataset1",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(3))).getName(),
-                            "/webclient/?show=dataset-3"
-                    ),
-                    new SearchResult(
-                            "dataset",
-                            4,
-                            "dataset2",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(4))).getName(),
-                            "/webclient/?show=dataset-4"
-                    ),
-                    new SearchResult(
-                            "dataset",
-                            5,
-                            "orphaned_dataset1",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(5))).getName(),
-                            "/webclient/?show=dataset-5"
-                    ),
-                    new SearchResult(
-                            "dataset",
-                            6,
-                            "orphaned_dataset2",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(6))).getName(),
-                            "/webclient/?show=dataset-6"
-                    )
-            );
-            case UNAUTHENTICATED -> List.of(
-                    new SearchResult(
-                            "dataset",
-                            1,
-                            "dataset",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(1))).getName(),
-                            "/webclient/?show=dataset-1"
-                    ),
-                    new SearchResult(
-                            "dataset",
-                            2,
-                            "orphaned_dataset",
-                            null,
-                            null,
-                            Objects.requireNonNull(getGroupOfEntity(new Dataset(2))).getName(),
-                            "/webclient/?show=dataset-2"
-                    )
-            );
-            case ADMIN -> List.of();
-        };
-    }
-
     private static void logCommandResult(Container.ExecResult result) {
         if (!result.getStdout().isBlank()) {
             logger.debug("Setting up OMERO server: {}", result.getStdout());
@@ -1561,28 +1413,6 @@ public abstract class OmeroServer {
                 null,
                 "user"
         );
-    }
-
-    private static ImageType getImageType(Image image) {
-        Map<Function<UserType, Image>, ImageType> imageToType = Map.of(
-                OmeroServer::getRgbImage, ImageType.RGB,
-                OmeroServer::getUint8Image, ImageType.UINT8,
-                OmeroServer::getUint16Image, ImageType.UINT16,
-                OmeroServer::getInt16Image, ImageType.INT16,
-                OmeroServer::getInt32Image, ImageType.INT32,
-                OmeroServer::getFloat32Image, ImageType.FLOAT32,
-                OmeroServer::getFloat64Image, ImageType.FLOAT64,
-                OmeroServer::getComplexImage, ImageType.COMPLEX
-        );
-
-        for (var entry: imageToType.entrySet()) {
-            if (Arrays.stream(UserType.values())
-                    .map(entry.getKey())
-                    .anyMatch(image::equals)) {
-                return entry.getValue();
-            }
-        }
-        throw new IllegalArgumentException("Image not recognized");
     }
 
     private static int getMsPixelBufferApiPort() {
