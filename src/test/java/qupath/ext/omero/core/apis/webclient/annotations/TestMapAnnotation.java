@@ -85,6 +85,30 @@ public class TestMapAnnotation {
     }
 
     @Test
+    void Check_Owner_Id() {
+        long expectedId = 2;
+        Annotation annotation = new MapAnnotation(
+                new OmeroMapAnnotation(
+                        234L,
+                        null,
+                        null,
+                        new OmeroAnnotationExperimenter(2L),
+                        null,
+                        List.of(
+                                List.of("a", "b"),
+                                List.of("c"),
+                                List.of("d", "e")
+                        )
+                ),
+                List.of(new OmeroSimpleExperimenter(2L, "first_owner", "last_owner"))
+        );
+
+        long id = annotation.getOwnerId().orElseThrow();
+
+        Assertions.assertEquals(expectedId, id);
+    }
+
+    @Test
     void Check_Owner_Name() {
         String expectedOwnerName = "first_owner last_owner";
         Annotation annotation = new MapAnnotation(

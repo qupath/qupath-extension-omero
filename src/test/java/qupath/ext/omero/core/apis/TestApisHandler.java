@@ -474,13 +474,13 @@ public class TestApisHandler extends OmeroServer {
         @Test
         @Override
         void Check_Existing_Attachments_Deleted() throws ExecutionException, InterruptedException {
-            String ownerFullName = OmeroServer.getConnectedExperimenter(userType).getFullName();
+            long ownerId = OmeroServer.getConnectedExperimenter(userType).getId();
             SimpleServerEntity image = OmeroServer.getAnnotableImage(userType);
             apisHandler.sendAttachment(image,"annotations1.csv", "test1").get();
             apisHandler.sendAttachment(image,"annotations2.csv", "test2").get();
             apisHandler.sendAttachment(image,"annotations3.csv", "test3").get();
 
-            Assertions.assertDoesNotThrow(() -> apisHandler.deleteAttachments(image, List.of(ownerFullName)).get());
+            Assertions.assertDoesNotThrow(() -> apisHandler.deleteAttachments(image, List.of(ownerId)).get());
         }
     }
 }

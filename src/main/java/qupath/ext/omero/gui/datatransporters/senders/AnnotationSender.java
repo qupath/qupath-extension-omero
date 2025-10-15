@@ -224,8 +224,7 @@ public class AnnotationSender implements DataTransporter {
                     Request.DELETE_EXISTING_MEASUREMENTS,
                     omeroImageServer.getClient().getApisHandler().deleteAttachments(
                             new SimpleServerEntity(EntityType.IMAGE, omeroImageServer.getId()),
-                            annotationForm.getSelectedOwnersOfDeletedMeasurements().stream().map(Experimenter::getFullName).toList()   //tODO: first name + last name, not full name
-                                                                                                                                //TODO: actually, can it be ID?
+                            annotationForm.getSelectedOwnersOfDeletedMeasurements().stream().map(Experimenter::getId).toList()
                     )
             );
         }

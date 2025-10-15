@@ -79,6 +79,13 @@ public abstract class Annotation {
     }
 
     /**
+     * @return the ID of the experimenter that owns this annotation, or an empty Optional if not defined
+     */
+    public Optional<Long> getOwnerId() {
+        return Optional.ofNullable(owner).map(OmeroSimpleExperimenter::id);
+    }
+
+    /**
      * @return the name (first name + last name) of the experimenter that owns this annotation, or an empty Optional if not defined
      */
     public Optional<String> getOwnerName() {

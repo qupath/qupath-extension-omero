@@ -72,6 +72,26 @@ public class TestCommentAnnotation {
     }
 
     @Test
+    void Check_Owner_Id() {
+        long expectedId = 2;
+        Annotation annotation = new CommentAnnotation(
+                new OmeroCommentAnnotation(
+                        234L,
+                        null,
+                        null,
+                        new OmeroAnnotationExperimenter(2L),
+                        null,
+                        "some comment"
+                ),
+                List.of(new OmeroSimpleExperimenter(2L, "first_owner", "last_owner"))
+        );
+
+        long id = annotation.getOwnerId().orElseThrow();
+
+        Assertions.assertEquals(expectedId, id);
+    }
+
+    @Test
     void Check_Owner_Name() {
         String expectedOwnerName = "first_owner last_owner";
         Annotation annotation = new CommentAnnotation(

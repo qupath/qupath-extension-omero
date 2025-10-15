@@ -72,6 +72,26 @@ public class TestTagAnnotation {
     }
 
     @Test
+    void Check_Owner_Id() {
+        long expectedId = 2;
+        Annotation annotation = new TagAnnotation(
+                new OmeroTagAnnotation(
+                        234L,
+                        null,
+                        null,
+                        null,
+                        new OmeroLink(new OmeroAnnotationExperimenter(43L)),
+                        "tag"
+                ),
+                List.of(new OmeroSimpleExperimenter(43L, "first_adder", "last_adder"))
+        );
+
+        long id = annotation.getOwnerId().orElseThrow();
+
+        Assertions.assertEquals(expectedId, id);
+    }
+
+    @Test
     void Check_Owner_Name() {
         String expectedOwnerName = "first_owner last_owner";
         Annotation annotation = new TagAnnotation(

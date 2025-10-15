@@ -251,7 +251,7 @@ public class TestWebclientApi extends OmeroServer {
 
             Assertions.assertThrows(
                     ExecutionException.class,
-                    () -> webclientApi.deleteAttachments(invalidEntity, List.of("name")).get()
+                    () -> webclientApi.deleteAttachments(invalidEntity, List.of(1L)).get()
             );
         }
 
@@ -491,13 +491,13 @@ public class TestWebclientApi extends OmeroServer {
         @Test
         @Override
         void Check_Existing_Attachments_Deleted() throws ExecutionException, InterruptedException {
-            String ownerFullName = OmeroServer.getConnectedExperimenter(userType).getFullName();
+            long ownerId = OmeroServer.getConnectedExperimenter(userType).getId();
             SimpleServerEntity image = OmeroServer.getAnnotableImage(userType);
             webclientApi.sendAttachment(image,"annotations1.csv", "test1").get();
             webclientApi.sendAttachment(image,"annotations2.csv", "test2").get();
             webclientApi.sendAttachment(image,"annotations3.csv", "test3").get();
 
-            Assertions.assertDoesNotThrow(() -> webclientApi.deleteAttachments(image, List.of(ownerFullName)).get());
+            Assertions.assertDoesNotThrow(() -> webclientApi.deleteAttachments(image, List.of(ownerId)).get());
         }
 
         private static String randomString() {

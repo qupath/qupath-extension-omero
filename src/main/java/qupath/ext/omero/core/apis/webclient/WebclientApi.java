@@ -486,17 +486,17 @@ public class WebclientApi implements AutoCloseable {
      * if the request failed for example).
      *
      * @param entity the entity whose attachments should be deleted
-     * @param experimenterFullNames the full names (first name + last name) of the experimenters that should own the attachments to remove
+     * @param experimenterIds the IDs of the experimenters that should own the attachments to remove
      * @return a void CompletableFuture (that completes exceptionally if the operation failed)
      */
-    public CompletableFuture<Void> deleteAttachments(SimpleServerEntity entity, List<String> experimenterFullNames) {
-        logger.debug("Deleting all attachments added from QuPath to {} belonging to experimenters {}", entity, experimenterFullNames);
+    public CompletableFuture<Void> deleteAttachments(SimpleServerEntity entity, List<Long> experimenterIds) {
+        logger.debug("Deleting all attachments added from QuPath to {} belonging to experimenters {}", entity, experimenterIds);
 
         return getAnnotations(entity).thenApply(annotations -> {
             List<FileAnnotation> annotationsToDelete = annotations.stream()
                     .filter(FileAnnotation.class::isInstance)
                     .map(FileAnnotation.class::cast)
-                    .filter(annotation -> experimenterFullNames.contains(annotation.getOwnerName().orElse("")))
+                    .filter(annotation -> annotation.getOwnerId().isPresent() && experimenterIds.contains(annotation.getOwnerId().get()))
                     .filter(annotation -> annotation.getFilename().startsWith(QUPATH_FILE_IDENTIFIER))
                     .toList();
 

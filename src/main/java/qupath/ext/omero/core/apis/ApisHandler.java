@@ -674,8 +674,8 @@ public class ApisHandler implements AutoCloseable {
     /**
      * See {@link WebclientApi#deleteAttachments(SimpleServerEntity, List)}.
      */
-    public CompletableFuture<Void> deleteAttachments(SimpleServerEntity entity, List<String> experimenterFullNames) {
-        return webclientApi.deleteAttachments(entity, experimenterFullNames);
+    public CompletableFuture<Void> deleteAttachments(SimpleServerEntity entity, List<Long> experimenterIds) {
+        return webclientApi.deleteAttachments(entity, experimenterIds);
     }
 
     private CompletableFuture<List<URI>> getImageUrisOfProject(long projectId) {

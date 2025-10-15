@@ -72,6 +72,26 @@ public class TestRatingAnnotation {
     }
 
     @Test
+    void Check_Owner_Id() {
+        long expectedId = 2;
+        Annotation annotation = new RatingAnnotation(
+                new OmeroRatingAnnotation(
+                        234L,
+                        null,
+                        null,
+                        new OmeroAnnotationExperimenter(2L),
+                        null,
+                        (short) 78
+                ),
+                List.of(new OmeroSimpleExperimenter(2L, "first_owner", "last_owner"))
+        );
+
+        long id = annotation.getOwnerId().orElseThrow();
+
+        Assertions.assertEquals(expectedId, id);
+    }
+
+    @Test
     void Check_Owner_Name() {
         String expectedOwnerName = "first_owner last_owner";
         Annotation annotation = new RatingAnnotation(
