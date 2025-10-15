@@ -13,7 +13,7 @@ import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.search.SearchResult;
 import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.util.ResourceBundle;
 
@@ -59,7 +59,7 @@ public class TypeCell extends TableCell<SearchResultWithParentInfo, SearchResult
                 if (error == null) {
                     logger.debug("Got thumbnail {} for image with ID {}. Setting it to type cell", thumbnail, item.id());
 
-                    WritableImage image = UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+                    WritableImage image = UiUtils.paintBufferedImageOnCanvas(thumbnail, canvas);
 
                     ImageView imageView = new ImageView(image);
                     imageView.setFitHeight(TOOLTIP_IMAGE_SIZE);
@@ -76,7 +76,7 @@ public class TypeCell extends TableCell<SearchResultWithParentInfo, SearchResult
                 if (error == null) {
                     logger.debug("Got OMERO icon {} for {}. Setting it to type cell", icon, type);
 
-                    UiUtilities.paintBufferedImageOnCanvas(icon, canvas);
+                    UiUtils.paintBufferedImageOnCanvas(icon, canvas);
                     tooltip.setText(item.name());
                 } else {
                     logger.error("Error while retrieving icon for {}. Cannot set graphic of type cell", type, error);

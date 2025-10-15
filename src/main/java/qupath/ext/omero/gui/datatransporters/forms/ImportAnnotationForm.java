@@ -5,7 +5,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.layout.VBox;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,7 +39,7 @@ public class ImportAnnotationForm extends VBox {
 
         this.ownerNames = ownerNames;
 
-        UiUtilities.loadFXML(this, ImportAnnotationForm.class.getResource("import_annotation_form.fxml"));
+        UiUtils.loadFXML(this, ImportAnnotationForm.class.getResource("import_annotation_form.fxml"));
 
         if (ownerNames.size() > 1) {
             owner.getItems().add(resources.getString("DataTransporters.Forms.ImportAnnotations.all"));

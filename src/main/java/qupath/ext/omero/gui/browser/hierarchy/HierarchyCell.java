@@ -20,7 +20,7 @@ import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.pixelapis.PixelApi;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -138,7 +138,7 @@ public class HierarchyCell extends TreeCell<RepositoryEntity> implements AutoClo
                     logger.error("Error while retrieving icon of {}. Cannot set graphic of hierarchy cell", repositoryEntity, error);
                 } else {
                     logger.trace("Got icon {} for {}. Setting it to graphic", icon, repositoryEntity);
-                    UiUtilities.paintBufferedImageOnCanvas(icon, iconCanvas);
+                    UiUtils.paintBufferedImageOnCanvas(icon, iconCanvas);
                 }
             }));
         }

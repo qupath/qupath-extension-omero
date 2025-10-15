@@ -16,7 +16,7 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.preferences.PreferencesManager;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.ext.omero.gui.login.LoginForm;
 import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
@@ -127,11 +127,11 @@ class Connection extends VBox implements AutoCloseable {
             }
         });
 
-        UiUtilities.loadFXML(this, Connection.class.getResource("connection.fxml"));
+        UiUtils.loadFXML(this, Connection.class.getResource("connection.fxml"));
 
         if (client == null) {
             uri.setText(serverURI.toString());
-            uri.setGraphic(UiUtilities.createStateNode(false));
+            uri.setGraphic(UiUtils.createStateNode(false));
 
             buttons.getChildren().removeAll(browse, login, disconnect);
         } else {
@@ -139,7 +139,7 @@ class Connection extends VBox implements AutoCloseable {
                 case PUBLIC_USER -> serverURI.toString();
                 case REGULAR_USER -> String.format("%s (%s)", serverURI, client.getApisHandler().getCredentials().username());
             });
-            uri.setGraphic(UiUtilities.createStateNode(true));
+            uri.setGraphic(UiUtils.createStateNode(true));
 
             buttons.getChildren().remove(connect);
             if (client.getApisHandler().getCredentials().userType().equals(Credentials.UserType.REGULAR_USER)) {

@@ -5,7 +5,7 @@ import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.fx.utils.GridPaneUtils;
 
 import java.io.IOException;
@@ -25,7 +25,7 @@ class InformationPane extends TitledPane {
      * @throws IOException if an error occurs while creating the pane
      */
     public InformationPane(String title) throws IOException {
-        UiUtilities.loadFXML(this, InformationPane.class.getResource("information_pane.fxml"));
+        UiUtils.loadFXML(this, InformationPane.class.getResource("information_pane.fxml"));
 
         setText(title);
     }

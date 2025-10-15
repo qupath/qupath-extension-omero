@@ -22,7 +22,7 @@ import qupath.ext.omero.core.apis.webclient.annotations.Pair;
 import qupath.ext.omero.core.apis.webclient.annotations.RatingAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.TagAnnotation;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 
@@ -59,7 +59,7 @@ public class AdvancedInformation extends Stage {
         logger.debug("Creating advanced information window for {} displaying {}", serverEntity, annotations);
         this.serverEntity = serverEntity;
 
-        UiUtilities.loadFXML(this, AdvancedInformation.class.getResource("advanced_information.fxml"));
+        UiUtils.loadFXML(this, AdvancedInformation.class.getResource("advanced_information.fxml"));
 
         setTitle(serverEntity.getLabel());
 

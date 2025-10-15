@@ -34,11 +34,11 @@ import java.util.ResourceBundle;
 /**
  * Utility methods related to the user interface.
  */
-public class UiUtilities {
+public class UiUtils {
 
     private static final ResourceBundle resources = Utils.getResources();
 
-    private UiUtilities() {
+    private UiUtils() {
         throw new AssertionError("This class is not instantiable.");
     }
 
@@ -130,9 +130,9 @@ public class UiUtilities {
     public static void displayPingErrorDialogIfUiPresent(Client client) {
         if (usingGUI()) {
             Dialogs.showErrorMessage(
-                    resources.getString("Utils.connectionError"),
+                    resources.getString("UiUtils.connectionError"),
                     MessageFormat.format(
-                            resources.getString("Utils.connectionClosed"),
+                            resources.getString("UiUtils.connectionClosed"),
                             client.getApisHandler().getWebServerUri()
                     )
             );

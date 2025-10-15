@@ -7,7 +7,6 @@ import java.util.ResourceBundle;
  */
 public class Utils {
 
-    //TODO: check string resources
     private static final ResourceBundle resources = ResourceBundle.getBundle("qupath.ext.omero.strings");
 
     private Utils() {

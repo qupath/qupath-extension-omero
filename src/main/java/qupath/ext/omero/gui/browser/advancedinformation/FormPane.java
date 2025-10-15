@@ -5,7 +5,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.fx.utils.GridPaneUtils;
 
 import java.io.IOException;
@@ -23,7 +23,7 @@ class FormPane extends TitledPane {
      * @throws IOException if an error occurs while creating the pane
      */
     public FormPane() throws IOException {
-        UiUtilities.loadFXML(this, FormPane.class.getResource("form_pane.fxml"));
+        UiUtils.loadFXML(this, FormPane.class.getResource("form_pane.fxml"));
     }
 
     /**
@@ -59,7 +59,7 @@ class FormPane extends TitledPane {
             content.add(new Separator(), 0, content.getRowCount(), content.getColumnCount(), 1);
         }
 
-        GridPaneUtils.addGridRow(content, content.getRowCount(), 0, tooltip, new Label(key), UiUtilities.createSelectableLabel(value));
+        GridPaneUtils.addGridRow(content, content.getRowCount(), 0, tooltip, new Label(key), UiUtils.createSelectableLabel(value));
     }
 
     /**

@@ -3,7 +3,7 @@ package qupath.ext.omero.gui.datatransporters.forms;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.layout.VBox;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -45,7 +45,7 @@ public class ImageSettingsForm extends VBox {
      * @throws IOException if an error occurs while creating the form
      */
     public ImageSettingsForm(boolean noCurrentProject, boolean isRGB) throws IOException {
-        UiUtilities.loadFXML(this, ImageSettingsForm.class.getResource("image_settings_form.fxml"));
+        UiUtils.loadFXML(this, ImageSettingsForm.class.getResource("image_settings_form.fxml"));
 
         checkBoxChoiceMap = Map.of(
                 imageName, Choice.IMAGE_NAME,

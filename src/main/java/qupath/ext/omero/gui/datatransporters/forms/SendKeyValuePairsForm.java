@@ -12,7 +12,7 @@ import javafx.util.StringConverter;
 import org.controlsfx.control.ListSelectionView;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.webclient.Namespace;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -50,7 +50,7 @@ public class SendKeyValuePairsForm extends VBox {
      * @throws IOException if an error occurs while creating the form
      */
     public SendKeyValuePairsForm(Map<String, String> keyValues, List<Namespace> existingNamespaces) throws IOException {
-        UiUtilities.loadFXML(this, SendKeyValuePairsForm.class.getResource("send_key_value_pairs_form.fxml"));
+        UiUtils.loadFXML(this, SendKeyValuePairsForm.class.getResource("send_key_value_pairs_form.fxml"));
 
         Label sourceHeader = new Label(resources.getString("DataTransporters.Forms.SendKeyValuePairs.available"));
         sourceHeader.getStyleClass().add("header");

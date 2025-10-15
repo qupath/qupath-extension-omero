@@ -49,7 +49,7 @@ import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 import qupath.ext.omero.core.apis.json.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 
 import java.io.IOException;
@@ -153,7 +153,7 @@ class Browser extends Stage implements AutoCloseable {
         this.onClientCreated = onClientCreated;
         this.browserModel = new BrowserModel(client, server);
 
-        UiUtilities.loadFXML(this, Browser.class.getResource("browser.fxml"));
+        UiUtils.loadFXML(this, Browser.class.getResource("browser.fxml"));
 
         initUI(owner);
         setUpListeners();
@@ -517,8 +517,8 @@ class Browser extends Stage implements AutoCloseable {
         );
         rawPixelAccess.graphicProperty().bind(Bindings
                 .when(rawPixelBindings)
-                .then(UiUtilities.createStateNode(true))
-                .otherwise(UiUtilities.createStateNode(false)));
+                .then(UiUtils.createStateNode(true))
+                .otherwise(UiUtils.createStateNode(false)));
 
         browserModel.getSelectedPixelAPI().addListener((p, o, n) -> pixelAPI.getSelectionModel().select(n));
         pixelAPI.valueProperty().addListener((p, o, n) -> {
@@ -610,7 +610,7 @@ class Browser extends Stage implements AutoCloseable {
                 }
 
                 logger.trace("Got thumbnail {} for {}. Updating canvas with it", thumbnail, image);
-                UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+                UiUtils.paintBufferedImageOnCanvas(thumbnail, canvas);
             }));
         }
     }

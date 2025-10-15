@@ -12,7 +12,7 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -43,7 +43,7 @@ class Image extends HBox {
         logger.debug("Creating image label for {}", imageUri);
         this.imageUri = imageUri;
 
-        UiUtilities.loadFXML(this, Image.class.getResource("image.fxml"));
+        UiUtils.loadFXML(this, Image.class.getResource("image.fxml"));
 
         Optional<Long> imageId = ApisHandler.parseEntity(imageUri).map(SimpleServerEntity::id);
         if (imageId.isPresent()) {
@@ -63,7 +63,7 @@ class Image extends HBox {
                     logger.error("Error when retrieving thumbnail of ID {}. Cannot set thumbnail", imageId, error);
                 } else {
                     logger.debug("Got thumbnail {} of image with ID {}. Setting thumbnail", thumbnail, imageId);
-                    Platform.runLater(() -> UiUtilities.paintBufferedImageOnCanvas(thumbnail, this.thumbnail));
+                    Platform.runLater(() -> UiUtils.paintBufferedImageOnCanvas(thumbnail, this.thumbnail));
                 }
             });
         } else {
@@ -92,7 +92,7 @@ class Image extends HBox {
     private void setStatus(String text, boolean isActive) {
         Platform.runLater(() -> {
             name.setTooltip(new Tooltip(text));
-            name.setGraphic(UiUtilities.createStateNode(isActive));
+            name.setGraphic(UiUtils.createStateNode(isActive));
         });
     }
 }

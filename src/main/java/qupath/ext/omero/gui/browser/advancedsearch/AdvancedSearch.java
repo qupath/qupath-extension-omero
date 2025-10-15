@@ -36,7 +36,7 @@ import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
 import qupath.ext.omero.core.apis.webclient.search.SearchResult;
 import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.gui.ImageOpener;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.EntityCell;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.LinkCell;
 import qupath.ext.omero.gui.browser.advancedsearch.cellfactories.TextCell;
@@ -199,7 +199,7 @@ public class AdvancedSearch extends Stage {
     }
 
     private void initUI(Stage ownerWindow) throws IOException {
-        UiUtilities.loadFXML(this, AdvancedSearch.class.getResource("advanced_search.fxml"));
+        UiUtils.loadFXML(this, AdvancedSearch.class.getResource("advanced_search.fxml"));
 
         group.getItems().setAll(ExperimenterGroup.getAllGroups());
         group.getItems().addAll(server.getGroups());

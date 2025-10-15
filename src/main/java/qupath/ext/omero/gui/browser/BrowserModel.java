@@ -18,7 +18,7 @@ import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 import qupath.ext.omero.core.pixelapis.PixelApi;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.net.URI;
 
@@ -58,22 +58,22 @@ class BrowserModel implements AutoCloseable {
     public BrowserModel(Client client, Server server) {
         this.client = client;
 
-        this.numberOfEntitiesLoadingListener = UiUtilities.bindPropertyInUIThread(
+        this.numberOfEntitiesLoadingListener = UiUtils.bindPropertyInUIThread(
                 numberOfEntitiesLoading,
                 client.getApisHandler().getNumberOfEntitiesLoading()
         );
-        this.numberOfThumbnailsLoadingListener = UiUtilities.bindPropertyInUIThread(
+        this.numberOfThumbnailsLoadingListener = UiUtils.bindPropertyInUIThread(
                 numberOfThumbnailsLoading,
                 client.getApisHandler().getNumberOfThumbnailsLoading()
         );
-        this.selectedPixelAPIListener = UiUtilities.bindPropertyInUIThread(
+        this.selectedPixelAPIListener = UiUtils.bindPropertyInUIThread(
                 selectedPixelAPI,
                 client.getSelectedPixelApi()
         );
 
-        this.availablePixelApisListener = UiUtilities.bindListInUIThread(availablePixelApis, client.getAvailablePixelAPIs());
+        this.availablePixelApisListener = UiUtils.bindListInUIThread(availablePixelApis, client.getAvailablePixelAPIs());
 
-        this.openedImagesURIsListener = UiUtilities.bindSetInUIThread(openedImagesURIs, client.getOpenedImagesURIs());
+        this.openedImagesURIsListener = UiUtils.bindSetInUIThread(openedImagesURIs, client.getOpenedImagesURIs());
 
         this.selectedOwner = new SimpleObjectProperty<>(server.getConnectedExperimenter());
         this.selectedGroup = new SimpleObjectProperty<>(server.getDefaultGroup());

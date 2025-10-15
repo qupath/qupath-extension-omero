@@ -9,7 +9,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -51,7 +51,7 @@ public class SendAnnotationForm extends VBox {
     public SendAnnotationForm(List<Experimenter> owners, boolean projectOpened, boolean annotationsExist, boolean detectionExist) throws IOException {
         this.owners = owners;
 
-        UiUtilities.loadFXML(this, SendAnnotationForm.class.getResource("send_annotation_form.fxml"));
+        UiUtils.loadFXML(this, SendAnnotationForm.class.getResource("send_annotation_form.fxml"));
 
         selectedAnnotationChoice.getItems().setAll(ONLY_SELECTED_ANNOTATIONS, ALL_ANNOTATIONS);
         selectedAnnotationChoice.getSelectionModel().select(ALL_ANNOTATIONS);

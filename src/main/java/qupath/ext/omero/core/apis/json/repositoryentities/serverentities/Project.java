@@ -56,7 +56,7 @@ public class Project extends ServerEntity {
                         resources.getString("Entities.Project.group"),
                         group == null || group.name() == null || group.name().isEmpty() ? "-" : group.name()
                 ),
-                new Attribute(resources.getString("Entities.Project.nbImages"), String.valueOf(childCount))
+                new Attribute(resources.getString("Entities.Project.nbDatasets"), String.valueOf(childCount))
         );
     }
 
