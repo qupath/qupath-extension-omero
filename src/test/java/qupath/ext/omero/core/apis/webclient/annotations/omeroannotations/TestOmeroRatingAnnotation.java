@@ -44,7 +44,7 @@ public class TestOmeroRatingAnnotation {
                 "type",
                 new OmeroAnnotationExperimenter(5L),
                 new OmeroLink(new OmeroAnnotationExperimenter(234L)),
-                (short) 78
+                (short) 3
         );
 
         OmeroRatingAnnotation omeroRatingAnnotation = new Gson().fromJson(
@@ -61,7 +61,7 @@ public class TestOmeroRatingAnnotation {
                             "id": 234
                         }
                     },
-                    "value": 78
+                    "longValue": 3
                 }
                 """,
                 OmeroRatingAnnotation.class

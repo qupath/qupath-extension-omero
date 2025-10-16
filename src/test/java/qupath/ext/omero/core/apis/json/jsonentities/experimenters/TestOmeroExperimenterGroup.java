@@ -42,24 +42,6 @@ public class TestOmeroExperimenterGroup {
     }
 
     @Test
-    void Check_Experimenters_Url_Required() {
-        Assertions.assertThrows(
-                RuntimeException.class,
-                () -> new OmeroExperimenterGroup(
-                        "",
-                        65L,
-                        new OmeroDetails(
-                                null,
-                                null,
-                                new OmeroPermissions(false, false, false)
-                        ),
-                        "",
-                        null
-                )
-        );
-    }
-
-    @Test
     void Check_Permission_Level() {
         PermissionLevel expectedPermissionLevel = PermissionLevel.READ_ANNOTATE;
         OmeroExperimenterGroup omeroExperimenterGroup = new OmeroExperimenterGroup(
@@ -96,9 +78,9 @@ public class TestOmeroExperimenterGroup {
         OmeroExperimenterGroup omeroExperimenterGroup = new Gson().fromJson(
                 """
                 {
-                    "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Experimenter",
+                    "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#ExperimenterGroup",
                     "@id": 65,
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": false,

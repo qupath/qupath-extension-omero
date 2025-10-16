@@ -7,12 +7,14 @@ import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPoint;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public class TestPoint {
 
@@ -21,8 +23,9 @@ public class TestPoint {
         String expectedJson = """
             {
                 "@id": 83,
+                "oldId": "53:83",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Point",
-                "Text": "",
+                "Text": "Annotation:NoClass:4f0a3bd5-2954-4110-a37c-bab2a01e8e2c:NoParent:NoName",
                 "FillColor": 3,
                 "StrokeColor": 5,
                 "Locked": true,
@@ -32,7 +35,7 @@ public class TestPoint {
                 "X": 4.5,
                 "Y": -7.5
             }
-            """;
+            """.replace(" ", "").replace("\n", "");
         Point point = createFromOmeroPoint();
 
         String json = point.createJson();
@@ -65,18 +68,19 @@ public class TestPoint {
         String expectedJson = """
             {
                 "@id": 0,
+                "oldId": "0:0",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Point",
-                "Text": "",
+                "Text": "Annotation:someClass:886b8740-8a3b-4305-b73b-c06273746d3e:NoParent:NoName",
                 "FillColor": 0,
-                "StrokeColor": 5,
-                "Locked": true,
+                "StrokeColor": 255,
+                "Locked": false,
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
                 "X": 4.5,
                 "Y": -7.5
             }
-            """;
+            """.replace(" ", "").replace("\n", "");
         Point point = createFromPathObject();
 
         String json = point.createJson();
@@ -107,8 +111,9 @@ public class TestPoint {
         return new Point(
                 new OmeroPoint(
                         83L,
+                        "53:83",
                         OmeroPoint.TYPE,
-                        "",
+                        "Annotation:NoClass:4f0a3bd5-2954-4110-a37c-bab2a01e8e2c:NoParent:NoName",
                         3,
                         5,
                         true,
@@ -134,16 +139,16 @@ public class TestPoint {
     }
 
     private static Point createFromPathObject() {
-        return Point.create(
-                PathObjects.createAnnotationObject(
-                        ROIs.createPointsROI(
-                                4.5,
-                                -7.5,
-                                ImagePlane.getPlaneWithChannel(1, 2, 3)
-                        ),
-                        PathClass.fromString("some class", 5)
+        PathObject pathObject = PathObjects.createAnnotationObject(
+                ROIs.createPointsROI(
+                        4.5,
+                        -7.5,
+                        ImagePlane.getPlaneWithChannel(1, 2, 3)
                 ),
-                false
-        ).getFirst();
+                PathClass.fromString("someClass", 0)
+        );
+        pathObject.setID(UUID.fromString("886b8740-8a3b-4305-b73b-c06273746d3e"));
+
+        return Point.create(pathObject, false).getFirst();
     }
 }

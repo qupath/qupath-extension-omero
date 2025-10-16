@@ -55,7 +55,7 @@ public class TestOmeroImage {
     void Check_Owner_When_Not_Present() {
         OmeroImage omeroImage = new OmeroImage(
                 "type",
-                null,
+                4432L,
                 "name",
                 24234L,
                 createOmeroPixels(),
@@ -82,7 +82,7 @@ public class TestOmeroImage {
         );
         OmeroImage omeroImage = new OmeroImage(
                 "type",
-                null,
+                4432L,
                 "name",
                 24234L,
                 createOmeroPixels(),
@@ -102,7 +102,7 @@ public class TestOmeroImage {
     void Check_Group_When_Not_Present() {
         OmeroImage omeroImage = new OmeroImage(
                 "type",
-                null,
+                4432L,
                 "name",
                 24234L,
                 createOmeroPixels(),
@@ -133,7 +133,7 @@ public class TestOmeroImage {
         );
         OmeroImage omeroImage = new OmeroImage(
                 "type",
-                null,
+                4432L,
                 "name",
                 24234L,
                 createOmeroPixels(),
@@ -277,7 +277,7 @@ public class TestOmeroImage {
 
     @Test
     void Check_Size_Mebibyte() {
-        double expectedSizeMebibyte = 2 * 3 * 4 * 5 * 8 / (1024*1024d);
+        double expectedSizeMebibyte = 2 * 3 * 4 * 5 / (1024*1024d);
         OmeroImage omeroImage = new OmeroImage(
                 "type",
                 4432L,
@@ -404,7 +404,7 @@ public class TestOmeroImage {
                             "value": "uint8"
                         }
                     },
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,

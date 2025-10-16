@@ -77,6 +77,7 @@ public class Line extends Shape {
     public String createJson() {
         return gson.toJson(new OmeroLine(
                 getId(),
+                getOldId(),
                 OmeroLine.TYPE,
                 getText(),
                 getFillColor().map(Shape::colorToRgba).orElse(null),
@@ -100,7 +101,7 @@ public class Line extends Shape {
 
     @Override
     public String toString() {
-        return String.format("Line located between {x1: %f, y1: %f} and {x2: %f, y2: %f}", x1, y1, x2, y2);
+        return String.format("Line of ID %d located between {x1: %f, y1: %f} and {x2: %f, y2: %f}", getId(), x1, y1, x2, y2);
     }
 
     @Override
@@ -109,8 +110,7 @@ public class Line extends Shape {
             return true;
         if (!(obj instanceof Line line))
             return false;
-        return line.getId() == this.getId() &&
-                line.x1 == this.x1 && line.y1 == this.y1 && line.x2 == this.x2 && line.y2 == this.y2;
+        return line.x1 == this.x1 && line.y1 == this.y1 && line.x2 == this.x2 && line.y2 == this.y2;
     }
 
     @Override

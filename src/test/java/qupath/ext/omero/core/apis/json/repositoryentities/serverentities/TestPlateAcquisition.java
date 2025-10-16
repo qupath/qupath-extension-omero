@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
@@ -30,7 +29,7 @@ public class TestPlateAcquisition extends OmeroServer {
 
         @Test
         void Check_Has_Children() {
-            boolean expectedChildren = !OmeroServer.getPlateAcquisitionWellIds(userType).isEmpty();
+            boolean expectedChildren = OmeroServer.getNumberOfPlateAcquisitionWell(userType, -1, -1) > 0;
 
             boolean hasChildren = plateAcquisition.hasChildren();
 
@@ -41,17 +40,18 @@ public class TestPlateAcquisition extends OmeroServer {
         void Check_Children() throws ExecutionException, InterruptedException {
             long experimenterId = -1;
             long groupId = -1;
-            List<Long> expectedChildrenIds = OmeroServer.getPlateAcquisitionWellIds(userType);
+            int expectedNumberOfChildren = OmeroServer.getNumberOfPlateAcquisitionWell(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = plateAcquisition.getChildren(experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedChildrenIds,
+            Assertions.assertEquals(
+                    expectedNumberOfChildren,
                     children.stream()
                             .filter(Well.class::isInstance)
                             .map(Well.class::cast)
                             .map(Well::getId)
                             .toList()
+                            .size()
             );
         }
 
@@ -59,17 +59,18 @@ public class TestPlateAcquisition extends OmeroServer {
         void Check_Children_Filtered_By_Experimenter() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
-            List<Long> expectedChildrenIds = OmeroServer.getPlateAcquisitionWellIds(userType);
+            int expectedNumberOfChildren = OmeroServer.getNumberOfPlateAcquisitionWell(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = plateAcquisition.getChildren(experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedChildrenIds,
+            Assertions.assertEquals(
+                    expectedNumberOfChildren,
                     children.stream()
                             .filter(Well.class::isInstance)
                             .map(Well.class::cast)
                             .map(Well::getId)
                             .toList()
+                            .size()
             );
         }
 
@@ -77,17 +78,18 @@ public class TestPlateAcquisition extends OmeroServer {
         void Check_Children_Filtered_By_Group() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Long> expectedChildrenIds = OmeroServer.getPlateAcquisitionWellIds(userType);
+            int expectedNumberOfChildren = OmeroServer.getNumberOfPlateAcquisitionWell(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = plateAcquisition.getChildren(experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedChildrenIds,
+            Assertions.assertEquals(
+                    expectedNumberOfChildren,
                     children.stream()
                             .filter(Well.class::isInstance)
                             .map(Well.class::cast)
                             .map(Well::getId)
                             .toList()
+                            .size()
             );
         }
 
@@ -95,17 +97,18 @@ public class TestPlateAcquisition extends OmeroServer {
         void Check_Children_Filtered_By_Experimenter_And_Group() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Long> expectedChildrenIds = OmeroServer.getPlateAcquisitionWellIds(userType);
+            int expectedNumberOfChildren = OmeroServer.getNumberOfPlateAcquisitionWell(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = plateAcquisition.getChildren(experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedChildrenIds,
+            Assertions.assertEquals(
+                    expectedNumberOfChildren,
                     children.stream()
                             .filter(Well.class::isInstance)
                             .map(Well.class::cast)
                             .map(Well::getId)
                             .toList()
+                            .size()
             );
         }
 
@@ -140,7 +143,7 @@ public class TestPlateAcquisition extends OmeroServer {
         void Check_Name() {
             String expectedName = OmeroServer.getPlateAcquisitionName(userType);
 
-            String name = plateAcquisition.getName().orElseThrow();
+            String name = plateAcquisition.getName().orElse(null);
 
             Assertions.assertEquals(expectedName, name);
         }

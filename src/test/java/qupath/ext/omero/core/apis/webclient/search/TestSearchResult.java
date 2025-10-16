@@ -121,9 +121,9 @@ public class TestSearchResult {
         List<String> resultsLinks = searchResults.stream().map(SearchResult::link).toList();
 
         Assertions.assertArrayEquals(new String[]{
-                "https://omero-czi-cpw.mvm.ed.ac.uk/webclient/?show=image-12546",
-                "https://omero-czi-cpw.mvm.ed.ac.uk/webclient/?show=image-12547",
-                "https://omero-czi-cpw.mvm.ed.ac.uk/webclient/?show=image-12548"
+                "http://some_url.com/webclient/?show=image-12546",
+                "http://some_url.com/webclient/?show=image-12547",
+                "http://some_url.com/webclient/?show=image-12548"
         }, resultsLinks.toArray());
     }
 

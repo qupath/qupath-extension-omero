@@ -11,6 +11,6 @@ import java.util.Objects;
  */
 public record Token(String data) {
     public Token {
-        Objects.requireNonNull(data);
+        Objects.requireNonNull(data, "data not provided");
     }
 }

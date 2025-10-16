@@ -18,8 +18,8 @@ public record OmeroServer(
         Integer port
 ) {
     public OmeroServer {
-        Objects.requireNonNull(host);
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(port);
+        Objects.requireNonNull(host, "host not provided");
+        Objects.requireNonNull(id, "id not provided");
+        Objects.requireNonNull(port, "port not provided");
     }
 }

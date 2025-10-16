@@ -42,7 +42,7 @@ public class Project extends ServerEntity {
 
         String description = omeroProject.description();
         this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Project.name"), name == null || name.isEmpty() ? "-" : name),
+                new Attribute(resources.getString("Entities.Project.name"), name == null || name.isEmpty() ? getLabel() : name),
                 new Attribute(resources.getString("Entities.Project.id"), String.valueOf(id)),
                 new Attribute(
                         resources.getString("Entities.Project.description"),

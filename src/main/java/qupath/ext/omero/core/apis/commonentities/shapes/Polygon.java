@@ -66,6 +66,7 @@ public class Polygon extends Shape {
     public String createJson() {
         return gson.toJson(new OmeroPolygon(
                 getId(),
+                getOldId(),
                 OmeroPolygon.TYPE,
                 getText(),
                 getFillColor().map(Shape::colorToRgba).orElse(null),
@@ -86,7 +87,7 @@ public class Polygon extends Shape {
 
     @Override
     public String toString() {
-        return String.format("Polygon of points %s", points);
+        return String.format("Polygon of ID %d and points %s", getId(), points);
     }
 
     @Override
@@ -95,8 +96,7 @@ public class Polygon extends Shape {
             return true;
         if (!(obj instanceof Polygon polygon))
             return false;
-        return polygon.getId() == this.getId() &&
-                polygon.points.equals(this.points);
+        return polygon.points.equals(this.points);
     }
 
     @Override

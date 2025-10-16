@@ -33,15 +33,15 @@ public record Links(
         @SerializedName("url:login") String login
 ) {
     public Links {
-        Objects.requireNonNull(experimenters);
-        Objects.requireNonNull(groups);
-        Objects.requireNonNull(projects);
-        Objects.requireNonNull(datasets);
-        Objects.requireNonNull(images);
-        Objects.requireNonNull(screens);
-        Objects.requireNonNull(plates);
-        Objects.requireNonNull(token);
-        Objects.requireNonNull(servers);
-        Objects.requireNonNull(login);
+        Objects.requireNonNull(experimenters, "url:experimenters not provided");
+        Objects.requireNonNull(groups, "url:experimentergroups not provided");
+        Objects.requireNonNull(projects, "url:projects not provided");
+        Objects.requireNonNull(datasets, "url:datasets not provided");
+        Objects.requireNonNull(images, "url:images not provided");
+        Objects.requireNonNull(screens, "url:screens not provided");
+        Objects.requireNonNull(plates, "url:plates not provided");
+        Objects.requireNonNull(token, "url:token not provided");
+        Objects.requireNonNull(servers, "url:servers not provided");
+        Objects.requireNonNull(login, "url:login not provided");
     }
 }

@@ -170,7 +170,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = -1;
             long projectId = OmeroServer.getProject(userType).id();
-            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType);
+            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType, experimenterId, groupId);
 
             List<Dataset> datasets = jsonApi.getDatasets(projectId, experimenterId, groupId).get();
 
@@ -185,7 +185,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
             long projectId = OmeroServer.getProject(userType).id();
-            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType);
+            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType, experimenterId, groupId);
 
             List<Dataset> datasets = jsonApi.getDatasets(projectId, experimenterId, groupId).get();
 
@@ -200,7 +200,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long projectId = OmeroServer.getProject(userType).id();
-            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType);
+            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType, experimenterId, groupId);
 
             List<Dataset> datasets = jsonApi.getDatasets(projectId, experimenterId, groupId).get();
 
@@ -215,7 +215,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long projectId = OmeroServer.getProject(userType).id();
-            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType);
+            List<Long> expectedDatasetIds = OmeroServer.getProjectDatasetIds(userType, experimenterId, groupId);
 
             List<Dataset> datasets = jsonApi.getDatasets(projectId, experimenterId, groupId).get();
 
@@ -315,7 +315,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = -1;
             long datasetId = OmeroServer.getDataset(userType).id();
-            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType);
+            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType, experimenterId, groupId);
 
             List<Image> images = jsonApi.getImages(datasetId, experimenterId, groupId).get();
 
@@ -330,7 +330,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
             long datasetId = OmeroServer.getDataset(userType).id();
-            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType);
+            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType, experimenterId, groupId);
 
             List<Image> images = jsonApi.getImages(datasetId, experimenterId, groupId).get();
 
@@ -345,7 +345,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long datasetId = OmeroServer.getDataset(userType).id();
-            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType);
+            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType, experimenterId, groupId);
 
             List<Image> images = jsonApi.getImages(datasetId, experimenterId, groupId).get();
 
@@ -360,7 +360,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long datasetId = OmeroServer.getDataset(userType).id();
-            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType);
+            List<Long> expectedImageIds = OmeroServer.getDatasetImageIds(userType, experimenterId, groupId);
 
             List<Image> images = jsonApi.getImages(datasetId, experimenterId, groupId).get();
 
@@ -535,7 +535,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = -1;
             long screenId = OmeroServer.getScreen(userType).id();
-            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType);
+            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType, experimenterId, groupId);
 
             List<Plate> plates = jsonApi.getPlates(screenId, experimenterId, groupId).get();
 
@@ -550,7 +550,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
             long screenId = OmeroServer.getScreen(userType).id();
-            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType);
+            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType, experimenterId, groupId);
 
             List<Plate> plates = jsonApi.getPlates(screenId, experimenterId, groupId).get();
 
@@ -565,7 +565,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long screenId = OmeroServer.getScreen(userType).id();
-            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType);
+            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType, experimenterId, groupId);
 
             List<Plate> plates = jsonApi.getPlates(screenId, experimenterId, groupId).get();
 
@@ -580,7 +580,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long screenId = OmeroServer.getScreen(userType).id();
-            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType);
+            List<Long> expectedPlateIds = OmeroServer.getScreenPlateIds(userType, experimenterId, groupId);
 
             List<Plate> plates = jsonApi.getPlates(screenId, experimenterId, groupId).get();
 
@@ -680,7 +680,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = -1;
             long plateId = OmeroServer.getPlate(userType).id();
-            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType);
+            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId);
 
             List<PlateAcquisition> plateAcquisitions = jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, 0).get();
 
@@ -695,7 +695,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
             long plateId = OmeroServer.getPlate(userType).id();
-            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType);
+            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId);
 
             List<PlateAcquisition> plateAcquisitions = jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, 0).get();
 
@@ -710,7 +710,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long plateId = OmeroServer.getPlate(userType).id();
-            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType);
+            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId);
 
             List<PlateAcquisition> plateAcquisitions = jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, 0).get();
 
@@ -725,7 +725,7 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long plateId = OmeroServer.getPlate(userType).id();
-            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType);
+            List<Long> expectedPlateAcquisitionIds = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId);
 
             List<PlateAcquisition> plateAcquisitions = jsonApi.getPlateAcquisitions(plateId, experimenterId, groupId, 0).get();
 
@@ -746,13 +746,7 @@ public class TestJsonApi extends OmeroServer {
         }
 
         @Test
-        void Check_Plate_Acquisition() throws ExecutionException, InterruptedException {
-            long expectedId = OmeroServer.getPlateAcquisition(userType).id();
-
-            PlateAcquisition plateAcquisition = jsonApi.getPlateAcquisition(expectedId).get();
-
-            Assertions.assertEquals(expectedId, plateAcquisition.getId());
-        }
+        abstract void Check_Plate_Acquisition() throws ExecutionException, InterruptedException;
 
         @Test
         void Check_Invalid_Plate_Acquisition() {
@@ -769,14 +763,11 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = -1;
             long plateId = OmeroServer.getPlate(userType).id();
-            List<Long> expectedWellIds = OmeroServer.getPlateWellIds(userType);
+            int expectedNumberOfWells = OmeroServer.getNumberOfPlateWells(userType, experimenterId, groupId);
 
             List<Well> wells = jsonApi.getWellsFromPlate(plateId, experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedWellIds,
-                    wells.stream().map(ServerEntity::getId).toList()
-            );
+            Assertions.assertEquals(expectedNumberOfWells, wells.size());
         }
 
         @Test
@@ -784,14 +775,11 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
             long plateId = OmeroServer.getPlate(userType).id();
-            List<Long> expectedWellIds = OmeroServer.getPlateWellIds(userType);
+            int expectedNumberOfWells = OmeroServer.getNumberOfPlateWells(userType, experimenterId, groupId);
 
             List<Well> wells = jsonApi.getWellsFromPlate(plateId, experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedWellIds,
-                    wells.stream().map(ServerEntity::getId).toList()
-            );
+            Assertions.assertEquals(expectedNumberOfWells, wells.size());
         }
 
         @Test
@@ -799,14 +787,11 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long plateId = OmeroServer.getPlate(userType).id();
-            List<Long> expectedWellIds = OmeroServer.getPlateWellIds(userType);
+            int expectedNumberOfWells = OmeroServer.getNumberOfPlateWells(userType, experimenterId, groupId);
 
             List<Well> wells = jsonApi.getWellsFromPlate(plateId, experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedWellIds,
-                    wells.stream().map(ServerEntity::getId).toList()
-            );
+            Assertions.assertEquals(expectedNumberOfWells, wells.size());
         }
 
         @Test
@@ -814,14 +799,11 @@ public class TestJsonApi extends OmeroServer {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
             long plateId = OmeroServer.getPlate(userType).id();
-            List<Long> expectedWellIds = OmeroServer.getPlateWellIds(userType);
+            int expectedNumberOfWells = OmeroServer.getNumberOfPlateWells(userType, experimenterId, groupId);
 
             List<Well> wells = jsonApi.getWellsFromPlate(plateId, experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedWellIds,
-                    wells.stream().map(ServerEntity::getId).toList()
-            );
+            Assertions.assertEquals(expectedNumberOfWells, wells.size());
         }
 
         @Test
@@ -835,64 +817,16 @@ public class TestJsonApi extends OmeroServer {
         }
 
         @Test
-        void Check_Wells_From_Plate_Acquisition() throws ExecutionException, InterruptedException {
-            long experimenterId = -1;
-            long groupId = -1;
-            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
-            List<Long> expectedWellIds = OmeroServer.getPlateAcquisitionWellIds(userType);
-
-            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 0).get();
-
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedWellIds,
-                    wells.stream().map(ServerEntity::getId).toList()
-            );
-        }
+        abstract void Check_Wells_From_Plate_Acquisition() throws ExecutionException, InterruptedException;
 
         @Test
-        void Check_Wells_From_Plate_Acquisition_Of_Experimenter() throws ExecutionException, InterruptedException {
-            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
-            long groupId = -1;
-            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
-            List<Long> expectedWellIds = OmeroServer.getPlateAcquisitionWellIds(userType);
-
-            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 0).get();
-
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedWellIds,
-                    wells.stream().map(ServerEntity::getId).toList()
-            );
-        }
+        abstract void Check_Wells_From_Plate_Acquisition_Of_Experimenter() throws ExecutionException, InterruptedException;
 
         @Test
-        void Check_Wells_From_Plate_Acquisition_Of_Group() throws ExecutionException, InterruptedException {
-            long experimenterId = -1;
-            long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
-            List<Long> expectedWellIds = OmeroServer.getPlateAcquisitionWellIds(userType);
-
-            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 0).get();
-
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedWellIds,
-                    wells.stream().map(ServerEntity::getId).toList()
-            );
-        }
+        abstract void Check_Wells_From_Plate_Acquisition_Of_Group() throws ExecutionException, InterruptedException;
 
         @Test
-        void Check_Wells_From_Plate_Acquisition_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
-            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
-            long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
-            List<Long> expectedWellIds = OmeroServer.getPlateAcquisitionWellIds(userType);
-
-            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 0).get();
-
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedWellIds,
-                    wells.stream().map(ServerEntity::getId).toList()
-            );
-        }
+        abstract void Check_Wells_From_Plate_Acquisition_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException;
 
         @Test
         void Check_Wells_From_Plate_Acquisition_With_Invalid_Parent() {
@@ -987,6 +921,68 @@ public class TestJsonApi extends OmeroServer {
 
             Assertions.assertTrue(jsonApi.isConnectedUserOwnerOfGroup(groupId));
         }
+
+        @Test
+        @Override
+        void Check_Plate_Acquisition() throws ExecutionException, InterruptedException {
+            long expectedId = OmeroServer.getPlateAcquisition(userType).id();
+
+            PlateAcquisition plateAcquisition = jsonApi.getPlateAcquisition(expectedId).get();
+
+            Assertions.assertEquals(expectedId, plateAcquisition.getId());
+        }
+
+        @Test
+        @Override
+        void Check_Wells_From_Plate_Acquisition() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
+            int expectedNumberOfWells = OmeroServer.getNumberOfPlateAcquisitionWell(userType, experimenterId, groupId);
+
+            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 1).get();
+
+            Assertions.assertEquals(expectedNumberOfWells, wells.size());
+        }
+
+        @Test
+        @Override
+        void Check_Wells_From_Plate_Acquisition_Of_Experimenter() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
+            int expectedNumberOfWells = OmeroServer.getNumberOfPlateAcquisitionWell(userType, experimenterId, groupId);
+
+            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 1).get();
+
+            Assertions.assertEquals(expectedNumberOfWells, wells.size());
+        }
+
+        @Test
+        @Override
+        void Check_Wells_From_Plate_Acquisition_Of_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
+            int expectedNumberOfWells = OmeroServer.getNumberOfPlateAcquisitionWell(userType, experimenterId, groupId);
+
+            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 1).get();
+
+            Assertions.assertEquals(expectedNumberOfWells, wells.size());
+        }
+
+        @Test
+        @Override
+        void Check_Wells_From_Plate_Acquisition_Of_Experimenter_And_Group() throws ExecutionException, InterruptedException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            long plateAcquisitionId = OmeroServer.getPlateAcquisition(userType).id();
+            int expectedNumberOfWells = OmeroServer.getNumberOfPlateAcquisitionWell(userType, experimenterId, groupId);
+
+            List<Well> wells = jsonApi.getWellsFromPlateAcquisition(plateAcquisitionId, experimenterId, groupId, 1).get();
+
+            Assertions.assertEquals(expectedNumberOfWells, wells.size());
+        }
     }
 
     @Nested
@@ -1037,6 +1033,36 @@ public class TestJsonApi extends OmeroServer {
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
 
             Assertions.assertFalse(jsonApi.isConnectedUserOwnerOfGroup(groupId));
+        }
+
+        @Test
+        @Override
+        void Check_Plate_Acquisition() {
+            // The unauthenticated user doesn't have any plate acquisition
+        }
+
+        @Test
+        @Override
+        void Check_Wells_From_Plate_Acquisition() {
+            // The unauthenticated user doesn't have any plate acquisition
+        }
+
+        @Test
+        @Override
+        void Check_Wells_From_Plate_Acquisition_Of_Experimenter() {
+            // The unauthenticated user doesn't have any plate acquisition
+        }
+
+        @Test
+        @Override
+        void Check_Wells_From_Plate_Acquisition_Of_Group() {
+            // The unauthenticated user doesn't have any plate acquisition
+        }
+
+        @Test
+        @Override
+        void Check_Wells_From_Plate_Acquisition_Of_Experimenter_And_Group() {
+            // The unauthenticated user doesn't have any plate acquisition
         }
     }
 }

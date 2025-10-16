@@ -28,14 +28,14 @@ public record OmeroProject(
         @SerializedName(value = "Name") String name,
         @SerializedName(value = "Description") String description,
         @SerializedName(value = "omero:childCount") Integer childCount,
-        @SerializedName(value = "omero:details:") OmeroDetails omeroDetails
+        @SerializedName(value = "omero:details") OmeroDetails omeroDetails
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Project";
     private static final Logger logger = LoggerFactory.getLogger(OmeroProject.class);
 
     public OmeroProject {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(childCount);
+        Objects.requireNonNull(id, "@id not provided");
+        Objects.requireNonNull(childCount, "omero:childCount not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

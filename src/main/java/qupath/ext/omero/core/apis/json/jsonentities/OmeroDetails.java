@@ -21,6 +21,6 @@ public record OmeroDetails(
         OmeroPermissions permissions
 ) {
     public OmeroDetails {
-        Objects.requireNonNull(permissions);
+        Objects.requireNonNull(permissions, "permissions not provided");
     }
 }

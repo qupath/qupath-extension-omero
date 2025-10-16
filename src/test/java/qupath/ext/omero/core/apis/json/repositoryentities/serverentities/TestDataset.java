@@ -30,7 +30,7 @@ public class TestDataset extends OmeroServer {
 
         @Test
         void Check_Has_Children() {
-            boolean expectedChildren = !OmeroServer.getDatasetImageIds(userType).isEmpty();
+            boolean expectedChildren = !OmeroServer.getDatasetImageIds(userType, -1, -1).isEmpty();
 
             boolean hasChildren = dataset.hasChildren();
 
@@ -41,7 +41,7 @@ public class TestDataset extends OmeroServer {
         void Check_Children() throws ExecutionException, InterruptedException {
             long experimenterId = -1;
             long groupId = -1;
-            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType);
+            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = dataset.getChildren(experimenterId, groupId).get();
 
@@ -59,7 +59,7 @@ public class TestDataset extends OmeroServer {
         void Check_Children_Filtered_By_Experimenter() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
-            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType);
+            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = dataset.getChildren(experimenterId, groupId).get();
 
@@ -77,7 +77,7 @@ public class TestDataset extends OmeroServer {
         void Check_Children_Filtered_By_Group() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType);
+            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = dataset.getChildren(experimenterId, groupId).get();
 
@@ -95,7 +95,7 @@ public class TestDataset extends OmeroServer {
         void Check_Children_Filtered_By_Experimenter_And_Group() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType);
+            List<Long> expectedChildrenIds = OmeroServer.getDatasetImageIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = dataset.getChildren(experimenterId, groupId).get();
 

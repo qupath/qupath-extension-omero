@@ -61,7 +61,7 @@ public class Image extends ServerEntity {
         this.pixelType = omeroImage.pixelType().orElse(null);
         this.numberOfChannels = omeroImage.sizeC();
 
-        long acquisitionDate = omeroImage.acquisitionDate();
+        long acquisitionDate = omeroImage.acquisitionDate() == null ? 0 : omeroImage.acquisitionDate();
         int sizeX = omeroImage.sizeX();
         int sizeY = omeroImage.sizeY();
         double sizeMebibyte = omeroImage.sizeMebibyte().orElse(-1d);
@@ -73,7 +73,7 @@ public class Image extends ServerEntity {
         OmeroPhysicalSize physicalSizeZ = omeroImage.physicalSizeZ().orElse(null);
         PixelType pixelType = omeroImage.pixelType().orElse(null);
         this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Image.name"), name == null || name.isEmpty() ? "-" : name),
+                new Attribute(resources.getString("Entities.Image.name"), name == null || name.isEmpty() ? getLabel() : name),
                 new Attribute(resources.getString("Entities.Image.id"), String.valueOf(id)),
                 new Attribute(
                         resources.getString("Entities.Image.owner"),
@@ -97,20 +97,20 @@ public class Image extends ServerEntity {
                                 sizeMebibyte > 1000 ? "GiB" : "MiB"
                         )
                 ),
-                new Attribute(resources.getString("Entities.Image.nbZSlices"), sizeZ < 0 ? "-" : String.format("%d px", sizeZ)),
-                new Attribute(resources.getString("Entities.Image.nbChannels"), sizeC < 0 ? "-" : String.format("%d px", sizeC)),
-                new Attribute(resources.getString("Entities.Image.nbTimePoints"), sizeT < 0 ? "-" : String.format("%d px", sizeT)),
+                new Attribute(resources.getString("Entities.Image.nbZSlices"), sizeZ < 0 ? "-" : String.format("%d", sizeZ)),
+                new Attribute(resources.getString("Entities.Image.nbChannels"), sizeC < 0 ? "-" : String.format("%d", sizeC)),
+                new Attribute(resources.getString("Entities.Image.nbTimePoints"), sizeT < 0 ? "-" : String.format("%d", sizeT)),
                 new Attribute(
                         resources.getString("Entities.Image.pixelSizeX"),
-                        physicalSizeX == null ? "-" : String.format("%f %s", physicalSizeX.value(), physicalSizeX.symbol())
+                        physicalSizeX == null ? "-" : String.format("%s %s", physicalSizeX.value(), physicalSizeX.symbol())
                 ),
                 new Attribute(
                         resources.getString("Entities.Image.pixelSizeY"),
-                        physicalSizeY == null ? "-" : String.format("%f %s", physicalSizeY.value(), physicalSizeY.symbol())
+                        physicalSizeY == null ? "-" : String.format("%s %s", physicalSizeY.value(), physicalSizeY.symbol())
                 ),
                 new Attribute(
                         resources.getString("Entities.Image.pixelSizeZ"),
-                        physicalSizeZ == null ? "-" : String.format("%f %s", physicalSizeZ.value(), physicalSizeZ.symbol())
+                        physicalSizeZ == null ? "-" : String.format("%s %s", physicalSizeZ.value(), physicalSizeZ.symbol())
                 ),
                 new Attribute(resources.getString("Entities.Image.pixelType"), pixelType == null ? "-" : pixelType.name())
         );

@@ -171,7 +171,7 @@ public class TestOmeroProject {
                     "Name": "name",
                     "Description": "description",
                     "omero:childCount": 53,
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,

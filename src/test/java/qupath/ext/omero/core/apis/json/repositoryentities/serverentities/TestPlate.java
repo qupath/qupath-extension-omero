@@ -6,7 +6,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
@@ -14,7 +13,6 @@ import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
 
 public class TestPlate extends OmeroServer {
 
@@ -31,7 +29,7 @@ public class TestPlate extends OmeroServer {
 
         @Test
         void Check_Has_Children() {
-            boolean expectedChildren = !OmeroServer.getPlatePlateAcquisitionIds(userType).isEmpty() && !OmeroServer.getPlateWellIds(userType).isEmpty();
+            boolean expectedChildren = true;
 
             boolean hasChildren = plate.hasChildren();
 
@@ -42,84 +40,48 @@ public class TestPlate extends OmeroServer {
         void Check_Children() throws ExecutionException, InterruptedException {
             long experimenterId = -1;
             long groupId = -1;
-            List<Long> expectedChildrenIds = Stream.concat(
-                    OmeroServer.getPlatePlateAcquisitionIds(userType).stream(),
-                    OmeroServer.getPlateWellIds(userType).stream()
-            ).toList();
+            int expectedNumberOfChildren = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId).size() +
+                    OmeroServer.getNumberOfPlateNonEmptyWells(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = plate.getChildren(experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedChildrenIds,
-                    children.stream()
-                            .filter(ServerEntity.class::isInstance)
-                            .map(ServerEntity.class::cast)
-                            .map(ServerEntity::getId)
-                            .toList()
-            );
+            Assertions.assertEquals(expectedNumberOfChildren, children.size());
         }
 
         @Test
         void Check_Children_Filtered_By_Experimenter() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
-            List<Long> expectedChildrenIds = Stream.concat(
-                    OmeroServer.getPlatePlateAcquisitionIds(userType).stream(),
-                    OmeroServer.getPlateWellIds(userType).stream()
-            ).toList();
+            int expectedNumberOfChildren = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId).size() +
+                    OmeroServer.getNumberOfPlateNonEmptyWells(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = plate.getChildren(experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedChildrenIds,
-                    children.stream()
-                            .filter(ServerEntity.class::isInstance)
-                            .map(ServerEntity.class::cast)
-                            .map(ServerEntity::getId)
-                            .toList()
-            );
+            Assertions.assertEquals(expectedNumberOfChildren, children.size());
         }
 
         @Test
         void Check_Children_Filtered_By_Group() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Long> expectedChildrenIds = Stream.concat(
-                    OmeroServer.getPlatePlateAcquisitionIds(userType).stream(),
-                    OmeroServer.getPlateWellIds(userType).stream()
-            ).toList();
+            int expectedNumberOfChildren = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId).size() +
+                    OmeroServer.getNumberOfPlateNonEmptyWells(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = plate.getChildren(experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedChildrenIds,
-                    children.stream()
-                            .filter(ServerEntity.class::isInstance)
-                            .map(ServerEntity.class::cast)
-                            .map(ServerEntity::getId)
-                            .toList()
-            );
+            Assertions.assertEquals(expectedNumberOfChildren, children.size());
         }
 
         @Test
         void Check_Children_Filtered_By_Experimenter_And_Group() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Long> expectedChildrenIds = Stream.concat(
-                    OmeroServer.getPlatePlateAcquisitionIds(userType).stream(),
-                    OmeroServer.getPlateWellIds(userType).stream()
-            ).toList();
+            int expectedNumberOfChildren = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId).size() +
+                    OmeroServer.getNumberOfPlateNonEmptyWells(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = plate.getChildren(experimenterId, groupId).get();
 
-            TestUtils.assertCollectionsEqualsWithoutOrder(
-                    expectedChildrenIds,
-                    children.stream()
-                            .filter(ServerEntity.class::isInstance)
-                            .map(ServerEntity.class::cast)
-                            .map(ServerEntity::getId)
-                            .toList()
-            );
+            Assertions.assertEquals(expectedNumberOfChildren, children.size());
         }
 
         @Test

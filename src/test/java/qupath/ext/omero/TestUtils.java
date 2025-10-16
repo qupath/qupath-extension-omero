@@ -1,7 +1,9 @@
 package qupath.ext.omero;
 
+import org.junit.jupiter.api.Assertions;
 import org.opentest4j.AssertionFailedError;
 
+import java.awt.image.BufferedImage;
 import java.util.Collection;
 
 /**
@@ -38,6 +40,28 @@ public class TestUtils {
                     expectedCollection,
                     actualCollection
             ));
+        }
+    }
+
+    /**
+     * Assert that two images are equal. This means same width, height, number of bands, and pixel values.
+     *
+     * @param expectedImage the expected image
+     * @param actualImage the actual image
+     */
+    public static void assertDoubleBufferedImagesEqual(BufferedImage expectedImage, BufferedImage actualImage) {
+        Assertions.assertEquals(expectedImage.getWidth(), actualImage.getWidth());
+        Assertions.assertEquals(expectedImage.getHeight(), actualImage.getHeight());
+
+        double[] expectedPixels = new double[expectedImage.getSampleModel().getNumBands()];
+        double[] actualPixels = new double[actualImage.getSampleModel().getNumBands()];
+        for (int x = 0; x < expectedImage.getWidth(); x++) {
+            for (int y = 0; y < expectedImage.getHeight(); y++) {
+                Assertions.assertArrayEquals(
+                        expectedImage.getRaster().getPixel(x, y, expectedPixels),
+                        expectedImage.getRaster().getPixel(x, y, actualPixels)
+                );
+            }
         }
     }
 }

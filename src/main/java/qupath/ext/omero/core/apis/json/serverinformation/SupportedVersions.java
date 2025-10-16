@@ -16,6 +16,6 @@ public record SupportedVersions(
         @SerializedName("data") List<SupportedVersion> supportedVersions
 ) {
     public SupportedVersions {
-        Objects.requireNonNull(supportedVersions);
+        Objects.requireNonNull(supportedVersions, "data not provided");
     }
 }

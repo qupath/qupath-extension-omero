@@ -30,8 +30,8 @@ public record OmeroCommentAnnotation(
     private static final Logger logger = LoggerFactory.getLogger(OmeroCommentAnnotation.class);
 
     public OmeroCommentAnnotation {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(comment);
+        Objects.requireNonNull(id, "id not provided");
+        Objects.requireNonNull(comment, "textValue not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

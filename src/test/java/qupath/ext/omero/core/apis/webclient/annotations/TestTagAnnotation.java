@@ -79,11 +79,11 @@ public class TestTagAnnotation {
                         234L,
                         null,
                         null,
+                        new OmeroAnnotationExperimenter(2L),
                         null,
-                        new OmeroLink(new OmeroAnnotationExperimenter(43L)),
                         "tag"
                 ),
-                List.of(new OmeroSimpleExperimenter(43L, "first_adder", "last_adder"))
+                List.of(new OmeroSimpleExperimenter(2L, "first_owner", "last_owner"))
         );
 
         long id = annotation.getOwnerId().orElseThrow();

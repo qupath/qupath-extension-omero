@@ -31,8 +31,8 @@ public record OmeroMapAnnotation(
     private static final Logger logger = LoggerFactory.getLogger(OmeroMapAnnotation.class);
 
     public OmeroMapAnnotation {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(values);
+        Objects.requireNonNull(id, "id not provided");
+        Objects.requireNonNull(values, "values not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

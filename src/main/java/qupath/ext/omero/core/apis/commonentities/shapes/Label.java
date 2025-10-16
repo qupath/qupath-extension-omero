@@ -70,6 +70,7 @@ public class Label extends Shape {
     public String createJson() {
         return gson.toJson(new OmeroLabel(
                 getId(),
+                getOldId(),
                 OmeroLabel.TYPE,
                 getText(),
                 getFillColor().map(Shape::colorToRgba).orElse(null),
@@ -93,7 +94,7 @@ public class Label extends Shape {
 
     @Override
     public String toString() {
-        return String.format("Label located at {x: %f, y: %f}", x, y);
+        return String.format("Label of ID %d located at {x: %f, y: %f}", getId(), x, y);
     }
 
     @Override
@@ -102,8 +103,7 @@ public class Label extends Shape {
             return true;
         if (!(obj instanceof Label label))
             return false;
-        return label.getId() == this.getId() &&
-                label.x == this.x && label.y == this.y;
+        return label.x == this.x && label.y == this.y;
     }
 
     @Override

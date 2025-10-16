@@ -19,7 +19,7 @@ public class TestOmeroDetails {
                                 87L,
                                 new OmeroDetails(null, null, new OmeroPermissions(false, false, false)),
                                 null,
-                                ""
+                                null
                         ),
                         null
                 )
@@ -35,7 +35,7 @@ public class TestOmeroDetails {
                         87L,
                         new OmeroDetails(null, null, new OmeroPermissions(false, true, false)),
                         null,
-                        ""
+                        null
                 ),
                 new OmeroPermissions(true, false, false)
         );
@@ -48,13 +48,16 @@ public class TestOmeroDetails {
                     },
                     "group": {
                         "@id": 87,
-                        "omero:details:": {
+                        "omero:details": {
                             "permissions": {
+                                "isGroupWrite": false,
+                                "isGroupRead": true,
+                                "isGroupAnnotate": false
+                            },
                             "isGroupWrite": false,
                             "isGroupRead": true,
                             "isGroupAnnotate": false
-                        },
-                        "url:experimenters": ""
+                        }
                     },
                     "permissions": {
                         "isGroupWrite": true,

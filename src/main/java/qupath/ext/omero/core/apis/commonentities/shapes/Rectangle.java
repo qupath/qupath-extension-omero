@@ -72,6 +72,7 @@ public class Rectangle extends Shape {
     public String createJson() {
         return gson.toJson(new OmeroRectangle(
                 getId(),
+                getOldId(),
                 OmeroRectangle.TYPE,
                 getText(),
                 getFillColor().map(Shape::colorToRgba).orElse(null),
@@ -95,7 +96,7 @@ public class Rectangle extends Shape {
 
     @Override
     public String toString() {
-        return String.format("Rectangle located (top left) at {x: %f, y: %f} of width %f and height %f", x, y, width, height);
+        return String.format("Rectangle of ID %d located (top left) at {x: %f, y: %f} of width %f and height %f", getId(), x, y, width, height);
     }
 
     @Override
@@ -104,8 +105,7 @@ public class Rectangle extends Shape {
             return true;
         if (!(obj instanceof Rectangle rectangle))
             return false;
-        return rectangle.getId() == this.getId() &&
-                rectangle.x == this.x && rectangle.y == this.y && rectangle.width == this.width && rectangle.height == this.height;
+        return rectangle.x == this.x && rectangle.y == this.y && rectangle.width == this.width && rectangle.height == this.height;
     }
 
     @Override

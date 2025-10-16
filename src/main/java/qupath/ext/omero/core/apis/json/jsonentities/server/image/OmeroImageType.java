@@ -11,6 +11,6 @@ import java.util.Objects;
  */
 public record OmeroImageType(String value) {
     public OmeroImageType {
-        Objects.requireNonNull(value);
+        Objects.requireNonNull(value, "value not provided");
     }
 }

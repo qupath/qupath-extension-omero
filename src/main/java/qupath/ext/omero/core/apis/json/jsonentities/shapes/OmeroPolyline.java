@@ -13,6 +13,7 @@ import java.util.Objects;
  * A {@link RuntimeException} is thrown if one required parameter is null.
  *
  * @param id the ID of the shape. Required
+ * @param oldId In OMERO, a ROI contains one or more shapes. This old ID is "roiID:shapeID". Optional
  * @param type a link to the specifications of this object ({@link #TYPE} is expected). Optional
  * @param text a text describing the shape. Optional
  * @param fillColor the fill color of the shape with the RGBA format. Optional
@@ -26,6 +27,7 @@ import java.util.Objects;
  */
 public record OmeroPolyline(
         @SerializedName(value = "@id") Long id,
+        String oldId,
         @SerializedName(value = "@type") String type,
         @SerializedName(value = "Text") String text,
         @SerializedName(value = "FillColor") Integer fillColor,
@@ -35,14 +37,14 @@ public record OmeroPolyline(
         @SerializedName(value = "TheZ") Integer z,
         @SerializedName(value = "TheT") Integer t,
         @SerializedName(value = "Points") String points,
-        @SerializedName(value = "omero:details:") OmeroDetails omeroDetails
+        @SerializedName(value = "omero:details") OmeroDetails omeroDetails
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Polyline";
     private static final Logger logger = LoggerFactory.getLogger(OmeroPolyline.class);
 
     public OmeroPolyline {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(points);
+        Objects.requireNonNull(id, "@id not provided");
+        Objects.requireNonNull(points, "Points not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

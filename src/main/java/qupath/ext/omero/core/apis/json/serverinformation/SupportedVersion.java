@@ -17,7 +17,7 @@ public record SupportedVersion(
         @SerializedName("url:base") String versionUrl
 ) {
     public SupportedVersion {
-        Objects.requireNonNull(version);
-        Objects.requireNonNull(versionUrl);
+        Objects.requireNonNull(version, "version not provided");
+        Objects.requireNonNull(versionUrl, "url:base not provided");
     }
 }

@@ -30,8 +30,8 @@ public record OmeroFileAnnotation(
     private static final Logger logger = LoggerFactory.getLogger(OmeroFileAnnotation.class);
 
     public OmeroFileAnnotation {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(file);
+        Objects.requireNonNull(id, "id not provided");
+        Objects.requireNonNull(file, "file not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

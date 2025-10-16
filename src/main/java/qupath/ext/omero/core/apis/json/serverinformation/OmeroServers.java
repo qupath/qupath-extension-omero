@@ -16,6 +16,6 @@ public record OmeroServers(
         @SerializedName("data") List<OmeroServer> servers
 ) {
     public OmeroServers {
-        Objects.requireNonNull(servers);
+        Objects.requireNonNull(servers, "data not provided");
     }
 }

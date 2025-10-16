@@ -13,6 +13,6 @@ public record OmeroLink(
         OmeroAnnotationExperimenter owner
 ) {
     public OmeroLink {
-        Objects.requireNonNull(owner);
+        Objects.requireNonNull(owner, "owner not provided");
     }
 }

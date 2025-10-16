@@ -31,13 +31,13 @@ public record OmeroWell(
         @SerializedName(value = "WellSamples") List<OmeroWellSample> wellSamples,
         @SerializedName(value = "Column") Integer column,
         @SerializedName(value = "Row") Integer row,
-        @SerializedName(value = "omero:details:") OmeroDetails omeroDetails
+        @SerializedName(value = "omero:details") OmeroDetails omeroDetails
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Well";
     private static final Logger logger = LoggerFactory.getLogger(OmeroWell.class);
 
     public OmeroWell {
-        Objects.requireNonNull(id);
+        Objects.requireNonNull(id, "@id not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

@@ -79,7 +79,7 @@ public class TestLoginResponse {
                     "eventContext": {
                         "userId": 15,
                         "userName": "username",
-                        "@id": 54,
+                        "groupId": 54,
                         "sessionUuid": "86cdf82c-8df9-11ee-b9d1-0242ac120002",
                         "isAdmin": False,
                         "leaderOfGroups": [354, 675]

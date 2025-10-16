@@ -17,8 +17,8 @@ public record OmeroFile(
         Long size
 ) {
     public OmeroFile {
-        Objects.requireNonNull(name);
-        Objects.requireNonNull(mimetype);
-        Objects.requireNonNull(size);
+        Objects.requireNonNull(name, "name not provided");
+        Objects.requireNonNull(mimetype, "mimetype not provided");
+        Objects.requireNonNull(size, "size not provided");
     }
 }

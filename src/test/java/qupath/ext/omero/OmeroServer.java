@@ -41,14 +41,17 @@ import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageChannel;
 import qupath.lib.images.servers.ImageServerMetadata;
+import qupath.lib.images.servers.ImageServers;
 import qupath.lib.images.servers.PixelType;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -249,12 +252,18 @@ public abstract class OmeroServer {
         Assumptions.assumeTrue(dockerAvailable, "Aborting test: no docker environment detected");
     }
 
+    /**
+     * @return the URL of this OMERO server
+     */
     protected static String getWebServerURI() {
         return omeroWeb == null ?
                 "http://localhost:" + OMERO_WEB_PORT :
                 "http://" + omeroWeb.getHost() + ":" + omeroWeb.getMappedPort(OMERO_WEB_PORT);
     }
 
+    /**
+     * @return the credentials to use when connecting with the provided user type
+     */
     protected static Credentials getCredentials(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> new Credentials();
@@ -265,14 +274,23 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the address of the OMERO.server instance of this server
+     */
     protected static String getServerAddress() {
         return "omero-server";
     }
 
+    /**
+     * @return the port of the OMERO.server instance of this server
+     */
     protected static int getServerPort() {
         return OMERO_SERVER_PORT;
     }
 
+    /**
+     * @return a created client corresponding to the provided user type
+     */
     protected static Client createClient(UserType userType) {
         Credentials credentials = getCredentials(userType);
         Client client = null;
@@ -294,6 +312,9 @@ public abstract class OmeroServer {
         }
     }
 
+    /**
+     * @return the username of the provided user type
+     */
     protected static String getUsername(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> "public";
@@ -302,6 +323,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the password of the provided user type
+     */
     protected static String getPassword(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> "password_user";
@@ -310,6 +334,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the groups the provided user type belongs to
+     */
     protected static List<ExperimenterGroup> getGroups(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> List.of(
@@ -324,6 +351,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return all groups of this server
+     */
     protected static List<ExperimenterGroup> getGroups() {
         return List.of(
                 getSystemGroup(),
@@ -336,6 +366,9 @@ public abstract class OmeroServer {
         );
     }
 
+    /**
+     * @return the default group of the provided user type
+     */
     protected static ExperimenterGroup getDefaultGroup(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> getGroup1();
@@ -344,6 +377,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the groups the provided user type owns
+     */
     protected static List<ExperimenterGroup> getGroupsOwnedByUser(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED, ADMIN -> List.of();
@@ -351,6 +387,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return all experimenters visible by the provided user type
+     */
     protected static List<Experimenter> getExperimenters(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> List.of(
@@ -375,6 +414,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the experimenter corresponding to the user type
+     */
     protected static Experimenter getConnectedExperimenter(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> getUser();
@@ -383,6 +425,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the ID and full name of the experimenter owning server entities of the provided user type
+     */
     protected static SimpleEntity getEntityOwner(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
@@ -391,6 +436,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the ID and name of the group owning server entities of the provided user type
+     */
     protected static SimpleEntity getEntityGroup(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
@@ -399,10 +447,17 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return a URI pointing to the provided project
+     */
     protected static URI getProjectUri(long projectId) {
         return URI.create(getWebServerURI() + "/webclient/?show=project-" + projectId);
     }
 
+    /**
+     * @return a list of IDs of projects visible by the provided user type, and optionally belonging to the
+     * provided experimenter and group
+     */
     protected static List<Long> getProjectIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
             case AUTHENTICATED -> {
@@ -425,10 +480,35 @@ public abstract class OmeroServer {
                     yield List.of();
                 }
             }
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case ADMIN -> {
+                List<Long> ids = new ArrayList<>(List.of(1L, 2L));
+
+                if (experimenterId >= 0) {
+                    if (experimenterId != getUser1().getId()) {
+                        ids.removeAll(List.of(2L));
+                    }
+                    if (experimenterId != getPublicUser().getId()) {
+                        ids.remove(1L);
+                    }
+                }
+
+                if (groupId >= 0) {
+                    if (groupId != getGroup1().getId()) {
+                        ids.removeAll(List.of(2L));
+                    }
+                    if (groupId != getPublicGroup().getId()) {
+                        ids.remove(1L);
+                    }
+                }
+
+                yield ids;
+            }
         };
     }
 
+    /**
+     * @return the project to consider with the provided user type
+     */
     protected static SimpleServerEntity getProject(UserType userType) {
         return new SimpleServerEntity(
                 EntityType.PROJECT,
@@ -440,6 +520,9 @@ public abstract class OmeroServer {
         );
     }
 
+    /**
+     * @return the name of the project to consider with the provided user type
+     */
     protected static String getProjectName(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED, AUTHENTICATED -> "project";
@@ -447,14 +530,39 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<Long> getProjectDatasetIds(UserType userType) {
+    /**
+     * @return the IDs of the children datasets of the project to consider with the provided user type, optionally belonging to the
+     * provided experimenter and group
+     */
+    protected static List<Long> getProjectDatasetIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
-            case UNAUTHENTICATED -> List.of(1L);
-            case AUTHENTICATED -> List.of(3L, 4L);
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(1L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(3L, 4L);
+                } else {
+                    yield List.of();
+                }
+            }
             case ADMIN -> List.of();
         };
     }
 
+    /**
+     * @return the IDs of images belonging to the project to consider with the provided user type
+     */
     protected static List<Long> getProjectImageIds(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L);
@@ -463,6 +571,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the attributes of the project to consider with the provided user type
+     */
     protected static List<String> getProjectAttributeValues(UserType userType) {
         return List.of(
                 getProjectName(userType),
@@ -470,14 +581,21 @@ public abstract class OmeroServer {
                 "-",
                 getEntityOwner(userType).name(),
                 getEntityGroup(userType).name(),
-                String.valueOf(getProjectDatasetIds(userType).size())
+                String.valueOf(getProjectDatasetIds(userType, -1, -1).size())
         );
     }
 
+    /**
+     * @return a URI pointing to the provided dataset
+     */
     protected static URI getDatasetUri(long datasetId) {
         return URI.create(getWebServerURI() + "/webclient/?show=dataset-" + datasetId);
     }
 
+    /**
+     * @return the IDs of the orphaned datasets visible by the provided user type, optionally belonging to the provided
+     * experimenter and group
+     */
     protected static List<Long> getOrphanedDatasetIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
             case AUTHENTICATED -> {
@@ -500,10 +618,35 @@ public abstract class OmeroServer {
                     yield List.of();
                 }
             }
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case ADMIN -> {
+                List<Long> ids = new ArrayList<>(List.of(2L, 5L, 6L));
+
+                if (experimenterId >= 0) {
+                    if (experimenterId != getUser1().getId()) {
+                        ids.removeAll(List.of(5L, 6L));
+                    }
+                    if (experimenterId != getPublicUser().getId()) {
+                        ids.remove(2L);
+                    }
+                }
+
+                if (groupId >= 0) {
+                    if (groupId != getGroup1().getId()) {
+                        ids.removeAll(List.of(5L, 6L));
+                    }
+                    if (groupId != getPublicGroup().getId()) {
+                        ids.remove(2L);
+                    }
+                }
+
+                yield ids;
+            }
         };
     }
 
+    /**
+     * @return the dataset to consider with the provided user type
+     */
     protected static SimpleServerEntity getDataset(UserType userType) {
         return new SimpleServerEntity(
                 EntityType.DATASET,
@@ -515,6 +658,9 @@ public abstract class OmeroServer {
         );
     }
 
+    /**
+     * @return the name of the dataset to consider with the provided user type
+     */
     protected static String getDatasetName(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> "dataset";
@@ -523,14 +669,38 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<Long> getDatasetImageIds(UserType userType) {
+    /**
+     * @return the IDs of the image belonging to the dataset to consider with the provided user type
+     */
+    protected static List<Long> getDatasetImageIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
-            case UNAUTHENTICATED -> List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L);
-            case AUTHENTICATED -> List.of(19L, 20L);
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(1L, 2L, 3L, 4L, 5L, 6L, 7L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(19L, 20L);
+                } else {
+                    yield List.of();
+                }
+            }
             case ADMIN -> List.of();
         };
     }
 
+    /**
+     * @return the attributes of the dataset to consider with the provided user type
+     */
     protected static List<String> getDatasetAttributeValues(UserType userType) {
         return List.of(
                 getDatasetName(userType),
@@ -538,37 +708,46 @@ public abstract class OmeroServer {
                 "-",
                 getEntityOwner(userType).name(),
                 getEntityGroup(userType).name(),
-                String.valueOf(getDatasetImageIds(userType).size())
+                String.valueOf(getDatasetImageIds(userType, -1, -1).size())
         );
     }
 
-    protected static List<Annotation> getAnnotationsInDataset() {
-        return List.of(
-                new CommentAnnotation(
-                        new OmeroCommentAnnotation(
-                              1L,
-                              null,
-                              null,
-                              new OmeroAnnotationExperimenter(2L),
-                              new OmeroLink(new OmeroAnnotationExperimenter(2L)),
-                              "comment"
-                        ),
-                        List.of(new OmeroSimpleExperimenter(2L, "public", "access"))
-                ),
-                new FileAnnotation(
-                        new OmeroFileAnnotation(
-                                2L,
-                                null,
-                                null,
-                                new OmeroAnnotationExperimenter(2L),
-                                new OmeroLink(new OmeroAnnotationExperimenter(2L)),
-                                new OmeroFile("analysis.csv", "text/csv", 15L)
-                        ),
-                        List.of(new OmeroSimpleExperimenter(2L, "public", "access"))
-                )
-        );
+    /**
+     * @return the annotations attached to the dataset to consider with the provided user type
+     */
+    protected static List<Annotation> getAnnotationsInDataset(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(
+                    new CommentAnnotation(
+                            new OmeroCommentAnnotation(
+                                    1L,
+                                    null,
+                                    null,
+                                    new OmeroAnnotationExperimenter(2L),
+                                    new OmeroLink(new OmeroAnnotationExperimenter(2L)),
+                                    "comment"
+                            ),
+                            List.of(new OmeroSimpleExperimenter(2L, "public", "access"))
+                    ),
+                    new FileAnnotation(
+                            new OmeroFileAnnotation(
+                                    2L,
+                                    null,
+                                    null,
+                                    new OmeroAnnotationExperimenter(2L),
+                                    new OmeroLink(new OmeroAnnotationExperimenter(2L)),
+                                    new OmeroFile("analysis.csv", "text/csv", 15L)
+                            ),
+                            List.of(new OmeroSimpleExperimenter(2L, "public", "access"))
+                    )
+            );
+            case AUTHENTICATED, ADMIN -> List.of();
+        };
     }
 
+    /**
+     * @return search results when searching for "dataset" with the provided user type
+     */
     protected static List<SearchResult> getSearchResultsOnDataset(UserType userType) {
         return switch (userType) {
             case AUTHENTICATED -> List.of(
@@ -633,10 +812,17 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return a URI pointing to the provided image
+     */
     protected static URI getImageUri(long imageId) {
         return URI.create(getWebServerURI() + "/webclient/?show=image-" + imageId);
     }
 
+    /**
+     * @return the IDs of the orphaned images visible by the provided user type, optionally filtered to the provided
+     * experimenter and group
+     */
     protected static List<Long> getOrphanedImageIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
             case AUTHENTICATED -> {
@@ -678,6 +864,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the image to consider with the provided user type
+     */
     protected static SimpleServerEntity getImage(UserType userType) {
         return new SimpleServerEntity(
                 EntityType.IMAGE,
@@ -689,6 +878,9 @@ public abstract class OmeroServer {
         );
     }
 
+    /**
+     * @return the ID of the RGB image with the provided user type
+     */
     protected static SimpleServerEntity getRgbImage(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 1);
@@ -697,6 +889,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the metadata of the RGB image with the provided user type
+     */
     protected static ImageServerMetadata getRgbImageMetadata() {
         return new ImageServerMetadata.Builder()
                 .name("rgb.tiff")
@@ -713,13 +908,18 @@ public abstract class OmeroServer {
                 .build();
     }
 
+    /**
+     * @return a list of parents (including the image itself) of the RGB image with the provided user type
+     */
     protected static List<SimpleServerEntity> getParentOfRgbImage(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> List.of(
+                    new SimpleServerEntity(EntityType.IMAGE, 1),
                     new SimpleServerEntity(EntityType.DATASET, 1),
                     new SimpleServerEntity(EntityType.PROJECT, 1)
             );
             case AUTHENTICATED -> List.of(
+                    new SimpleServerEntity(EntityType.IMAGE, 19),
                     new SimpleServerEntity(EntityType.DATASET, 4),
                     new SimpleServerEntity(EntityType.PROJECT, 2)
             );
@@ -727,46 +927,64 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static double getRgbImageRedChannelMean() {
-        return 5.414;
+    /**
+     * @return the pixels of the RGB image
+     */
+    protected static BufferedImage getRgbImage() {
+        try (var server = ImageServers.buildServer(Objects.requireNonNull(OmeroServer.class.getResource("/omero-server/images/rgb.tiff")).getFile())) {
+            return server.readRegion(1, 0, 0, server.getWidth(), server.getHeight());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    protected static double getRgbImageRedChannelStdDev() {
-        return 18.447;
+    /**
+     * @return the pixels of the UINT8 image
+     */
+    protected static BufferedImage getUint8Image() {
+        try (var server = ImageServers.buildServer(Objects.requireNonNull(OmeroServer.class.getResource("/omero-server/images/uint8.tiff")).getFile())) {
+            return server.readRegion(1, 0, 0, server.getWidth(), server.getHeight());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    protected static double getUint8ImageRedChannelMean() {
-        return 7.134;
+    /**
+     * @return the pixels of the UINT16 image
+     */
+    protected static BufferedImage getUint16Image() {
+        try (var server = ImageServers.buildServer(Objects.requireNonNull(OmeroServer.class.getResource("/omero-server/images/uint16.tiff")).getFile())) {
+            return server.readRegion(1, 0, 0, server.getWidth(), server.getHeight());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    protected static double getUint8ImageRedChannelStdDev() {
-        return 24.279;
+    /**
+     * @return the pixels of the INT16 image
+     */
+    protected static BufferedImage getInt16Image() {
+        try (var server = ImageServers.buildServer(Objects.requireNonNull(OmeroServer.class.getResource("/omero-server/images/int16.tiff")).getFile())) {
+            return server.readRegion(1, 0, 0, server.getWidth(), server.getHeight());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    protected static double getUint16ImageRedChannelMean() {
-        return 4.295;
+    /**
+     * @return the pixels of the INT32 image
+     */
+    protected static BufferedImage getInt32Image() {
+        try (var server = ImageServers.buildServer(Objects.requireNonNull(OmeroServer.class.getResource("/omero-server/images/int32.tiff")).getFile())) {
+            return server.readRegion(1, 0, 0, server.getWidth(), server.getHeight());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    protected static double getUint16ImageRedChannelStdDev() {
-        return 14.650;
-    }
-
-    protected static double getInt16ImageRedChannelMean() {
-        return 6.730;
-    }
-
-    protected static double getInt16ImageRedChannelStdDev() {
-        return 22.913;
-    }
-
-    protected static double getInt32ImageRedChannelMean() {
-        return 4.574;
-    }
-
-    protected static double getInt32ImageRedChannelStdDev() {
-        return 15.597;
-    }
-
+    /**
+     * @return the ID of the FLOAT32 image with the provided user type
+     */
     protected static SimpleServerEntity getFloat32Image(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 6);
@@ -775,6 +993,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the image settings of the FLOAT32 image
+     */
     protected static ImageSettings getFloat32ImageSettings() {
         return new ImageSettings(
                 "float32.tiff",
@@ -786,22 +1007,31 @@ public abstract class OmeroServer {
         );
     }
 
-    protected static double getFloat32ImageRedChannelMean() {
-        return 8.429;
+    /**
+     * @return the pixels of the FLOAT32 image
+     */
+    protected static BufferedImage getFloat32Image() {
+        try (var server = ImageServers.buildServer(Objects.requireNonNull(OmeroServer.class.getResource("/omero-server/images/float32.tiff")).getFile())) {
+            return server.readRegion(1, 0, 0, server.getWidth(), server.getHeight());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    protected static double getFloat32ImageRedChannelStdDev() {
-        return 28.605;
+    /**
+     * @return the pixels of the FLOAT64 image
+     */
+    protected static BufferedImage getFloat64Image() {
+        try (var server = ImageServers.buildServer(Objects.requireNonNull(OmeroServer.class.getResource("/omero-server/images/float64.tiff")).getFile())) {
+            return server.readRegion(1, 0, 0, server.getWidth(), server.getHeight());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    protected static double getFloat64ImageRedChannelMean() {
-        return 7.071;
-    }
-
-    protected static double getFloat64ImageRedChannelStdDev() {
-        return 23.995;
-    }
-
+    /**
+     * @return the ID of the complex image with the provided user type
+     */
     protected static SimpleServerEntity getComplexImage(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> new SimpleServerEntity(EntityType.IMAGE, 8);
@@ -810,6 +1040,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the metadata of the complex image
+     */
     protected static ImageServerMetadata getComplexImageMetadata() {
         return new ImageServerMetadata.Builder()
                 .name("complex.tiff")
@@ -824,22 +1057,37 @@ public abstract class OmeroServer {
                 .build();
     }
 
+    /**
+     * @return an image that the provided user type can add shapes to
+     */
     protected static SimpleServerEntity getAnnotableImage(UserType userType) {
         return getRgbImage(userType);
     }
 
+    /**
+     * @return an image that the provided user type can modify (e.g. change image name, channel settings)
+     */
     protected static SimpleServerEntity getModifiableImage(UserType userType) {
         return getComplexImage(userType);
     }
 
+    /**
+     * @return the original name of the image that can be modified (e.g. change image name, channel settings)
+     */
     protected static String getModifiableImageName() {
         return "complex.tiff";
     }
 
+    /**
+     * @return the original channel settings of the image that can be modified (e.g. change image name, channel settings)
+     */
     protected static ChannelSettings getModifiableImageChannelSettings() {
         return new ChannelSettings("0", 0, 240, Integer.parseInt("808080", 16));
     }
 
+    /**
+     * @return the ID and full name of the experimenter owning the image to consider with the provided user type
+     */
     protected static SimpleEntity getImageOwner(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
@@ -848,6 +1096,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the ID and name of the group owning the image to consider with the provided user type
+     */
     protected static SimpleEntity getImageGroup(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
@@ -856,6 +1107,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the name of the image to consider with the provided user type
+     */
     protected static String getImageName(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> "rgb.tiff";
@@ -864,6 +1118,9 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the attributes of the image to consider with the provided user type
+     */
     protected static List<String> getImageAttributeValues(UserType userType) {
         return List.of(
                 getImageName(userType),
@@ -874,28 +1131,34 @@ public abstract class OmeroServer {
                 "256 px",
                 "256 px",
                 switch (userType) {
-                    case UNAUTHENTICATED -> "0.2 MB";
-                    case AUTHENTICATED -> "7.5 MB";
+                    case UNAUTHENTICATED -> "0.2 MiB";
+                    case AUTHENTICATED -> "0.8 MiB";
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 },
                 "1",
                 "3",
                 "1",
-                "1 µm",
-                "1 µm",
+                "1.0 µm",
+                "1.0 µm",
                 "-",
                 switch (userType) {
-                    case UNAUTHENTICATED -> "uint8";
-                    case AUTHENTICATED -> "float";
+                    case UNAUTHENTICATED -> "UINT8";
+                    case AUTHENTICATED -> "FLOAT32";
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
         );
     }
 
+    /**
+     * @return a URI pointing to the provided screen
+     */
     protected static URI getScreenUri(long screenId) {
         return URI.create(getWebServerURI() + "/webclient/?show=screen-" + screenId);
     }
 
+    /**
+     * @return the IDs of the screens visible by the provided user type, optionally filtered to the provided experimenter and group
+     */
     protected static List<Long> getScreenIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
             case AUTHENTICATED -> {
@@ -918,10 +1181,35 @@ public abstract class OmeroServer {
                     yield List.of();
                 }
             }
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case ADMIN -> {
+                List<Long> ids = new ArrayList<>(List.of(1L, 2L, 3L));
+
+                if (experimenterId >= 0) {
+                    if (experimenterId != getUser1().getId()) {
+                        ids.removeAll(List.of(2L, 3L));
+                    }
+                    if (experimenterId != getPublicUser().getId()) {
+                        ids.remove(1L);
+                    }
+                }
+
+                if (groupId >= 0) {
+                    if (groupId != getGroup1().getId()) {
+                        ids.removeAll(List.of(2L, 3L));
+                    }
+                    if (groupId != getPublicGroup().getId()) {
+                        ids.remove(1L);
+                    }
+                }
+
+                yield ids;
+            }
         };
     }
 
+    /**
+     * @return the screen to consider with the provided user type
+     */
     protected static SimpleServerEntity getScreen(UserType userType) {
         return new SimpleServerEntity(
                 EntityType.SCREEN,
@@ -933,6 +1221,9 @@ public abstract class OmeroServer {
         );
     }
 
+    /**
+     * @return the name of the screen to consider with the provided user type
+     */
     protected static String getScreenName(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> "screen";
@@ -941,14 +1232,39 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<Long> getScreenPlateIds(UserType userType) {
+    /**
+     * @return the IDs of the plates belonging to the screen to consider with the provided user type, optionally filtered to the
+     * provided experimenter and group
+     */
+    protected static List<Long> getScreenPlateIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
-            case UNAUTHENTICATED -> List.of(1L);
-            case AUTHENTICATED -> List.of(4L);
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(1L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(4L);
+                } else {
+                    yield List.of();
+                }
+            }
             case ADMIN -> List.of();
         };
     }
 
+    /**
+     * @return the attributes of the screen to consider with the provided user type
+     */
     protected static List<String> getScreenAttributeValues(UserType userType) {
         return List.of(
                 getScreenName(userType),
@@ -956,14 +1272,21 @@ public abstract class OmeroServer {
                 "-",
                 getEntityOwner(userType).name(),
                 getEntityGroup(userType).name(),
-                String.valueOf(getScreenPlateIds(userType).size())
+                String.valueOf(getScreenPlateIds(userType, -1, -1).size())
         );
     }
 
+    /**
+     * @return a URI pointing to the provided plate
+     */
     protected static URI getPlateUri(long plateId) {
         return URI.create(getWebServerURI() + "/webclient/?show=plate-" + plateId);
     }
 
+    /**
+     * @return the ID of the orphaned plates visible by the provided user type, optionally filtered to the
+     * provided experimenter and group
+     */
     protected static List<Long> getOrphanedPlateIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
             case AUTHENTICATED -> {
@@ -986,10 +1309,35 @@ public abstract class OmeroServer {
                     yield List.of();
                 }
             }
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case ADMIN -> {
+                List<Long> ids = new ArrayList<>(List.of(2L, 5L, 6L));
+
+                if (experimenterId >= 0) {
+                    if (experimenterId != getUser1().getId()) {
+                        ids.removeAll(List.of(5L, 6L));
+                    }
+                    if (experimenterId != getPublicUser().getId()) {
+                        ids.remove(2L);
+                    }
+                }
+
+                if (groupId >= 0) {
+                    if (groupId != getGroup1().getId()) {
+                        ids.removeAll(List.of(5L, 6L));
+                    }
+                    if (groupId != getPublicGroup().getId()) {
+                        ids.remove(2L);
+                    }
+                }
+
+                yield ids;
+            }
         };
     }
 
+    /**
+     * @return the plate to consider with the provided user type
+     */
     protected static SimpleServerEntity getPlate(UserType userType) {
         return new SimpleServerEntity(
                 EntityType.PLATE,
@@ -1001,6 +1349,9 @@ public abstract class OmeroServer {
         );
     }
 
+    /**
+     * @return the name of the plate to consider with the provided user type
+     */
     protected static String getPlateName(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED -> "plate";
@@ -1009,45 +1360,109 @@ public abstract class OmeroServer {
         };
     }
 
-    protected static List<Long> getPlatePlateAcquisitionIds(UserType userType) {
+    /**
+     * @return the IDs of the plate acquisitions belonging to the plate to consider with the provided user type, optionally
+     * filtered to the provided experimenter and group
+     */
+    protected static List<Long> getPlatePlateAcquisitionIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
             case UNAUTHENTICATED, ADMIN -> List.of();
-            case AUTHENTICATED -> List.of(1L, 2L);
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(1L, 2L);
+                } else {
+                    yield List.of();
+                }
+            }
         };
     }
 
-    protected static List<Long> getPlateWellIds(UserType userType) {
+    /**
+     * @return the number of non-empty wells belonging to the plate to consider with the provided user type, optionally
+     * filtered by the provided experimenter and group. Only the number can be retrieved because the well IDs are not
+     * predictable
+     */
+    protected static int getNumberOfPlateNonEmptyWells(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
-            case UNAUTHENTICATED -> List.of(1L, 2L, 3L, 4L);
-            case AUTHENTICATED -> List.of(13L, 14L, 15L, 16L);
-            case ADMIN -> List.of();
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield 4;
+                } else {
+                    yield 0;
+                }
+            }
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield 1;
+                } else {
+                    yield 0;
+                }
+            }
+            case ADMIN -> 0;
         };
     }
 
+    /**
+     * @return the number of wells belonging to the plate to consider with the provided user type, optionally
+     * filtered by the provided experimenter and group. Only the number can be retrieved because the well IDs are not
+     * predictable
+     */
+    protected static int getNumberOfPlateWells(UserType userType, long experimenterId, long groupId) {
+        return switch (userType) {
+            case UNAUTHENTICATED, AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield 4;
+                } else {
+                    yield 0;
+                }
+            }
+            case ADMIN -> 0;
+        };
+    }
+
+    /**
+     * @return the attributes of the plate to consider with the provided user type
+     */
     protected static List<String> getPlateAttributeValues(UserType userType) {
         return List.of(
                 getPlateName(userType),
                 String.valueOf(getPlate(userType).id()),
-                "-",
                 getEntityOwner(userType).name(),
                 getEntityGroup(userType).name(),
                 switch (userType) {
-                    case UNAUTHENTICATED -> "3";
-                    case AUTHENTICATED -> "2";
+                    case UNAUTHENTICATED, AUTHENTICATED -> "3";
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 },
                 switch (userType) {
-                    case UNAUTHENTICATED -> "3";
-                    case AUTHENTICATED -> "2";
+                    case UNAUTHENTICATED, AUTHENTICATED -> "3";
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
         );
     }
 
+
+    /**
+     * @return a URI pointing to the provided plate acquisition
+     */
     protected static URI getPlateAcquisitionUri(long plateAcquisitionId) {
         return URI.create(getWebServerURI() + "/webclient/?show=run-" + plateAcquisitionId);
     }
 
+    /**
+     * @return the plate acquisition to consider with the provided user type
+     */
     protected static SimpleServerEntity getPlateAcquisition(UserType userType) {
         return new SimpleServerEntity(
                 EntityType.PLATE_ACQUISITION,
@@ -1058,89 +1473,166 @@ public abstract class OmeroServer {
         );
     }
 
+    /**
+     * @return the name of the plate acquisition to consider with the provided user type
+     */
     protected static String getPlateAcquisitionName(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-            case AUTHENTICATED -> "2010-02-23 12:50:30 - 2010-02-23 12:51:29";
+            case AUTHENTICATED -> null;
         };
     }
 
-    protected static List<Long> getPlateAcquisitionWellIds(UserType userType) {
+    /**
+     * @return the number of wells belonging to the plate acquisition to consider with the provided user type, optionally
+     * filtered by the provided experimenter and group. Only the number can be retrieved because the well IDs are not
+     * predictable
+     */
+    protected static int getNumberOfPlateAcquisitionWell(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
-            case UNAUTHENTICATED, ADMIN -> List.of();
-            case AUTHENTICATED -> List.of(13L, 14L, 15L, 16L);
+            case UNAUTHENTICATED, ADMIN -> 0;
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield 4;
+                } else {
+                    yield 0;
+                }
+            }
         };
     }
 
+    /**
+     * @return the attributes of the plate acquisition to consider with the provided user type
+     */
     protected static List<String> getPlateAcquisitionAttributeValues(UserType userType) {
-        return List.of(
-                getPlateAcquisitionName(userType),
-                String.valueOf(getPlateAcquisition(userType).id()),
-                getEntityOwner(userType).name(),
-                getEntityGroup(userType).name(),
-                "-"
-        );
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case AUTHENTICATED -> List.of(
+                    "Run 1",
+                    String.valueOf(getPlateAcquisition(userType).id()),
+                    getEntityOwner(userType).name(),
+                    getEntityGroup(userType).name(),
+                    "2010-02-23 12:50:30"
+            );
+        };
     }
 
+    /**
+     * @return the min well sample index of the plate acquisition to consider with the provided user type
+     */
     protected static int getPlateAcquisitionMinWellSampleIndex(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-            case AUTHENTICATED -> 0;
+            case AUTHENTICATED -> 1;
         };
     }
 
+    /**
+     * @return the max well sample index of the plate acquisition to consider with the provided user type
+     */
     protected static int getPlateAcquisitionMaxWellSampleIndex(UserType userType) {
         return switch (userType) {
             case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-            case AUTHENTICATED -> 0;
+            case AUTHENTICATED -> 1;
         };
     }
 
+
+    /**
+     * @return a URI pointing to the provided well
+     */
     protected static URI getWellUri(long wellId) {
         return URI.create(getWebServerURI() + "/webclient/?show=well-" + wellId);
     }
 
+    /**
+     * @return the well to consider with the provided user type
+     */
     protected static SimpleServerEntity getWell(UserType userType) {
         return new SimpleServerEntity(
                 EntityType.WELL,
                 switch (userType) {
                     case UNAUTHENTICATED -> 4;
-                    case AUTHENTICATED -> 16;
+                    case AUTHENTICATED -> 15;
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
         );
     }
 
+    /**
+     * @return the name of the well to consider with the provided user type
+     */
     protected static String getWellName(UserType userType) {
         return switch (userType) {
-            case UNAUTHENTICATED -> "A2";
-            case AUTHENTICATED -> "B2";
+            case UNAUTHENTICATED, AUTHENTICATED -> null;
             case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
         };
     }
 
-    protected static List<Long> getWellImageIds(UserType userType) {
+    /**
+     * @return the IDs of the image belonging to the well to consider with the provided user type and belonging to a
+     * plate (not plate acquisition), optionally filtered to the provided experimenter and group
+     */
+    protected static List<Long> getWellImageIds(UserType userType, long experimenterId, long groupId) {
         return switch (userType) {
-            case UNAUTHENTICATED -> List.of(9L);
-            case AUTHENTICATED -> List.of(26L, 36L);
+            case UNAUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(9L);
+                } else {
+                    yield List.of();
+                }
+            }
+            case AUTHENTICATED -> {
+                if (
+                        (experimenterId < 0 || experimenterId == getEntityOwner(userType).id()) &&
+                                (groupId < 0 || groupId == getEntityGroup(userType).id())
+                ) {
+                    yield List.of(34L, 35L);
+                } else {
+                    yield List.of();
+                }
+            }
             case ADMIN -> List.of();
         };
     }
 
+    /**
+     * @return the IDs of the image belonging to the well to consider with the provided user type
+     */
+    protected static List<Long> getWellAllImageIds(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> List.of(9L);
+            case AUTHENTICATED -> List.of(31L, 32L, 33L, 34L, 35L);
+            case ADMIN -> List.of();
+        };
+    }
+
+    /**
+     * @return the attributes of the well to consider with the provided user type
+     */
     protected static List<String> getWellAttributeValues(UserType userType) {
         return List.of(
-                getDatasetName(userType),
-                String.valueOf(getDataset(userType).id()),
+                switch (userType) {
+                    case UNAUTHENTICATED -> "A2";
+                    case AUTHENTICATED -> "C2";
+                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+                },
+                String.valueOf(getWell(userType).id()),
                 getEntityOwner(userType).name(),
                 getEntityGroup(userType).name(),
-                String.valueOf(getDatasetImageIds(userType).size()),
                 switch (userType) {
                     case UNAUTHENTICATED, AUTHENTICATED -> "1";
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 },
                 switch (userType) {
                     case UNAUTHENTICATED -> "0";
-                    case AUTHENTICATED -> "1";
+                    case AUTHENTICATED -> "2";
                     case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
                 }
         );

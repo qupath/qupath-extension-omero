@@ -30,7 +30,7 @@ public class TestScreen extends OmeroServer {
 
         @Test
         void Check_Has_Children() {
-            boolean expectedChildren = !OmeroServer.getScreenPlateIds(userType).isEmpty();
+            boolean expectedChildren = !OmeroServer.getScreenPlateIds(userType, -1, -1).isEmpty();
 
             boolean hasChildren = screen.hasChildren();
 
@@ -41,16 +41,16 @@ public class TestScreen extends OmeroServer {
         void Check_Children() throws ExecutionException, InterruptedException {
             long experimenterId = -1;
             long groupId = -1;
-            List<Long> expectedChildrenIds = OmeroServer.getScreenPlateIds(userType);
+            List<Long> expectedChildrenIds = OmeroServer.getScreenPlateIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = screen.getChildren(experimenterId, groupId).get();
 
             TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
-                            .filter(Screen.class::isInstance)
-                            .map(Screen.class::cast)
-                            .map(Screen::getId)
+                            .filter(Plate.class::isInstance)
+                            .map(Plate.class::cast)
+                            .map(Plate::getId)
                             .toList()
             );
         }
@@ -59,16 +59,16 @@ public class TestScreen extends OmeroServer {
         void Check_Children_Filtered_By_Experimenter() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = -1;
-            List<Long> expectedChildrenIds = OmeroServer.getScreenPlateIds(userType);
+            List<Long> expectedChildrenIds = OmeroServer.getScreenPlateIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = screen.getChildren(experimenterId, groupId).get();
 
             TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
-                            .filter(Screen.class::isInstance)
-                            .map(Screen.class::cast)
-                            .map(Screen::getId)
+                            .filter(Plate.class::isInstance)
+                            .map(Plate.class::cast)
+                            .map(Plate::getId)
                             .toList()
             );
         }
@@ -77,16 +77,16 @@ public class TestScreen extends OmeroServer {
         void Check_Children_Filtered_By_Group() throws InterruptedException, ExecutionException {
             long experimenterId = -1;
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Long> expectedChildrenIds = OmeroServer.getScreenPlateIds(userType);
+            List<Long> expectedChildrenIds = OmeroServer.getScreenPlateIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = screen.getChildren(experimenterId, groupId).get();
 
             TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
-                            .filter(Screen.class::isInstance)
-                            .map(Screen.class::cast)
-                            .map(Screen::getId)
+                            .filter(Plate.class::isInstance)
+                            .map(Plate.class::cast)
+                            .map(Plate::getId)
                             .toList()
             );
         }
@@ -95,16 +95,16 @@ public class TestScreen extends OmeroServer {
         void Check_Children_Filtered_By_Experimenter_And_Group() throws InterruptedException, ExecutionException {
             long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
             long groupId = OmeroServer.getDefaultGroup(userType).getId();
-            List<Long> expectedChildrenIds = OmeroServer.getScreenPlateIds(userType);
+            List<Long> expectedChildrenIds = OmeroServer.getScreenPlateIds(userType, experimenterId, groupId);
 
             List<? extends RepositoryEntity> children = screen.getChildren(experimenterId, groupId).get();
 
             TestUtils.assertCollectionsEqualsWithoutOrder(
                     expectedChildrenIds,
                     children.stream()
-                            .filter(Screen.class::isInstance)
-                            .map(Screen.class::cast)
-                            .map(Screen::getId)
+                            .filter(Plate.class::isInstance)
+                            .map(Plate.class::cast)
+                            .map(Plate::getId)
                             .toList()
             );
         }

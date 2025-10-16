@@ -62,7 +62,7 @@ public class PlateAcquisition extends ServerEntity {
                 ),
                 new Attribute(
                         resources.getString("Entities.PlateAcquisition.acquisitionTime"),
-                        omeroPlateAcquisition.startTime() == 0 ? "-" : ACQUISITION_DATE_FORMAT.format(new Date(omeroPlateAcquisition.startTime()))
+                        omeroPlateAcquisition.startTime() == null ? "-" : ACQUISITION_DATE_FORMAT.format(new Date(omeroPlateAcquisition.startTime()))
                 )
         );
     }
@@ -77,12 +77,22 @@ public class PlateAcquisition extends ServerEntity {
         return hasChildren;
     }
 
+    /**
+     * Returns the list of children of this element belonging to the provided experimenter and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally if the request failed for example).
+     * <p>
+     * Children that don't have any children are not returned by this function.
+     *
+     * @param ownerId the ID of the experimenter that should own the entities to retrieve
+     * @param groupId the ID of the group that should own the entities to retrieve
+     * @return a CompletableFuture (that may complete exceptionally) with the list of children of this entity
+     */
     @Override
     public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
         Optional<Client> client = Client.getClientFromURI(webServerUri);
 
         if (client.isPresent()) {
-            //TODO: initial implementation was more complex
             return CompletableFuture.supplyAsync(() -> IntStream.range(wellSampleIndices.getFirst(), wellSampleIndices.get(1)+1)
                     .mapToObj(i -> client.get().getApisHandler().getWellsFromPlateAcquisition(id, ownerId, groupId, i))
                     .map(CompletableFuture::join)

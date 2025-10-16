@@ -162,7 +162,7 @@ public class TestApisHandler extends OmeroServer {
         void Check_Image_Uris_From_Dataset_Uri() throws ExecutionException, InterruptedException {
             long datasetId = OmeroServer.getDataset(userType).id();
             URI datasetUri = OmeroServer.getDatasetUri(datasetId);
-            List<URI> expectedImageUris = OmeroServer.getDatasetImageIds(userType).stream()
+            List<URI> expectedImageUris = OmeroServer.getDatasetImageIds(userType, -1, -1).stream()
                     .map(OmeroServer::getImageUri)
                     .toList();
 

@@ -65,6 +65,7 @@ public class Polyline extends Shape {
     public String createJson() {
         return gson.toJson(new OmeroPolyline(
                 getId(),
+                getOldId(),
                 OmeroPolyline.TYPE,
                 getText(),
                 getFillColor().map(Shape::colorToRgba).orElse(null),
@@ -85,7 +86,7 @@ public class Polyline extends Shape {
 
     @Override
     public String toString() {
-        return String.format("Polyline of points %s", points);
+        return String.format("Polyline of ID %d and points %s", getId(), points);
     }
 
     @Override
@@ -94,8 +95,7 @@ public class Polyline extends Shape {
             return true;
         if (!(obj instanceof Polyline polyline))
             return false;
-        return polyline.getId() == this.getId() &&
-                polyline.points.equals(this.points);
+        return polyline.points.equals(this.points);
     }
 
     @Override

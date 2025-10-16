@@ -29,13 +29,13 @@ public record OmeroPlateAcquisition(
         @SerializedName(value = "Name") String name,
         @SerializedName(value = "omero:wellsampleIndex") List<Integer> wellSampleIndices,
         @SerializedName(value = "StartTime") Long startTime,
-        @SerializedName(value = "omero:details:") OmeroDetails omeroDetails
+        @SerializedName(value = "omero:details") OmeroDetails omeroDetails
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#PlateAcquisition";
     private static final Logger logger = LoggerFactory.getLogger(OmeroPlateAcquisition.class);
 
     public OmeroPlateAcquisition {
-        Objects.requireNonNull(id);
+        Objects.requireNonNull(id, "@id not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

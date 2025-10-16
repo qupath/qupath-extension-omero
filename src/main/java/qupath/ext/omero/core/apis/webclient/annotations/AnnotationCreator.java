@@ -59,7 +59,7 @@ public class AnnotationCreator {
                     }
                     JsonObject annotationObject = annotation.getAsJsonObject();
 
-                    if (!annotationObject.has("class") || annotationObject.get("class").isJsonPrimitive()) {
+                    if (!annotationObject.has("class") || !annotationObject.get("class").isJsonPrimitive()) {
                         logger.warn("'class' attribute not found in {}. Skipping it", annotationObject);
                         return null;
                     }

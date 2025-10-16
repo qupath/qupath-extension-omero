@@ -160,7 +160,7 @@ public class TestOmeroWell {
                     "WellSamples": [{}, {}],
                     "Column": 53,
                     "Row": 32,
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,

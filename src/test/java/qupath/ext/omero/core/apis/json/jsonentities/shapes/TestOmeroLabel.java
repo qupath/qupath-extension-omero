@@ -16,6 +16,7 @@ public class TestOmeroLabel {
                         null,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -39,6 +40,7 @@ public class TestOmeroLabel {
                 RuntimeException.class,
                 () -> new OmeroLabel(
                         64L,
+                        "",
                         "",
                         "",
                         1,
@@ -66,6 +68,7 @@ public class TestOmeroLabel {
                         64L,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -87,6 +90,7 @@ public class TestOmeroLabel {
     void Check_Created_From_Json() {
         OmeroLabel expectedOmeroLabel = new OmeroLabel(
                 64L,
+                "23:44",
                 "some type",
                 "some text",
                 1,
@@ -108,6 +112,7 @@ public class TestOmeroLabel {
                 """
                 {
                     "@id": 64,
+                    "oldId": "23:44",
                     "@type": "some type",
                     "Text": "some text",
                     "FillColor": 1,
@@ -118,7 +123,7 @@ public class TestOmeroLabel {
                     "TheT": 5,
                     "X": 6.77,
                     "Y": -2.54,
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,

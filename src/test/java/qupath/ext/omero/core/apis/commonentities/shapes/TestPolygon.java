@@ -8,6 +8,7 @@ import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPolygon;
 import qupath.lib.geom.Point2;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
@@ -16,6 +17,7 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public class TestPolygon {
 
@@ -24,17 +26,19 @@ public class TestPolygon {
         String expectedJson = """
             {
                 "@id": 83,
+                "oldId": "53:83",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Polygon",
-                "Text": "",
+                "Text": "Annotation:NoClass:4f0a3bd5-2954-4110-a37c-bab2a01e8e2c:NoParent:NoName",
                 "FillColor": 3,
                 "StrokeColor": 5,
                 "Locked": true,
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
-                "Points": "4.5,-7.5 12,65.5 0,50"
+                "Points": "4.5,-7.5$12.0,65.5$0.0,50.0"
             }
-            """;
+            """.replace(" ", "").replace("\n", "").replace("$", " ");
+                                                                // "#" replace is done to preserve necessary white spaces in Points
         Polygon polygon = createFromOmeroPolygon();
 
         String json = polygon.createJson();
@@ -67,17 +71,19 @@ public class TestPolygon {
         String expectedJson = """
             {
                 "@id": 0,
+                "oldId": "0:0",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Polygon",
-                "Text": "",
+                "Text": "Annotation:someClass:886b8740-8a3b-4305-b73b-c06273746d3e:NoParent:NoName",
                 "FillColor": 0,
-                "StrokeColor": 5,
-                "Locked": true,
+                "StrokeColor": 255,
+                "Locked": false,
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
-                "Points": "4.5,-7.5 12,65.5 0,50"
+                "Points": "4.5,-7.5$12.0,65.5$0.0,50.0"
             }
-            """;
+            """.replace(" ", "").replace("\n", "").replace("$", " ");
+                                                    // "#" replace is done to preserve necessary white spaces in Points
         Polygon polygon = createFromPathObject();
 
         String json = polygon.createJson();
@@ -108,8 +114,9 @@ public class TestPolygon {
         return new Polygon(
                 new OmeroPolygon(
                         83L,
+                        "53:83",
                         OmeroPolygon.TYPE,
-                        "",
+                        "Annotation:NoClass:4f0a3bd5-2954-4110-a37c-bab2a01e8e2c:NoParent:NoName",
                         3,
                         5,
                         true,
@@ -142,11 +149,9 @@ public class TestPolygon {
                 ),
                 ImagePlane.getPlaneWithChannel(1, 2, 3)
         );
+        PathObject pathObject = PathObjects.createAnnotationObject(roi, PathClass.fromString("someClass", 0));
+        pathObject.setID(UUID.fromString("886b8740-8a3b-4305-b73b-c06273746d3e"));
 
-        return new Polygon(
-                PathObjects.createAnnotationObject(roi, PathClass.fromString("some class", 5)),
-                roi,
-                false
-        );
+        return new Polygon(pathObject, roi, false);
     }
 }

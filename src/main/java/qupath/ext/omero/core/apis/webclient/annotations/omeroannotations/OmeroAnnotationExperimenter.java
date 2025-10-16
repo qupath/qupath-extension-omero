@@ -13,6 +13,6 @@ public record OmeroAnnotationExperimenter(
         Long id
 ) {
     public OmeroAnnotationExperimenter {
-        Objects.requireNonNull(id);
+        Objects.requireNonNull(id, "id not provided");
     }
 }

@@ -113,7 +113,7 @@ public class TestRatingAnnotation {
 
     @Test
     void Check_Rating() {
-        short expectedRating = 78;
+        short expectedRating = 3;
         RatingAnnotation annotation = new RatingAnnotation(
                 new OmeroRatingAnnotation(
                         234L,

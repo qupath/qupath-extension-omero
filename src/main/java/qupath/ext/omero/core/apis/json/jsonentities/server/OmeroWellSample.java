@@ -3,7 +3,7 @@ package qupath.ext.omero.core.apis.json.jsonentities.server;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroImage;
+import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroSimpleImage;
 
 /**
  * An OMERO well sample as described by the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06#WellSample">OME specifications</a>.
@@ -16,7 +16,7 @@ import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroImage;
  */
 public record OmeroWellSample(
         @SerializedName(value = "@type") String type,
-        @SerializedName(value = "Image") OmeroImage image,
+        @SerializedName(value = "Image") OmeroSimpleImage image,
         @SerializedName(value = "PlateAcquisition") OmeroPlateAcquisition plateAcquisition
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#WellSample";

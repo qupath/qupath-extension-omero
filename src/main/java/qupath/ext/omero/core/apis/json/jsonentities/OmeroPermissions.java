@@ -22,9 +22,9 @@ public record OmeroPermissions(
         Boolean isGroupAnnotate
 ) {
     public OmeroPermissions {
-        Objects.requireNonNull(isGroupWrite);
-        Objects.requireNonNull(isGroupRead);
-        Objects.requireNonNull(isGroupAnnotate);
+        Objects.requireNonNull(isGroupWrite, "isGroupWrite not provided");
+        Objects.requireNonNull(isGroupRead, "isGroupRead not provided");
+        Objects.requireNonNull(isGroupAnnotate, "isGroupAnnotate not provided");
     }
 
     /**

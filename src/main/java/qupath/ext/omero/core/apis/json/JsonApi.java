@@ -165,11 +165,11 @@ public class JsonApi {
         }
 
         this.projectsCache = createCache(
-                projectId -> String.format("%s%d", links.projects(), projectId),
+                projectId -> String.format("%s%d?childCount=true", links.projects(), projectId),
                 jsonElement -> new Project(gson.fromJson(jsonElement, OmeroProject.class), webServerUri)
         );
         this.datasetsCache = createCache(
-                datasetId -> String.format("%s%d", links.datasets(), datasetId),
+                datasetId -> String.format("%s%d?childCount=true", links.datasets(), datasetId),
                 jsonElement -> new Dataset(gson.fromJson(jsonElement, OmeroDataset.class), webServerUri)
         );
         this.imagesCache = createCache(
@@ -177,7 +177,7 @@ public class JsonApi {
                 jsonElement -> new Image(gson.fromJson(jsonElement, OmeroImage.class), webServerUri)
         );
         this.screensCache = createCache(
-                screenId -> String.format("%s%d", links.screens(), screenId),
+                screenId -> String.format("%s%d?childCount=true", links.screens(), screenId),
                 jsonElement -> new Screen(gson.fromJson(jsonElement, OmeroScreen.class), webServerUri)
         );
         this.platesCache = createCache(
@@ -727,7 +727,7 @@ public class JsonApi {
                 new ServerEntityCacheKey(plateId, experimenterId, groupId),
                 createUrlFromParameters(
                         String.format(WELLS_IN_PLATE_URL, webServerUri, plateId),
-                        true,
+                        false,
                         false,
                         experimenterId,
                         groupId

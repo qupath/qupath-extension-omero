@@ -153,7 +153,7 @@ public class TestOmeroPlateAcquisition {
                     "Name": "name",
                     "omero:wellsampleIndex": [3, 60],
                     "StartTime": 53,
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,

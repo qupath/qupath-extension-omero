@@ -30,8 +30,8 @@ public record OmeroRatingAnnotation(
     private static final Logger logger = LoggerFactory.getLogger(OmeroRatingAnnotation.class);
 
     public OmeroRatingAnnotation {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(value);
+        Objects.requireNonNull(id, "id not provided");
+        Objects.requireNonNull(value, "longValue not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

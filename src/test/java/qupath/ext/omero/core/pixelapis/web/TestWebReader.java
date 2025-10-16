@@ -1,24 +1,21 @@
 package qupath.ext.omero.core.pixelapis.web;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.core.imageserver.OmeroImageServerBuilder;
-import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 public class TestWebReader extends OmeroServer {
@@ -26,8 +23,7 @@ public class TestWebReader extends OmeroServer {
     abstract static class GenericImage {
 
         protected static final UserType userType = UserType.UNAUTHENTICATED;
-        protected static double expectedMean;
-        protected static double expectedStdDev;
+        protected static BufferedImage expectedImage;
         protected static Client client;
         protected static TileRequest tileRequest;
         protected static PixelApiReader reader;
@@ -40,27 +36,10 @@ public class TestWebReader extends OmeroServer {
         }
 
         @Test
-        void Check_Image_Can_Be_Read() throws IOException {
+        void Check_Image() throws IOException {
             BufferedImage image = reader.readTile(tileRequest);
 
-            Assertions.assertNotNull(image);
-        }
-
-        @Test
-        void Check_Image_Histogram() throws IOException {
-            BufferedImage image = reader.readTile(tileRequest);
-
-            Histogram histogram = new Histogram(
-                    Arrays.stream(image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth()))
-                            .map(ColorTools::red)
-                            .toArray(),
-                    256,
-                    Double.NaN,
-                    Double.NaN
-            );
-
-            Assertions.assertEquals(expectedMean, histogram.getMeanValue(), 0.1);
-            Assertions.assertEquals(expectedStdDev, histogram.getStdDev(), 0.1);
+            TestUtils.assertDoubleBufferedImagesEqual(expectedImage, image);
         }
     }
 
@@ -69,8 +48,7 @@ public class TestWebReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getRgbImageRedChannelMean();
-            expectedStdDev = OmeroServer.getRgbImageRedChannelStdDev();
+            expectedImage = OmeroServer.getRgbImage();
 
             client = OmeroServer.createClient(userType);
 
@@ -104,8 +82,7 @@ public class TestWebReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getUint8ImageRedChannelMean();
-            expectedStdDev = OmeroServer.getUint8ImageRedChannelStdDev();
+            expectedImage = OmeroServer.getUint8Image();
 
             client = OmeroServer.createClient(userType);
 

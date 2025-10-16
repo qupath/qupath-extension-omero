@@ -17,7 +17,7 @@ public record OmeroPhysicalSize(
         @SerializedName(value = "Value") Double value
 ) {
     public OmeroPhysicalSize {
-        Objects.requireNonNull(symbol);
-        Objects.requireNonNull(value);
+        Objects.requireNonNull(symbol, "Symbol not provided");
+        Objects.requireNonNull(value, "Value not provided");
     }
 }

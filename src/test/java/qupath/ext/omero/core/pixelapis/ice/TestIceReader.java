@@ -1,22 +1,20 @@
 package qupath.ext.omero.core.pixelapis.ice;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.core.imageserver.OmeroImageServerBuilder;
-import qupath.lib.analysis.stats.Histogram;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.Raster;
 import java.io.IOException;
 import java.util.List;
 
@@ -25,8 +23,7 @@ public class TestIceReader extends OmeroServer {
     abstract static class GenericImage {
 
         protected static final UserType userType = UserType.AUTHENTICATED;
-        protected static double expectedMean;
-        protected static double expectedStdDev;
+        protected static BufferedImage expectedImage;
         protected static Client client;
         protected static TileRequest tileRequest;
         protected static PixelApiReader reader;
@@ -39,32 +36,10 @@ public class TestIceReader extends OmeroServer {
         }
 
         @Test
-        void Check_Image_Can_Be_Read() throws IOException {
+        void Check_Image() throws IOException {
             BufferedImage image = reader.readTile(tileRequest);
 
-            Assertions.assertNotNull(image);
-        }
-
-        @Test
-        void Check_Image_Histogram() throws IOException {
-            BufferedImage image = reader.readTile(tileRequest);
-
-            Raster raster = image.getData();
-            double[] redValues = new double[image.getWidth()*image.getHeight()];
-            for (int y=0; y<image.getHeight(); y++) {
-                for (int x=0; x<image.getWidth(); x++) {
-                    redValues[x + image.getWidth()*y] = raster.getSampleDouble(x, y, 0);
-                }
-            }
-            Histogram histogram = new Histogram(
-                    redValues,
-                    256,
-                    Double.NaN,
-                    Double.NaN
-            );
-
-            Assertions.assertEquals(expectedMean, histogram.getMeanValue(), 0.001);
-            Assertions.assertEquals(expectedStdDev, histogram.getStdDev(), 0.001);
+            TestUtils.assertDoubleBufferedImagesEqual(expectedImage, image);
         }
     }
 
@@ -73,8 +48,7 @@ public class TestIceReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getRgbImageRedChannelMean();
-            expectedStdDev = OmeroServer.getRgbImageRedChannelStdDev();
+            expectedImage = OmeroServer.getRgbImage();
 
             client = OmeroServer.createClient(userType);
 
@@ -111,8 +85,7 @@ public class TestIceReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getUint8ImageRedChannelMean();
-            expectedStdDev = OmeroServer.getUint8ImageRedChannelStdDev();
+            expectedImage = OmeroServer.getUint8Image();
 
             client = OmeroServer.createClient(userType);
 
@@ -149,8 +122,7 @@ public class TestIceReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getUint16ImageRedChannelMean();
-            expectedStdDev = OmeroServer.getUint16ImageRedChannelStdDev();
+            expectedImage = OmeroServer.getUint16Image();
 
             client = OmeroServer.createClient(userType);
 
@@ -187,8 +159,7 @@ public class TestIceReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getInt16ImageRedChannelMean();
-            expectedStdDev = OmeroServer.getInt16ImageRedChannelStdDev();
+            expectedImage = OmeroServer.getInt16Image();
 
             client = OmeroServer.createClient(userType);
 
@@ -225,8 +196,7 @@ public class TestIceReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getInt32ImageRedChannelMean();
-            expectedStdDev = OmeroServer.getInt32ImageRedChannelStdDev();
+            expectedImage = OmeroServer.getInt32Image();
 
             client = OmeroServer.createClient(userType);
 
@@ -263,8 +233,7 @@ public class TestIceReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getFloat32ImageRedChannelMean();
-            expectedStdDev = OmeroServer.getFloat32ImageRedChannelStdDev();
+            expectedImage = OmeroServer.getFloat32Image();
 
             client = OmeroServer.createClient(userType);
 
@@ -301,8 +270,7 @@ public class TestIceReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            expectedMean = OmeroServer.getFloat64ImageRedChannelMean();
-            expectedStdDev = OmeroServer.getFloat64ImageRedChannelStdDev();
+            expectedImage = OmeroServer.getFloat64Image();
 
             client = OmeroServer.createClient(userType);
 
@@ -333,4 +301,6 @@ public class TestIceReader extends OmeroServer {
             }
         }
     }
+
+
 }

@@ -133,7 +133,7 @@ public abstract class Shape {
         this.uuid = pathObject.getID();
         this.name = pathObject.getName();
         this.parentUuid = pathObject.getParent() == null ? null : pathObject.getParent().getID();
-        this.pathClass = pathObject.getPathClass();
+        this.pathClass = pathObject.getPathClass() == null ? PathClass.NULL_CLASS : pathObject.getPathClass();
         this.shapeType = pathObject.isDetection() ? ShapeType.DETECTION : ShapeType.ANNOTATION;
 
         this.strokeColor = new Color(
@@ -330,7 +330,7 @@ public abstract class Shape {
      */
     protected static String pointsToString(List<Point2> points) {
         return points.stream()
-                .map(point -> String.format("%f%s%f", point.getX(), POINT_COORDINATE_DELIMITER, point.getY()))
+                .map(point -> String.format("%s%s%s", point.getX(), POINT_COORDINATE_DELIMITER, point.getY()))
                 .collect(Collectors.joining(POINT_DELIMITER));
     }
 
@@ -403,7 +403,10 @@ public abstract class Shape {
 
         pathObject.setID(uuids.getFirst());
         pathObject.setLocked(locked.getFirst());
-        pathObject.setName(names.getFirst());
+
+        if (!names.isEmpty()) {
+            pathObject.setName(names.getFirst());
+        }
 
         logger.debug("Created path object {} from shapes {}", pathObject, shapes);
         return pathObject;

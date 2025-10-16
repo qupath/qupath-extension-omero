@@ -33,6 +33,6 @@ public record SearchQuery(
         long groupId
 ) {
     public SearchQuery {
-        Objects.requireNonNull(query);
+        Objects.requireNonNull(query, "query not provided");
     }
 }

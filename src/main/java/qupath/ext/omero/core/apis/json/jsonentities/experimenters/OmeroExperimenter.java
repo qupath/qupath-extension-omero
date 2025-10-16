@@ -30,7 +30,7 @@ public record OmeroExperimenter(
     private static final Logger logger = LoggerFactory.getLogger(OmeroExperimenter.class);
 
     public OmeroExperimenter {
-        Objects.requireNonNull(id);
+        Objects.requireNonNull(id, "@id not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(
@@ -47,6 +47,7 @@ public record OmeroExperimenter(
     public String fullName() {
         return Stream.of(firstName, middleName, lastName)
                 .filter(Objects::nonNull)
+                .filter(name -> !name.isBlank())
                 .collect(Collectors.joining(" "));
     }
 }

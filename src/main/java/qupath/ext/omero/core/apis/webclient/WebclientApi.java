@@ -144,7 +144,9 @@ public class WebclientApi implements AutoCloseable {
 
     /**
      * Attempt to get the ID of the public user of the server.
-     * This only works if there is no active authenticated connection with the server.
+     * <p>
+     * This only works if there is no active authenticated connection with the server. If that's not the case, an unexpected value
+     * will be returned.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request or the conversion failed for example).

@@ -152,7 +152,7 @@ public class TestOmeroPlate {
                     "Name": "name",
                     "Columns": 3,
                     "Rows": 53,
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,

@@ -46,7 +46,7 @@ public record SimpleServerEntity(EntityType entityType, long id) {
                     case Project ignored -> EntityType.PROJECT;
                     case Screen ignored -> EntityType.SCREEN;
                     case Well ignored -> EntityType.WELL;
-                    default -> throw new IllegalStateException(String.format(
+                    default -> throw new IllegalArgumentException(String.format(
                             "Unexpected server entity %s. Cannot create simple server entity",
                             serverEntity.getClass()
                     ));

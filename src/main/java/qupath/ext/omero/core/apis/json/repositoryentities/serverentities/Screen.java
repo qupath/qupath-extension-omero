@@ -42,7 +42,7 @@ public class Screen extends ServerEntity {
 
         String description = omeroScreen.description();
         this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Screen.name"), name == null || name.isEmpty() ? "-" : name),
+                new Attribute(resources.getString("Entities.Screen.name"), name == null || name.isEmpty() ? getLabel() : name),
                 new Attribute(resources.getString("Entities.Screen.id"), String.valueOf(id)),
                 new Attribute(
                         resources.getString("Entities.Screen.description"),

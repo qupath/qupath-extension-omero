@@ -186,7 +186,7 @@ public class TestOmeroPixels {
 
     @Test
     void Check_Size_When_Pixel_Type_Known() {
-        double expectedSizeMebibyte = 2 * 3 * 4 * 5 * 8 / (1024*1024d);
+        double expectedSizeMebibyte = 2 * 3 * 4 * 5 * 2 / (1024*1024d);
         OmeroPixels omeroPixels = new OmeroPixels(
                 "type",
                 1,
@@ -197,7 +197,7 @@ public class TestOmeroPixels {
                 new OmeroPhysicalSize("s", 2.423),
                 new OmeroPhysicalSize("d", 232d),
                 new OmeroPhysicalSize("f", 23.25),
-                new OmeroImageType("unknown")
+                new OmeroImageType("uint16")
         );
 
         double sizeMebibyte = omeroPixels.sizeMebibyte().orElseThrow();

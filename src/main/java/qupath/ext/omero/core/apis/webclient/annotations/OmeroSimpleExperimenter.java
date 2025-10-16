@@ -17,6 +17,6 @@ public record OmeroSimpleExperimenter(
         String lastName
 ) {
     public OmeroSimpleExperimenter {
-        Objects.requireNonNull(id);
+        Objects.requireNonNull(id, "id not provided");
     }
 }

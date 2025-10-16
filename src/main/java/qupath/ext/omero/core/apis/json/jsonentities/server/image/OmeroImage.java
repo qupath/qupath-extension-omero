@@ -29,14 +29,14 @@ public record OmeroImage(
         @SerializedName(value = "Name") String name,
         @SerializedName(value = "AcquisitionDate") Long acquisitionDate,
         @SerializedName(value = "Pixels") OmeroPixels pixels,
-        @SerializedName(value = "omero:details:") OmeroDetails omeroDetails
+        @SerializedName(value = "omero:details") OmeroDetails omeroDetails
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Image";
     private static final Logger logger = LoggerFactory.getLogger(OmeroImage.class);
 
     public OmeroImage {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(pixels);
+        Objects.requireNonNull(id, "@id not provided");
+        Objects.requireNonNull(pixels, "Pixels not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

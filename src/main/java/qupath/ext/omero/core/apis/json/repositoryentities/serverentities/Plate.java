@@ -44,7 +44,7 @@ public class Plate extends ServerEntity {
         this.rows = omeroPlate.rows();
 
         this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Plate.name"), name == null || name.isEmpty() ? "-" : name),
+                new Attribute(resources.getString("Entities.Plate.name"), name == null || name.isEmpty() ? getLabel() : name),
                 new Attribute(resources.getString("Entities.Plate.id"), String.valueOf(id)),
                 new Attribute(
                         resources.getString("Entities.Plate.owner"),
@@ -64,18 +64,30 @@ public class Plate extends ServerEntity {
         return attributes;
     }
 
+    /**
+     * @return true since there is no way to know that this plate has children before its children are populated
+     */
     @Override
     public boolean hasChildren() {
-        // There is no way to know that this plate has children before its children are populated
         return true;
     }
 
+    /**
+     * Returns the list of children of this element belonging to the provided experimenter and group.
+     * <p>
+     * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally if the request failed for example).
+     * <p>
+     * Children that don't have any children are not returned by this function.
+     *
+     * @param ownerId the ID of the experimenter that should own the entities to retrieve
+     * @param groupId the ID of the group that should own the entities to retrieve
+     * @return a CompletableFuture (that may complete exceptionally) with the list of children of this entity
+     */
     @Override
     public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
         Optional<Client> client = Client.getClientFromURI(webServerUri);
 
         if (client.isPresent()) {
-            //TODO: get well was more complex in original code
             return CompletableFuture.supplyAsync(() ->
                     Stream.of(
                             client.get().getApisHandler().getPlateAcquisitions(id, ownerId, groupId, columns * rows),

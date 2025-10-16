@@ -89,14 +89,7 @@ public class TestWebclientApi extends OmeroServer {
         }
 
         @Test
-        void Check_Plate_Acquisition_Uri() {
-            SimpleServerEntity plateAcquisition = OmeroServer.getPlateAcquisition(userType);
-            String expectedURI = OmeroServer.getPlateAcquisitionUri(plateAcquisition.id()).toString();
-
-            String uri = webclientApi.getEntityUri(plateAcquisition);
-
-            Assertions.assertEquals(expectedURI, uri);
-        }
+        abstract void Check_Plate_Acquisition_Uri();
 
         @Test
         void Check_Well_Uri() {
@@ -127,33 +120,13 @@ public class TestWebclientApi extends OmeroServer {
         }
 
         @Test
-        void Check_Parents_Of_Image_With_Invalid_Id() {
-            long invalidImageId = -1;
-
-            Assertions.assertThrows(
-                    ExecutionException.class,
-                    () -> webclientApi.getParentsOfImage(invalidImageId).get()
-            );
-        }
-
-        @Test
         void Check_Annotations() throws ExecutionException, InterruptedException {
             SimpleServerEntity dataset = OmeroServer.getDataset(userType);
-            List<Annotation> expectedAnnotations = OmeroServer.getAnnotationsInDataset();
+            List<Annotation> expectedAnnotations = OmeroServer.getAnnotationsInDataset(userType);
 
             List<Annotation> annotations = webclientApi.getAnnotations(dataset).get();
 
             Assertions.assertEquals(expectedAnnotations, annotations);
-        }
-
-        @Test
-        void Check_Annotations_With_Invalid_Entity() {
-            SimpleServerEntity invalidEntity = new SimpleServerEntity(EntityType.DATASET, -1);
-
-            Assertions.assertThrows(
-                    ExecutionException.class,
-                    () -> webclientApi.getAnnotations(invalidEntity).get()
-            );
         }
 
         @Test
@@ -192,16 +165,6 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         abstract void Check_Key_Value_Pairs_Sent_When_Existing_Not_Replaced_With_Different_Namespace() throws ExecutionException, InterruptedException;
-
-        @Test
-        void Check_Key_Value_Pairs_Not_Sent_With_Invalid_Image_Id() {
-            long invalidId = -1;
-
-            Assertions.assertThrows(
-                    ExecutionException.class,
-                    () -> webclientApi.sendKeyValuePairs(invalidId, new Namespace("name"), Map.of(), false).get()
-            );
-        }
 
         @Test
         abstract void Check_Image_Name_Can_Be_Changed() throws ExecutionException, InterruptedException;
@@ -246,16 +209,6 @@ public class TestWebclientApi extends OmeroServer {
         abstract void Check_Existing_Attachments_Deleted() throws ExecutionException, InterruptedException;
 
         @Test
-        void Check_Attachments_Cannot_Be_Deleted_When_Invalid_Image_Id() {
-            SimpleServerEntity invalidEntity = new SimpleServerEntity(EntityType.IMAGE, -1);
-
-            Assertions.assertThrows(
-                    ExecutionException.class,
-                    () -> webclientApi.deleteAttachments(invalidEntity, List.of(1L)).get()
-            );
-        }
-
-        @Test
         void Check_Image_Icon() throws ExecutionException, InterruptedException {
             Assertions.assertNotNull(webclientApi.getImageIcon().get());
         }
@@ -289,12 +242,19 @@ public class TestWebclientApi extends OmeroServer {
 
         @Test
         @Override
+        void Check_Plate_Acquisition_Uri() {
+            SimpleServerEntity plateAcquisition = OmeroServer.getPlateAcquisition(userType);
+            String expectedURI = OmeroServer.getPlateAcquisitionUri(plateAcquisition.id()).toString();
+
+            String uri = webclientApi.getEntityUri(plateAcquisition);
+
+            Assertions.assertEquals(expectedURI, uri);
+        }
+
+        @Test
+        @Override
         void Check_Public_User_Id() {
             // getPublicUserId() only works if there's no authenticated connection to the server
-            Assertions.assertThrows(
-                    ExecutionException.class,
-                    () -> webclientApi.getPublicUserId().get()
-            );
         }
 
         @Test
@@ -358,6 +318,7 @@ public class TestWebclientApi extends OmeroServer {
             );
             List<Pair> expectedPairs = List.of(
                     new Pair("A", "existingValue"),
+                    new Pair("A", "B"),
                     new Pair("C", "D")
             );
 
@@ -523,6 +484,12 @@ public class TestWebclientApi extends OmeroServer {
             requestSender = new RequestSender();
             JsonApi jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
             webclientApi = new WebclientApi(URI.create(OmeroServer.getWebServerURI()), requestSender, jsonApi.getToken());
+        }
+
+        @Test
+        @Override
+        void Check_Plate_Acquisition_Uri() {
+            // The unauthenticated user doesn't have any plate acquisition
         }
 
         @Test

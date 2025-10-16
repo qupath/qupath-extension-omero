@@ -17,12 +17,12 @@ import java.util.Objects;
  * @param id the ID of the group. Required
  * @param omeroDetails details about this group. Required
  * @param name the name of the group. Optional
- * @param experimentersUrl a link to get all experimenters belonging to this group. Required
+ * @param experimentersUrl a link to get all experimenters belonging to this group. Optional
  */
 public record OmeroExperimenterGroup(
         @SerializedName(value = "@type") String type,
         @SerializedName(value = "@id") Long id,
-        @SerializedName(value = "omero:details:") OmeroDetails omeroDetails,
+        @SerializedName(value = "omero:details") OmeroDetails omeroDetails,
         @SerializedName(value = "Name") String name,
         @SerializedName(value = "url:experimenters") String experimentersUrl
 ) {
@@ -30,9 +30,8 @@ public record OmeroExperimenterGroup(
     private static final Logger logger = LoggerFactory.getLogger(OmeroExperimenterGroup.class);
 
     public OmeroExperimenterGroup {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(omeroDetails);
-        Objects.requireNonNull(experimentersUrl);
+        Objects.requireNonNull(id, "@id not provided");
+        Objects.requireNonNull(omeroDetails, "omero:details not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

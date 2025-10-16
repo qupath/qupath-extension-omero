@@ -74,6 +74,7 @@ public class Point extends Shape {
     public String createJson() {
         return gson.toJson(new OmeroPoint(
                 getId(),
+                getOldId(),
                 OmeroPoint.TYPE,
                 getText(),
                 getFillColor().map(Shape::colorToRgba).orElse(null),
@@ -95,7 +96,7 @@ public class Point extends Shape {
 
     @Override
     public String toString() {
-        return String.format("Point located at {x: %f, y: %f}", x, y);
+        return String.format("Point of ID %d located at {x: %f, y: %f}", getId(), x, y);
     }
 
     @Override
@@ -104,8 +105,7 @@ public class Point extends Shape {
             return true;
         if (!(obj instanceof Point point))
             return false;
-        return point.getId() == this.getId() &&
-                point.x == this.x && point.y == this.y;
+        return point.x == this.x && point.y == this.y;
     }
 
     @Override

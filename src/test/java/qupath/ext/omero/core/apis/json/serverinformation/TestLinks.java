@@ -223,7 +223,7 @@ public class TestLinks {
                     "url:plates": "plates_url",
                     "url:token": "token_url",
                     "url:servers": "servers_url",
-                    "url:login": "login_url",
+                    "url:login": "login_url"
                 }
                 """,
                 Links.class

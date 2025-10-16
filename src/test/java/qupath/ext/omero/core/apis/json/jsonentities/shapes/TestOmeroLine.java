@@ -16,6 +16,7 @@ public class TestOmeroLine {
                         null,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -41,6 +42,7 @@ public class TestOmeroLine {
                 RuntimeException.class,
                 () -> new OmeroLine(
                         64L,
+                        "",
                         "",
                         "",
                         1,
@@ -70,6 +72,7 @@ public class TestOmeroLine {
                         64L,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -95,6 +98,7 @@ public class TestOmeroLine {
                 RuntimeException.class,
                 () -> new OmeroLine(
                         64L,
+                        "",
                         "",
                         "",
                         1,
@@ -124,6 +128,7 @@ public class TestOmeroLine {
                         64L,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -147,6 +152,7 @@ public class TestOmeroLine {
     void Check_Created_From_Json() {
         OmeroLine expectedOmeroLine = new OmeroLine(
                 64L,
+                "23:44",
                 "some type",
                 "some text",
                 1,
@@ -170,6 +176,7 @@ public class TestOmeroLine {
                 """
                 {
                     "@id": 64,
+                    "oldId": "23:44",
                     "@type": "some type",
                     "Text": "some text",
                     "FillColor": 1,
@@ -182,7 +189,7 @@ public class TestOmeroLine {
                     "Y1": -2.54,
                     "X2": 1,
                     "Y2": 90.3,
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,

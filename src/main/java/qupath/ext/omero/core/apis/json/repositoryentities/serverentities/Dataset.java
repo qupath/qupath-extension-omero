@@ -42,7 +42,7 @@ public class Dataset extends ServerEntity {
 
         String description = omeroDataset.description();
         this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Dataset.name"), name == null || name.isEmpty() ? "-" : name),
+                new Attribute(resources.getString("Entities.Dataset.name"), name == null || name.isEmpty() ? getLabel() : name),
                 new Attribute(resources.getString("Entities.Dataset.id"), String.valueOf(id)),
                 new Attribute(
                         resources.getString("Entities.Dataset.description"),

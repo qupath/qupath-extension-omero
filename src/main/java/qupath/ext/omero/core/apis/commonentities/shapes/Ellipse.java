@@ -74,6 +74,7 @@ public class Ellipse extends Shape {
     public String createJson() {
         return gson.toJson(new OmeroEllipse(
                 getId(),
+                getOldId(),
                 OmeroEllipse.TYPE,
                 getText(),
                 getFillColor().map(Shape::colorToRgba).orElse(null),
@@ -92,7 +93,7 @@ public class Ellipse extends Shape {
 
     @Override
     public String toString() {
-        return String.format("Ellipse centered at {x: %f, y: %f} of radius {x: %f, y: %f}", x, y, radiusX, radiusY);
+        return String.format("Ellipse of ID %d centered at {x: %f, y: %f} of radius {x: %f, y: %f}", getId(), x, y, radiusX, radiusY);
     }
 
     @Override
@@ -101,8 +102,7 @@ public class Ellipse extends Shape {
             return true;
         if (!(obj instanceof Ellipse ellipse))
             return false;
-        return ellipse.getId() == this.getId() &&
-                ellipse.x == this.x && ellipse.y == this.y && ellipse.radiusX == this.radiusX && ellipse.radiusY == this.radiusY;
+        return ellipse.x == this.x && ellipse.y == this.y && ellipse.radiusX == this.radiusX && ellipse.radiusY == this.radiusY;
     }
 
     @Override

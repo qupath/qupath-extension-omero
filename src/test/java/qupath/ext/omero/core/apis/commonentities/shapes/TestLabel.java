@@ -7,12 +7,14 @@ import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLabel;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public class TestLabel {
 
@@ -21,8 +23,9 @@ public class TestLabel {
         String expectedJson = """
             {
                 "@id": 83,
+                "oldId": "53:83",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Label",
-                "Text": "",
+                "Text": "Annotation:NoClass:4f0a3bd5-2954-4110-a37c-bab2a01e8e2c:NoParent:NoName",
                 "FillColor": 3,
                 "StrokeColor": 5,
                 "Locked": true,
@@ -32,7 +35,7 @@ public class TestLabel {
                 "X": 4.5,
                 "Y": -7.5
             }
-            """;
+            """.replace(" ", "").replace("\n", "");
         Label label = createFromOmeroLabel();
 
         String json = label.createJson();
@@ -65,18 +68,19 @@ public class TestLabel {
         String expectedJson = """
             {
                 "@id": 0,
+                "oldId": "0:0",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Label",
-                "Text": "",
+                "Text": "Annotation:someClass:323448d8-d622-4ebf-9512-824529af6083:NoParent:NoName",
                 "FillColor": 0,
-                "StrokeColor": 5,
-                "Locked": true,
+                "StrokeColor": 255,
+                "Locked": false,
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
                 "X": 4.5,
                 "Y": -7.5
             }
-            """;
+            """.replace(" ", "").replace("\n", "");
         Label label = createFromPathObject();
 
         String json = label.createJson();
@@ -107,8 +111,9 @@ public class TestLabel {
         return new Label(
                 new OmeroLabel(
                         83L,
+                        "53:83",
                         OmeroLabel.TYPE,
-                        "",
+                        "Annotation:NoClass:4f0a3bd5-2954-4110-a37c-bab2a01e8e2c:NoParent:NoName",
                         3,
                         5,
                         true,
@@ -134,16 +139,16 @@ public class TestLabel {
     }
 
     private static Label createFromPathObject() {
-        return new Label(
-                PathObjects.createAnnotationObject(
-                        ROIs.createPointsROI(
-                                4.5,
-                                -7.5,
-                                ImagePlane.getPlaneWithChannel(1, 2, 3)
-                        ),
-                        PathClass.fromString("some class", 5)
+        PathObject pathObject = PathObjects.createAnnotationObject(
+                ROIs.createPointsROI(
+                        4.5,
+                        -7.5,
+                        ImagePlane.getPlaneWithChannel(1, 2, 3)
                 ),
-                false
+                PathClass.fromString("someClass", 0)
         );
+        pathObject.setID(UUID.fromString("323448d8-d622-4ebf-9512-824529af6083"));
+
+        return new Label(pathObject, false);
     }
 }

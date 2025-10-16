@@ -7,12 +7,14 @@ import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroRectangle;
+import qupath.lib.objects.PathObject;
 import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
 
 import java.util.Optional;
+import java.util.UUID;
 
 public class TestRectangle {
 
@@ -21,8 +23,9 @@ public class TestRectangle {
         String expectedJson = """
             {
                 "@id": 83,
+                "oldId": "53:83",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Rectangle",
-                "Text": "",
+                "Text": "Annotation:NoClass:4f0a3bd5-2954-4110-a37c-bab2a01e8e2c:NoParent:NoName",
                 "FillColor": 3,
                 "StrokeColor": 5,
                 "Locked": true,
@@ -31,10 +34,10 @@ public class TestRectangle {
                 "TheT": 3,
                 "X": 4.5,
                 "Y": -7.5,
-                "Width": 12,
+                "Width": 12.0,
                 "Height": 65.5
             }
-            """;
+            """.replace(" ", "").replace("\n", "");
         Rectangle rectangle = createFromOmeroRectangle();
 
         String json = rectangle.createJson();
@@ -67,20 +70,21 @@ public class TestRectangle {
         String expectedJson = """
             {
                 "@id": 0,
+                "oldId": "0:0",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Rectangle",
-                "Text": "",
+                "Text": "Annotation:someClass:886b8740-8a3b-4305-b73b-c06273746d3e:NoParent:NoName",
                 "FillColor": 0,
-                "StrokeColor": 5,
-                "Locked": true,
+                "StrokeColor": 255,
+                "Locked": false,
                 "TheC": 1,
                 "TheZ": 2,
                 "TheT": 3,
                 "X": 4.5,
                 "Y": -7.5,
-                "Width": 12,
+                "Width": 12.0,
                 "Height": 65.5
             }
-            """;
+            """.replace(" ", "").replace("\n", "");
         Rectangle rectangle = createFromPathObject();
 
         String json = rectangle.createJson();
@@ -111,8 +115,9 @@ public class TestRectangle {
         return new Rectangle(
                 new OmeroRectangle(
                         83L,
+                        "53:83",
                         OmeroRectangle.TYPE,
-                        "",
+                        "Annotation:NoClass:4f0a3bd5-2954-4110-a37c-bab2a01e8e2c:NoParent:NoName",
                         3,
                         5,
                         true,
@@ -140,18 +145,18 @@ public class TestRectangle {
     }
 
     private static Rectangle createFromPathObject() {
-        return new Rectangle(
-                PathObjects.createAnnotationObject(
-                        ROIs.createRectangleROI(
-                                4.5,
-                                -7.5,
-                                12d,
-                                65.5,
-                                ImagePlane.getPlaneWithChannel(1, 2, 3)
-                        ),
-                        PathClass.fromString("some class", 5)
+        PathObject pathObject = PathObjects.createAnnotationObject(
+                ROIs.createRectangleROI(
+                        4.5,
+                        -7.5,
+                        12d,
+                        65.5,
+                        ImagePlane.getPlaneWithChannel(1, 2, 3)
                 ),
-                false
+                PathClass.fromString("someClass", 0)
         );
+        pathObject.setID(UUID.fromString("886b8740-8a3b-4305-b73b-c06273746d3e"));
+
+        return new Rectangle(pathObject, false);
     }
 }

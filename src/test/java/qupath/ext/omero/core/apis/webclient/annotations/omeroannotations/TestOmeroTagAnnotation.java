@@ -61,7 +61,7 @@ public class TestOmeroTagAnnotation {
                             "id": 234
                         }
                     },
-                    "tag": "tag"
+                    "textValue": "tag"
                 }
                 """,
                 OmeroTagAnnotation.class

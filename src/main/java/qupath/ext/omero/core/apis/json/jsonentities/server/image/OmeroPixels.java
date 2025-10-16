@@ -41,12 +41,12 @@ public record OmeroPixels(
     private static final Logger logger = LoggerFactory.getLogger(OmeroPixels.class);
 
     public OmeroPixels {
-        Objects.requireNonNull(sizeX);
-        Objects.requireNonNull(sizeY);
-        Objects.requireNonNull(sizeZ);
-        Objects.requireNonNull(sizeC);
-        Objects.requireNonNull(sizeT);
-        Objects.requireNonNull(imageType);
+        Objects.requireNonNull(sizeX, "SizeX not provided");
+        Objects.requireNonNull(sizeY, "SizeY not provided");
+        Objects.requireNonNull(sizeZ, "SizeZ not provided");
+        Objects.requireNonNull(sizeC, "SizeC not provided");
+        Objects.requireNonNull(sizeT, "SizeT not provided");
+        Objects.requireNonNull(imageType, "Type not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(

@@ -16,6 +16,7 @@ public class TestOmeroPolyline {
                         null,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -40,6 +41,7 @@ public class TestOmeroPolyline {
                         64L,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -60,6 +62,7 @@ public class TestOmeroPolyline {
     void Check_Created_From_Json() {
         OmeroPolyline expectedOmeroPolyline = new OmeroPolyline(
                 64L,
+                "23:44",
                 "some type",
                 "some text",
                 1,
@@ -80,6 +83,7 @@ public class TestOmeroPolyline {
                 """
                 {
                     "@id": 64,
+                    "oldId": "23:44",
                     "@type": "some type",
                     "Text": "some text",
                     "FillColor": 1,
@@ -89,7 +93,7 @@ public class TestOmeroPolyline {
                     "TheZ": 4,
                     "TheT": 5,
                     "Points": "4.5,-7.5 12,65.5 0,50",
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,

@@ -28,7 +28,8 @@ public class TestShapeCreator {
         Shape expectedShape = createEllipse();
         String json = """
             {
-                "@id": 34,
+                "@id": 0,
+                "oldId": "",
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Ellipse",
                 "Text": "",
                 "FillColor": 4,
@@ -40,6 +41,7 @@ public class TestShapeCreator {
                 "X": 4.5,
                 "Y": -7.5,
                 "RadiusX": 12,
+                "RadiusY": 65.5,
                 "TheC": 65.5
             }
             """;
@@ -54,7 +56,7 @@ public class TestShapeCreator {
         Shape expectedShape = createLabel();
         String json = """
             {
-                "@id": 83,
+                "@id": 0,
                 "@type": "http://www.openmicroscopy.org/Schemas/OME/2016-06#Label",
                 "Text": "",
                 "FillColor": 3,
@@ -199,10 +201,10 @@ public class TestShapeCreator {
     void Check_Ellipse_From_Path_Object() {
         PathObject pathObject = PathObjects.createAnnotationObject(
                 ROIs.createEllipseROI(
-                        4.5,
-                        -7.5,
-                        12d * 2,      // diameter, not radius
-                        65.5 * 2,            // same
+                        4.5 - 12,         // top left, not center
+                        -7.5 - 65.5,         // top left, not center
+                        12d * 2,             // diameter, not radius
+                        65.5 * 2,            // diameter, not radius
                         ImagePlane.getPlaneWithChannel(1, 2, 3)
                 ),
                 PathClass.fromString("some class", 5)
@@ -224,7 +226,7 @@ public class TestShapeCreator {
                 ),
                 PathClass.fromString("some class", 5)
         );
-        List<Shape> expectedShapes = List.of(createLabel());
+        List<Shape> expectedShapes = List.of(createPoint());        // A label is not supported and converted to a point
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
@@ -329,7 +331,8 @@ public class TestShapeCreator {
     private static Ellipse createEllipse() {
         return new Ellipse(
                 new OmeroEllipse(
-                        83L,
+                        0L,
+                        "",
                         OmeroEllipse.TYPE,
                         "",
                         3,
@@ -351,7 +354,8 @@ public class TestShapeCreator {
     private static Label createLabel() {
         return new Label(
                 new OmeroLabel(
-                        83L,
+                        0L,
+                        "",
                         OmeroLabel.TYPE,
                         "",
                         3,
@@ -371,7 +375,8 @@ public class TestShapeCreator {
     private static Line createLine() {
         return new Line(
                 new OmeroLine(
-                        83L,
+                        0L,
+                        "",
                         OmeroLine.TYPE,
                         "",
                         3,
@@ -393,7 +398,8 @@ public class TestShapeCreator {
     private static Point createPoint() {
         return new Point(
                 new OmeroPoint(
-                        83L,
+                        0L,
+                        "",
                         OmeroPoint.TYPE,
                         "",
                         3,
@@ -413,7 +419,8 @@ public class TestShapeCreator {
     private static Polygon createPolygon() {
         return new Polygon(
                 new OmeroPolygon(
-                        83L,
+                        0L,
+                        "",
                         OmeroPolygon.TYPE,
                         "",
                         3,
@@ -432,7 +439,8 @@ public class TestShapeCreator {
     private static Polyline createPolyline() {
         return new Polyline(
                 new OmeroPolyline(
-                        83L,
+                        0L,
+                        "",
                         OmeroPolyline.TYPE,
                         "",
                         3,
@@ -451,7 +459,8 @@ public class TestShapeCreator {
     private static Rectangle createRectangle() {
         return new Rectangle(
                 new OmeroRectangle(
-                        83L,
+                        0L,
+                        "",
                         OmeroRectangle.TYPE,
                         "",
                         3,

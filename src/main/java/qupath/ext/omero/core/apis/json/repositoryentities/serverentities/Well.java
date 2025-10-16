@@ -1,14 +1,16 @@
 package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
 
 import qupath.ext.omero.Utils;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroSimpleImage;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroWell;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroWellSample;
-import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroImage;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
@@ -47,12 +49,12 @@ public class Well extends ServerEntity {
         );
 
         this.wellSamples = omeroWell.wellSamples();
-        this.column = omeroWell.column();
-        this.row = omeroWell.row();
+        this.column = omeroWell.column() == null ? 0 : omeroWell.column();
+        this.row = omeroWell.row() == null ? 0 : omeroWell.row();
         this.plateAcquisitionOwnerId = plateAcquisitionOwnerId;
 
         this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Well.name"), name == null || name.isEmpty() ? "-" : name),
+                new Attribute(resources.getString("Entities.Well.name"), name == null || name.isEmpty() ? getLabel() : name),
                 new Attribute(resources.getString("Entities.Well.id"), String.valueOf(id)),
                 new Attribute(
                         resources.getString("Entities.Well.owner"),
@@ -88,22 +90,31 @@ public class Well extends ServerEntity {
 
     @Override
     public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
-        //TODO: initial implementation was more complex
-        return CompletableFuture.completedFuture(wellSamples.stream()
-                .filter(wellSample -> {
-                    if (plateAcquisitionOwnerId > -1) {
-                        return wellSample.plateAcquisition() != null && wellSample.plateAcquisition().id() == plateAcquisitionOwnerId;
-                    } else {
-                        return wellSample.plateAcquisition() == null;
-                    }
-                })
-                .map(OmeroWellSample::image)
-                .filter(Objects::nonNull)
-                .map(omeroImage -> new Image(omeroImage, webServerUri))
-                .filter(image -> image.getOwner().isPresent() && image.getOwner().get().id() == ownerId)
-                .filter(image -> image.getGroup().isPresent() && image.getGroup().get().id() == groupId)
-                .toList()
-        );
+        Optional<Client> client = Client.getClientFromURI(webServerUri);
+
+        if (client.isPresent()) {
+            return CompletableFuture.supplyAsync(() -> wellSamples.stream()
+                     .filter(wellSample -> {
+                         if (plateAcquisitionOwnerId > -1) {
+                             return wellSample.plateAcquisition() != null && wellSample.plateAcquisition().id() == plateAcquisitionOwnerId;
+                         } else {
+                             return wellSample.plateAcquisition() == null;
+                         }
+                     })
+                     .map(OmeroWellSample::image)
+                     .filter(Objects::nonNull)
+                     .map(omeroSimpleImage -> client.get().getApisHandler().getImage(omeroSimpleImage.id()))
+                     .map(CompletableFuture::join)
+                     .filter(image -> ownerId < 0 || image.getOwner().isPresent() && image.getOwner().get().id() == ownerId)
+                     .filter(image -> groupId < 0 || image.getGroup().isPresent() && image.getGroup().get().id() == groupId)
+                     .toList());
+        } else {
+            return CompletableFuture.failedFuture(new IllegalStateException(String.format(
+                    "Could not find the web client corresponding to %s. Impossible to get the children of this project (%s).",
+                    webServerUri,
+                    this
+            )));
+        }
     }
 
     @Override
@@ -130,7 +141,7 @@ public class Well extends ServerEntity {
                 )
                 .map(OmeroWellSample::image)
                 .filter(Objects::nonNull)
-                .map(OmeroImage::id)
+                .map(OmeroSimpleImage::id)
                 .toList();
     }
 }

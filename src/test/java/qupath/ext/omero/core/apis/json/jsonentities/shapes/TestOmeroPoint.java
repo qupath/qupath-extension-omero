@@ -16,6 +16,7 @@ public class TestOmeroPoint {
                         null,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -39,6 +40,7 @@ public class TestOmeroPoint {
                 RuntimeException.class,
                 () -> new OmeroPoint(
                         64L,
+                        "",
                         "",
                         "",
                         1,
@@ -66,6 +68,7 @@ public class TestOmeroPoint {
                         64L,
                         "",
                         "",
+                        "",
                         1,
                         2,
                         true,
@@ -87,6 +90,7 @@ public class TestOmeroPoint {
     void Check_Created_From_Json() {
         OmeroPoint expectedOmeroPoint = new OmeroPoint(
                 64L,
+                "23:44",
                 "some type",
                 "some text",
                 1,
@@ -108,6 +112,7 @@ public class TestOmeroPoint {
                 """
                 {
                     "@id": 64,
+                    "oldId": "23:44",
                     "@type": "some type",
                     "Text": "some text",
                     "FillColor": 1,
@@ -118,7 +123,7 @@ public class TestOmeroPoint {
                     "TheT": 5,
                     "X": 6.77,
                     "Y": -2.54,
-                    "omero:details:": {
+                    "omero:details": {
                         "permissions": {
                             "isGroupWrite": false,
                             "isGroupRead": true,
