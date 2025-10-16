@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import qupath.lib.common.ThreadTools;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -23,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -37,7 +40,8 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  * and use session cookies (one cookie handler per instance of this
  * class).
  * <p>
- * Each request is performed asynchronously with CompletableFutures.
+ * Each request is performed asynchronously with CompletableFutures. They are performed on
+ * an internal pool of threads.
  * <p>
  * A request sender must be {@link #close() closed} once no longer used.
  */
@@ -47,18 +51,17 @@ public class RequestSender implements AutoCloseable {
     private static final int REQUEST_TIMEOUT = 20;
     private static final Gson gson = new Gson();
     private final CookieHandler cookieHandler = new CookieManager();
-    /**
-     * The redirection policy is specified to allow the HTTP client to automatically
-     * follow HTTP redirections (from http:// to https:// for example).
-     * This is needed for icons requests for example.
-     * <p>
-     * The cookie policy is specified because some APIs use a
-     * <a href="https://docs.openmicroscopy.org/omero/5.6.0/developers/json-api.html#get-csrf-token">CSRF token</a>.
-     *  This token is stored in a session cookie, so we need to store this session cookie.
-     */
+    private final ExecutorService executorService = Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            ThreadTools.createThreadFactory("request-sender-", true)
+    );
     private final HttpClient httpClient = HttpClient.newBuilder()
-            .followRedirects(HttpClient.Redirect.ALWAYS)
-            .cookieHandler(cookieHandler)
+            .followRedirects(HttpClient.Redirect.ALWAYS)    // The redirection policy is specified to allow the HTTP client to automatically
+                                                            // follow HTTP redirections (from http:// to https:// for example). This is needed
+                                                            // for icons requests for example.
+            .cookieHandler(cookieHandler)                   // The cookie policy is specified because some API calls use a CSRF token stored in
+                                                            // a session cookie
+            .executor(executorService)
             .build();
 
     /**
@@ -79,6 +82,7 @@ public class RequestSender implements AutoCloseable {
     public void close() throws Exception {
         logger.debug("Closing request sender");
         httpClient.close();
+        executorService.close();
     }
 
     /**
@@ -210,7 +214,7 @@ public class RequestSender implements AutoCloseable {
         return httpClient
                 .sendAsync(getRequest(uri, RequestType.GET), HttpResponse.BodyHandlers.ofByteArray())
                 .whenComplete((response, error) -> logResponse(uri, response, error))
-                .thenApplyAsync(response -> {
+                .thenApply(response -> {
                     try (InputStream targetStream = new ByteArrayInputStream(response.body())) {
                         BufferedImage image = ImageIO.read(targetStream);
 
@@ -360,6 +364,7 @@ public class RequestSender implements AutoCloseable {
     private CompletableFuture<Void> isLinkReachable(HttpRequest httpRequest, boolean useSessionCookies, boolean followRedirection) {
         HttpClient.Builder builder = HttpClient
                 .newBuilder()
+                .executor(executorService)
                 .followRedirects(followRedirection ? HttpClient.Redirect.ALWAYS : HttpClient.Redirect.NEVER);
         if (useSessionCookies) {
             builder = builder.cookieHandler(cookieHandler);

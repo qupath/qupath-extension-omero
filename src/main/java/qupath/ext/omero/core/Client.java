@@ -17,6 +17,7 @@ import qupath.ext.omero.core.pixelapis.ice.IceApi;
 import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
 import qupath.ext.omero.core.preferences.PreferencesManager;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.viewer.QuPathViewer;
 
@@ -66,7 +67,7 @@ public class Client implements AutoCloseable {
     private final ObservableSet<URI> openedImagesURIsImmutable = FXCollections.unmodifiableObservableSet(openedImagesURIs);
     private final ApisHandler apisHandler;
     private final List<PixelApi> allPixelApis;
-    private ScheduledExecutorService pingScheduler;
+    private final ScheduledExecutorService pingScheduler;
     private CompletableFuture<Server> server;
 
     static {
@@ -92,7 +93,7 @@ public class Client implements AutoCloseable {
         if (credentials.userType().equals(Credentials.UserType.REGULAR_USER)) {
             pingScheduler = Executors.newScheduledThreadPool(
                     1,
-                    runnable -> new Thread(runnable, String.format("ping-to-%s", apisHandler.getWebServerUri()))
+                    ThreadTools.createThreadFactory(String.format("ping-to-%s-", apisHandler.getWebServerUri()), true)
             );
             pingScheduler.scheduleAtFixedRate(
                     () -> {
@@ -156,6 +157,8 @@ public class Client implements AutoCloseable {
                     PING_DELAY_SECONDS,
                     TimeUnit.SECONDS
             );
+        } else {
+            pingScheduler = null;
         }
 
         setUpPixelAPIs();
@@ -256,7 +259,7 @@ public class Client implements AutoCloseable {
             }
         }
         if (pingScheduler != null) {
-            pingScheduler.shutdown();
+            pingScheduler.close();
         }
         apisHandler.close();
 

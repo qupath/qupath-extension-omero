@@ -29,6 +29,7 @@ import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
 import qupath.ext.omero.core.apis.webclient.search.SearchQuery;
 import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.PixelType;
 import qupath.lib.images.servers.TileRequest;
@@ -43,6 +44,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
 /**
@@ -68,6 +71,10 @@ public class ApisHandler implements AutoCloseable {
             "double", PixelType.FLOAT64
     );
     private final RequestSender requestSender = new RequestSender();
+    private final ExecutorService executorService = Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            ThreadTools.createThreadFactory("apis-handler-", true)
+    );
     private final URI webServerUri;
     private final Credentials credentials;
     private final JsonApi jsonApi;
@@ -209,23 +216,26 @@ public class ApisHandler implements AutoCloseable {
      * @return the list of parents of the provided image
      */
     public CompletableFuture<List<ServerEntity>> getParentsOfImage(long imageId) {
-        return webclientApi.getParentsOfImage(imageId).thenApplyAsync(simpleServerEntities -> {
-            logger.debug("Got parents {}. Fetching now more information on them", simpleServerEntities);
+        return webclientApi.getParentsOfImage(imageId).thenApplyAsync(
+                simpleServerEntities -> {
+                    logger.debug("Got parents {}. Fetching now more information on them", simpleServerEntities);
 
-            return simpleServerEntities.stream()
-                    .map(serverEntity -> switch (serverEntity.entityType()) {
-                        case SCREEN -> jsonApi.getScreen(serverEntity.id());
-                        case PLATE -> jsonApi.getPlate(serverEntity.id());
-                        case PLATE_ACQUISITION -> jsonApi.getPlateAcquisition(serverEntity.id());
-                        case WELL -> jsonApi.getWell(serverEntity.id());
-                        case PROJECT -> jsonApi.getProject(serverEntity.id());
-                        case DATASET -> jsonApi.getDataset(serverEntity.id());
-                        case IMAGE -> jsonApi.getImage(serverEntity.id());
-                    })
-                    .map(CompletableFuture::join)
-                    .map(serverEntity -> (ServerEntity) serverEntity)
-                    .toList();
-        });
+                    return simpleServerEntities.stream()
+                            .map(serverEntity -> switch (serverEntity.entityType()) {
+                                case SCREEN -> jsonApi.getScreen(serverEntity.id());
+                                case PLATE -> jsonApi.getPlate(serverEntity.id());
+                                case PLATE_ACQUISITION -> jsonApi.getPlateAcquisition(serverEntity.id());
+                                case WELL -> jsonApi.getWell(serverEntity.id());
+                                case PROJECT -> jsonApi.getProject(serverEntity.id());
+                                case DATASET -> jsonApi.getDataset(serverEntity.id());
+                                case IMAGE -> jsonApi.getImage(serverEntity.id());
+                            })
+                            .map(CompletableFuture::join)
+                            .map(serverEntity -> (ServerEntity) serverEntity)
+                            .toList();
+                },
+                executorService
+        );
     }
 
     /**
@@ -467,39 +477,42 @@ public class ApisHandler implements AutoCloseable {
      * entity is an image.
      */
     public CompletableFuture<List<SearchResultWithParentInfo>> getSearchResults(SearchQuery searchQuery) {
-        return webclientApi.getSearchResults(searchQuery).thenApplyAsync(searchResults -> {
-            logger.debug("Got search results {}. Getting information on the parents of images", searchResults);
+        return webclientApi.getSearchResults(searchQuery).thenApplyAsync(
+                searchResults -> {
+                    logger.debug("Got search results {}. Getting information on the parents of images", searchResults);
 
-            return searchResults.stream()
-                    .map(searchResult -> {
-                        if (searchResult.getType().isPresent() && searchResult.getType().get().equals(EntityType.IMAGE)) {
-                            logger.debug("{} refers to an image. Searching parents of it", searchResult);
+                    return searchResults.stream()
+                            .map(searchResult -> {
+                                if (searchResult.getType().isPresent() && searchResult.getType().get().equals(EntityType.IMAGE)) {
+                                    logger.debug("{} refers to an image. Searching parents of it", searchResult);
 
-                            return getParentsOfImage(searchResult.id()).handle((parents, error) -> {
-                                if (parents == null) {
-                                    logger.debug("Cannot retrieve parents of {}. Considering it doesn't have any", searchResult, error);
-                                    return new SearchResultWithParentInfo(searchResult);
+                                    return getParentsOfImage(searchResult.id()).handle((parents, error) -> {
+                                        if (parents == null) {
+                                            logger.debug("Cannot retrieve parents of {}. Considering it doesn't have any", searchResult, error);
+                                            return new SearchResultWithParentInfo(searchResult);
+                                        }
+
+                                        logger.debug("Got parents {} for image {}", parents, searchResult);
+                                        return new SearchResultWithParentInfo(
+                                                searchResult,
+                                                getEntityOfTypeInList(parents, Project.class),
+                                                getEntityOfTypeInList(parents, Dataset.class),
+                                                getEntityOfTypeInList(parents, Screen.class),
+                                                getEntityOfTypeInList(parents, Plate.class),
+                                                getEntityOfTypeInList(parents, PlateAcquisition.class),
+                                                getEntityOfTypeInList(parents, Well.class)
+                                        );
+                                    });
+                                } else {
+                                    logger.debug("{} does not refer to an image. Not fetching parent information", searchResult);
+                                    return CompletableFuture.completedFuture(new SearchResultWithParentInfo(searchResult));
                                 }
-
-                                logger.debug("Got parents {} for image {}", parents, searchResult);
-                                return new SearchResultWithParentInfo(
-                                        searchResult,
-                                        getEntityOfTypeInList(parents, Project.class),
-                                        getEntityOfTypeInList(parents, Dataset.class),
-                                        getEntityOfTypeInList(parents, Screen.class),
-                                        getEntityOfTypeInList(parents, Plate.class),
-                                        getEntityOfTypeInList(parents, PlateAcquisition.class),
-                                        getEntityOfTypeInList(parents, Well.class)
-                                );
-                            });
-                        } else {
-                            logger.debug("{} does not refer to an image. Not fetching parent information", searchResult);
-                            return CompletableFuture.completedFuture(new SearchResultWithParentInfo(searchResult));
-                        }
-                    })
-                    .map(CompletableFuture::join)
-                    .toList();
-        });
+                            })
+                            .map(CompletableFuture::join)
+                            .toList();
+                },
+                executorService
+        );
     }
 
     /**
@@ -542,7 +555,7 @@ public class ApisHandler implements AutoCloseable {
     public CompletableFuture<BufferedImage> getOmeroIcon(EntityType type) {
         logger.trace("Getting OMERO icon {}", type);
 
-        return CompletableFuture.supplyAsync(() -> omeroIconsCache.getUnchecked(type));
+        return CompletableFuture.supplyAsync(() -> omeroIconsCache.getUnchecked(type), executorService);
     }
 
     /**
@@ -639,11 +652,13 @@ public class ApisHandler implements AutoCloseable {
     public CompletableFuture<Void> deleteShapes(long imageId, List<Long> userIds) {
         logger.debug("Deleting shapes of image with ID {} belonging to users with ID {}", imageId, userIds);
 
-        return CompletableFuture.supplyAsync(() -> userIds.stream()
+        return CompletableFuture.supplyAsync(
+                () -> userIds.stream()
                         .map(userId -> getShapes(imageId, userId))
                         .map(CompletableFuture::join)
                         .flatMap(List::stream)
-                        .toList()
+                        .toList(),
+                executorService
         ).thenCompose(shapes -> {
             logger.debug("Got shapes {} belonging to users with ID {} for image with ID {}. Deleting them now", shapes, userIds, imageId);
             return iViewerApi.deleteShapes(imageId, shapes);
@@ -711,33 +726,38 @@ public class ApisHandler implements AutoCloseable {
     private CompletableFuture<List<URI>> getImageUrisOfScreen(long screenId) {
         logger.debug("Finding image URIs contained in screen with ID {}", screenId);
 
-        return getPlates(screenId, -1, -1).thenApplyAsync(plates -> {
-            logger.debug("Found plates {} belonging to screen with ID {}. Now finding image URIs of them", plates, screenId);
+        return getPlates(screenId, -1, -1).thenApplyAsync(
+                plates -> {
+                    logger.debug("Found plates {} belonging to screen with ID {}. Now finding image URIs of them", plates, screenId);
 
-            return plates.stream()
-                    .map(ServerEntity::getId)
-                    .map(this::getImageUrisOfPlate)
-                    .map(CompletableFuture::join)
-                    .flatMap(List::stream)
-                    .distinct()
-                    .toList();
-        });
+                    return plates.stream()
+                            .map(ServerEntity::getId)
+                            .map(this::getImageUrisOfPlate)
+                            .map(CompletableFuture::join)
+                            .flatMap(List::stream)
+                            .distinct()
+                            .toList();
+                },
+                executorService
+        );
     }
 
     private CompletableFuture<List<URI>> getImageUrisOfPlate(long plateId) {
         logger.debug("Finding image URIs contained in plate with ID {}", plateId);
 
-        return getWellsFromPlate(plateId, -1, -1).thenApplyAsync(wells -> {
-            logger.debug("Found wells {} belonging to plate with ID {}. Now finding image URIs of them", wells, plateId);
+        return getWellsFromPlate(plateId, -1, -1).thenApplyAsync(
+                wells -> {
+                    logger.debug("Found wells {} belonging to plate with ID {}. Now finding image URIs of them", wells, plateId);
 
-            return wells.stream()
-                    .map(ServerEntity::getId)
-                    .map(wellId -> getImageUrisOfWell(wellId, -1))
-                    .map(CompletableFuture::join)
-                    .flatMap(List::stream)
-                    .distinct()
-                    .toList();
-        });
+                    return wells.stream()
+                            .map(ServerEntity::getId)
+                            .map(wellId -> getImageUrisOfWell(wellId, -1))
+                            .map(CompletableFuture::join)
+                            .flatMap(List::stream)
+                            .distinct()
+                            .toList();
+                },
+                executorService);
     }
 
     private CompletableFuture<List<URI>> getImageUrisOfPlateAcquisition(long plateAcquisitionId) {
