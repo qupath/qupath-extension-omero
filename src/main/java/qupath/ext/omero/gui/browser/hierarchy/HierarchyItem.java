@@ -132,8 +132,8 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> implements AutoClo
         RepositoryEntity repositoryEntity = getValue();
 
         request = repositoryEntity.getChildren(
-                ownerBinding.getValue().getId(),
-                groupBinding.getValue().getId()
+                ownerBinding.getValue() == null ? -1 : ownerBinding.getValue().getId(),
+                groupBinding.getValue() == null ? -1 : groupBinding.getValue().getId()
         ).handle((repositoryEntities, error) -> {
             if (error != null) {
                 logger.error("Error when getting children of {}", repositoryEntity, error);

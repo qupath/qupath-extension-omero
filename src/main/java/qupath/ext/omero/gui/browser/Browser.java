@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.collections.ListChangeListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Attribute;
 import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
@@ -59,8 +61,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Window allowing the user to browse an OMERO server, get information about OMERO entities
@@ -127,11 +127,11 @@ class Browser extends Stage implements AutoCloseable {
     @FXML
     private Canvas canvas;
     @FXML
-    private TableView<Integer> description;
+    private TableView<Attribute> description;
     @FXML
-    private TableColumn<Integer, String> attributeColumn;
+    private TableColumn<Attribute, String> attributeColumn;
     @FXML
-    private TableColumn<Integer, String> valueColumn;
+    private TableColumn<Attribute, String> valueColumn;
     private AdvancedSearch advancedSearch = null;
     private Settings settings = null;
 
@@ -467,28 +467,25 @@ class Browser extends Stage implements AutoCloseable {
         filterContainer.getChildren().addFirst(predicateTextField);
 
         attributeColumn.setCellValueFactory(cellData -> {
-            var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
-
-            if (cellData != null && selectedItems.size() == 1 && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
-                return new ReadOnlyObjectWrapper<>(serverEntity.getAttributes().get(cellData.getValue()).label());
-            } else {
+            if (cellData == null) {
                 return new ReadOnlyObjectWrapper<>("");
+            } else {
+                return new ReadOnlyObjectWrapper<>(cellData.getValue().label());
             }
         });
 
         valueColumn.setCellValueFactory(cellData -> {
-            var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
-
-            if (cellData != null && selectedItems.size() == 1 && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
-                return new ReadOnlyObjectWrapper<>(serverEntity.getAttributes().get(cellData.getValue()).value());
-            } else {
+            if (cellData == null) {
                 return new ReadOnlyObjectWrapper<>("");
+            } else {
+                return new ReadOnlyObjectWrapper<>(cellData.getValue().value());
             }
         });
         valueColumn.setCellFactory(n -> new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
+
                 if (empty || item == null) {
                     setText(null);
                     setTooltip(null);
@@ -556,7 +553,7 @@ class Browser extends Stage implements AutoCloseable {
         browserModel.getSelectedGroup().bind(group.getSelectionModel().selectedItemProperty());
         browserModel.getSelectedOwner().bind(owner.getSelectionModel().selectedItemProperty());
 
-        hierarchy.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+        hierarchy.getSelectionModel().getSelectedItems().addListener((ListChangeListener<? super TreeItem<RepositoryEntity>>) change -> {
             updateCanvas();
             updateDescription();
             updateImportButton();
@@ -621,9 +618,7 @@ class Browser extends Stage implements AutoCloseable {
         var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
         if (selectedItems.size() == 1 && selectedItems.getFirst() != null && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
             logger.trace("One server entity {} selected. Updating description", serverEntity);
-            description.getItems().setAll(
-                    IntStream.rangeClosed(0, serverEntity.getAttributes().size()).boxed().collect(Collectors.toList())
-            );
+            description.getItems().setAll(serverEntity.getAttributes());
         } else {
             logger.trace("Zero or more than one server entity selected. Clearing description");
             description.getItems().clear();
