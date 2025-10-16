@@ -1,5 +1,5 @@
 import qupath.ext.omero.core.apis.webclient.Namespace
-import qupath.ext.omero.core.imageserver.*
+import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /*
  * This script sends all key value pairs of a QuPath image to the
@@ -10,29 +10,29 @@ import qupath.ext.omero.core.imageserver.*
  */
 
 // Parameters
-def replaceExistingKeyValuesPairs = true
-def namespace = Namespace.getDefaultNamespace()      // could be a custom namespace with: new Namespace("custom namespace")
+var replaceExistingKeyValuesPairs = true
+var namespace = Namespace.getDefaultNamespace()      // could be a custom namespace with: new Namespace("custom namespace")
 
 // Get project
-def project = getProject()
+var project = getProject()
 if (project == null) {
     println "A project needs to be opened in QuPath before running this script"
     return
 }
 
 // Get image and project entry
-def imageData = getCurrentImageData()
+var imageData = getCurrentImageData()
 if (imageData == null) {
     println "An image needs to be opened in QuPath before running this script"
     return
 }
 
 // Get key value pairs of the QuPath image
-def keyValues = project.getEntry(imageData).getMetadataMap()
+var keyValues = project.getEntry(imageData).getMetadataMap()
 
 // Get image server
-def server = imageData.getServer()
-def omeroServer = (OmeroImageServer) server
+var server = imageData.getServer()
+var omeroServer = (OmeroImageServer) server
 
 // Attempt to send key value pairs to OMERO
 omeroServer.getClient().getApisHandler().sendKeyValuePairs(

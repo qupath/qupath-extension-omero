@@ -1,7 +1,9 @@
-import qupath.ext.omero.core.imageserver.*
-import qupath.lib.gui.tools.*
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.*
-import qupath.lib.objects.*
+import qupath.ext.omero.core.apis.webclient.EntityType
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity
+import qupath.ext.omero.core.imageserver.OmeroImageServer
+import qupath.lib.gui.tools.MeasurementExporter
+import qupath.lib.objects.PathAnnotationObject
+import qupath.lib.objects.PathDetectionObject
 
 /*
  * This script send the annotation and detections measurements of the current image to the OMERO server as attachments.
@@ -12,33 +14,36 @@ import qupath.lib.objects.*
  */
 
 // Parameters
-def deleteExistingAttachments = true
-def fullNamesOfUsersWhoseAttachmentsShouldBeDeleted = ["some user"]     // the full name is a combination of first name, middle name and last name
-def sendAnnotationMeasurements = true
-def sendDetectionMeasurements = true
+var deleteExistingAttachments = true
+var idsOfUsersWhoseAttachmentsShouldBeDeleted = [1]     // the OMERO ID of the user whose attachments should be deleted
+var sendAnnotationMeasurements = true
+var sendDetectionMeasurements = true
 
 // Open server
-def imageData = getCurrentImageData()
+var imageData = getCurrentImageData()
 if (imageData == null) {
     println "An image needs to be opened in QuPath before running this script"
     return
 }
 
 // Get project and project entry
-def project = getProject()
+var project = getProject()
 if (project == null) {
     println "A project needs to be opened in QuPath before running this script"
     return
 }
-def projectEntry = project.getEntry(imageData)
+var projectEntry = project.getEntry(imageData)
 
 // Get image server
-def server = imageData.getServer()
-def omeroServer = (OmeroImageServer) server
+var server = imageData.getServer()
+var omeroServer = (OmeroImageServer) server
 
 // Delete existing attachment
 if (deleteExistingAttachments) {
-    omeroServer.getClient().getApisHandler().deleteAttachments(omeroServer.getId(), Image.class, fullNamesOfUsersWhoseAttachmentsShouldBeDeleted).get()
+    omeroServer.getClient().getApisHandler().deleteAttachments(
+            new SimpleServerEntity(EntityType.IMAGE, omeroServer.getId()),
+            idsOfUsersWhoseAttachmentsShouldBeDeleted
+    ).get()
 
     println "Existing attachments deleted"
 }
@@ -59,8 +64,7 @@ if (sendAnnotationMeasurements) {
 
         // Send annotation measurements
         omeroServer.getClient().getApisHandler().sendAttachment(
-                omeroServer.getId(),
-                Image.class,
+                new SimpleServerEntity(EntityType.IMAGE, omeroServer.getId()),
                 "annotation_measurements.csv",
                 annotationMeasurements
         ).get()
@@ -87,8 +91,7 @@ if (sendDetectionMeasurements) {
 
         // Send detection measurements
         omeroServer.getClient().getApisHandler().sendAttachment(
-                omeroServer.getId(),
-                Image.class,
+                new SimpleServerEntity(EntityType.IMAGE, omeroServer.getId()),
                 "detection_measurements.csv",
                 detectionMeasurements
         ).get()

@@ -4,7 +4,7 @@
  * This script it not specific to OMERO but is a good way to see if all images of a project
  * are supported.
  */
-def project = getProject()
+var project = getProject()
 if (project == null) {
     println "A project needs to be opened in QuPath before running this script"
     return
@@ -14,17 +14,17 @@ for (entry in project.getImageList()) {
     println "Opening " + entry.getImageName()
     
     // Accessing image metadata
-    def server = entry.getServerBuilder().build()
+    var server = entry.getServerBuilder().build()
     println "Metadata: " + server.getMetadata()
 
     // Accessing pixels
-    double downsample = 4.0
-    int x = 100
-    int y = 200
-    int width = 100
-    int height = 200
-    def request = RegionRequest.createInstance(server.getPath(), downsample, x, y, width, height)
-    def img = server.readRegion(request)
+    var downsample = 4.0
+    var x = 100
+    var y = 200
+    var width = 100
+    var height = 200
+    var request = RegionRequest.createInstance(server.getPath(), downsample, x, y, width, height)
+    var img = server.readRegion(request)
     println "Image: " + img
     
     // Closing server. This is needed to free resources on the OMERO server

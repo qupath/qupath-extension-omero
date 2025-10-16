@@ -1,6 +1,5 @@
 import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings
-import qupath.ext.omero.core.imageserver.*
-import qupath.lib.images.servers.*
+import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /*
  * This script send the image settings (image name, channel names, channel colors, channel display ranges)
@@ -14,10 +13,10 @@ import qupath.lib.images.servers.*
  */
 
 // Parameters
-def sendImageName = true
-def sendChannelNames = true
-def sendChannelColors = true
-def sendChannelDisplayRanges = true
+var sendImageName = true
+var sendChannelNames = true
+var sendChannelColors = true
+var sendChannelDisplayRanges = true
 
 // Check that a project is opened (if needed)
 if (sendImageName && getProject() == null) {
@@ -26,15 +25,15 @@ if (sendImageName && getProject() == null) {
 }
 
 // Get image data
-def imageData = getCurrentImageData()
+var imageData = getCurrentImageData()
 if (imageData == null) {
     println "An image needs to be opened in QuPath before running this script"
     return
 }
 
 // Get image server
-def server = imageData.getServer()
-def omeroServer = (OmeroImageServer) server
+var server = imageData.getServer()
+var omeroServer = (OmeroImageServer) server
 
 // Check that the image has not the RGB format (if needed)
 if ((sendChannelNames || sendChannelColors || sendChannelDisplayRanges) && omeroServer.getMetadata().isRGB()) {
@@ -44,7 +43,7 @@ if ((sendChannelNames || sendChannelColors || sendChannelDisplayRanges) && omero
 
 if (sendImageName) {
     // Retrieve current image name
-    def imageName = omeroServer.getMetadata().getName()
+    var imageName = omeroServer.getMetadata().getName()
 
     // Send image name
     omeroServer.getClient().getApisHandler().changeImageName(omeroServer.getId(), imageName).get()
@@ -54,7 +53,7 @@ if (sendImageName) {
 
 if (sendChannelNames) {
     // Retrieve channel names from current image
-    def channelNames = omeroServer.getMetadata().getChannels().stream().map(ImageChannel::getName).toList()
+    var channelNames = omeroServer.getMetadata().getChannels().stream().map(ImageChannel::getName).toList()
 
     // Send channel names
     omeroServer.getClient().getApisHandler().changeChannelNames(omeroServer.getId(), channelNames).get()
@@ -64,7 +63,7 @@ if (sendChannelNames) {
 
 if (sendChannelColors) {
     // Retrieve channel colors from current image
-    def channelColors = omeroServer.getMetadata().getChannels().stream().map(ImageChannel::getColor).toList()
+    var channelColors = omeroServer.getMetadata().getChannels().stream().map(ImageChannel::getColor).toList()
 
     // Send channel colors
     omeroServer.getClient().getApisHandler().changeChannelColors(omeroServer.getId(), channelColors).get()
@@ -74,7 +73,7 @@ if (sendChannelColors) {
 
 if (sendChannelDisplayRanges) {
     // Retrieve display ranges from current image
-    def displayRanges = getCurrentViewer().getImageDisplay().availableChannels().stream()
+    var displayRanges = getCurrentViewer().getImageDisplay().availableChannels().stream()
             .map(channel -> new ChannelSettings(channel.getMinDisplay(), channel.getMaxDisplay()))
             .toList()
 

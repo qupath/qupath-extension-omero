@@ -1,4 +1,4 @@
-import qupath.ext.omero.core.imageserver.*
+import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /**
  * This script opens an image through the command line.
@@ -38,13 +38,13 @@ For example, to authenticate with the public user and use the web pixel API with
  */
 
 // Open server
-def imageData = getCurrentImageData()
+var imageData = getCurrentImageData()
 if (imageData == null) {
     println "Image not found"
     return
 }
-def server = imageData.getServer()
-def omeroServer = (OmeroImageServer) server
+var server = imageData.getServer()
+var omeroServer = (OmeroImageServer) server
 
 // Print server type
 println omeroServer.getServerType()

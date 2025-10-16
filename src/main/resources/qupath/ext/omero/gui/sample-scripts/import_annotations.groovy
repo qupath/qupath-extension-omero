@@ -1,4 +1,4 @@
-import qupath.ext.omero.core.imageserver.*
+import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /*
  * This script imports all annotation of an image stored on an OMERO server
@@ -9,15 +9,15 @@ import qupath.ext.omero.core.imageserver.*
  */
 
 // Open server
-def imageData = getCurrentImageData()
+var imageData = getCurrentImageData()
 if (imageData == null) {
     println "An image needs to be opened in QuPath before running this script"
     return
 }
-def server = imageData.getServer()
-def omeroServer = (OmeroImageServer) server
+var server = imageData.getServer()
+var omeroServer = (OmeroImageServer) server
 
-def pathObjects = omeroServer.readPathObjects()
+var pathObjects = omeroServer.readPathObjects()
 println "New annotations: " + pathObjects
 
 // Add annotations to the QuPath image
