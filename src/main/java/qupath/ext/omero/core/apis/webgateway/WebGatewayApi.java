@@ -47,8 +47,8 @@ public class WebGatewayApi implements AutoCloseable {
     private static final String DATASET_ICON_NAME = "folder_image16.png";
     private static final String ORPHANED_FOLDER_ICON_NAME = "folder_yellow16.png";
     private static final String WELL_ICON_NAME = "icon_folder.png";
-    private static final String THUMBNAIL_URL = "%s/webgateway/render_thumbnail/%d/%d";
-    private static final String IMAGE_DATA_URL = "%s/webgateway/imgData/%d";
+    private static final String THUMBNAIL_URL = "%s/webgateway/render_thumbnail/%d/%d/";
+    private static final String IMAGE_DATA_URL = "%s/webgateway/imgData/%d/";
     private static final String TILE_URL = "%s/webgateway/render_image_region/%d/%d/%d/?" +
             "tile=%d,%d,%d,%d,%d" +
             "&c=%s" +

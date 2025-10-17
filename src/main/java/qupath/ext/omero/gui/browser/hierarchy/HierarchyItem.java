@@ -54,7 +54,7 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> implements AutoClo
             Comparator
                     .comparingInt((TreeItem<RepositoryEntity> item) -> CLASS_ORDER.getOrDefault(item.getValue().getClass(), 0))
                     .thenComparing(item -> item.getValue().getLabel())
-    );  // not converted to local variable because otherwise it might get deleted by the garbage collector TODO: check
+    );  // not converted to local variable because otherwise it might get deleted by the garbage collector
     private final ChangeListener<? super Experimenter> ownerListener = (p, o, n) ->
             fetchChildrenIfExpanded();
     private final ChangeListener<? super ExperimenterGroup> groupListener = (p, o, n) ->
