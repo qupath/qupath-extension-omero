@@ -42,6 +42,7 @@ import qupath.ext.omero.core.apis.json.serverinformation.SupportedVersions;
 import qupath.ext.omero.core.apis.json.serverinformation.Token;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.core.apis.commonentities.shapes.ShapeCreator;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.io.GsonTools;
 
 import java.net.URI;
@@ -54,6 +55,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Function;
 
 /**
@@ -61,8 +64,10 @@ import java.util.function.Function;
  * <p>
  * This API is used to get basic information on the server, authenticate, get details on OMERO entities
  * (e.g. images, datasets), and get ROIs of an image.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-public class JsonApi {
+public class JsonApi implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(JsonApi.class);
     private static final int SERVER_ENTITIES_IDS_CACHE_SIZE = 10000;
@@ -103,6 +108,10 @@ public class JsonApi {
             .maximumSize(SERVER_ENTITIES_IDS_CACHE_SIZE)
             .build();
     private final IntegerProperty numberOfEntitiesLoading = new SimpleIntegerProperty(0);
+    private final ExecutorService executorService = Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            ThreadTools.createThreadFactory("json-api-", true)
+    );
     private final URI webServerUri;
     private final RequestSender requestSender;
     private final Links links;
@@ -192,6 +201,11 @@ public class JsonApi {
                 wellId -> String.format(WELLS_URL, webServerUri, wellId),
                 jsonElement -> new Well(gson.fromJson(jsonElement, OmeroWell.class), -1, webServerUri)
         );
+    }
+
+    @Override
+    public void close() throws Exception {
+        executorService.close();
     }
 
     @Override
@@ -310,60 +324,62 @@ public class JsonApi {
             return CompletableFuture.failedFuture(e);
         }
 
-        return requestSender.getPaginated(uri).thenApplyAsync(jsonElements -> jsonElements.stream()
-                .map(jsonElement -> {
-                    try {
-                        return gson.fromJson(jsonElement, OmeroExperimenterGroup.class);
-                    } catch (RuntimeException e) {
-                        logger.error("Cannot create experimenter group from {}", jsonElement, e);
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .filter(omeroGroup -> retrieveAllGroups || omeroGroup.name() == null || !GROUPS_TO_EXCLUDE.contains(omeroGroup.name()))
-                .map(omeroGroup -> {
-                    try {
-                        return new ExperimenterGroup(
-                                omeroGroup,
-                                requestSender.getPaginated(new URI(omeroGroup.experimentersUrl())).get().stream()
-                                        .map(jsonElement -> {
-                                            try {
-                                                return new Experimenter(gson.fromJson(jsonElement, OmeroExperimenter.class));
-                                            } catch (RuntimeException e) {
-                                                logger.error("Cannot create experimenter from {}", jsonElement, e);
-                                                return null;
-                                            }
-                                        })
-                                        .filter(Objects::nonNull)
-                                        .filter(experimenter -> {
-                                            if (retrieveAllGroups) {
-                                                return true;
-                                            } else if (loginResponse != null && userId == loginResponse.userId()) {
-                                                return switch (omeroGroup.getPermissionLevel()) {
-                                                    case PRIVATE -> experimenter.getId() == userId || loginResponse.ownedGroupIds().contains(omeroGroup.id());
-                                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
-                                                };
-                                            } else {
-                                                return switch (omeroGroup.getPermissionLevel()) {
-                                                    case PRIVATE -> experimenter.getId() == userId;
-                                                    case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
-                                                };
-                                            }
-                                        })
-                                        .toList()
-                        );
-                    } catch (ExecutionException | InterruptedException | URISyntaxException | IllegalArgumentException | NullPointerException e) {
-                        logger.error("Cannot create experimenter group corresponding to {}. Skipping it", omeroGroup, e);
+        return requestSender.getPaginated(uri).thenApplyAsync(
+                jsonElements -> jsonElements.stream()
+                        .map(jsonElement -> {
+                            try {
+                                return gson.fromJson(jsonElement, OmeroExperimenterGroup.class);
+                            } catch (RuntimeException e) {
+                                logger.error("Cannot create experimenter group from {}", jsonElement, e);
+                                return null;
+                            }
+                        })
+                        .filter(Objects::nonNull)
+                        .filter(omeroGroup -> retrieveAllGroups || omeroGroup.name() == null || !GROUPS_TO_EXCLUDE.contains(omeroGroup.name()))
+                        .map(omeroGroup -> {
+                            try {
+                                return new ExperimenterGroup(
+                                        omeroGroup,
+                                        requestSender.getPaginated(new URI(omeroGroup.experimentersUrl())).get().stream()
+                                                .map(jsonElement -> {
+                                                    try {
+                                                        return new Experimenter(gson.fromJson(jsonElement, OmeroExperimenter.class));
+                                                    } catch (RuntimeException e) {
+                                                        logger.error("Cannot create experimenter from {}", jsonElement, e);
+                                                        return null;
+                                                    }
+                                                })
+                                                .filter(Objects::nonNull)
+                                                .filter(experimenter -> {
+                                                    if (retrieveAllGroups) {
+                                                        return true;
+                                                    } else if (loginResponse != null && userId == loginResponse.userId()) {
+                                                        return switch (omeroGroup.getPermissionLevel()) {
+                                                            case PRIVATE -> experimenter.getId() == userId || loginResponse.ownedGroupIds().contains(omeroGroup.id());
+                                                            case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
+                                                        };
+                                                    } else {
+                                                        return switch (omeroGroup.getPermissionLevel()) {
+                                                            case PRIVATE -> experimenter.getId() == userId;
+                                                            case READ_ONLY, READ_ANNOTATE, READ_WRITE -> true;
+                                                        };
+                                                    }
+                                                })
+                                                .toList()
+                                );
+                            } catch (ExecutionException | InterruptedException | URISyntaxException | IllegalArgumentException | NullPointerException e) {
+                                logger.error("Cannot create experimenter group corresponding to {}. Skipping it", omeroGroup, e);
 
-                        if (e instanceof InterruptedException) {
-                            Thread.currentThread().interrupt();
-                        }
+                                if (e instanceof InterruptedException) {
+                                    Thread.currentThread().interrupt();
+                                }
 
-                        return null;
-                    }
-                })
-                .filter(Objects::nonNull)
-                .toList()
+                                return null;
+                            }
+                        })
+                        .filter(Objects::nonNull)
+                        .toList(),
+                executorService
         );
     }
 
@@ -402,7 +418,7 @@ public class JsonApi {
     public CompletableFuture<Project> getProject(long projectId) {
         logger.debug("Getting project with ID {}", projectId);
 
-        return CompletableFuture.supplyAsync(() -> projectsCache.getUnchecked(projectId));
+        return CompletableFuture.supplyAsync(() -> projectsCache.getUnchecked(projectId), executorService);
     }
 
     /**
@@ -475,7 +491,7 @@ public class JsonApi {
     public CompletableFuture<Dataset> getDataset(long datasetId) {
         logger.debug("Getting dataset with ID {}", datasetId);
 
-        return CompletableFuture.supplyAsync(() -> datasetsCache.getUnchecked(datasetId));
+        return CompletableFuture.supplyAsync(() -> datasetsCache.getUnchecked(datasetId), executorService);
     }
 
     /**
@@ -543,7 +559,7 @@ public class JsonApi {
     public CompletableFuture<Image> getImage(long imageId) {
         logger.debug("Getting image with ID {}", imageId);
 
-        return CompletableFuture.supplyAsync(() -> imagesCache.getUnchecked(imageId));
+        return CompletableFuture.supplyAsync(() -> imagesCache.getUnchecked(imageId), executorService);
     }
 
     /**
@@ -581,7 +597,7 @@ public class JsonApi {
     public CompletableFuture<Screen> getScreen(long screenId) {
         logger.debug("Getting screen with ID {}", screenId);
 
-        return CompletableFuture.supplyAsync(() -> screensCache.getUnchecked(screenId));
+        return CompletableFuture.supplyAsync(() -> screensCache.getUnchecked(screenId), executorService);
     }
 
     /**
@@ -648,7 +664,7 @@ public class JsonApi {
     public CompletableFuture<Plate> getPlate(long plateId) {
         logger.debug("Getting plate with ID {}", plateId);
 
-        return CompletableFuture.supplyAsync(() -> platesCache.getUnchecked(plateId));
+        return CompletableFuture.supplyAsync(() -> platesCache.getUnchecked(plateId), executorService);
     }
 
     /**
@@ -703,7 +719,7 @@ public class JsonApi {
     public CompletableFuture<PlateAcquisition> getPlateAcquisition(long plateAcquisitionId) {
         logger.debug("Getting plate acquisition with ID {}", plateAcquisitionId);
 
-        return CompletableFuture.supplyAsync(() -> plateAcquisitionsCache.getUnchecked(plateAcquisitionId));
+        return CompletableFuture.supplyAsync(() -> plateAcquisitionsCache.getUnchecked(plateAcquisitionId), executorService);
     }
 
     /**
@@ -793,7 +809,7 @@ public class JsonApi {
     public CompletableFuture<Well> getWell(long wellId) {
         logger.debug("Getting well with ID {}", wellId);
 
-        return CompletableFuture.supplyAsync(() -> wellsCache.getUnchecked(wellId));
+        return CompletableFuture.supplyAsync(() -> wellsCache.getUnchecked(wellId), executorService);
     }
 
     /**
@@ -976,46 +992,49 @@ public class JsonApi {
             String url,
             Function<JsonElement, T> serverEntityCreator
     ) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return idCache.get(
-                        key,
-                        () -> {
-                            logger.debug(
-                                    "Fetching children of parent with ID {}, belonging to experimenter with ID {} and group with ID {} (not already in cache)",
-                                    key.parentId(),
-                                    key.experimenterId(),
-                                    key.groupId()
-                            );
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    try {
+                        return idCache.get(
+                                key,
+                                () -> {
+                                    logger.debug(
+                                            "Fetching children of parent with ID {}, belonging to experimenter with ID {} and group with ID {} (not already in cache)",
+                                            key.parentId(),
+                                            key.experimenterId(),
+                                            key.groupId()
+                                    );
 
-                            URI uri = URI.create(url);
+                                    URI uri = URI.create(url);
 
-                            synchronized (this) {
-                                numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
-                            }
+                                    synchronized (this) {
+                                        numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() + 1);
+                                    }
 
-                            try {
-                                List<T> entities = requestSender.getPaginated(uri).thenApply(jsonElements -> jsonElements.stream()
-                                        .map(serverEntityCreator)
-                                        .toList()
-                                ).get();
+                                    try {
+                                        List<T> entities = requestSender.getPaginated(uri).thenApply(jsonElements -> jsonElements.stream()
+                                                .map(serverEntityCreator)
+                                                .toList()
+                                        ).get();
 
-                                for (T entity: entities) {
-                                    entityCache.put(entity.getId(), entity);
+                                        for (T entity: entities) {
+                                            entityCache.put(entity.getId(), entity);
+                                        }
+
+                                        return entities.stream().map(ServerEntity::getId).toList();
+                                    } finally {
+                                        synchronized (this) {
+                                            numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
+                                        }
+                                    }
                                 }
-
-                                return entities.stream().map(ServerEntity::getId).toList();
-                            } finally {
-                                synchronized (this) {
-                                    numberOfEntitiesLoading.set(numberOfEntitiesLoading.get() - 1);
-                                }
-                            }
-                        }
-                ).stream().map(entityCache::getUnchecked).toList();
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
-            }
-        });
+                        ).stream().map(entityCache::getUnchecked).toList();
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                },
+                executorService
+        );
     }
 
     private static CompletableFuture<LoginResponse> authenticate(

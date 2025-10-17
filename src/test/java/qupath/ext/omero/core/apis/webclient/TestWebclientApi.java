@@ -28,13 +28,15 @@ public class TestWebclientApi extends OmeroServer {
 
     abstract static class GenericUser {
 
-        protected static WebclientApi webclientApi;
-        protected static RequestSender requestSender;
         protected static OmeroServer.UserType userType;
+        protected static RequestSender requestSender;
+        protected static JsonApi jsonApi;
+        protected static WebclientApi webclientApi;
 
         @AfterAll
-        static void closeApi() throws Exception {
+        static void closeApis() throws Exception {
             webclientApi.close();
+            jsonApi.close();
             requestSender.close();
         }
 
@@ -236,7 +238,7 @@ public class TestWebclientApi extends OmeroServer {
         static void createClient() throws URISyntaxException, ExecutionException, InterruptedException {
             userType = UserType.AUTHENTICATED;
             requestSender = new RequestSender();
-            JsonApi jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
+            jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
             webclientApi = new WebclientApi(URI.create(OmeroServer.getWebServerURI()), requestSender, jsonApi.getToken());
         }
 
@@ -482,7 +484,7 @@ public class TestWebclientApi extends OmeroServer {
         static void createClient() throws URISyntaxException, ExecutionException, InterruptedException {
             userType = UserType.UNAUTHENTICATED;
             requestSender = new RequestSender();
-            JsonApi jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
+            jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
             webclientApi = new WebclientApi(URI.create(OmeroServer.getWebServerURI()), requestSender, jsonApi.getToken());
         }
 

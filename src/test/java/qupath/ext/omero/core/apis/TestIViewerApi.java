@@ -19,12 +19,14 @@ public class TestIViewerApi extends OmeroServer {
 
     abstract static class GenericUser {
 
-        protected static IViewerApi iViewerApi;
-        protected static RequestSender requestSender;
         protected static OmeroServer.UserType userType;
+        protected static RequestSender requestSender;
+        protected static JsonApi jsonApi;
+        protected static IViewerApi iViewerApi;
 
         @AfterAll
-        static void closeRequestSender() throws Exception {
+        static void closeApis() throws Exception {
+            jsonApi.close();
             requestSender.close();
         }
 
@@ -76,7 +78,7 @@ public class TestIViewerApi extends OmeroServer {
         static void createClient() throws URISyntaxException, ExecutionException, InterruptedException {
             userType = UserType.AUTHENTICATED;
             requestSender = new RequestSender();
-            JsonApi jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()), requestSender, OmeroServer.getCredentials(userType));
+            jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()), requestSender, OmeroServer.getCredentials(userType));
             iViewerApi = new IViewerApi(URI.create(OmeroServer.getWebServerURI()), requestSender, jsonApi.getToken());
         }
     }
@@ -88,7 +90,7 @@ public class TestIViewerApi extends OmeroServer {
         static void createClient() throws URISyntaxException, ExecutionException, InterruptedException {
             userType = UserType.UNAUTHENTICATED;
             requestSender = new RequestSender();
-            JsonApi jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()), requestSender, OmeroServer.getCredentials(userType));
+            jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()), requestSender, OmeroServer.getCredentials(userType));
             iViewerApi = new IViewerApi(URI.create(OmeroServer.getWebServerURI()), requestSender, jsonApi.getToken());
         }
     }

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
 import qupath.lib.common.ColorTools;
+import qupath.lib.common.ThreadTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 import qupath.ext.omero.core.RequestSender;
@@ -23,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -31,8 +34,10 @@ import java.util.stream.IntStream;
  * <p>
  * This API is used to retrieve several icons, image thumbnails and
  * provides access to the pixels of JPEG-compressed RGB encoded images.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-public class WebGatewayApi {
+public class WebGatewayApi implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(WebGatewayApi.class);
     private static final int THUMBNAIL_CACHE_SIZE = 1000;
@@ -52,6 +57,10 @@ public class WebGatewayApi {
     private static final String TILE_CHANNEL_PARAMETER = URLEncoder.encode("1|0:255$FF0000,2|0:255$00FF00,3|0:255$0000FF", StandardCharsets.UTF_8);
     private static final String CHANGE_CHANNEL_DISPLAY_RANGES_AND_COLORS_URL = "%s/webgateway/saveImgRDef/%d/?m=c&c=%s";
     private final IntegerProperty numberOfThumbnailsLoading = new SimpleIntegerProperty(0);
+    private final ExecutorService executorService = Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            ThreadTools.createThreadFactory("web-gateway-api-", true)
+    );
     private final URI webServerUri;
     private final RequestSender requestSender;
     private final String token;
@@ -100,10 +109,15 @@ public class WebGatewayApi {
                         logger.debug("Fetching metadata of image with ID {} (not already in cache)", imageId);
 
                         return requestSender.getAndConvert(new URI(String.format(IMAGE_DATA_URL, webServerUri, imageId)), JsonObject.class)
-                                .thenApplyAsync(ImageMetadataResponseParser::createMetadataFromJson)
+                                .thenApply(ImageMetadataResponseParser::createMetadataFromJson)
                                 .get();
                     }
                 });
+    }
+
+    @Override
+    public void close() throws Exception {
+        executorService.close();
     }
 
     @Override
@@ -214,7 +228,7 @@ public class WebGatewayApi {
     public CompletableFuture<BufferedImage> getThumbnail(long imageId, int size) {
         logger.debug("Getting thumbnail of image with ID {} and with size {}", imageId, size);
 
-        return CompletableFuture.supplyAsync(() -> thumbnailsCache.getUnchecked(new IdSizeWrapper(imageId, size)));
+        return CompletableFuture.supplyAsync(() -> thumbnailsCache.getUnchecked(new IdSizeWrapper(imageId, size)), executorService);
     }
 
     /**
@@ -231,7 +245,7 @@ public class WebGatewayApi {
     public CompletableFuture<ImageServerMetadata> getImageMetadata(long imageId) {
         logger.debug("Getting metadata of image with ID {}", imageId);
 
-        return CompletableFuture.supplyAsync(() -> metadataCache.getUnchecked(imageId));
+        return CompletableFuture.supplyAsync(() -> metadataCache.getUnchecked(imageId), executorService);
     }
 
     /**

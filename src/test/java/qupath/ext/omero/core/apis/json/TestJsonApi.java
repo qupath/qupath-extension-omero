@@ -29,12 +29,13 @@ public class TestJsonApi extends OmeroServer {
 
     abstract static class GenericUser {
 
-        protected static JsonApi jsonApi;
-        protected static RequestSender requestSender;
         protected static UserType userType;
+        protected static RequestSender requestSender;
+        protected static JsonApi jsonApi;
 
         @AfterAll
-        static void closeRequestSender() throws Exception {
+        static void closeApis() throws Exception {
+            jsonApi.close();
             requestSender.close();
         }
 

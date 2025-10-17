@@ -23,12 +23,15 @@ public class TestWebGatewayApi extends OmeroServer {
 
     abstract static class GenericUser {
 
-        protected static WebGatewayApi webGatewayApi;
-        protected static RequestSender requestSender;
         protected static OmeroServer.UserType userType;
+        protected static RequestSender requestSender;
+        protected static JsonApi jsonApi;
+        protected static WebGatewayApi webGatewayApi;
 
         @AfterAll
-        static void closeRequestSender() throws Exception {
+        static void closeApis() throws Exception {
+            webGatewayApi.close();
+            jsonApi.close();
             requestSender.close();
         }
 
@@ -160,7 +163,7 @@ public class TestWebGatewayApi extends OmeroServer {
         static void createClient() throws URISyntaxException, ExecutionException, InterruptedException {
             userType = UserType.AUTHENTICATED;
             requestSender = new RequestSender();
-            JsonApi jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
+            jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
             webGatewayApi = new WebGatewayApi(URI.create(OmeroServer.getWebServerURI()), requestSender, jsonApi.getToken());
         }
 
@@ -224,7 +227,7 @@ public class TestWebGatewayApi extends OmeroServer {
         static void createClient() throws URISyntaxException, ExecutionException, InterruptedException {
             userType = UserType.UNAUTHENTICATED;
             requestSender = new RequestSender();
-            JsonApi jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
+            jsonApi = new JsonApi(URI.create(OmeroServer.getWebServerURI()),requestSender, OmeroServer.getCredentials(userType));
             webGatewayApi = new WebGatewayApi(URI.create(OmeroServer.getWebServerURI()), requestSender, jsonApi.getToken());
         }
 
