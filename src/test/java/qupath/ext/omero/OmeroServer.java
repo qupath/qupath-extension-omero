@@ -16,8 +16,12 @@ import org.testcontainers.utility.MountableFile;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
-import qupath.ext.omero.core.apis.commonentities.image.ImageSettings;
+import qupath.ext.omero.core.apis.commonentities.ChannelSettings;
+import qupath.ext.omero.core.apis.iviewer.imageentities.ImageData;
+import qupath.ext.omero.core.apis.iviewer.imageentities.OmeroImageChannel;
+import qupath.ext.omero.core.apis.iviewer.imageentities.OmeroImageData;
+import qupath.ext.omero.core.apis.iviewer.imageentities.OmeroImageMetadata;
+import qupath.ext.omero.core.apis.iviewer.imageentities.OmeroWindow;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
@@ -998,15 +1002,15 @@ public abstract class OmeroServer {
     /**
      * @return the image settings of the FLOAT32 image
      */
-    protected static ImageSettings getFloat32ImageSettings() {
-        return new ImageSettings(
-                "float32.tiff",
+    protected static ImageData getFloat32ImageData() {
+        return new ImageData(new OmeroImageData(
+                new OmeroImageMetadata("float32.tiff"),
                 List.of(
-                        new ChannelSettings("0", 0, 211, Integer.parseInt("FF0000", 16)),
-                        new ChannelSettings("1", 0, 248, Integer.parseInt("00FF00", 16)),
-                        new ChannelSettings("2", 0, 184, Integer.parseInt("0000FF", 16))
+                        new OmeroImageChannel("0", "FF0000", new OmeroWindow(0d, 211d)),
+                        new OmeroImageChannel("1", "00FF00", new OmeroWindow(0d, 248d)),
+                        new OmeroImageChannel("2", "0000FF", new OmeroWindow(0d, 184d))
                 )
-        );
+        ));
     }
 
     /**

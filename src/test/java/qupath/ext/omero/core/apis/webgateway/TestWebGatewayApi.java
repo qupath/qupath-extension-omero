@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
+import qupath.ext.omero.core.apis.commonentities.ChannelSettings;
 import qupath.ext.omero.core.apis.json.JsonApi;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;

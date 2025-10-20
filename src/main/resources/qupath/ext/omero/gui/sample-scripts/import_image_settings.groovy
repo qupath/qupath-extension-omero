@@ -41,7 +41,7 @@ if ((importChannelNames || importChannelColors || importChannelDisplayRanges) &&
 }
 
 // Retrieve image settings from OMERO
-var imageSettings = omeroServer.getClient().getApisHandler().getImageSettings(omeroServer.getId()).get()
+var imageSettings = omeroServer.getClient().getApisHandler().getImageData(omeroServer.getId()).get()
 
 // Retrieve image name and channel settings from the response
 var imageName = imageSettings.getName()

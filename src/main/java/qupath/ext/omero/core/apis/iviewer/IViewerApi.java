@@ -1,10 +1,11 @@
-package qupath.ext.omero.core.apis;
+package qupath.ext.omero.core.apis.iviewer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.commonentities.image.ImageSettings;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
+import qupath.ext.omero.core.apis.iviewer.imageentities.ImageData;
+import qupath.ext.omero.core.apis.iviewer.imageentities.OmeroImageData;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
  * <p>
  * It is simply used to send ROIs and retrieve metadata from an OMERO server.
  */
-class IViewerApi {
+public class IViewerApi {
 
     private static final Logger logger = LoggerFactory.getLogger(IViewerApi.class);
     private static final String ROIS_URL = "%s/iviewer/persist_rois/";
@@ -147,7 +148,7 @@ class IViewerApi {
     }
 
     /**
-     * Attempt to retrieve the settings of an image.
+     * Attempt to retrieve some information about an image.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
@@ -155,14 +156,14 @@ class IViewerApi {
      * @param imageId the id of the image whose settings should be retrieved
      * @return a CompletableFuture (that may complete exceptionally) with the retrieved image settings
      */
-    public CompletableFuture<ImageSettings> getImageSettings(long imageId) {
+    public CompletableFuture<ImageData> getImageData(long imageId) {
         logger.debug("Getting image settings of image with ID {}", imageId);
 
         try {
             return requestSender.getAndConvert(
                     new URI(String.format(IMAGE_SETTINGS_URL, webServerUri, imageId)),
-                    ImageSettings.class
-            );
+                    OmeroImageData.class
+            ).thenApply(ImageData::new);
         } catch (URISyntaxException e) {
             return CompletableFuture.failedFuture(e);
         }

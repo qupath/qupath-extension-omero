@@ -1,4 +1,4 @@
-package qupath.ext.omero.core.apis.commonentities.image;
+package qupath.ext.omero.core.apis.commonentities;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

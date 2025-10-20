@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.apis.iviewer.IViewerApi;
+import qupath.ext.omero.core.apis.iviewer.imageentities.ImageData;
 import qupath.ext.omero.core.apis.json.JsonApi;
 import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.WebclientApi;
@@ -15,8 +17,7 @@ import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
 import qupath.ext.omero.core.apis.webgateway.WebGatewayApi;
 import qupath.ext.omero.core.apis.webclient.Namespace;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
-import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
-import qupath.ext.omero.core.apis.commonentities.image.ImageSettings;
+import qupath.ext.omero.core.apis.commonentities.ChannelSettings;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
@@ -609,9 +610,9 @@ public class ApisHandler implements AutoCloseable {
     public CompletableFuture<Void> changeChannelColors(long imageId, List<Integer> newChannelColors) {
         logger.debug("Changing channel colors of image with ID {} to {}", imageId, newChannelColors);
 
-        return getImageSettings(imageId).thenCompose(imageSettings -> {
-            logger.debug("Got image settings {} from image with ID {}. Now changing channel colors to {}", imageSettings, imageId, newChannelColors);
-            return webGatewayApi.changeChannelColors(imageId, newChannelColors, imageSettings.getChannelSettings());
+        return getImageData(imageId).thenCompose(imageData -> {
+            logger.debug("Got image settings {} from image with ID {}. Now changing channel colors to {}", imageData, imageId, newChannelColors);
+            return webGatewayApi.changeChannelColors(imageId, newChannelColors, imageData.getChannelSettings());
         });
     }
 
@@ -621,9 +622,9 @@ public class ApisHandler implements AutoCloseable {
     public CompletableFuture<Void> changeChannelDisplayRanges(long imageID, List<ChannelSettings> newChannelSettings) {
         logger.debug("Changing channel display ranges of image with ID {} to {}", imageID, newChannelSettings);
 
-        return getImageSettings(imageID).thenCompose(imageSettings -> {
-            logger.debug("Got image settings {} from image with ID {}. Now changing channel display ranges to {}", imageSettings, imageID, newChannelSettings);
-            return webGatewayApi.changeChannelDisplayRanges(imageID, newChannelSettings, imageSettings.getChannelSettings());
+        return getImageData(imageID).thenCompose(imageData -> {
+            logger.debug("Got image settings {} from image with ID {}. Now changing channel display ranges to {}", imageData, imageID, newChannelSettings);
+            return webGatewayApi.changeChannelDisplayRanges(imageID, newChannelSettings, imageData.getChannelSettings());
         });
     }
 
@@ -675,10 +676,10 @@ public class ApisHandler implements AutoCloseable {
     }
 
     /**
-     * See {@link IViewerApi#getImageSettings(long)}.
+     * See {@link IViewerApi#getImageData(long)}.
      */
-    public CompletableFuture<ImageSettings> getImageSettings(long imageId) {
-        return iViewerApi.getImageSettings(imageId);
+    public CompletableFuture<ImageData> getImageData(long imageId) {
+        return iViewerApi.getImageData(imageId);
     }
 
     /**

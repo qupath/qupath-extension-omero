@@ -10,7 +10,7 @@ import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings;
+import qupath.ext.omero.core.apis.commonentities.ChannelSettings;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.commonentities.shapes.Line;
@@ -334,7 +334,7 @@ public class TestApisHandler extends OmeroServer {
 
             apisHandler.changeImageName(imageId, expectedNewImageName).get();
 
-            String newImageName = apisHandler.getImageSettings(imageId).get().getName();
+            String newImageName = apisHandler.getImageData(imageId).get().getName();
             Assertions.assertEquals(expectedNewImageName, newImageName);
 
             // Reset image name
@@ -349,7 +349,7 @@ public class TestApisHandler extends OmeroServer {
 
             apisHandler.changeChannelNames(imageId, expectedNewChannelNames).get();
 
-            List<String> newChannelNames = apisHandler.getImageSettings(imageId).get()
+            List<String> newChannelNames = apisHandler.getImageData(imageId).get()
                     .getChannelSettings()
                     .stream()
                     .map(ChannelSettings::name)
@@ -373,7 +373,7 @@ public class TestApisHandler extends OmeroServer {
 
             apisHandler.changeChannelColors(imageId, expectedChannelColors).get();
 
-            List<Integer> channelColors = apisHandler.getImageSettings(imageId).get()
+            List<Integer> channelColors = apisHandler.getImageData(imageId).get()
                     .getChannelSettings()
                     .stream()
                     .map(ChannelSettings::rgbColor)
@@ -402,7 +402,7 @@ public class TestApisHandler extends OmeroServer {
 
             apisHandler.changeChannelDisplayRanges(imageId, expectedChannelSettings).get();
 
-            List<ChannelSettings> channelSettings = apisHandler.getImageSettings(imageId).get().getChannelSettings();
+            List<ChannelSettings> channelSettings = apisHandler.getImageData(imageId).get().getChannelSettings();
             TestUtils.assertCollectionsEqualsWithoutOrder(expectedChannelSettings, channelSettings);
 
             // Reset channel display ranges

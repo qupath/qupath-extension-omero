@@ -1,4 +1,4 @@
-package qupath.ext.omero.core.apis;
+package qupath.ext.omero.core.apis.iviewer;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.RequestSender;
-import qupath.ext.omero.core.apis.commonentities.image.ImageSettings;
+import qupath.ext.omero.core.apis.iviewer.imageentities.ImageData;
 import qupath.ext.omero.core.apis.json.JsonApi;
 
 import java.net.URI;
@@ -51,13 +51,13 @@ public class TestIViewerApi extends OmeroServer {
         }
 
         @Test
-        void Check_Image_Settings() throws ExecutionException, InterruptedException {
+        void Check_Image_Data() throws ExecutionException, InterruptedException {
             long imageId = OmeroServer.getFloat32Image(userType).id();
-            ImageSettings expectedImageSettings = OmeroServer.getFloat32ImageSettings();
+            ImageData expectedImageData = OmeroServer.getFloat32ImageData();
 
-            ImageSettings imageSettings = iViewerApi.getImageSettings(imageId).get();
+            ImageData imageData = iViewerApi.getImageData(imageId).get();
 
-            Assertions.assertEquals(expectedImageSettings, imageSettings);
+            Assertions.assertEquals(expectedImageData, imageData);
         }
 
         @Test
@@ -66,7 +66,7 @@ public class TestIViewerApi extends OmeroServer {
 
             Assertions.assertThrows(
                     ExecutionException.class,
-                    () -> iViewerApi.getImageSettings(invalidId).get()
+                    () -> iViewerApi.getImageData(invalidId).get()
             );
         }
     }

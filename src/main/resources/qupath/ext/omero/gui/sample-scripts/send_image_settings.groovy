@@ -1,4 +1,4 @@
-import qupath.ext.omero.core.apis.commonentities.image.ChannelSettings
+import qupath.ext.omero.core.apis.commonentities.ChannelSettings
 import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /*
