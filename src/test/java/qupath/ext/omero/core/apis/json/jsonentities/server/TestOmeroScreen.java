@@ -3,12 +3,6 @@ package qupath.ext.omero.core.apis.json.jsonentities.server;
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
-import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
-import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
-import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
-
-import java.util.Optional;
 
 public class TestOmeroScreen {
 
@@ -22,10 +16,9 @@ public class TestOmeroScreen {
                         "",
                         "",
                         53,
-                        new OmeroDetails(
-                                null,
-                                null,
-                                new OmeroPermissions(false, true, true)
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(234L),
+                                new OmeroSimpleExperimenterGroup(9L)
                         )
                 )
         );
@@ -41,111 +34,27 @@ public class TestOmeroScreen {
                         "",
                         "",
                         null,
-                        new OmeroDetails(
-                                null,
-                                null,
-                                new OmeroPermissions(false, true, true)
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(234L),
+                                new OmeroSimpleExperimenterGroup(9L)
                         )
                 )
         );
     }
 
     @Test
-    void Check_Owner_When_Not_Present() {
-        OmeroScreen omeroScreen = new OmeroScreen(
-                "",
-                534L,
-                "",
-                "",
-                53,
-                new OmeroDetails(
-                        null,
-                        null,
-                        new OmeroPermissions(false, true, true)
+    void Check_Details_Required() {
+        Assertions.assertThrows(
+                RuntimeException.class,
+                () -> new OmeroScreen(
+                        "",
+                        534L,
+                        "",
+                        "",
+                        53,
+                        null
                 )
         );
-
-        Optional<OmeroExperimenter> owner = omeroScreen.owner();
-
-        Assertions.assertTrue(owner.isEmpty());
-    }
-
-    @Test
-    void Check_Owner_When_Present() {
-        OmeroExperimenter expectedOwner = new OmeroExperimenter(
-                "http://www.openmicroscopy.org/Schemas/OME/2016-06#Experimenter",
-                54L,
-                "first",
-                "middle",
-                "last"
-        );
-        OmeroScreen omeroScreen = new OmeroScreen(
-                "",
-                534L,
-                "",
-                "",
-                53,
-                new OmeroDetails(
-                        expectedOwner,
-                        null,
-                        new OmeroPermissions(false, true, true)
-                )
-        );
-
-        OmeroExperimenter owner = omeroScreen.owner().orElseThrow();
-
-        Assertions.assertEquals(expectedOwner, owner);
-    }
-
-    @Test
-    void Check_Group_When_Not_Present() {
-        OmeroScreen omeroScreen = new OmeroScreen(
-                "",
-                534L,
-                "",
-                "",
-                53,
-                new OmeroDetails(
-                        null,
-                        null,
-                        new OmeroPermissions(false, true, true)
-                )
-        );
-
-        Optional<OmeroExperimenterGroup> group = omeroScreen.group();
-
-        Assertions.assertTrue(group.isEmpty());
-    }
-
-    @Test
-    void Check_Group_When_Present() {
-        OmeroExperimenterGroup expectedGroup = new OmeroExperimenterGroup(
-                "http://www.openmicroscopy.org/Schemas/OME/2016-06#ExperimenterGroup",
-                65L,
-                new OmeroDetails(
-                        null,
-                        null,
-                        new OmeroPermissions(false, false, false)
-                ),
-                "group name",
-                "http://someUrl.com"
-        );
-        OmeroScreen omeroScreen = new OmeroScreen(
-                "",
-                534L,
-                "",
-                "",
-                53,
-                new OmeroDetails(
-                        null,
-                        expectedGroup,
-                        new OmeroPermissions(false, true, true)
-                )
-        );
-
-        OmeroExperimenterGroup group = omeroScreen.group().orElseThrow();
-
-        Assertions.assertEquals(expectedGroup, group);
     }
 
     @Test
@@ -156,10 +65,9 @@ public class TestOmeroScreen {
                 "name",
                 "description",
                 53,
-                new OmeroDetails(
-                        null,
-                        null,
-                        new OmeroPermissions(false, true, true)
+                new OmeroSimpleDetails(
+                        new OmeroSimpleExperimenter(234L),
+                        new OmeroSimpleExperimenterGroup(9L)
                 )
         );
 
@@ -172,10 +80,11 @@ public class TestOmeroScreen {
                     "Description": "description",
                     "omero:childCount": 53,
                     "omero:details": {
-                        "permissions": {
-                            "isGroupWrite": false,
-                            "isGroupRead": true,
-                            "isGroupAnnotate": true
+                        "owner": {
+                            "@id": 234
+                        },
+                        "group": {
+                            "@id": 9
                         }
                     }
                 }

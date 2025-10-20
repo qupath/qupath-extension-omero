@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 
@@ -119,21 +118,21 @@ public class TestScreen extends OmeroServer {
         }
 
         @Test
-        void Check_Owner() {
-            SimpleEntity expectedOwner = OmeroServer.getEntityOwner(userType);
+        void Check_Owner_Id() {
+            long expectedId = OmeroServer.getEntityOwner(userType).id();
 
-            SimpleEntity owner = screen.getOwner().orElseThrow();
+            long id = screen.getOwnerId();
 
-            Assertions.assertEquals(expectedOwner, owner);
+            Assertions.assertEquals(expectedId, id);
         }
 
         @Test
-        void Check_Group() {
-            SimpleEntity expectedGroup = OmeroServer.getEntityGroup(userType);
+        void Check_Group_Id() {
+            long expectedId = OmeroServer.getEntityGroup(userType).id();
 
-            SimpleEntity group = screen.getGroup().orElseThrow();
+            long id = screen.getGroupId();
 
-            Assertions.assertEquals(expectedGroup, group);
+            Assertions.assertEquals(expectedId, id);
         }
 
         @Test
@@ -146,15 +145,21 @@ public class TestScreen extends OmeroServer {
         }
 
         @Test
-        void Check_Attributes_Values() {
-            List<String> expectedAttributes = OmeroServer.getScreenAttributeValues(userType);
+        void Check_Child_Count() {
+            int expectedChildCount = OmeroServer.getScreenChildCount(userType);
 
-            List<Attribute> attributes = screen.getAttributes();
+            int childCount = screen.getChildCount();
 
-            Assertions.assertEquals(
-                    expectedAttributes,
-                    attributes.stream().map(Attribute::value).toList()
-            );
+            Assertions.assertEquals(expectedChildCount, childCount);
+        }
+
+        @Test
+        void Check_Description() {
+            String expectedDescription = OmeroServer.getScreenDescription();
+
+            String description = screen.getDescription().orElse(null);
+
+            Assertions.assertEquals(expectedDescription, description);
         }
     }
 

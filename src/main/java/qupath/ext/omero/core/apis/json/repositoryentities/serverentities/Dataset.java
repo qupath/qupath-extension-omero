@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
 
-import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroDataset;
@@ -8,7 +7,6 @@ import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroDataset;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
-import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -18,9 +16,8 @@ import java.util.concurrent.CompletableFuture;
  */
 public class Dataset extends ServerEntity {
 
-    private static final ResourceBundle resources = Utils.getResources();
     private final int childCount;
-    private final List<Attribute> attributes;
+    private final String description;
 
     /**
      * Create a dataset from an {@link OmeroDataset}.
@@ -33,36 +30,13 @@ public class Dataset extends ServerEntity {
         super(
                 omeroDataset.id(),
                 omeroDataset.name(),
-                omeroDataset.owner().orElse(null),
-                omeroDataset.group().orElse(null),
+                omeroDataset.omeroDetails().experimenter().id(),
+                omeroDataset.omeroDetails().group().id(),
                 webServerUri
         );
 
         this.childCount = omeroDataset.childCount();
-
-        String description = omeroDataset.description();
-        this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Dataset.name"), name == null || name.isEmpty() ? getLabel() : name),
-                new Attribute(resources.getString("Entities.Dataset.id"), String.valueOf(id)),
-                new Attribute(
-                        resources.getString("Entities.Dataset.description"),
-                        description == null || description.isEmpty() ? "-" : description
-                ),
-                new Attribute(
-                        resources.getString("Entities.Dataset.owner"),
-                        owner == null || owner.name() == null || owner.name().isEmpty() ? "-" : owner.name()
-                ),
-                new Attribute(
-                        resources.getString("Entities.Dataset.group"),
-                        group == null || group.name() == null || group.name().isEmpty() ? "-" : group.name()
-                ),
-                new Attribute(resources.getString("Entities.Dataset.nbImages"), String.valueOf(childCount))
-        );
-    }
-
-    @Override
-    public List<Attribute> getAttributes() {
-        return attributes;
+        this.description = omeroDataset.description();
     }
 
     @Override
@@ -93,5 +67,19 @@ public class Dataset extends ServerEntity {
     @Override
     public String toString() {
         return String.format("Dataset %s of ID %d", name, id);
+    }
+
+    /**
+     * @return the number of images this dataset contains
+     */
+    public int getChildCount() {
+        return childCount;
+    }
+
+    /**
+     * @return a description of this dataset, or an empty Optional if not provided
+     */
+    public Optional<String> getDescription() {
+        return Optional.ofNullable(description);
     }
 }

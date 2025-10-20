@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
 
-import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlate;
@@ -8,7 +7,6 @@ import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlate;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
-import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
@@ -19,10 +17,8 @@ import java.util.stream.Stream;
  */
 public class Plate extends ServerEntity {
 
-    private static final ResourceBundle resources = Utils.getResources();
     private final int columns;
     private final int rows;
-    private final List<Attribute> attributes;
 
     /**
      * Create a plate from an {@link OmeroPlate}.
@@ -35,33 +31,13 @@ public class Plate extends ServerEntity {
         super(
                 omeroPlate.id(),
                 omeroPlate.name(),
-                omeroPlate.owner().orElse(null),
-                omeroPlate.group().orElse(null),
+                omeroPlate.omeroDetails().experimenter().id(),
+                omeroPlate.omeroDetails().group().id(),
                 webServerUri
         );
 
         this.columns = omeroPlate.columns();
         this.rows = omeroPlate.rows();
-
-        this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Plate.name"), name == null || name.isEmpty() ? getLabel() : name),
-                new Attribute(resources.getString("Entities.Plate.id"), String.valueOf(id)),
-                new Attribute(
-                        resources.getString("Entities.Plate.owner"),
-                        owner == null || owner.name() == null || owner.name().isEmpty() ? "-" : owner.name()
-                ),
-                new Attribute(
-                        resources.getString("Entities.Plate.group"),
-                        group == null || group.name() == null || group.name().isEmpty() ? "-" : group.name()
-                ),
-                new Attribute(resources.getString("Entities.Plate.columns"), String.valueOf(omeroPlate.columns())),
-                new Attribute(resources.getString("Entities.Plate.rows"), String.valueOf(omeroPlate.rows()))
-        );
-    }
-
-    @Override
-    public List<Attribute> getAttributes() {
-        return attributes;
     }
 
     /**
@@ -115,5 +91,19 @@ public class Plate extends ServerEntity {
     @Override
     public String toString() {
         return String.format("Plate %s of ID %d", name, id);
+    }
+
+    /**
+     * @return the number of columns of this plate, or 0 if not provided
+     */
+    public int getColumns() {
+        return columns;
+    }
+
+    /**
+     * @return the number of rows of this plate, or 0 if not provided
+     */
+    public int getRows() {
+        return rows;
     }
 }

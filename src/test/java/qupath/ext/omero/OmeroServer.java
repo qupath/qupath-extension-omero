@@ -22,6 +22,7 @@ import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
 import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
+import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroPhysicalSize;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
 import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
@@ -50,6 +51,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -572,17 +574,17 @@ public abstract class OmeroServer {
     }
 
     /**
-     * @return the attributes of the project to consider with the provided user type
+     * @return the number of children of the project to consider with the provided user type
      */
-    protected static List<String> getProjectAttributeValues(UserType userType) {
-        return List.of(
-                getProjectName(userType),
-                String.valueOf(getProject(userType).id()),
-                "-",
-                getEntityOwner(userType).name(),
-                getEntityGroup(userType).name(),
-                String.valueOf(getProjectDatasetIds(userType, -1, -1).size())
-        );
+    protected static int getProjectChildCount(UserType userType) {
+        return getProjectDatasetIds(userType, -1, -1).size();
+    }
+
+    /**
+     * @return the description of the projects to consider
+     */
+    protected static String getProjectDescription() {
+        return null;
     }
 
     /**
@@ -699,17 +701,17 @@ public abstract class OmeroServer {
     }
 
     /**
-     * @return the attributes of the dataset to consider with the provided user type
+     * @return the number of children of the dataset to consider with the provided user type
      */
-    protected static List<String> getDatasetAttributeValues(UserType userType) {
-        return List.of(
-                getDatasetName(userType),
-                String.valueOf(getDataset(userType).id()),
-                "-",
-                getEntityOwner(userType).name(),
-                getEntityGroup(userType).name(),
-                String.valueOf(getDatasetImageIds(userType, -1, -1).size())
-        );
+    protected static int getDatasetChildCount(UserType userType) {
+        return getDatasetImageIds(userType, -1, -1).size();
+    }
+
+    /**
+     * @return the description of the datasets to consider
+     */
+    protected static String getDatasetDescription() {
+        return null;
     }
 
     /**
@@ -1086,28 +1088,6 @@ public abstract class OmeroServer {
     }
 
     /**
-     * @return the ID and full name of the experimenter owning the image to consider with the provided user type
-     */
-    protected static SimpleEntity getImageOwner(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleEntity(getPublicUser().getId(), getPublicUser().getFullName());
-            case AUTHENTICATED -> new SimpleEntity(getUser1().getId(), getUser1().getFullName());
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
-    }
-
-    /**
-     * @return the ID and name of the group owning the image to consider with the provided user type
-     */
-    protected static SimpleEntity getImageGroup(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED -> new SimpleEntity(getPublicGroup().getId(), getPublicGroup().getName().orElseThrow());
-            case AUTHENTICATED -> new SimpleEntity(getGroup1().getId(), getGroup1().getName().orElseThrow());
-            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-        };
-    }
-
-    /**
      * @return the name of the image to consider with the provided user type
      */
     protected static String getImageName(UserType userType) {
@@ -1119,34 +1099,88 @@ public abstract class OmeroServer {
     }
 
     /**
-     * @return the attributes of the image to consider with the provided user type
+     * @return the date of acquisition of the images to consider
      */
-    protected static List<String> getImageAttributeValues(UserType userType) {
-        return List.of(
-                getImageName(userType),
-                String.valueOf(getImage(userType).id()),
-                getImageOwner(userType).name(),
-                getImageGroup(userType).name(),
-                "-",
-                "256 px",
-                "256 px",
-                switch (userType) {
-                    case UNAUTHENTICATED -> "0.2 MiB";
-                    case AUTHENTICATED -> "0.8 MiB";
-                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-                },
-                "1",
-                "3",
-                "1",
-                "1.0 µm",
-                "1.0 µm",
-                "-",
-                switch (userType) {
-                    case UNAUTHENTICATED -> "UINT8";
-                    case AUTHENTICATED -> "FLOAT32";
-                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-                }
-        );
+    protected static Date getImageAcquisitionDate() {
+        return null;
+    }
+
+    /**
+     * @return the size in mebibyte of the image to consider with the provided user type
+     */
+    protected static double getImageSizeMebibyte(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> 0.1875;
+            case AUTHENTICATED -> 0.75;
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
+    }
+
+    /**
+     * @return the width of the images to consider
+     */
+    protected static int getImageSizeX() {
+        return 256;
+    }
+
+    /**
+     * @return the height of the images to consider
+     */
+    protected static int getImageSizeY() {
+        return 256;
+    }
+
+    /**
+     * @return the number of z-stacks of the images to consider
+     */
+    protected static int getImageSizeZ() {
+        return 1;
+    }
+
+    /**
+     * @return the number of channels of the images to consider
+     */
+    protected static int getImageSizeC() {
+        return 3;
+    }
+
+    /**
+     * @return the number of timepoints of the images to consider
+     */
+    protected static int getImageSizeT() {
+        return 1;
+    }
+
+    /**
+     * @return the physical size of pixels on the x-axis of the images to consider
+     */
+    protected static OmeroPhysicalSize getImagePhysicalSizeX() {
+        return new OmeroPhysicalSize("µm", 1.0);
+    }
+
+    /**
+     * @return the physical size of pixels on the y-axis of the images to consider
+     */
+    protected static OmeroPhysicalSize getImagePhysicalSizeY() {
+        return new OmeroPhysicalSize("µm", 1.0);
+    }
+
+    /**
+     * @return the physical size of pixels on the z-axis of the images to consider
+     */
+    protected static OmeroPhysicalSize getImagePhysicalSizeZ() {
+        return null;
+    }
+
+    /**
+     * @return the pixel type of the image to consider with the provided user type
+     */
+    protected static PixelType getImagePixelType(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED -> PixelType.UINT8;
+            case AUTHENTICATED -> PixelType.FLOAT32;
+            case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+        };
     }
 
     /**
@@ -1263,17 +1297,17 @@ public abstract class OmeroServer {
     }
 
     /**
-     * @return the attributes of the screen to consider with the provided user type
+     * @return the number of children of the screen to consider with the provided user type
      */
-    protected static List<String> getScreenAttributeValues(UserType userType) {
-        return List.of(
-                getScreenName(userType),
-                String.valueOf(getScreen(userType).id()),
-                "-",
-                getEntityOwner(userType).name(),
-                getEntityGroup(userType).name(),
-                String.valueOf(getScreenPlateIds(userType, -1, -1).size())
-        );
+    protected static int getScreenChildCount(UserType userType) {
+        return getScreenPlateIds(userType, -1, -1).size();
+    }
+
+    /**
+     * @return the description of the screens to consider
+     */
+    protected static String getScreenDescription() {
+        return null;
     }
 
     /**
@@ -1433,25 +1467,18 @@ public abstract class OmeroServer {
     }
 
     /**
-     * @return the attributes of the plate to consider with the provided user type
+     * @return the number of columns of the plates to consider
      */
-    protected static List<String> getPlateAttributeValues(UserType userType) {
-        return List.of(
-                getPlateName(userType),
-                String.valueOf(getPlate(userType).id()),
-                getEntityOwner(userType).name(),
-                getEntityGroup(userType).name(),
-                switch (userType) {
-                    case UNAUTHENTICATED, AUTHENTICATED -> "3";
-                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-                },
-                switch (userType) {
-                    case UNAUTHENTICATED, AUTHENTICATED -> "3";
-                    case ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-                }
-        );
+    protected static int getPlateColumns() {
+        return 3;
     }
 
+    /**
+     * @return the number of rows of the plates to consider
+     */
+    protected static int getPlateRows() {
+        return 3;
+    }
 
     /**
      * @return a URI pointing to the provided plate acquisition
@@ -1505,22 +1532,6 @@ public abstract class OmeroServer {
     }
 
     /**
-     * @return the attributes of the plate acquisition to consider with the provided user type
-     */
-    protected static List<String> getPlateAcquisitionAttributeValues(UserType userType) {
-        return switch (userType) {
-            case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
-            case AUTHENTICATED -> List.of(
-                    "Run 1",
-                    String.valueOf(getPlateAcquisition(userType).id()),
-                    getEntityOwner(userType).name(),
-                    getEntityGroup(userType).name(),
-                    "2010-02-23 12:50:30"
-            );
-        };
-    }
-
-    /**
      * @return the min well sample index of the plate acquisition to consider with the provided user type
      */
     protected static int getPlateAcquisitionMinWellSampleIndex(UserType userType) {
@@ -1540,6 +1551,16 @@ public abstract class OmeroServer {
         };
     }
 
+    /**
+     * @return the date corresponding to when the first image of the plate acquisition to consider with the provided user type
+     * was acquired
+     */
+    protected static Date getPlateAcquisitionStartTime(UserType userType) {
+        return switch (userType) {
+            case UNAUTHENTICATED, ADMIN -> throw new IllegalArgumentException(String.format("%s not supported", userType));
+            case AUTHENTICATED -> new Date(1266929430000L);
+        };
+    }
 
     /**
      * @return a URI pointing to the provided well

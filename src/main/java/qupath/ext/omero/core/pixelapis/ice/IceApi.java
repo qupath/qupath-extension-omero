@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.ArgsUtils;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.preferences.PreferencesManager;
@@ -196,9 +195,7 @@ public class IceApi implements PixelApi {
                 logger.debug("Gateway not null, using it");
             }
 
-            long groupId = apisHandler.getImage(imageId).get().getGroup().map(SimpleEntity::id).orElseThrow(() -> new ExecutionException(
-                    new IllegalArgumentException(String.format("Cannot get the ID of the group owning image with %d", imageId))
-            ));
+            long groupId = apisHandler.getImage(imageId).get().getGroupId();
 
             closeReadersWithDifferentGroups(imageId, groupId);
 

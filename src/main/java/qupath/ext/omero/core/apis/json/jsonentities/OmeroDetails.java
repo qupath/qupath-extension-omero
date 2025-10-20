@@ -17,7 +17,7 @@ import java.util.Objects;
  */
 public record OmeroDetails(
         @SerializedName(value = "owner") OmeroExperimenter experimenter,
-        @SerializedName(value = "group") OmeroExperimenterGroup group,
+        OmeroExperimenterGroup group,
         OmeroPermissions permissions
 ) {
     public OmeroDetails {

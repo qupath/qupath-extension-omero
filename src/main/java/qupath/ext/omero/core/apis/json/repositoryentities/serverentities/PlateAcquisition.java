@@ -1,18 +1,13 @@
 package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
 
-import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroDataset;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlateAcquisition;
 
 import java.net.URI;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
@@ -23,14 +18,12 @@ import java.util.stream.IntStream;
  */
 public class PlateAcquisition extends ServerEntity {
 
-    private static final DateFormat ACQUISITION_DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    private static final ResourceBundle resources = Utils.getResources();
     private final List<Integer> wellSampleIndices;
     private final boolean hasChildren;
-    private final List<Attribute> attributes;
+    private final Date startTime;
 
     /**
-     * Create a plate acquisition from an {@link OmeroDataset}.
+     * Create a plate acquisition from an {@link OmeroPlateAcquisition}.
      *
      * @param omeroPlateAcquisition the OMERO plate acquisition to create the plate acquisition from
      * @param numberOfWells the number of wells this plate acquisition should have
@@ -41,35 +34,14 @@ public class PlateAcquisition extends ServerEntity {
         super(
                 omeroPlateAcquisition.id(),
                 omeroPlateAcquisition.name(),
-                omeroPlateAcquisition.owner().orElse(null),
-                omeroPlateAcquisition.group().orElse(null),
+                omeroPlateAcquisition.omeroDetails().experimenter().id(),
+                omeroPlateAcquisition.omeroDetails().group().id(),
                 webServerUri
         );
 
         this.wellSampleIndices = omeroPlateAcquisition.wellSampleIndices();
         this.hasChildren = numberOfWells > 0;
-
-        this.attributes = List.of(
-                new Attribute(resources.getString("Entities.PlateAcquisition.name"), name == null || name.isEmpty() ? getLabel() : name),
-                new Attribute(resources.getString("Entities.PlateAcquisition.id"), String.valueOf(id)),
-                new Attribute(
-                        resources.getString("Entities.PlateAcquisition.owner"),
-                        owner == null || owner.name() == null || owner.name().isEmpty() ? "-" : owner.name()
-                ),
-                new Attribute(
-                        resources.getString("Entities.PlateAcquisition.group"),
-                        group == null || group.name() == null || group.name().isEmpty() ? "-" : group.name()
-                ),
-                new Attribute(
-                        resources.getString("Entities.PlateAcquisition.acquisitionTime"),
-                        omeroPlateAcquisition.startTime() == null ? "-" : ACQUISITION_DATE_FORMAT.format(new Date(omeroPlateAcquisition.startTime()))
-                )
-        );
-    }
-
-    @Override
-    public List<Attribute> getAttributes() {
-        return attributes;
+        this.startTime = omeroPlateAcquisition.startTime() == null ? null : new Date(omeroPlateAcquisition.startTime());
     }
 
     @Override
@@ -133,5 +105,12 @@ public class PlateAcquisition extends ServerEntity {
     public Optional<Integer> getMaxWellSampleIndex() {
         return Optional.ofNullable(wellSampleIndices)
                 .map(wellSampleIndices -> wellSampleIndices.size() > 1 ? wellSampleIndices.get(1) : null);
+    }
+
+    /**
+     * @return the date corresponding to when the first image of this plate acquisition was collected, or an empty Optional if not found
+     */
+    public Optional<Date> getStartTime() {
+        return Optional.ofNullable(startTime);
     }
 }

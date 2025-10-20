@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
 
-import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroProject;
@@ -8,7 +7,6 @@ import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroProject;
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
-import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -18,9 +16,8 @@ import java.util.concurrent.CompletableFuture;
  */
 public class Project extends ServerEntity {
 
-    private static final ResourceBundle resources = Utils.getResources();
     private final int childCount;
-    private final List<Attribute> attributes;
+    private final String description;
 
     /**
      * Create a project from an {@link OmeroProject}.
@@ -33,36 +30,13 @@ public class Project extends ServerEntity {
         super(
                 omeroProject.id(),
                 omeroProject.name(),
-                omeroProject.owner().orElse(null),
-                omeroProject.group().orElse(null),
+                omeroProject.omeroDetails().experimenter().id(),
+                omeroProject.omeroDetails().group().id(),
                 webServerUri
         );
 
         this.childCount = omeroProject.childCount();
-
-        String description = omeroProject.description();
-        this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Project.name"), name == null || name.isEmpty() ? getLabel() : name),
-                new Attribute(resources.getString("Entities.Project.id"), String.valueOf(id)),
-                new Attribute(
-                        resources.getString("Entities.Project.description"),
-                        description == null || description.isEmpty() ? "-" : description
-                ),
-                new Attribute(
-                        resources.getString("Entities.Project.owner"),
-                        owner == null || owner.name() == null || owner.name().isEmpty() ? "-" : owner.name()
-                ),
-                new Attribute(
-                        resources.getString("Entities.Project.group"),
-                        group == null || group.name() == null || group.name().isEmpty() ? "-" : group.name()
-                ),
-                new Attribute(resources.getString("Entities.Project.nbDatasets"), String.valueOf(childCount))
-        );
-    }
-
-    @Override
-    public List<Attribute> getAttributes() {
-        return attributes;
+        this.description = omeroProject.description();
     }
 
     @Override
@@ -93,5 +67,19 @@ public class Project extends ServerEntity {
     @Override
     public String toString() {
         return String.format("Project %s of ID %d", name, id);
+    }
+
+    /**
+     * @return the number of datasets this project contains
+     */
+    public int getChildCount() {
+        return childCount;
+    }
+
+    /**
+     * @return a description of this project, or an empty Optional if not provided
+     */
+    public Optional<String> getDescription() {
+        return Optional.ofNullable(description);
     }
 }

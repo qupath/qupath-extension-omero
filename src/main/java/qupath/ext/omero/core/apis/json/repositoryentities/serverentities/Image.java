@@ -1,6 +1,5 @@
 package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
 
-import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroImage;
 import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroPhysicalSize;
@@ -11,7 +10,7 @@ import java.net.URI;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.ResourceBundle;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -20,10 +19,18 @@ import java.util.concurrent.CompletableFuture;
  */
 public class Image extends ServerEntity {
 
-    private static final ResourceBundle resources = Utils.getResources();
-    private final PixelType pixelType;
     private final int numberOfChannels;
-    private final List<Attribute> attributes;
+    private final Date acquisitionDate;
+    private final Double sizeMebibyte;
+    private final int sizeX;
+    private final int sizeY;
+    private final int sizeZ;
+    private final int sizeC;
+    private final int sizeT;
+    private final OmeroPhysicalSize physicalSizeX;
+    private final OmeroPhysicalSize physicalSizeY;
+    private final OmeroPhysicalSize physicalSizeZ;
+    private final PixelType pixelType;
     /**
      * The reason why an image may not be supported by a pixel API
      */
@@ -53,72 +60,23 @@ public class Image extends ServerEntity {
         super(
                 omeroImage.id(),
                 omeroImage.name(),
-                omeroImage.owner().orElse(null),
-                omeroImage.group().orElse(null),
+                omeroImage.omeroDetails().experimenter().id(),
+                omeroImage.omeroDetails().group().id(),
                 webServerUri
         );
 
-        this.pixelType = omeroImage.pixelType().orElse(null);
-        this.numberOfChannels = omeroImage.sizeC();
-
-        long acquisitionDate = omeroImage.acquisitionDate() == null ? 0 : omeroImage.acquisitionDate();
-        int sizeX = omeroImage.sizeX();
-        int sizeY = omeroImage.sizeY();
-        double sizeMebibyte = omeroImage.sizeMebibyte().orElse(-1d);
-        int sizeZ = omeroImage.sizeZ();
-        int sizeC = omeroImage.sizeC();
-        int sizeT = omeroImage.sizeT();
-        OmeroPhysicalSize physicalSizeX = omeroImage.physicalSizeX().orElse(null);
-        OmeroPhysicalSize physicalSizeY = omeroImage.physicalSizeY().orElse(null);
-        OmeroPhysicalSize physicalSizeZ = omeroImage.physicalSizeZ().orElse(null);
-        PixelType pixelType = omeroImage.pixelType().orElse(null);
-        this.attributes = List.of(
-                new Attribute(resources.getString("Entities.Image.name"), name == null || name.isEmpty() ? getLabel() : name),
-                new Attribute(resources.getString("Entities.Image.id"), String.valueOf(id)),
-                new Attribute(
-                        resources.getString("Entities.Image.owner"),
-                        owner == null || owner.name() == null || owner.name().isEmpty() ? "-" : owner.name()
-                ),
-                new Attribute(
-                        resources.getString("Entities.Image.group"),
-                        group == null || group.name() == null || group.name().isEmpty() ? "-" : group.name()
-                ),
-                new Attribute(
-                        resources.getString("Entities.Image.acquisitionDate"),
-                        acquisitionDate == 0 ? "-" : new Date(acquisitionDate).toString()
-                ),
-                new Attribute(resources.getString("Entities.Image.imageWidth"), sizeX < 0 ? "-" : String.format("%d px", sizeX)),
-                new Attribute(resources.getString("Entities.Image.imageHeight"), sizeY < 0 ? "-" : String.format("%d px", sizeY)),
-                new Attribute(
-                        resources.getString("Entities.Image.uncompressedSize"),
-                        sizeMebibyte <= 0 ? "-" : String.format(
-                                "%.1f %s",
-                                sizeMebibyte > 1000 ? sizeMebibyte / 1024 : sizeMebibyte,
-                                sizeMebibyte > 1000 ? "GiB" : "MiB"
-                        )
-                ),
-                new Attribute(resources.getString("Entities.Image.nbZSlices"), sizeZ < 0 ? "-" : String.format("%d", sizeZ)),
-                new Attribute(resources.getString("Entities.Image.nbChannels"), sizeC < 0 ? "-" : String.format("%d", sizeC)),
-                new Attribute(resources.getString("Entities.Image.nbTimePoints"), sizeT < 0 ? "-" : String.format("%d", sizeT)),
-                new Attribute(
-                        resources.getString("Entities.Image.pixelSizeX"),
-                        physicalSizeX == null ? "-" : String.format("%s %s", physicalSizeX.value(), physicalSizeX.symbol())
-                ),
-                new Attribute(
-                        resources.getString("Entities.Image.pixelSizeY"),
-                        physicalSizeY == null ? "-" : String.format("%s %s", physicalSizeY.value(), physicalSizeY.symbol())
-                ),
-                new Attribute(
-                        resources.getString("Entities.Image.pixelSizeZ"),
-                        physicalSizeZ == null ? "-" : String.format("%s %s", physicalSizeZ.value(), physicalSizeZ.symbol())
-                ),
-                new Attribute(resources.getString("Entities.Image.pixelType"), pixelType == null ? "-" : pixelType.name())
-        );
-    }
-
-    @Override
-    public List<Attribute> getAttributes() {
-        return attributes;
+        this.numberOfChannels = omeroImage.pixels().sizeC();
+        this.acquisitionDate = omeroImage.acquisitionDate() == null ? null : new Date(omeroImage.acquisitionDate());
+        this.sizeMebibyte = omeroImage.pixels().sizeMebibyte().orElse(null);
+        this.sizeX = omeroImage.pixels().sizeX();
+        this.sizeY = omeroImage.pixels().sizeY();
+        this.sizeZ = omeroImage.pixels().sizeZ();
+        this.sizeC = omeroImage.pixels().sizeC();
+        this.sizeT = omeroImage.pixels().sizeT();
+        this.physicalSizeX = omeroImage.pixels().physicalSizeX();
+        this.physicalSizeY = omeroImage.pixels().physicalSizeY();
+        this.physicalSizeZ = omeroImage.pixels().physicalSizeZ();
+        this.pixelType = omeroImage.pixels().pixelType().orElse(null);
     }
 
     @Override
@@ -183,6 +141,83 @@ public class Image extends ServerEntity {
         }
 
         return unsupportedReasons;
+    }
+
+    /**
+     * @return the date corresponding to when this image was acquired, or an empty Optional if not provided
+     */
+    public Optional<Date> getAcquisitionDate() {
+        return Optional.ofNullable(acquisitionDate);
+    }
+
+    /**
+     * @return the uncompressed size of this image in MiB, or an empty Optional if it couldn't be computed
+     */
+    public Optional<Double> getSizeMebibyte() {
+        return Optional.ofNullable(sizeMebibyte);
+    }
+
+    /**
+     * @return the width of this image
+     */
+    public int getSizeX() {
+        return sizeX;
+    }
+
+    /**
+     * @return the height of this image
+     */
+    public int getSizeY() {
+        return sizeY;
+    }
+
+    /**
+     * @return the number of z-stacks of this image
+     */
+    public int getSizeZ() {
+        return sizeZ;
+    }
+
+    /**
+     * @return the number of channels of this image
+     */
+    public int getSizeC() {
+        return sizeC;
+    }
+
+    /**
+     * @return the number of timepoints of this image
+     */
+    public int getSizeT() {
+        return sizeT;
+    }
+
+    /**
+     * @return the pixel size on the x-axis, or an empty Optional if not provided
+     */
+    public Optional<OmeroPhysicalSize> getPhysicalSizeX() {
+        return Optional.ofNullable(physicalSizeX);
+    }
+
+    /**
+     * @return the pixel size on the y-axis, or an empty Optional if not provided
+     */
+    public Optional<OmeroPhysicalSize> getPhysicalSizeY() {
+        return Optional.ofNullable(physicalSizeY);
+    }
+
+    /**
+     * @return the pixel size on the z-axis, or an empty Optional if not provided
+     */
+    public Optional<OmeroPhysicalSize> getPhysicalSizeZ() {
+        return Optional.ofNullable(physicalSizeZ);
+    }
+
+    /**
+     * @return the pixel type of this image, or an empty Optional if the pixel type was not recognized
+     */
+    public Optional<PixelType> getPixelType() {
+        return Optional.ofNullable(pixelType);
     }
 
     private boolean pixelTypeUnsupported(PixelApi pixelApi) {

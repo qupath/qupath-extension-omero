@@ -1,12 +1,8 @@
 package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
 
-import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
-import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
-import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -18,8 +14,8 @@ public abstract class ServerEntity implements RepositoryEntity {
 
     protected final long id;
     protected final String name;
-    protected final SimpleEntity owner;
-    protected final SimpleEntity group;
+    protected final long ownerId;
+    protected final long groupId;
     protected final URI webServerUri;
 
     /**
@@ -27,16 +23,16 @@ public abstract class ServerEntity implements RepositoryEntity {
      *
      * @param id the ID of this entity
      * @param name the name of this entity. Can be null
-     * @param owner the experimenter that owns this entity. Can be null
-     * @param group the group that owns this entity. Can be null
+     * @param ownerId the ID of the experimenter that owns this entity
+     * @param groupId the ID of the group that owns this entity
      * @param webServerUri the URI of the web server owning this entity
      * @throws NullPointerException if the provided web server URI is null
      */
-    protected ServerEntity(long id, String name, OmeroExperimenter owner, OmeroExperimenterGroup group, URI webServerUri) {
+    protected ServerEntity(long id, String name, long ownerId, long groupId, URI webServerUri) {
         this.id = id;
         this.name = name;
-        this.owner = owner == null ? null : new SimpleEntity(owner.id(), owner.fullName());
-        this.group = group == null ? null : new SimpleEntity(group.id(), group.name());
+        this.ownerId = ownerId;
+        this.groupId = groupId;
         this.webServerUri = Objects.requireNonNull(webServerUri);
     }
 
@@ -62,17 +58,17 @@ public abstract class ServerEntity implements RepositoryEntity {
     }
 
     /**
-     * @return the ID and the full name of the experimenter that owns this entity, or an empty Optional if not defined
+     * @return the ID of the experimenter that owns this entity
      */
-    public Optional<SimpleEntity> getOwner() {
-        return Optional.ofNullable(owner);
+    public long getOwnerId() {
+        return ownerId;
     }
 
     /**
-     * @return ID and the name of the group that owns this entity, or an empty Optional if not defined
+     * @return the ID of the group that owns this entity
      */
-    public Optional<SimpleEntity> getGroup() {
-        return Optional.ofNullable(group);
+    public long getGroupId() {
+        return groupId;
     }
 
     /**
@@ -81,9 +77,4 @@ public abstract class ServerEntity implements RepositoryEntity {
     public Optional<String> getName() {
         return Optional.ofNullable(name);
     }
-
-    /**
-     * @return a list of attributes of this entity
-     */
-    public abstract List<Attribute> getAttributes();
 }

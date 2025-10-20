@@ -7,10 +7,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -122,21 +122,21 @@ public class TestPlateAcquisition extends OmeroServer {
         }
 
         @Test
-        void Check_Owner() {
-            SimpleEntity expectedOwner = OmeroServer.getEntityOwner(userType);
+        void Check_Owner_Id() {
+            long expectedId = OmeroServer.getEntityOwner(userType).id();
 
-            SimpleEntity owner = plateAcquisition.getOwner().orElseThrow();
+            long id = plateAcquisition.getOwnerId();
 
-            Assertions.assertEquals(expectedOwner, owner);
+            Assertions.assertEquals(expectedId, id);
         }
 
         @Test
-        void Check_Group() {
-            SimpleEntity expectedGroup = OmeroServer.getEntityGroup(userType);
+        void Check_Group_Id() {
+            long expectedId = OmeroServer.getEntityGroup(userType).id();
 
-            SimpleEntity group = plateAcquisition.getGroup().orElseThrow();
+            long id = plateAcquisition.getGroupId();
 
-            Assertions.assertEquals(expectedGroup, group);
+            Assertions.assertEquals(expectedId, id);
         }
 
         @Test
@@ -146,18 +146,6 @@ public class TestPlateAcquisition extends OmeroServer {
             String name = plateAcquisition.getName().orElse(null);
 
             Assertions.assertEquals(expectedName, name);
-        }
-
-        @Test
-        void Check_Attributes_Values() {
-            List<String> expectedAttributes = OmeroServer.getPlateAcquisitionAttributeValues(userType);
-
-            List<Attribute> attributes = plateAcquisition.getAttributes();
-
-            Assertions.assertEquals(
-                    expectedAttributes,
-                    attributes.stream().map(Attribute::value).toList()
-            );
         }
 
         @Test
@@ -176,6 +164,15 @@ public class TestPlateAcquisition extends OmeroServer {
             int maxWellSampleIndex = plateAcquisition.getMaxWellSampleIndex().orElseThrow();
 
             Assertions.assertEquals(expectedMaxWellSampleIndex, maxWellSampleIndex);
+        }
+
+        @Test
+        void Check_Start_Time() {
+            Date expectedStartTime = OmeroServer.getPlateAcquisitionStartTime(userType);
+
+            Date startTime = plateAcquisition.getStartTime().orElse(null);
+
+            Assertions.assertEquals(expectedStartTime, startTime);
         }
     }
 

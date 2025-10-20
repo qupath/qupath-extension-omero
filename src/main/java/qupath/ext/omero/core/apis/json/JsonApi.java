@@ -969,6 +969,7 @@ public class JsonApi implements AutoCloseable {
 
     private static String createUrlFromParameters(String baseUrl, boolean childCount, boolean orphaned, long experimenterId, long groupId) {
         List<String> parameters = new ArrayList<>();
+        parameters.add("normalize=true");
         if (childCount) {
             parameters.add("childCount=true");
         }

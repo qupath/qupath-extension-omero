@@ -3,12 +3,8 @@ package qupath.ext.omero.core.apis.json.jsonentities.server;
 import com.google.gson.annotations.SerializedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
-import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
-import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenterGroup;
 
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * An OMERO screen as described by the <a href="http://www.openmicroscopy.org/Schemas/OME/2016-06#Screen">OME specifications</a>.
@@ -20,7 +16,7 @@ import java.util.Optional;
  * @param name the name of the screen. Optional
  * @param description the description of the screen. Optional
  * @param childCount the number of children of the screen. Required
- * @param omeroDetails details about this group. Optional
+ * @param omeroDetails details about this group. Required
  */
 public record OmeroScreen(
         @SerializedName(value = "@type") String type,
@@ -28,7 +24,7 @@ public record OmeroScreen(
         @SerializedName(value = "Name") String name,
         @SerializedName(value = "Description") String description,
         @SerializedName(value = "omero:childCount") Integer childCount,
-        @SerializedName(value = "omero:details") OmeroDetails omeroDetails
+        @SerializedName(value = "omero:details") OmeroSimpleDetails omeroDetails
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Screen";
     private static final Logger logger = LoggerFactory.getLogger(OmeroScreen.class);
@@ -36,6 +32,7 @@ public record OmeroScreen(
     public OmeroScreen {
         Objects.requireNonNull(id, "@id not provided");
         Objects.requireNonNull(childCount, "omero:childCount not provided");
+        Objects.requireNonNull(omeroDetails, "omero:details not provided");
 
         if (!TYPE.equals(type)) {
             logger.warn(
@@ -44,23 +41,5 @@ public record OmeroScreen(
                     TYPE
             );
         }
-    }
-
-    /**
-     * Get the experimenter owning this screen.
-     *
-     * @return the experimenter owning this screen, or an empty Optional if not found
-     */
-    public Optional<OmeroExperimenter> owner() {
-        return omeroDetails == null ? Optional.empty() : Optional.ofNullable(omeroDetails.experimenter());
-    }
-
-    /**
-     * Get the experimenter group owning this screen.
-     *
-     * @return the experimenter group owning this screen, or an empty Optional if not found
-     */
-    public Optional<OmeroExperimenterGroup> group() {
-        return omeroDetails == null ? Optional.empty() : Optional.ofNullable(omeroDetails.group());
     }
 }

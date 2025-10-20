@@ -105,7 +105,7 @@ public class AnnotationSender implements DataTransporter {
             logger.debug("Got server {} of {}", server, omeroImageServer.getClient());
 
             logger.debug("Getting image with ID {} to get ID of group owning the image", omeroImageServer.getId());
-            long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroup().orElseThrow().id();
+            long groupId = omeroImageServer.getClient().getApisHandler().getImage(omeroImageServer.getId()).join().getGroupId();
 
             ExperimenterGroup group = server.getGroups().stream()
                     .filter(g -> g.getId() == groupId)

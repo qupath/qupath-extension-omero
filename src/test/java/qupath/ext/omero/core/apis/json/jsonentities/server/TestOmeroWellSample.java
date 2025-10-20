@@ -3,8 +3,6 @@ package qupath.ext.omero.core.apis.json.jsonentities.server;
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.core.apis.json.jsonentities.OmeroDetails;
-import qupath.ext.omero.core.apis.json.jsonentities.OmeroPermissions;
 import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroSimpleImage;
 
 import java.util.List;
@@ -25,10 +23,9 @@ public class TestOmeroWellSample {
                         "name",
                         List.of(3, 60),
                         53L,
-                        new OmeroDetails(
-                                null,
-                                null,
-                                new OmeroPermissions(false, true, true)
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(234L),
+                                new OmeroSimpleExperimenterGroup(98L)
                         )
                 )
         );
@@ -48,10 +45,11 @@ public class TestOmeroWellSample {
                         "omero:wellsampleIndex": [3, 60],
                         "StartTime": 53,
                         "omero:details": {
-                            "permissions": {
-                                "isGroupWrite": false,
-                                "isGroupRead": true,
-                                "isGroupAnnotate": true
+                            "owner": {
+                                "@id": 234
+                            },
+                            "group": {
+                                "@id": 98
                             }
                         }
                     }

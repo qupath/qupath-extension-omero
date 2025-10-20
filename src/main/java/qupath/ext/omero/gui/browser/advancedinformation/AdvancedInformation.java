@@ -13,7 +13,7 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Attribute;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
 import qupath.ext.omero.core.apis.webclient.annotations.CommentAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.FileAnnotation;
@@ -22,6 +22,7 @@ import qupath.ext.omero.core.apis.webclient.annotations.Pair;
 import qupath.ext.omero.core.apis.webclient.annotations.RatingAnnotation;
 import qupath.ext.omero.core.apis.webclient.annotations.TagAnnotation;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.gui.ServerEntityAttribute;
 import qupath.ext.omero.gui.UiUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
@@ -51,11 +52,12 @@ public class AdvancedInformation extends Stage {
      * Create the advanced information window.
      *
      * @param owner the stage who should own this window
+     * @param server the server that owns the entity to display
      * @param serverEntity the OMERO entity whose information should be displayed
      * @param annotations the OMERO annotations who belong to the OMERO entity
      * @throws IOException if an error occurs while creating the window
      */
-    public AdvancedInformation(Stage owner, ServerEntity serverEntity, List<Annotation> annotations) throws IOException {
+    public AdvancedInformation(Stage owner, Server server, ServerEntity serverEntity, List<Annotation> annotations) throws IOException {
         logger.debug("Creating advanced information window for {} displaying {}", serverEntity, annotations);
         this.serverEntity = serverEntity;
 
@@ -63,7 +65,7 @@ public class AdvancedInformation extends Stage {
 
         setTitle(serverEntity.getLabel());
 
-        content.getChildren().add(createObjectDetailPane());
+        content.getChildren().add(createObjectDetailPane(server));
         setAnnotationPanes(annotations);
 
         addEventHandler(KeyEvent.KEY_PRESSED, e -> {
@@ -77,9 +79,9 @@ public class AdvancedInformation extends Stage {
         show();
     }
 
-    private Node createObjectDetailPane() throws IOException {
+    private Node createObjectDetailPane(Server server) throws IOException {
         FormPane formPane = new FormPane(resources.getString("Browser.ServerBrowser.AdvancedInformation.details"));
-        for (Attribute attribute: serverEntity.getAttributes()) {
+        for (ServerEntityAttribute attribute: ServerEntityAttribute.create(server, serverEntity)) {
             formPane.addRow(attribute.label(), attribute.value());
         }
 

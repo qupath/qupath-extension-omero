@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 
@@ -119,21 +118,21 @@ public class TestProject extends OmeroServer {
         }
 
         @Test
-        void Check_Owner() {
-            SimpleEntity expectedOwner = OmeroServer.getEntityOwner(userType);
+        void Check_Owner_Id() {
+            long expectedId = OmeroServer.getEntityOwner(userType).id();
 
-            SimpleEntity owner = project.getOwner().orElseThrow();
+            long id = project.getOwnerId();
 
-            Assertions.assertEquals(expectedOwner, owner);
+            Assertions.assertEquals(expectedId, id);
         }
 
         @Test
-        void Check_Group() {
-            SimpleEntity expectedGroup = OmeroServer.getEntityGroup(userType);
+        void Check_Group_Id() {
+            long expectedId = OmeroServer.getEntityGroup(userType).id();
 
-            SimpleEntity group = project.getGroup().orElseThrow();
+            long id = project.getGroupId();
 
-            Assertions.assertEquals(expectedGroup, group);
+            Assertions.assertEquals(expectedId, id);
         }
 
         @Test
@@ -146,15 +145,21 @@ public class TestProject extends OmeroServer {
         }
 
         @Test
-        void Check_Attributes_Values() {
-            List<String> expectedAttributes = OmeroServer.getProjectAttributeValues(userType);
+        void Check_Child_Count() {
+            int expectedChildCount = OmeroServer.getProjectChildCount(userType);
 
-            List<Attribute> attributes = project.getAttributes();
+            int childCount = project.getChildCount();
 
-            Assertions.assertEquals(
-                    expectedAttributes,
-                    attributes.stream().map(Attribute::value).toList()
-            );
+            Assertions.assertEquals(expectedChildCount, childCount);
+        }
+
+        @Test
+        void Check_Description() {
+            String expectedDescription = OmeroServer.getProjectDescription();
+
+            String description = project.getDescription().orElse(null);
+
+            Assertions.assertEquals(expectedDescription, description);
         }
     }
 

@@ -32,13 +32,13 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Attribute;
 import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
 import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 import qupath.ext.omero.gui.ImageOpener;
+import qupath.ext.omero.gui.ServerEntityAttribute;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyCell;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyItem;
 import qupath.ext.omero.gui.login.LoginForm;
@@ -127,11 +127,11 @@ class Browser extends Stage implements AutoCloseable {
     @FXML
     private Canvas canvas;
     @FXML
-    private TableView<Attribute> description;
+    private TableView<ServerEntityAttribute> description;
     @FXML
-    private TableColumn<Attribute, String> attributeColumn;
+    private TableColumn<ServerEntityAttribute, String> attributeColumn;
     @FXML
-    private TableColumn<Attribute, String> valueColumn;
+    private TableColumn<ServerEntityAttribute, String> valueColumn;
     private AdvancedSearch advancedSearch = null;
     private Settings settings = null;
 
@@ -289,7 +289,7 @@ class Browser extends Stage implements AutoCloseable {
 
                 logger.debug("Got annotations {} for {}. Opening advanced information window", annotations, serverEntity);
                 try {
-                    new AdvancedInformation(this, serverEntity, annotations);
+                    new AdvancedInformation(this, server, serverEntity, annotations);
                 } catch (IOException e) {
                     logger.error("Error while creating the advanced information window", e);
                 }
@@ -618,7 +618,7 @@ class Browser extends Stage implements AutoCloseable {
         var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
         if (selectedItems.size() == 1 && selectedItems.getFirst() != null && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
             logger.trace("One server entity {} selected. Updating description", serverEntity);
-            description.getItems().setAll(serverEntity.getAttributes());
+            description.getItems().setAll(ServerEntityAttribute.create(server, serverEntity));
         } else {
             logger.trace("Zero or more than one server entity selected. Clearing description");
             description.getItems().clear();

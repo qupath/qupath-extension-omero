@@ -7,10 +7,12 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
+import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroPhysicalSize;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
 import qupath.ext.omero.core.apis.json.repositoryentities.Server;
+import qupath.lib.images.servers.PixelType;
 
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -86,21 +88,21 @@ public class TestImage extends OmeroServer {
         }
 
         @Test
-        void Check_Owner() {
-            SimpleEntity expectedOwner = OmeroServer.getImageOwner(userType);
+        void Check_Owner_Id() {
+            long expectedId = OmeroServer.getEntityOwner(userType).id();
 
-            SimpleEntity owner = image.getOwner().orElseThrow();
+            long id = image.getOwnerId();
 
-            Assertions.assertEquals(expectedOwner, owner);
+            Assertions.assertEquals(expectedId, id);
         }
 
         @Test
-        void Check_Group() {
-            SimpleEntity expectedGroup = OmeroServer.getImageGroup(userType);
+        void Check_Group_Id() {
+            long expectedId = OmeroServer.getEntityGroup(userType).id();
 
-            SimpleEntity group = image.getGroup().orElseThrow();
+            long id = image.getGroupId();
 
-            Assertions.assertEquals(expectedGroup, group);
+            Assertions.assertEquals(expectedId, id);
         }
 
         @Test
@@ -113,15 +115,102 @@ public class TestImage extends OmeroServer {
         }
 
         @Test
-        void Check_Attributes_Values() {
-            List<String> expectedAttributes = OmeroServer.getImageAttributeValues(userType);
+        void Check_Acquisition_Date() {
+            Date expectedAcquisitionDate = OmeroServer.getImageAcquisitionDate();
 
-            List<Attribute> attributes = image.getAttributes();
+            Date acquisitionDate = image.getAcquisitionDate().orElse(null);
 
-            Assertions.assertEquals(
-                    expectedAttributes,
-                    attributes.stream().map(Attribute::value).toList()
-            );
+            Assertions.assertEquals(expectedAcquisitionDate, acquisitionDate);
+        }
+
+        @Test
+        void Check_Size_Mebibyte() {
+            double expectedSize = OmeroServer.getImageSizeMebibyte(userType);
+
+            double size = image.getSizeMebibyte().orElseThrow();
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Size_X() {
+            int expectedSize = OmeroServer.getImageSizeX();
+
+            int size = image.getSizeX();
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Size_Y() {
+            int expectedSize = OmeroServer.getImageSizeY();
+
+            int size = image.getSizeY();
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Size_Z() {
+            int expectedSize = OmeroServer.getImageSizeZ();
+
+            int size = image.getSizeZ();
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Size_C() {
+            int expectedSize = OmeroServer.getImageSizeC();
+
+            int size = image.getSizeC();
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Size_T() {
+            int expectedSize = OmeroServer.getImageSizeT();
+
+            int size = image.getSizeT();
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Physical_Size_X() {
+            OmeroPhysicalSize expectedSize = OmeroServer.getImagePhysicalSizeX();
+
+            OmeroPhysicalSize size = image.getPhysicalSizeX().orElse(null);
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Physical_Size_Y() {
+            OmeroPhysicalSize expectedSize = OmeroServer.getImagePhysicalSizeY();
+
+            OmeroPhysicalSize size = image.getPhysicalSizeY().orElse(null);
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Physical_Size_Z() {
+            OmeroPhysicalSize expectedSize = OmeroServer.getImagePhysicalSizeZ();
+
+            OmeroPhysicalSize size = image.getPhysicalSizeZ().orElse(null);
+
+            Assertions.assertEquals(expectedSize, size);
+        }
+
+        @Test
+        void Check_Pixel_Type() {
+            PixelType expectedPixelType = OmeroServer.getImagePixelType(userType);
+
+            PixelType pixelType = image.getPixelType().orElse(null);
+
+            Assertions.assertEquals(expectedPixelType, pixelType);
         }
     }
 

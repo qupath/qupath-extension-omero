@@ -10,12 +10,14 @@ import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlate;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroPlateAcquisition;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroProject;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroScreen;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroSimpleDetails;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroSimpleExperimenter;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroSimpleExperimenterGroup;
 import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroWell;
 import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroImage;
 import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroImageType;
 import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroPixels;
 import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Attribute;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
@@ -42,7 +44,10 @@ public class TestSimpleServerEntity {
                         null,
                         null,
                         8,
-                        null
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(234L),
+                                new OmeroSimpleExperimenterGroup(54L)
+                        )
                 ),
                 URI.create("http://someUri.com")
         );
@@ -63,7 +68,10 @@ public class TestSimpleServerEntity {
                         null,
                         0,
                         0,
-                        null
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(234L),
+                                new OmeroSimpleExperimenterGroup(87L)
+                        )
                 ),
                 URI.create("http://someUri.com")
         );
@@ -84,7 +92,10 @@ public class TestSimpleServerEntity {
                         null,
                         null,
                         null,
-                        null
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(234L),
+                                new OmeroSimpleExperimenterGroup(90L)
+                        )
                 ),
                 3,
                 URI.create("http://someUri.com")
@@ -107,7 +118,10 @@ public class TestSimpleServerEntity {
                         null,
                         8,
                         null,
-                        null
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(324L),
+                                new OmeroSimpleExperimenterGroup(9L)
+                        )
                 ),
                 4,
                 URI.create("http://someUri.com")
@@ -129,7 +143,10 @@ public class TestSimpleServerEntity {
                         null,
                         null,
                         8,
-                        null
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(2L),
+                                new OmeroSimpleExperimenterGroup(987L)
+                        )
                 ),
                 URI.create("http://someUri.com")
         );
@@ -150,7 +167,10 @@ public class TestSimpleServerEntity {
                         null,
                         null,
                         8,
-                        null
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(23L),
+                                new OmeroSimpleExperimenterGroup(98L)
+                        )
                 ),
                 URI.create("http://someUri.com")
         );
@@ -182,7 +202,10 @@ public class TestSimpleServerEntity {
                                 null,
                                 new OmeroImageType("image type")
                         ),
-                        null
+                        new OmeroSimpleDetails(
+                                new OmeroSimpleExperimenter(23L),
+                                new OmeroSimpleExperimenterGroup(98L)
+                        )
                 ),
                 URI.create("http://someUri.com")
         );
@@ -235,12 +258,7 @@ public class TestSimpleServerEntity {
     private static class NewServerEntity extends ServerEntity {
 
         protected NewServerEntity() {
-            super(0, null, null, null, URI.create("http://some_uri.com"));
-        }
-
-        @Override
-        public List<Attribute> getAttributes() {
-            return List.of();
+            super(0, null, 3, 34, URI.create("http://some_uri.com"));
         }
 
         @Override
