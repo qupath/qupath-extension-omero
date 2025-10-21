@@ -8,8 +8,8 @@ import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import org.controlsfx.control.CheckComboBox;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.Namespace;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.core.apis.webclient.Namespace;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -46,7 +46,7 @@ public class ImportKeyValuePairsForm extends VBox {
      * @throws IOException if an error occurs while creating the form
      */
     public ImportKeyValuePairsForm(List<Namespace> namespaces) throws IOException {
-        UiUtilities.loadFXML(this, ImportKeyValuePairsForm.class.getResource("import_key_value_pairs_form.fxml"));
+        UiUtils.loadFXML(this, ImportKeyValuePairsForm.class.getResource("import_key_value_pairs_form.fxml"));
 
         if (namespaces.isEmpty()) {
             namespaceContainer.setVisible(false);

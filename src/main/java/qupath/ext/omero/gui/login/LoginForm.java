@@ -20,7 +20,7 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.core.preferences.ServerPreference;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
@@ -81,7 +81,7 @@ public class LoginForm extends Stage {
         logger.debug("Creating login window for {}", webServerUri);
         this.onClientCreated = onClientCreated;
 
-        UiUtilities.loadFXML(this, LoginForm.class.getResource("login_form.fxml"));
+        UiUtils.loadFXML(this, LoginForm.class.getResource("login_form.fxml"));
 
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
@@ -176,7 +176,7 @@ public class LoginForm extends Stage {
             try {
                 logger.debug("Creating client with {} to connect to {}", credentials, urlInput);
 
-                Client client = Client.createOrGet(urlInput, credentials, UiUtilities::displayPingErrorDialogIfUiPresent);
+                Client client = Client.createOrGet(urlInput, credentials, UiUtils::displayPingErrorDialogIfUiPresent);
                 logger.debug("Client {} created. Closing waiting and login window", client);
 
                 onClientCreated.accept(client);

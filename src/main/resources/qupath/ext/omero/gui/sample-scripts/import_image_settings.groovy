@@ -1,4 +1,4 @@
-import qupath.ext.omero.core.imageserver.*
+import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /*
  * This script imports the image settings (image name, channel names, channel colors, channel display ranges)
@@ -12,10 +12,10 @@ import qupath.ext.omero.core.imageserver.*
  */
 
 // Parameters
-def importImageName = true
-def importChannelNames = true
-def importChannelColors = true
-def importChannelDisplayRanges = true
+var importImageName = true
+var importChannelNames = true
+var importChannelColors = true
+var importChannelDisplayRanges = true
 
 // Check that a project is opened (if needed)
 if (importImageName && getProject() == null) {
@@ -24,15 +24,15 @@ if (importImageName && getProject() == null) {
 }
 
 // Get image data
-def imageData = getCurrentImageData()
+var imageData = getCurrentImageData()
 if (imageData == null) {
     println "An image needs to be opened in QuPath before running this script"
     return
 }
 
 // Get image server
-def server = imageData.getServer()
-def omeroServer = (OmeroImageServer) server
+var server = imageData.getServer()
+var omeroServer = (OmeroImageServer) server
 
 // Check that the image has not the RGB format (if needed)
 if ((importChannelNames || importChannelColors || importChannelDisplayRanges) && omeroServer.getMetadata().isRGB()) {
@@ -41,11 +41,11 @@ if ((importChannelNames || importChannelColors || importChannelDisplayRanges) &&
 }
 
 // Retrieve image settings from OMERO
-def imageSettings = omeroServer.getClient().getApisHandler().getImageSettings(omeroServer.getId()).get()
+var imageSettings = omeroServer.getClient().getApisHandler().getImageData(omeroServer.getId()).get()
 
 // Retrieve image name and channel settings from the response
-def imageName = imageSettings.getName()
-def channelSettings = imageSettings.getChannelSettings()
+var imageName = imageSettings.getName()
+var channelSettings = imageSettings.getChannelSettings()
 
 if (importImageName) {
     getProject().getEntry(imageData).setImageName(imageName)
@@ -54,7 +54,7 @@ if (importImageName) {
 
 if (importChannelNames) {
     // Get the channel names from the image settings
-    def channelNames = channelSettings.collect { channelSetting ->
+    var channelNames = channelSettings.collect { channelSetting ->
         channelSetting.name()
     } as String[]
 
@@ -64,7 +64,7 @@ if (importChannelNames) {
 
 if (importChannelColors) {
     // Get the channel colors from the image settings
-    def channelColors = channelSettings.collect { channelSetting ->
+    var channelColors = channelSettings.collect { channelSetting ->
         channelSetting.rgbColor()
     } as int[]
 
@@ -74,8 +74,8 @@ if (importChannelColors) {
 
 if (importChannelDisplayRanges) {
     // Get the the display and the channels of the current QuPath viewer
-    def display = getCurrentViewer().getImageDisplay()
-    def channels = display.availableChannels()
+    var display = getCurrentViewer().getImageDisplay()
+    var channels = display.availableChannels()
 
     for (int i=0; i<channels.size(); i++) {
         display.setMinMaxDisplay(

@@ -52,7 +52,7 @@ public class MsPixelBufferApi implements PixelApi {
 
         this.apisHandler = apisHandler;
         this.port = new SimpleIntegerProperty(
-                PreferencesManager.getMsPixelBufferPort(apisHandler.getWebServerURI()).orElse(DEFAULT_PORT)
+                PreferencesManager.getMsPixelBufferPort(apisHandler.getWebServerUri()).orElse(DEFAULT_PORT)
         );
 
         setHost();
@@ -150,7 +150,7 @@ public class MsPixelBufferApi implements PixelApi {
 
     @Override
     public String toString() {
-        return String.format("Pixel buffer microservice API of %s", apisHandler.getWebServerURI());
+        return String.format("Pixel buffer microservice API of %s", apisHandler.getWebServerUri());
     }
 
     @Override
@@ -182,7 +182,7 @@ public class MsPixelBufferApi implements PixelApi {
 
         this.port.set(port);
         PreferencesManager.setMsPixelBufferPort(
-                apisHandler.getWebServerURI(),
+                apisHandler.getWebServerUri(),
                 port
         );
         logger.debug("Pixel buffer microservice server port changed to {}", port);
@@ -192,7 +192,7 @@ public class MsPixelBufferApi implements PixelApi {
     }
 
     private void setHost() {
-        URI uri = apisHandler.getWebServerURI();
+        URI uri = apisHandler.getWebServerUri();
         try {
             host = new URI(
                     uri.getScheme(),
@@ -205,7 +205,7 @@ public class MsPixelBufferApi implements PixelApi {
             ).toString();
             logger.debug("Pixel buffer microservice server host changed to {}", host);
         } catch (URISyntaxException e) {
-            host = apisHandler.getWebServerURI().toString();
+            host = apisHandler.getWebServerUri().toString();
             logger.debug("Cannot create URI. Pixel buffer microservice server host changed to default value {}", host, e);
         }
     }

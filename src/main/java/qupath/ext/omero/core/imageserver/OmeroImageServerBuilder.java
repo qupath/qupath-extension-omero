@@ -7,9 +7,9 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
 import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.ApisHandler;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
 import qupath.ext.omero.core.pixelapis.PixelApi;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.ext.omero.gui.login.LoginForm;
 import qupath.fx.utils.FXUtils;
 import qupath.lib.gui.QuPathGUI;
@@ -234,7 +234,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
             logger.debug("Public user type found in arguments. Using it to connect");
 
             try {
-                return Optional.of(Client.createOrGet(uri.toString(), new Credentials(), UiUtilities::displayPingErrorDialogIfUiPresent));
+                return Optional.of(Client.createOrGet(uri.toString(), new Credentials(), UiUtils::displayPingErrorDialogIfUiPresent));
             } catch (Exception e) {
                 logger.debug("Cannot create client of {}", uri, e);
 
@@ -255,7 +255,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                     return Optional.of(Client.createOrGet(
                             uri.toString(),
                             new Credentials(username.get(), password.get().toCharArray()),
-                            UiUtilities::displayPingErrorDialogIfUiPresent
+                            UiUtils::displayPingErrorDialogIfUiPresent
                     ));
                 } else {
                     logger.debug("Password not found in arguments. Prompting credentials with user {}...", username.get());
@@ -310,7 +310,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<Client> getExistingClient(URI uri) {
-        ServerEntity entity = ApisHandler.parseEntity(uri).orElseThrow(() -> new NoSuchElementException(String.format(
+        SimpleServerEntity entity = ApisHandler.parseEntity(uri).orElseThrow(() -> new NoSuchElementException(String.format(
                 "The provided URI %s was not recognized",
                 uri
         )));
@@ -319,7 +319,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
         logger.debug("Finding if existing client belonging to {} can access {}", clients, uri);
 
         return clients.stream()
-                .filter(client -> client.getApisHandler().getWebServerURI().getHost().equals(uri.getHost()))
+                .filter(client -> client.getApisHandler().getWebServerUri().getHost().equals(uri.getHost()))
                 .map(client -> {
                     try {
                         URI entityUri = new URI(client.getApisHandler().getEntityUri(entity));
@@ -331,10 +331,10 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                             }
                         }
 
-                        logger.debug("{} is reachable. {} can access entity with ID {}. Using it", entityUri, client, entity.getId());
+                        logger.debug("{} is reachable. {} can access entity {}. Using it", entityUri, client, entity);
                         return client;
                     } catch (ExecutionException | InterruptedException | URISyntaxException e) {
-                        logger.debug("{} cannot access entity with ID {}. Skipping it", client, entity.getId(), e);
+                        logger.debug("{} cannot access entity {}. Skipping it", client, entity, e);
                         return null;
                     }
                 })
@@ -343,7 +343,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
     }
 
     private static Optional<Client> getClientFromUserPrompt(URI uri, String username) {
-        if (UiUtilities.usingGUI()) {
+        if (UiUtils.usingGUI()) {
             logger.debug("Prompting credentials from GUI to connect to {}", uri);
 
             return FXUtils.callOnApplicationThread(() -> {
@@ -364,7 +364,7 @@ public class OmeroImageServerBuilder implements ImageServerBuilder<BufferedImage
                 return Optional.of(Client.createOrGet(
                         uri.toString(),
                         CommandLineAuthenticator.authenticate(uri, username),
-                        UiUtilities::displayPingErrorDialogIfUiPresent
+                        UiUtils::displayPingErrorDialogIfUiPresent
                 ));
             } catch (Exception e) {
                 logger.debug("Cannot create client of {}", uri, e);

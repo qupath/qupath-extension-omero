@@ -13,15 +13,17 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.annotations.Annotation;
-import qupath.ext.omero.core.entities.annotations.AnnotationGroup;
-import qupath.ext.omero.core.entities.annotations.CommentAnnotation;
-import qupath.ext.omero.core.entities.annotations.FileAnnotation;
-import qupath.ext.omero.core.entities.annotations.MapAnnotation;
-import qupath.ext.omero.core.entities.annotations.RatingAnnotation;
-import qupath.ext.omero.core.entities.annotations.TagAnnotation;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
+import qupath.ext.omero.core.apis.webclient.annotations.Annotation;
+import qupath.ext.omero.core.apis.webclient.annotations.CommentAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.FileAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.Pair;
+import qupath.ext.omero.core.apis.webclient.annotations.RatingAnnotation;
+import qupath.ext.omero.core.apis.webclient.annotations.TagAnnotation;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.gui.ServerEntityAttribute;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.tools.GuiTools;
 
@@ -29,6 +31,7 @@ import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.ResourceBundle;
+import java.util.function.Function;
 
 /**
  * Window displaying OMERO annotations of an OMERO entity. OMERO annotations are <b>not</b>
@@ -48,21 +51,22 @@ public class AdvancedInformation extends Stage {
     /**
      * Create the advanced information window.
      *
-     * @param owner the stage who should own this window.
-     * @param serverEntity the OMERO entity whose information should be displayed.
-     * @param annotationGroup the OMERO annotations who belong to the OMERO entity.
+     * @param owner the stage who should own this window
+     * @param server the server that owns the entity to display
+     * @param serverEntity the OMERO entity whose information should be displayed
+     * @param annotations the OMERO annotations who belong to the OMERO entity
      * @throws IOException if an error occurs while creating the window
      */
-    public AdvancedInformation(Stage owner, ServerEntity serverEntity, AnnotationGroup annotationGroup) throws IOException {
-        logger.debug("Creating advanced information window for {} displaying {}", serverEntity, annotationGroup);
+    public AdvancedInformation(Stage owner, Server server, ServerEntity serverEntity, List<Annotation> annotations) throws IOException {
+        logger.debug("Creating advanced information window for {} displaying {}", serverEntity, annotations);
         this.serverEntity = serverEntity;
 
-        UiUtilities.loadFXML(this, AdvancedInformation.class.getResource("advanced_information.fxml"));
+        UiUtils.loadFXML(this, AdvancedInformation.class.getResource("advanced_information.fxml"));
 
         setTitle(serverEntity.getLabel());
 
-        content.getChildren().add(createObjectDetailPane());
-        setAnnotationPanes(annotationGroup);
+        content.getChildren().add(createObjectDetailPane(server));
+        setAnnotationPanes(annotations);
 
         addEventHandler(KeyEvent.KEY_PRESSED, e -> {
             if (e.getCode() == KeyCode.ESCAPE) {
@@ -75,151 +79,142 @@ public class AdvancedInformation extends Stage {
         show();
     }
 
-    private Node createObjectDetailPane() throws IOException {
-        logger.debug("Creating entity details pane with {} attributes", serverEntity.getNumberOfAttributes());
-
+    private Node createObjectDetailPane(Server server) throws IOException {
         FormPane formPane = new FormPane(resources.getString("Browser.ServerBrowser.AdvancedInformation.details"));
-        for (int i=0; i<serverEntity.getNumberOfAttributes(); ++i) {
-            formPane.addRow(serverEntity.getAttributeName(i), serverEntity.getAttributeValue(i));
+        for (ServerEntityAttribute attribute: ServerEntityAttribute.create(server, serverEntity)) {
+            formPane.addRow(attribute.label(), attribute.value());
         }
+
         return formPane;
     }
 
-    private void setAnnotationPanes(AnnotationGroup annotationGroup) throws IOException {
-        logger.debug("Setting annotation panes to display {}", annotationGroup);
+    private void setAnnotationPanes(List<Annotation> annotations) {
+        logger.debug("Setting annotation panes to display {}", annotations);
 
-        for (var entry: annotationGroup.annotations().entrySet()) {
-            logger.debug("Adding annotation pane for {}", entry);
-
-            TitledPane pane = null;
-            if (entry.getKey().equals(TagAnnotation.class)) {
-                pane = createTagPane(entry.getValue());
-            } else if (entry.getKey().equals(MapAnnotation.class)) {
-                pane = createMapPane(entry.getValue());
-            } else if (entry.getKey().equals(FileAnnotation.class)) {
-                pane = createFilePane(entry.getValue());
-            } else if (entry.getKey().equals(CommentAnnotation.class)) {
-                pane = createCommentPane(entry.getValue());
-            } else if (entry.getKey().equals(RatingAnnotation.class)) {
-                pane = createRatingPane(entry.getValue());
-            }
-
-            if (pane == null) {
-                logger.warn("Annotation type {} not recognized. Skipping it", entry.getKey());
-            } else {
-                logger.debug("Pane {} added for {}", pane, entry.getValue());
-                pane.setExpanded(!entry.getValue().isEmpty());
-                content.getChildren().add(pane);
-            }
-        }
+        createPane(annotations, this::createCommentPane, CommentAnnotation.class);
+        createPane(annotations, this::createFilePane, FileAnnotation.class);
+        createPane(annotations, this::createMapPane, MapAnnotation.class);
+        createPane(annotations, this::createRatingPane, RatingAnnotation.class);
+        createPane(annotations, this::createTagPane, TagAnnotation.class);
     }
 
-    private TitledPane createTagPane(List<Annotation> annotations) throws IOException {
-        InformationPane tagPane = new InformationPane(String.format("%s (%d)", TagAnnotation.getTitle(), annotations.size()));
+    private <T extends Annotation> void createPane(List<Annotation> annotations, Function<List<T>, TitledPane> paneCreator, Class<T> annotationType) {
+        List<T> filteredAnnotations = annotations.stream()
+                .filter(annotationType::isInstance)
+                .map(annotationType::cast)
+                .toList();
 
-        for (Annotation annotation : annotations) {
-            if (!(annotation instanceof TagAnnotation tagAnnotation)) {
-                logger.warn("Annotation {} is not a tag annotation even though it should be", annotation);
-                continue;
-            }
-
-            tagPane.addRow(
-                    tagAnnotation.getValue().orElse(""),
-                    MessageFormat.format(
-                            resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwned"),
-                            tagAnnotation.getAdderFullName(),
-                            tagAnnotation.getOwnerFullName()
-                    )
-            );
+        TitledPane pane = paneCreator.apply(filteredAnnotations);
+        if (pane == null) {
+            return;
         }
-        return tagPane;
+
+        pane.setExpanded(!filteredAnnotations.isEmpty());
+
+        content.getChildren().add(pane);
     }
 
-    private TitledPane createMapPane(List<Annotation> annotations) throws IOException {
-        FormPane mapPane = new FormPane();
-        int numberOfValues = 0;
-
-        for (Annotation annotation : annotations) {
-            if (!(annotation instanceof MapAnnotation mapAnnotation)) {
-                logger.warn("Annotation {} is not a map annotation even though it should be", annotation);
-                continue;
-            }
-
-            for (MapAnnotation.Pair pair: mapAnnotation.getPairs()) {
-                mapPane.addRow(
-                        pair.key(),
-                        pair.value().isEmpty() ? "-" : pair.value(),
-                        MessageFormat.format(
-                                resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwned"),
-                                mapAnnotation.getAdderFullName(),
-                                mapAnnotation.getOwnerFullName()
-                        )
-                );
-            }
-            numberOfValues += mapAnnotation.getPairs().size();
+    private TitledPane createCommentPane(List<CommentAnnotation> annotations) {
+        InformationPane commentPane;
+        try {
+            commentPane = new InformationPane(String.format(
+                    "%s (%d)",
+                    resources.getString("Browser.ServerBrowser.AdvancedInformation.comments"),
+                    annotations.size()
+            ));
+        } catch (IOException e) {
+            logger.error("Cannot create comment pane", e);
+            return null;
         }
-        mapPane.setTitle(String.format("%s (%d)", MapAnnotation.getTitle(), numberOfValues));
-        return mapPane;
-    }
 
-    private TitledPane createFilePane(List<Annotation> annotations) throws IOException {
-        InformationPane attachmentPane = new InformationPane(String.format("%s (%d)", FileAnnotation.getTitle(), annotations.size()));
-
-        for (Annotation annotation : annotations) {
-            if (!(annotation instanceof FileAnnotation fileAnnotation)) {
-                logger.warn("Annotation {} is not a file annotation even though it should be", annotation);
-                continue;
-            }
-
-            attachmentPane.addRow(
-                    String.format(
-                            "%s (%d %s)",
-                            fileAnnotation.getFilename().orElse(""),
-                            fileAnnotation.getFileSize().orElse(0L),
-                            resources.getString("Browser.ServerBrowser.AdvancedInformation.bytes")
-                    ),
-                    MessageFormat.format(
-                            resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwnedType"),
-                            fileAnnotation.getAdderFullName(),
-                            fileAnnotation.getOwnerFullName(),
-                            fileAnnotation.getMimeType().orElse("")
-                    )
-            );
-        }
-        return attachmentPane;
-    }
-
-    private TitledPane createCommentPane(List<Annotation> annotations) throws IOException {
-        InformationPane commentPane = new InformationPane(String.format("%s (%d)", CommentAnnotation.getTitle(), annotations.size()));
-
-        for (Annotation annotation : annotations) {
-            if (!(annotation instanceof CommentAnnotation commentAnnotation)) {
-                logger.warn("Annotation {} is not a comment annotation even though it should be", annotation);
-                continue;
-            }
-
+        for (CommentAnnotation annotation : annotations) {
             commentPane.addRow(
-                    commentAnnotation.getValue().orElse(""),
+                    annotation.getComment(),
                     MessageFormat.format(
                             resources.getString("Browser.ServerBrowser.AdvancedInformation.added"),
-                            commentAnnotation.getAdderFullName()
+                            annotation.getAdderName().orElse("-")
                     )
             );
         }
         return commentPane;
     }
 
-    private TitledPane createRatingPane(List<Annotation> annotations) throws IOException {
-        InformationPane ratingPane = new InformationPane(String.format("%s (%d)", RatingAnnotation.getTitle(), annotations.size()));
+    private TitledPane createFilePane(List<FileAnnotation> annotations) {
+        InformationPane attachmentPane;
+        try {
+            attachmentPane = new InformationPane(String.format(
+                    "%s (%d)",
+                    resources.getString("Browser.ServerBrowser.AdvancedInformation.files"),
+                    annotations.size()
+            ));
+        } catch (IOException e) {
+            logger.error("Cannot create file pane", e);
+            return null;
+        }
+
+        for (FileAnnotation annotation : annotations) {
+            attachmentPane.addRow(
+                    String.format(
+                            "%s (%d %s)",
+                            annotation.getFilename(),
+                            annotation.getFileSize(),
+                            resources.getString("Browser.ServerBrowser.AdvancedInformation.bytes")
+                    ),
+                    MessageFormat.format(
+                            resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwnedType"),
+                            annotation.getAdderName().orElse("-"),
+                            annotation.getOwnerName().orElse("-"),
+                            annotation.getMimeType()
+                    )
+            );
+        }
+        return attachmentPane;
+    }
+
+    private TitledPane createMapPane(List<MapAnnotation> annotations) {
+        FormPane mapPane;
+        try {
+            mapPane = new FormPane();
+        } catch (IOException e) {
+            logger.error("Cannot create map pane", e);
+            return null;
+        }
+        int numberOfValues = 0;
+
+        for (MapAnnotation annotation : annotations) {
+            for (Pair pair: annotation.getPairs()) {
+                mapPane.addRow(
+                        pair.key(),
+                        pair.value().isEmpty() ? "-" : pair.value(),
+                        MessageFormat.format(
+                                resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwned"),
+                                annotation.getAdderName().orElse("-"),
+                                annotation.getOwnerName().orElse("-")
+                        )
+                );
+            }
+            numberOfValues += annotation.getPairs().size();
+        }
+        mapPane.setTitle(String.format("%s (%d)", resources.getString("Browser.ServerBrowser.AdvancedInformation.maps"), numberOfValues));
+        return mapPane;
+    }
+
+    private TitledPane createRatingPane(List<RatingAnnotation> annotations) {
+        InformationPane ratingPane;
+        try {
+            ratingPane = new InformationPane(String.format(
+                    "%s (%d)",
+                    resources.getString("Browser.ServerBrowser.AdvancedInformation.ratings"),
+                    annotations.size()
+            ));
+        } catch (IOException e) {
+            logger.error("Cannot create rating pane", e);
+            return null;
+        }
 
         int averageRating = 0;
-        for (Annotation annotation : annotations) {
-            if (!(annotation instanceof RatingAnnotation ratingAnnotation)) {
-                logger.warn("Annotation {} is not a rating annotation even though it should be", annotation);
-                continue;
-            }
-
-            averageRating += ratingAnnotation.getValue();
+        for (RatingAnnotation annotation : annotations) {
+            averageRating += annotation.getRating();
         }
         if (!annotations.isEmpty()) {
             averageRating /= annotations.size();
@@ -238,5 +233,31 @@ public class AdvancedInformation extends Stage {
         }
 
         return ratingPane;
+    }
+
+    private TitledPane createTagPane(List<TagAnnotation> annotations) {
+        InformationPane tagPane;
+        try {
+            tagPane = new InformationPane(String.format(
+                    "%s (%d)",
+                    resources.getString("Browser.ServerBrowser.AdvancedInformation.tags"),
+                    annotations.size()
+            ));
+        } catch (IOException e) {
+            logger.error("Cannot create tag pane", e);
+            return null;
+        }
+
+        for (TagAnnotation annotation : annotations) {
+            tagPane.addRow(
+                    annotation.getTag(),
+                    MessageFormat.format(
+                            resources.getString("Browser.ServerBrowser.AdvancedInformation.addedOwned"),
+                            annotation.getAdderName().orElse("-"),
+                            annotation.getOwnerName().orElse("-")
+                    )
+            );
+        }
+        return tagPane;
     }
 }

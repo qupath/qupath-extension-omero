@@ -53,7 +53,7 @@ public class BrowseMenu extends Menu implements AutoCloseable {
                     loginForm = new LoginForm(
                             owner,
                             client -> Platform.runLater(() ->
-                                    getBrowserCommand(client.getApisHandler().getWebServerURI()).run()
+                                    getBrowserCommand(client.getApisHandler().getWebServerUri()).run()
                             )
                     );
                     loginForm.show();
@@ -87,7 +87,7 @@ public class BrowseMenu extends Menu implements AutoCloseable {
      * @param client the client that should be displayed in the browser to open
      */
     public void openBrowserOfClient(Client client) {
-        getBrowserCommand(client.getApisHandler().getWebServerURI()).run();
+        getBrowserCommand(client.getApisHandler().getWebServerUri()).run();
     }
 
     private void createURIItems() {

@@ -5,26 +5,29 @@ import javafx.beans.value.ChangeListener;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeCell;
+import javafx.scene.control.TreeView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.PlateAcquisition;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Well;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.apis.json.repositoryentities.OrphanedFolder;
+import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.PlateAcquisition;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Well;
+import qupath.ext.omero.core.apis.webclient.EntityType;
 import qupath.ext.omero.core.pixelapis.PixelApi;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Cell of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
+ * Cell of the hierarchy of a {@link TreeView TreeView} containing
  * {@link RepositoryEntity RepositoryEntity} elements .</p>
  * <p>
  * It displays the name of each OMERO entity, a corresponding icon, the number of children (if any),
@@ -39,16 +42,6 @@ public class HierarchyCell extends TreeCell<RepositoryEntity> implements AutoClo
     private static final Logger logger = LoggerFactory.getLogger(HierarchyCell.class);
     private static final double SUPPORTED_IMAGE_OPACITY = 1;
     private static final double UNSUPPORTED_IMAGE_OPACITY = 0.5;
-    private static final List<Class<? extends RepositoryEntity>> ACCEPTED_ICONS_TYPES = List.of(
-            OrphanedFolder.class,
-            Project.class,
-            Dataset.class,
-            Image.class,
-            Screen.class,
-            Plate.class,
-            PlateAcquisition.class,
-            Well.class
-    );
     private final Client client;
     private ChangeListener<? super PixelApi> selectedPixelApiListener;
 
@@ -80,7 +73,7 @@ public class HierarchyCell extends TreeCell<RepositoryEntity> implements AutoClo
         if (!empty && repositoryEntity != null) {
             Canvas iconCanvas = new Canvas(15, 15);
             setGraphic(iconCanvas);
-            setIcon(repositoryEntity.getClass(), iconCanvas);
+            setIcon(repositoryEntity, iconCanvas);
 
             setText(repositoryEntity.getLabel());
 
@@ -116,18 +109,38 @@ public class HierarchyCell extends TreeCell<RepositoryEntity> implements AutoClo
         }
     }
 
-    private void setIcon(Class<? extends RepositoryEntity> type, Canvas iconCanvas) {
-        if (ACCEPTED_ICONS_TYPES.contains(type)) {
-            client.getApisHandler().getOmeroIcon(type).whenComplete((icon, error) -> Platform.runLater(() -> {
+    private void setIcon(RepositoryEntity repositoryEntity, Canvas iconCanvas) {
+        CompletableFuture<BufferedImage> request = null;
+        if (repositoryEntity instanceof OrphanedFolder) {
+            request = client.getApisHandler().getOrphanedFolderIcon();
+        } else {
+            EntityType type = switch (repositoryEntity) {
+                case Image ignored -> EntityType.IMAGE;
+                case Dataset ignored -> EntityType.DATASET;
+                case Project ignored -> EntityType.PROJECT;
+                case Well ignored -> EntityType.WELL;
+                case PlateAcquisition ignored -> EntityType.PLATE_ACQUISITION;
+                case Plate ignored -> EntityType.PLATE;
+                case Screen ignored -> EntityType.SCREEN;
+                default -> null;
+            };
+
+            if (type != null) {
+                request = client.getApisHandler().getOmeroIcon(type);
+            }
+        }
+
+        if (request == null) {
+            logger.warn("Can set icon for {} because it is not supported", repositoryEntity);
+        } else {
+            request.whenComplete((icon, error) -> Platform.runLater(() -> {
                 if (icon == null) {
-                    logger.error("Error while retrieving icon of {}. Cannot set graphic of hierarchy cell", type, error);
+                    logger.error("Error while retrieving icon of {}. Cannot set graphic of hierarchy cell", repositoryEntity, error);
                 } else {
-                    logger.trace("Got icon {} for {}. Setting it to graphic", icon, type);
-                    UiUtilities.paintBufferedImageOnCanvas(icon, iconCanvas);
+                    logger.trace("Got icon {} for {}. Setting it to graphic", icon, repositoryEntity);
+                    UiUtils.paintBufferedImageOnCanvas(icon, iconCanvas);
                 }
             }));
-        } else {
-            logger.warn("Can set icon for {} because it is not supported", type);
         }
     }
 }

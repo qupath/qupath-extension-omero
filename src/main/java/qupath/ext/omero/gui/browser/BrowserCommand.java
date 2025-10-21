@@ -73,7 +73,7 @@ class BrowserCommand implements Runnable, AutoCloseable {
         }
 
         Optional<Client> existingClient = Client.getClients().stream()
-                .filter(client -> client.getApisHandler().getWebServerURI().equals(uri))
+                .filter(client -> client.getApisHandler().getWebServerUri().equals(uri))
                 .findAny();
         if (existingClient.isPresent()) {
             logger.debug("Browser doesn't exist but client {} already exists. Using it to create browser", existingClient.get());

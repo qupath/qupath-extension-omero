@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.core.preferences.ServerPreference;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -51,7 +51,7 @@ public class ConnectionsManager extends Stage implements AutoCloseable {
         logger.debug("Creating connections manager window");
         this.openClientBrowser = openClientBrowser;
 
-        UiUtilities.loadFXML(this, ConnectionsManager.class.getResource("connections_manager.fxml"));
+        UiUtils.loadFXML(this, ConnectionsManager.class.getResource("connections_manager.fxml"));
 
         if (owner != null) {
             initOwner(owner);
@@ -90,7 +90,7 @@ public class ConnectionsManager extends Stage implements AutoCloseable {
                 .filter(connection -> connection.getClient()
                         .map(client -> !clients.contains(client))
                         .orElse(!serverPreferenceUris.contains(connection.getServerURI()) ||
-                                clients.stream().map(client -> client.getApisHandler().getWebServerURI()).toList().contains(connection.getServerURI())
+                                clients.stream().map(client -> client.getApisHandler().getWebServerUri()).toList().contains(connection.getServerURI())
                         )
                 )
                 .toList();

@@ -77,13 +77,13 @@ public class IceApi implements PixelApi {
 
         this.apisHandler = apisHandler;
         this.serverAddress = new SimpleStringProperty(
-                PreferencesManager.getIceAddress(apisHandler.getWebServerURI()).orElse("")
+                PreferencesManager.getIceAddress(apisHandler.getWebServerUri()).orElse("")
         );
         this.serverPort = new SimpleIntegerProperty(
-                PreferencesManager.getIcePort(apisHandler.getWebServerURI()).orElse(0)
+                PreferencesManager.getIcePort(apisHandler.getWebServerUri()).orElse(0)
         );
         this.numberOfReaders = new SimpleIntegerProperty(
-                PreferencesManager.getIceNumberOfReaders(apisHandler.getWebServerURI()).orElse(DEFAULT_NUMBER_OF_READERS)
+                PreferencesManager.getIceNumberOfReaders(apisHandler.getWebServerUri()).orElse(DEFAULT_NUMBER_OF_READERS)
         );
         this.isAvailable = new SimpleBooleanProperty(apisHandler.getCredentials().userType().equals(Credentials.UserType.REGULAR_USER) && gatewayAvailable);
     }
@@ -146,7 +146,7 @@ public class IceApi implements PixelApi {
      * @return a new web reader corresponding to this API
      * @throws ExecutionException if an error occurred while creating the reader
      * @throws InterruptedException if the calling thread is interrupted while creating the reader
-     * @throws IllegalArgumentException when the provided image cannot be read by this API
+     * @throws IllegalArgumentException if the provided image cannot be read by this API
      * (see {@link #canReadImage(PixelType, int)})
      */
     @Override
@@ -184,8 +184,8 @@ public class IceApi implements PixelApi {
                     if (serverAddress.get() != null && !serverAddress.get().isEmpty()) {
                         credentials.add(new LoginCredentials(sessionUuid, sessionUuid, serverAddress.get(), serverPort.get()));
                     }
-                    credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerURI().getHost(), apisHandler.getServerPort()));
-                    credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerURI(), apisHandler.getServerPort()));
+                    credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getWebServerUri().getHost(), apisHandler.getServerPort()));
+                    credentials.add(new LoginCredentials(sessionUuid, sessionUuid, apisHandler.getServerAddress(), apisHandler.getServerPort()));
 
                     gatewayWrapper = new GatewayWrapper(credentials);
                 } catch (Exception e) {
@@ -231,7 +231,7 @@ public class IceApi implements PixelApi {
 
     @Override
     public String toString() {
-        return String.format("Ice API of %s", apisHandler.getWebServerURI());
+        return String.format("Ice API of %s", apisHandler.getWebServerUri());
     }
 
     @Override
@@ -264,7 +264,7 @@ public class IceApi implements PixelApi {
         this.serverAddress.set(serverAddress);
 
         PreferencesManager.setIceAddress(
-                apisHandler.getWebServerURI(),
+                apisHandler.getWebServerUri(),
                 serverAddress
         );
 
@@ -292,7 +292,7 @@ public class IceApi implements PixelApi {
 
         this.serverPort.set(serverPort);
         PreferencesManager.setIcePort(
-                apisHandler.getWebServerURI(),
+                apisHandler.getWebServerUri(),
                 serverPort
         );
 
@@ -335,7 +335,7 @@ public class IceApi implements PixelApi {
 
         this.numberOfReaders.set(numberOfReaders);
         PreferencesManager.setIceNumberOfReaders(
-                apisHandler.getWebServerURI(),
+                apisHandler.getWebServerUri(),
                 numberOfReaders
         );
 

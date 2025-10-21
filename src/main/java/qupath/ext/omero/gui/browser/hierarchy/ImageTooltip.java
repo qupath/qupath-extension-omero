@@ -10,9 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 import qupath.ext.omero.core.pixelapis.PixelApi;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 import java.util.ResourceBundle;
@@ -48,7 +48,7 @@ class ImageTooltip extends VBox implements AutoCloseable {
         logger.trace("Creating image tooltip for {}", image);
         this.client = client;
 
-        UiUtilities.loadFXML(this, ImageTooltip.class.getResource("image_tooltip.fxml"));
+        UiUtils.loadFXML(this, ImageTooltip.class.getResource("image_tooltip.fxml"));
 
         pixelApiListener = (p, o, n) -> Platform.runLater(() ->
                 setErrorLine(image, n)
@@ -63,7 +63,7 @@ class ImageTooltip extends VBox implements AutoCloseable {
             }
 
             logger.trace("Retrieved thumbnail {} of image with ID {}. Setting to canvas of image tooltip", thumbnail, image.getId());
-            UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+            UiUtils.paintBufferedImageOnCanvas(thumbnail, canvas);
         }));
     }
 

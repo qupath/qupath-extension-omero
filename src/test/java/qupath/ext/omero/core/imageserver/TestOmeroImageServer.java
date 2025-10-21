@@ -2,10 +2,9 @@ package qupath.ext.omero.core.imageserver;
 
 import org.junit.jupiter.api.*;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.entities.shapes.Shape;
+import qupath.ext.omero.core.apis.commonentities.shapes.ShapeCreator;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
@@ -22,7 +21,7 @@ import java.util.concurrent.ExecutionException;
 public class TestOmeroImageServer extends OmeroServer {
 
     private static final UserType userType = UserType.AUTHENTICATED;
-    private static final Image image = OmeroServer.getRGBImage(userType);
+    private static final long imageId = OmeroServer.getRgbImage(userType).id();
     private static Client client;
     private static OmeroImageServer imageServer;
 
@@ -30,7 +29,7 @@ public class TestOmeroImageServer extends OmeroServer {
     static void createImageServer() throws ExecutionException, InterruptedException, IOException {
         client = OmeroServer.createClient(userType);
         imageServer = new OmeroImageServer(
-                OmeroServer.getImageUri(image),
+                OmeroServer.getImageUri(imageId),
                 client,
                 client.getPixelAPI(WebApi.class),
                 List.of()
@@ -65,7 +64,7 @@ public class TestOmeroImageServer extends OmeroServer {
 
     @Test
     void Check_Image_Metadata() {
-        ImageServerMetadata expectedMetadata = OmeroServer.getImageMetadata(image);
+        ImageServerMetadata expectedMetadata = OmeroServer.getRgbImageMetadata();
 
         ImageServerMetadata metadata = imageServer.getMetadata();
 
@@ -81,14 +80,14 @@ public class TestOmeroImageServer extends OmeroServer {
         imageServer.getClient().getApisHandler().addShapes(
                 imageServer.getId(),
                 expectedPathObject.stream()
-                        .map(pathObject -> Shape.createFromPathObject(pathObject, true))
+                        .map(pathObject -> ShapeCreator.createShapes(pathObject, true))
                         .flatMap(List::stream)
                         .toList()
         ).get();
 
         Collection<PathObject> pathObjects = imageServer.readPathObjects();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(
+        TestUtils.assertCollectionsEqualsWithoutOrder(
                 expectedPathObject.stream().map(PathObject::getID).toList(),
                 pathObjects.stream().map(PathObject::getID).toList()
         );
@@ -98,10 +97,8 @@ public class TestOmeroImageServer extends OmeroServer {
 
     @Test
     void Check_Id() {
-        long expectedId = image.getId();
-
         long id = imageServer.getId();
 
-        Assertions.assertEquals(expectedId, id);
+        Assertions.assertEquals(imageId, id);
     }
 }

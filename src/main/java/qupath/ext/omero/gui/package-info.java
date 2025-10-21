@@ -5,7 +5,7 @@
  *         The {@link qupath.ext.omero.gui.OmeroExtension OmeroExtension} class installs the extension.
  *     </li>
  *     <li>
- *         The {@link qupath.ext.omero.gui.UiUtilities UiUtilities} class contains utility functions related to the UI.
+ *         The {@link qupath.ext.omero.gui.UiUtils UiUtilities} class contains utility functions related to the UI.
  *     </li>
  *     <li>
  *         The {@link qupath.ext.omero.gui.SampleScriptMenu SampleScriptMenu} class defines a menu that starts sample scripts.

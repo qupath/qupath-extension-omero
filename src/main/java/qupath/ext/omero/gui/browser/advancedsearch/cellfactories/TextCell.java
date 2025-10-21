@@ -2,7 +2,7 @@ package qupath.ext.omero.gui.browser.advancedsearch.cellfactories;
 
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
-import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
+import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 
 /**
  * Cell that displays a text in the cell and in an associated tooltip.

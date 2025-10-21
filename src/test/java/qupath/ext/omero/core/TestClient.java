@@ -6,7 +6,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
 
@@ -45,7 +45,7 @@ public class TestClient extends OmeroServer {
 
             client.addOpenedImage(expectedUri);
 
-            TestUtilities.assertCollectionsEqualsWithoutOrder(
+            TestUtils.assertCollectionsEqualsWithoutOrder(
                     Set.of(expectedUri),
                     client.getOpenedImagesURIs()
             );
@@ -222,7 +222,7 @@ public class TestClient extends OmeroServer {
 
         List<Client> clients = Client.getClients();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedClients, clients);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedClients, clients);
 
         client.close();
     }
@@ -239,7 +239,7 @@ public class TestClient extends OmeroServer {
 
         client.close();
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedClients, Client.getClients());
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedClients, Client.getClients());
     }
 
     @Test
@@ -282,7 +282,7 @@ public class TestClient extends OmeroServer {
                 null
         );
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(List.of(client), Client.getClients());
+        TestUtils.assertCollectionsEqualsWithoutOrder(List.of(client), Client.getClients());
 
         client.close();
     }
@@ -304,7 +304,7 @@ public class TestClient extends OmeroServer {
                 null
         );
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(List.of(client), Client.getClients());
+        TestUtils.assertCollectionsEqualsWithoutOrder(List.of(client), Client.getClients());
 
         client.close();
     }

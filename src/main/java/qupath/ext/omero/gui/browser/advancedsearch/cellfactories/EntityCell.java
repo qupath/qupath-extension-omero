@@ -2,8 +2,8 @@ package qupath.ext.omero.gui.browser.advancedsearch.cellfactories;
 
 import javafx.scene.control.TableCell;
 import javafx.scene.control.Tooltip;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.search.SearchResultWithParentInfo;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.webclient.search.SearchResultWithParentInfo;
 
 /**
  * Cell that displays a server entity name in the cell and in an associated tooltip.
@@ -18,8 +18,10 @@ public class EntityCell<T extends ServerEntity> extends TableCell<SearchResultWi
         setTooltip(null);
 
         if (item != null && !empty) {
-            setText(item.getAttributeValue(0));
-            setTooltip(new Tooltip(item.getAttributeValue(0)));
+            String name = item.getName().orElse("-");
+
+            setText(name);
+            setTooltip(new Tooltip(name));
         }
     }
 }

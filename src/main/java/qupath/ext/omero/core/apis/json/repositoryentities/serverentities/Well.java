@@ -1,0 +1,137 @@
+package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
+
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.apis.json.jsonentities.server.image.OmeroSimpleImage;
+import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroWell;
+import qupath.ext.omero.core.apis.json.jsonentities.server.OmeroWellSample;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Represents an OMERO well.
+ * <p>
+ * A well contains {@link Image images}.
+ */
+public class Well extends ServerEntity {
+
+    private final List<OmeroWellSample> wellSamples;
+    private final int column;
+    private final int row;
+    private final long plateAcquisitionOwnerId;
+    private final boolean hasChildren;
+
+    /**
+     * Create a well from an {@link OmeroWell}.
+     *
+     * @param omeroWell the OMERO well to create the well from
+     * @param plateAcquisitionOwnerId the ID of the plate acquisition owning this well. The children of this well will all belong
+     *                                to the provided plate acquisition. Can be negative if the children of this well should not
+     *                                belong to any plate acquisition
+     * @param webServerUri the URI of the web server owning this entity
+     * @throws NullPointerException if one of the provided parameters is null
+     */
+    public Well(OmeroWell omeroWell, long plateAcquisitionOwnerId, URI webServerUri) {
+        super(
+                omeroWell.id(),
+                omeroWell.name(),
+                omeroWell.omeroDetails().experimenter().id(),
+                omeroWell.omeroDetails().group().id(),
+                webServerUri
+        );
+
+        this.wellSamples = omeroWell.wellSamples();
+        this.column = omeroWell.column() == null ? 0 : omeroWell.column();
+        this.row = omeroWell.row() == null ? 0 : omeroWell.row();
+        this.plateAcquisitionOwnerId = plateAcquisitionOwnerId;
+
+        this.hasChildren = wellSamples != null && wellSamples.stream()
+                .anyMatch(wellSample -> {
+                    if (plateAcquisitionOwnerId > -1) {
+                        return wellSample.plateAcquisition() != null && wellSample.plateAcquisition().id() == plateAcquisitionOwnerId;
+                    } else {
+                        return wellSample.plateAcquisition() == null;
+                    }
+                });
+    }
+
+    @Override
+    public boolean hasChildren() {
+        return hasChildren;
+    }
+
+    @Override
+    public CompletableFuture<? extends List<? extends RepositoryEntity>> getChildren(long ownerId, long groupId) {
+        Optional<Client> client = Client.getClientFromURI(webServerUri);
+
+        if (client.isPresent()) {
+            return CompletableFuture.supplyAsync(() -> wellSamples.stream()
+                     .filter(wellSample -> {
+                         if (plateAcquisitionOwnerId > -1) {
+                             return wellSample.plateAcquisition() != null && wellSample.plateAcquisition().id() == plateAcquisitionOwnerId;
+                         } else {
+                             return wellSample.plateAcquisition() == null;
+                         }
+                     })
+                     .map(OmeroWellSample::image)
+                     .filter(Objects::nonNull)
+                     .map(omeroSimpleImage -> client.get().getApisHandler().getImage(omeroSimpleImage.id()))
+                     .map(CompletableFuture::join)
+                     .filter(image -> ownerId < 0 || image.getOwnerId() == ownerId)
+                     .filter(image -> groupId < 0 || image.getGroupId() == groupId)
+                     .toList());
+        } else {
+            return CompletableFuture.failedFuture(new IllegalStateException(String.format(
+                    "Could not find the web client corresponding to %s. Impossible to get the children of this project (%s).",
+                    webServerUri,
+                    this
+            )));
+        }
+    }
+
+    @Override
+    public String getLabel() {
+        return String.format("%s%d", (char) ('A' + row), column+1);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Well of ID %d", id);
+    }
+
+    /**
+     * Get a list of image IDs contained in the well samples of this well and belonging to the provided plate acquisition.
+     *
+     * @param plateAcquisitionOwnerId the ID of a plate acquisition that should own the returned images. Can be negative to
+     *                                retrieve all images
+     * @return a list of image IDs contained in the well samples of this well and belonging to the provided plate acquisition
+     */
+    public List<Long> getImageIds(long plateAcquisitionOwnerId) {
+        return wellSamples == null ? List.of() : wellSamples.stream()
+                .filter(wellSample ->
+                        plateAcquisitionOwnerId < 0 || (wellSample.plateAcquisition() != null && wellSample.plateAcquisition().id() == plateAcquisitionOwnerId)
+                )
+                .map(OmeroWellSample::image)
+                .filter(Objects::nonNull)
+                .map(OmeroSimpleImage::id)
+                .toList();
+    }
+
+    /**
+     * @return the column this well belongs to, or an empty Optional if not provided
+     */
+    public int getColumn() {
+        return column;
+    }
+
+    /**
+     * @return the row this well belongs to, or an empty Optional if not provided
+     */
+    public int getRow() {
+        return row;
+    }
+}

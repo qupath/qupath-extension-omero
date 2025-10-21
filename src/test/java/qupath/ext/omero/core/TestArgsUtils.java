@@ -2,7 +2,7 @@ package qupath.ext.omero.core;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import qupath.ext.omero.TestUtilities;
+import qupath.ext.omero.TestUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -82,7 +82,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 
     @Test
@@ -93,7 +93,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 
     @Test
@@ -103,7 +103,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(args, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(args, replacedArgs);
     }
 
     @Test
@@ -114,7 +114,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 
     @Test
@@ -126,7 +126,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 
     @Test
@@ -137,7 +137,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 
     @Test
@@ -148,7 +148,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 
     @Test
@@ -162,7 +162,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 
     @Test
@@ -173,7 +173,7 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 
     @Test
@@ -184,6 +184,6 @@ public class TestArgsUtils {
 
         List<String> replacedArgs = ArgsUtils.replaceArgs(args, labelsToValues);
 
-        TestUtilities.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedReplacedArgs, replacedArgs);
     }
 }

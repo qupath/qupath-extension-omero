@@ -1,0 +1,190 @@
+package qupath.ext.omero.core.apis.json.repositoryentities.serverentities;
+
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import qupath.ext.omero.OmeroServer;
+import qupath.ext.omero.core.Client;
+import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
+
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+
+public class TestPlate extends OmeroServer {
+
+    abstract static class GenericUser {
+
+        protected static UserType userType;
+        protected static Client client;         // creating a client is necessary for the check children functions to work
+        protected static Plate plate;
+
+        @AfterAll
+        static void closeClient() throws Exception {
+            client.close();
+        }
+
+        @Test
+        void Check_Has_Children() {
+            boolean expectedChildren = true;
+
+            boolean hasChildren = plate.hasChildren();
+
+            Assertions.assertEquals(expectedChildren, hasChildren);
+        }
+
+        @Test
+        void Check_Children() throws ExecutionException, InterruptedException {
+            long experimenterId = -1;
+            long groupId = -1;
+            int expectedNumberOfChildren = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId).size() +
+                    OmeroServer.getNumberOfPlateNonEmptyWells(userType, experimenterId, groupId);
+
+            List<? extends RepositoryEntity> children = plate.getChildren(experimenterId, groupId).get();
+
+            Assertions.assertEquals(expectedNumberOfChildren, children.size());
+        }
+
+        @Test
+        void Check_Children_Filtered_By_Experimenter() throws InterruptedException, ExecutionException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = -1;
+            int expectedNumberOfChildren = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId).size() +
+                    OmeroServer.getNumberOfPlateNonEmptyWells(userType, experimenterId, groupId);
+
+            List<? extends RepositoryEntity> children = plate.getChildren(experimenterId, groupId).get();
+
+            Assertions.assertEquals(expectedNumberOfChildren, children.size());
+        }
+
+        @Test
+        void Check_Children_Filtered_By_Group() throws InterruptedException, ExecutionException {
+            long experimenterId = -1;
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            int expectedNumberOfChildren = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId).size() +
+                    OmeroServer.getNumberOfPlateNonEmptyWells(userType, experimenterId, groupId);
+
+            List<? extends RepositoryEntity> children = plate.getChildren(experimenterId, groupId).get();
+
+            Assertions.assertEquals(expectedNumberOfChildren, children.size());
+        }
+
+        @Test
+        void Check_Children_Filtered_By_Experimenter_And_Group() throws InterruptedException, ExecutionException {
+            long experimenterId = OmeroServer.getConnectedExperimenter(userType).getId();
+            long groupId = OmeroServer.getDefaultGroup(userType).getId();
+            int expectedNumberOfChildren = OmeroServer.getPlatePlateAcquisitionIds(userType, experimenterId, groupId).size() +
+                    OmeroServer.getNumberOfPlateNonEmptyWells(userType, experimenterId, groupId);
+
+            List<? extends RepositoryEntity> children = plate.getChildren(experimenterId, groupId).get();
+
+            Assertions.assertEquals(expectedNumberOfChildren, children.size());
+        }
+
+        @Test
+        void Check_Id() {
+            long expectedId = OmeroServer.getPlate(userType).id();
+
+            long id = plate.getId();
+
+            Assertions.assertEquals(expectedId, id);
+        }
+
+        @Test
+        void Check_Owner_Id() {
+            long expectedId = OmeroServer.getEntityOwner(userType).id();
+
+            long id = plate.getOwnerId();
+
+            Assertions.assertEquals(expectedId, id);
+        }
+
+        @Test
+        void Check_Group_Id() {
+            long expectedId = OmeroServer.getEntityGroup(userType).id();
+
+            long id = plate.getGroupId();
+
+            Assertions.assertEquals(expectedId, id);
+        }
+
+        @Test
+        void Check_Name() {
+            String expectedName = OmeroServer.getPlateName(userType);
+
+            String name = plate.getName().orElseThrow();
+
+            Assertions.assertEquals(expectedName, name);
+        }
+
+        @Test
+        void Check_Columns() {
+            int expectedColumns = OmeroServer.getPlateColumns();
+
+            int columns = plate.getColumns();
+
+            Assertions.assertEquals(expectedColumns, columns);
+        }
+
+        @Test
+        void Check_Rows() {
+            int expectedRows = OmeroServer.getPlateRows();
+
+            int rows = plate.getRows();
+
+            Assertions.assertEquals(expectedRows, rows);
+        }
+    }
+
+    @Nested
+    class AuthenticatedUser extends GenericUser {
+
+        @BeforeAll
+        static void createPlate() throws ExecutionException, InterruptedException {
+            userType = UserType.AUTHENTICATED;
+            client = OmeroServer.createClient(userType);
+            Server server = client.getServer().get();
+
+            Screen screen = server.getChildren(-1, -1).get().stream()
+                    .filter(child -> child instanceof Screen)
+                    .map(p -> (Screen) p)
+                    .filter(p -> p.getId() == OmeroServer.getScreen(userType).id())
+                    .findAny()
+                    .orElseThrow();
+
+            plate = screen.getChildren(-1, -1).get().stream()
+                    .filter(child -> child instanceof Plate)
+                    .map(d -> (Plate) d)
+                    .filter(d -> d.getId() == OmeroServer.getPlate(userType).id())
+                    .findAny()
+                    .orElseThrow();
+        }
+    }
+
+    @Nested
+    class UnauthenticatedUser extends GenericUser {
+
+        @BeforeAll
+        static void createPlate() throws ExecutionException, InterruptedException {
+            userType = UserType.UNAUTHENTICATED;
+            client = OmeroServer.createClient(userType);
+            Server server = client.getServer().get();
+
+            Screen screen = server.getChildren(-1, -1).get().stream()
+                    .filter(child -> child instanceof Screen)
+                    .map(p -> (Screen) p)
+                    .filter(p -> p.getId() == OmeroServer.getScreen(userType).id())
+                    .findAny()
+                    .orElseThrow();
+
+            plate = screen.getChildren(-1, -1).get().stream()
+                    .filter(child -> child instanceof Plate)
+                    .map(d -> (Plate) d)
+                    .filter(d -> d.getId() == OmeroServer.getPlate(userType).id())
+                    .findAny()
+                    .orElseThrow();
+        }
+    }
+}

@@ -1,5 +1,7 @@
-import qupath.ext.omero.core.*
-import qupath.lib.images.servers.*
+import qupath.ext.omero.core.Client
+import qupath.ext.omero.core.Credentials
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity
+import qupath.lib.images.servers.ImageServers
 
 /*
  * This script browses an OMERO server and prints its projects, datasets, and images.
@@ -7,36 +9,36 @@ import qupath.lib.images.servers.*
  */
 
 // Create a connection to an OMERO server
-def serverURL = "https://idr.openmicroscopy.org/"
-def credentials = new Credentials()                                                     // to skip authentication and use the public account
-//def credentials = new Credentials("some_username", "some_password".toCharArray())     // to authenticate with a regular account
-def client = Client.createOrGet(serverURL, credentials, null)
+var serverURL = "https://idr.openmicroscopy.org/"
+var credentials = new Credentials()                                                     // to skip authentication and use the public account
+//var credentials = new Credentials("some_username", "some_password".toCharArray())     // to authenticate with a regular account
+var client = Client.createOrGet(serverURL, credentials, null)
 
-// List projects of the OMERO server
-def projects = client.getApisHandler().getProjects().get()
+// List all projects of the OMERO server
+var projects = client.getApisHandler().getProjects(-1, -1).get()
 projects.forEach(it -> {
     println it
 })
 
-// List datasets belonging to one project
-def projectID = 101
-def datasets = client.getApisHandler().getDatasets(projectID).get()
+// List all datasets belonging to one project
+var projectID = 101
+var datasets = client.getApisHandler().getDatasets(projectID, -1, -1).get()
 datasets.forEach(it -> {
     println it
 })
 
-// List images belonging to one dataset
-def datasetID = 369
-def images = client.getApisHandler().getImages(datasetID).get()
+// List all images belonging to one dataset
+var datasetID = 369
+var images = client.getApisHandler().getImages(datasetID, -1, -1).get()
 images.forEach(it -> {
     println it
 })
 
 // Open an image and print its metadata
-def imageID = 1920093
-def image = client.getApisHandler().getImage(imageID).get()
-def imageURI = client.getApisHandler().getEntityUri(image)
-ImageServer<BufferedImage> server = ImageServerProvider.buildServer(imageURI, BufferedImage.class)
+var imageID = 1920093
+var image = client.getApisHandler().getImage(imageID).get()
+var imageURI = client.getApisHandler().getEntityUri(new SimpleServerEntity(image))
+var server = ImageServers.buildServer(imageURI)
 println "Image metadata: " + server.getMetadata()
 
 // Close image

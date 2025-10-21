@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.Credentials;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerBuilder;
 
@@ -19,11 +18,11 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
 
     abstract static class GenericImage {
 
-        protected static Image image;
+        protected static long imageId;
 
         @Test
         void Check_Server_Can_Be_Built() {
-            URI imageURI = OmeroServer.getImageUri(image);
+            URI imageURI = OmeroServer.getImageUri(imageId);
 
             try (ImageServer<BufferedImage> server = new OmeroImageServerBuilder().buildServer(
                     imageURI,
@@ -42,7 +41,7 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
 
         @Test
         void Check_Image_Support() {
-            URI imageURI = OmeroServer.getImageUri(image);
+            URI imageURI = OmeroServer.getImageUri(imageId);
 
             ImageServerBuilder.UriImageSupport<BufferedImage> imageSupport = new OmeroImageServerBuilder().checkImageSupport(
                     imageURI,
@@ -62,7 +61,7 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
 
         @BeforeAll
         static void createImage() {
-            image = OmeroServer.getRGBImage(userType);
+            imageId = OmeroServer.getRgbImage(userType).id();
         }
     }
 
@@ -71,7 +70,7 @@ public class TestOmeroImageServerBuilder extends OmeroServer {
 
         @BeforeAll
         static void createImage() {
-            image = OmeroServer.getComplexImage(userType);
+            imageId = OmeroServer.getComplexImage(userType).id();
         }
     }
 }

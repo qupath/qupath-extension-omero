@@ -8,7 +8,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 
 import java.io.IOException;
 
@@ -39,7 +39,7 @@ public class WaitingWindow extends Stage {
         logger.debug("Creating waiting window for {}", label);
         this.onCancelClicked = onCancelClicked;
 
-        UiUtilities.loadFXML(this, WaitingWindow.class.getResource("waiting_window.fxml"));
+        UiUtils.loadFXML(this, WaitingWindow.class.getResource("waiting_window.fxml"));
 
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);

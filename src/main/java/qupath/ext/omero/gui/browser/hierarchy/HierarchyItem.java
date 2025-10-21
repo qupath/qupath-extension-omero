@@ -2,42 +2,40 @@ package qupath.ext.omero.gui.browser.hierarchy;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.scene.control.TreeItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Dataset;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Plate;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Project;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.Screen;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
+import qupath.ext.omero.core.apis.json.permissions.Experimenter;
+import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.apis.json.repositoryentities.OrphanedFolder;
+import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Dataset;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Plate;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Project;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Screen;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
 
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
 /**
  * Item of the hierarchy of a {@link javafx.scene.control.TreeView TreeView} containing
  * {@link RepositoryEntity RepositoryEntity} elements .
  * <p>
- * The items can be filtered by {@link Owner owner}, {@link Group group}, and name.
- * <p>
- * When an item is expanded, a web request is started to retrieve its children (if they don't already exist).
+ * Items can be filtered by {@link Experimenter}, {@link ExperimenterGroup}, and image name.
  * <p>
  * This item must be {@link #close() closed} once no longer used.
+ * <p>
+ * Warning: changing the value of this object with {@link TreeItem#setValue(Object)} is not
+ * supported: such change won't probably be reflected in the UI.
  */
 public class HierarchyItem extends TreeItem<RepositoryEntity> implements AutoCloseable {
 
@@ -57,74 +55,54 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> implements AutoClo
                     .comparingInt((TreeItem<RepositoryEntity> item) -> CLASS_ORDER.getOrDefault(item.getValue().getClass(), 0))
                     .thenComparing(item -> item.getValue().getLabel())
     );  // not converted to local variable because otherwise it might get deleted by the garbage collector
-    private final ListChangeListener<? super RepositoryEntity> childrenListener;
-    private boolean computed = false;
+    private final ChangeListener<? super Experimenter> ownerListener = (p, o, n) ->
+            fetchChildrenIfExpanded();
+    private final ChangeListener<? super ExperimenterGroup> groupListener = (p, o, n) ->
+            fetchChildrenIfExpanded();
+    private final ObservableValue<? extends Experimenter> ownerBinding;
+    private final ObservableValue<? extends ExperimenterGroup> groupBinding;
+    private final ObservableValue<Predicate<RepositoryEntity>> labelPredicate;
+    private CompletableFuture<Void> request;
 
     /**
      * Creates a hierarchy item.
      *
      * @param repositoryEntity the OMERO entity that will be displayed by this item
-     * @param ownerBinding the children of this item won't be shown if they are not owned by this owner
+     * @param ownerBinding the children of this item won't be shown if they are not owned by this experimenter
      * @param groupBinding the children of this item won't be shown if they are not owned by this group
      * @param labelPredicate the children of this item won't be shown if they are images and don't match
      *                       this predicate (which is based on the label of this item)
      */
     public HierarchyItem(
             RepositoryEntity repositoryEntity,
-            ObservableValue<? extends Owner> ownerBinding,
-            ObservableValue<? extends Group> groupBinding,
-            ReadOnlyObjectProperty<Predicate<RepositoryEntity>> labelPredicate
+            ObservableValue<? extends Experimenter> ownerBinding,
+            ObservableValue<? extends ExperimenterGroup> groupBinding,
+            ObservableValue<Predicate<RepositoryEntity>> labelPredicate
     ) {
         super(repositoryEntity);
 
-        this.childrenListener = change -> Platform.runLater(() -> {
-            for (TreeItem<RepositoryEntity> item: children) {
-                if (item instanceof HierarchyItem hierarchyItem) {
-                    hierarchyItem.close();
-                }
-            }
+        this.ownerBinding = ownerBinding;
+        this.groupBinding = groupBinding;
+        this.labelPredicate = labelPredicate;
 
-            // Make a copy of the children to make sure no one is added while iterating
-            List<? extends RepositoryEntity> newChildren = new ArrayList<>(getValue().getChildren());
+        Bindings.bindContent(getChildren(), sortedChildren);
 
-            children.setAll(newChildren.stream()
-                    .map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate))
-                    .toList()
-            );
-        });
+        this.filteredChildren.predicateProperty().bind(Bindings.createObjectBinding(
+                () -> item -> !(item.getValue() instanceof Image) || labelPredicate.getValue().test(item.getValue()),
+                labelPredicate
+        ));
 
-        Bindings.bindContent(
-                getChildren(),
-                sortedChildren
-        );
+        ownerBinding.addListener(ownerListener);
+        groupBinding.addListener(groupListener);
 
-        expandedProperty().addListener((p, o, n) -> {
-            if (n && !computed) {
-                logger.debug("Item of {} expanded for the first time. Getting its children", getValue());
-                computed = true;
+        expandedProperty().addListener((p, o, n) -> fetchChildrenIfExpanded());
 
-                // Make a copy of the children to make sure no one is added while iterating
-                List<? extends RepositoryEntity> newChildren = new ArrayList<>(getValue().getChildren());
-                children.setAll(newChildren.stream().map(entity -> new HierarchyItem(entity, ownerBinding, groupBinding, labelPredicate)).toList());
-                getValue().getChildren().addListener(childrenListener);
-
-                filteredChildren.predicateProperty().bind(Bindings.createObjectBinding(
-                        () -> item -> {
-                            if (item.getValue() instanceof Image image) {
-                                return labelPredicate.getValue().test(image) &&
-                                        image.isFilteredByGroupOwner(groupBinding.getValue(), ownerBinding.getValue());
-                            } else if (item.getValue() instanceof ServerEntity serverEntity) {
-                                return serverEntity.isFilteredByGroupOwner(groupBinding.getValue(), ownerBinding.getValue());
-                            } else {
-                                return true;
-                            }
-                        },
-                        groupBinding,
-                        ownerBinding,
-                        labelPredicate
-                ));
-            }
-        });
+        valueProperty().addListener((p, o, n) -> logger.warn(
+                "The value of {} was changed from {} to {}. This is not supported, so changes won't probably be reflected in the UI",
+                this,
+                o,
+                n
+        ));
     }
 
     @Override
@@ -136,12 +114,52 @@ public class HierarchyItem extends TreeItem<RepositoryEntity> implements AutoClo
     public void close() {
         filteredChildren.predicateProperty().unbind();
 
+        ownerBinding.removeListener(ownerListener);
+        groupBinding.removeListener(groupListener);
+    }
+
+    private void fetchChildrenIfExpanded() {
+        if (!isExpanded()) {
+            return;
+        }
+
+        if (request != null) {
+            request.cancel(true);
+        }
+
+        clearChildren();
+
+        RepositoryEntity repositoryEntity = getValue();
+
+        request = repositoryEntity.getChildren(
+                ownerBinding.getValue() == null ? -1 : ownerBinding.getValue().getId(),
+                groupBinding.getValue() == null ? -1 : groupBinding.getValue().getId()
+        ).handle((repositoryEntities, error) -> {
+            if (error != null) {
+                logger.error("Error when getting children of {}", repositoryEntity, error);
+                return null;
+            }
+
+            Platform.runLater(() -> {
+                clearChildren();
+
+                children.addAll(repositoryEntities.stream()
+                        .map(child -> new HierarchyItem(child, ownerBinding, groupBinding, labelPredicate))
+                        .toList()
+                );
+            });
+
+            return null;
+        });
+    }
+
+    private void clearChildren() {
         for (TreeItem<RepositoryEntity> item: children) {
             if (item instanceof HierarchyItem hierarchyItem) {
                 hierarchyItem.close();
             }
         }
 
-        getValue().getChildren().removeListener(childrenListener);
+        children.clear();
     }
 }

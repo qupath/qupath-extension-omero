@@ -4,7 +4,7 @@ import javafx.application.Platform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
-import qupath.ext.omero.core.entities.image.ChannelSettings;
+import qupath.ext.omero.core.apis.commonentities.ChannelSettings;
 import qupath.ext.omero.gui.datatransporters.DataTransporter;
 import qupath.ext.omero.gui.datatransporters.forms.ImageSettingsForm;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
@@ -103,10 +103,10 @@ public class ImageSettingsImporter implements DataTransporter {
         waitingWindow.show();
 
         logger.debug("Getting image settings from image with ID {}", omeroImageServer.getId());
-        omeroImageServer.getClient().getApisHandler().getImageSettings(omeroImageServer.getId()).whenComplete((imageSettings, error) -> Platform.runLater(() -> {
+        omeroImageServer.getClient().getApisHandler().getImageData(omeroImageServer.getId()).whenComplete((imageData, error) -> Platform.runLater(() -> {
             waitingWindow.close();
 
-            if (imageSettings == null) {
+            if (imageData == null) {
                 logger.error("Error while retrieving image settings. Cannot import image settings", error);
 
                 Dialogs.showErrorMessage(
@@ -115,13 +115,13 @@ public class ImageSettingsImporter implements DataTransporter {
                 );
                 return;
             }
-            logger.debug("Got image settings {} for image with ID {}", imageSettings, omeroImageServer.getId());
+            logger.debug("Got image settings {} for image with ID {}", imageData, omeroImageServer.getId());
 
             StringBuilder successMessage = new StringBuilder();
             StringBuilder errorMessage = new StringBuilder();
 
             if (selectedChoices.contains(ImageSettingsForm.Choice.IMAGE_NAME)) {
-                if (changeImageName(quPath, viewer.getImageData(), imageSettings.getName())) {
+                if (changeImageName(quPath, viewer.getImageData(), imageData.getName())) {
                     successMessage
                             .append(resources.getString("DataTransporters.ImageSettingsImporter.imageNameUpdated"))
                             .append("\n");
@@ -133,7 +133,7 @@ public class ImageSettingsImporter implements DataTransporter {
             }
 
             if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_NAMES)) {
-                if (changeChannelNames(omeroImageServer, viewer, imageSettings.getChannelSettings())) {
+                if (changeChannelNames(omeroImageServer, viewer, imageData.getChannelSettings())) {
                     successMessage
                             .append(resources.getString("DataTransporters.ImageSettingsImporter.channelNamesUpdated"))
                             .append("\n");
@@ -145,7 +145,7 @@ public class ImageSettingsImporter implements DataTransporter {
             }
 
             if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_COLORS)) {
-                if (changeChannelColors(omeroImageServer, viewer, imageSettings.getChannelSettings())) {
+                if (changeChannelColors(omeroImageServer, viewer, imageData.getChannelSettings())) {
                     successMessage
                             .append(resources.getString("DataTransporters.ImageSettingsImporter.channelColorsUpdated"))
                             .append("\n");
@@ -157,7 +157,7 @@ public class ImageSettingsImporter implements DataTransporter {
             }
 
             if (selectedChoices.contains(ImageSettingsForm.Choice.CHANNEL_DISPLAY_RANGES)) {
-                if (changeChannelDisplayRanges(viewer, imageSettings.getChannelSettings())) {
+                if (changeChannelDisplayRanges(viewer, imageData.getChannelSettings())) {
                     successMessage
                             .append(resources.getString("DataTransporters.ImageSettingsImporter.channelDisplayRangesUpdated"))
                             .append("\n");

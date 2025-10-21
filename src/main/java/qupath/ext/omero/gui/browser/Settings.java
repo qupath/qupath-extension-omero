@@ -16,7 +16,7 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.pixelapis.ice.IceApi;
 import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
@@ -85,7 +85,7 @@ class Settings extends Stage implements AutoCloseable {
                 msPixelBufferAPIPort.setText(String.valueOf(n))
         );
 
-        UiUtilities.loadFXML(this, Settings.class.getResource("settings.fxml"));
+        UiUtils.loadFXML(this, Settings.class.getResource("settings.fxml"));
 
         UnaryOperator<TextFormatter.Change> floatFilter = change ->
                 Pattern.matches("^\\d*\\.?\\d*$", change.getControlNewText()) ? change : null;

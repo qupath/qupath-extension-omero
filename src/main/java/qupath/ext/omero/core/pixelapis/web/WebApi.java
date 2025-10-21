@@ -42,7 +42,7 @@ public class WebApi implements PixelApi {
 
         this.apisHandler = apisHandler;
         this.jpegQuality = new SimpleFloatProperty(
-                PreferencesManager.getWebJpegQuality(apisHandler.getWebServerURI()).orElse(DEFAULT_JPEG_QUALITY)
+                PreferencesManager.getWebJpegQuality(apisHandler.getWebServerUri()).orElse(DEFAULT_JPEG_QUALITY)
         );
     }
 
@@ -135,7 +135,7 @@ public class WebApi implements PixelApi {
 
     @Override
     public String toString() {
-        return String.format("Web API of %s", apisHandler.getWebServerURI());
+        return String.format("Web API of %s", apisHandler.getWebServerUri());
     }
 
     @Override
@@ -161,7 +161,7 @@ public class WebApi implements PixelApi {
         }
 
         this.jpegQuality.set(jpegQuality);
-        PreferencesManager.setWebJpegQuality(apisHandler.getWebServerURI(), jpegQuality);
+        PreferencesManager.setWebJpegQuality(apisHandler.getWebServerUri(), jpegQuality);
 
         logger.debug("JPEG quality of web API changed to {}", jpegQuality);
     }

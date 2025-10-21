@@ -1,20 +1,21 @@
 package qupath.ext.omero.core.pixelapis.web;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
+import qupath.ext.omero.TestUtils;
 import qupath.ext.omero.core.Client;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
 import qupath.ext.omero.core.pixelapis.PixelApiReader;
 import qupath.ext.omero.core.imageserver.OmeroImageServer;
 import qupath.ext.omero.core.imageserver.OmeroImageServerBuilder;
-import qupath.lib.analysis.stats.Histogram;
-import qupath.lib.common.ColorTools;
 import qupath.lib.images.servers.ImageServerMetadata;
 import qupath.lib.images.servers.TileRequest;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 public class TestWebReader extends OmeroServer {
@@ -22,7 +23,7 @@ public class TestWebReader extends OmeroServer {
     abstract static class GenericImage {
 
         protected static final UserType userType = UserType.UNAUTHENTICATED;
-        protected static Image image;
+        protected static BufferedImage expectedImage;
         protected static Client client;
         protected static TileRequest tileRequest;
         protected static PixelApiReader reader;
@@ -35,30 +36,10 @@ public class TestWebReader extends OmeroServer {
         }
 
         @Test
-        void Check_Image_Can_Be_Read() throws IOException {
+        void Check_Image() throws IOException {
             BufferedImage image = reader.readTile(tileRequest);
 
-            Assertions.assertNotNull(image);
-        }
-
-        @Test
-        void Check_Image_Histogram() throws IOException {
-            double expectedMean = OmeroServer.getImageRedChannelMean(image);
-            double expectedStdDev = OmeroServer.getImageRedChannelStdDev(image);
-
-            BufferedImage image = reader.readTile(tileRequest);
-
-            Histogram histogram = new Histogram(
-                    Arrays.stream(image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth()))
-                            .map(ColorTools::red)
-                            .toArray(),
-                    256,
-                    Double.NaN,
-                    Double.NaN
-            );
-
-            Assertions.assertEquals(expectedMean, histogram.getMeanValue(), 0.1);
-            Assertions.assertEquals(expectedStdDev, histogram.getStdDev(), 0.1);
+            TestUtils.assertDoubleBufferedImagesEqual(expectedImage, image);
         }
     }
 
@@ -67,12 +48,14 @@ public class TestWebReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            image = OmeroServer.getRGBImage(userType);
+            expectedImage = OmeroServer.getRgbImage();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageUri(image),
+                    OmeroServer.getImageUri(imageId),
                     "--pixelAPI", "Web",
                     "--jpegQuality", "1.0",
                     "--usertype",
@@ -84,7 +67,7 @@ public class TestWebReader extends OmeroServer {
 
             if (client.getPixelAPI(WebApi.class).isAvailable().get()) {
                 reader = client.getPixelAPI(WebApi.class).createReader(
-                        image.getId(),
+                        imageId,
                         metadata,
                         List.of()
                 );
@@ -99,12 +82,14 @@ public class TestWebReader extends OmeroServer {
 
         @BeforeAll
         static void createClient() throws Exception {
-            image = OmeroServer.getUint8Image(userType);
+            expectedImage = OmeroServer.getUint8Image();
+
             client = OmeroServer.createClient(userType);
 
+            long imageId = OmeroServer.getRgbImage(userType).id();
             ImageServerMetadata metadata;
             try (OmeroImageServer imageServer = (OmeroImageServer) new OmeroImageServerBuilder().buildServer(
-                    OmeroServer.getImageUri(image),
+                    OmeroServer.getImageUri(imageId),
                     "--pixelAPI", "Web",
                     "--jpegQuality", "1.0",
                     "--usertype",
@@ -116,7 +101,7 @@ public class TestWebReader extends OmeroServer {
 
             if (client.getPixelAPI(WebApi.class).isAvailable().get()) {
                 reader = client.getPixelAPI(WebApi.class).createReader(
-                        image.getId(),
+                        imageId,
                         metadata,
                         List.of()
                 );

@@ -4,6 +4,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.ReadOnlyObjectWrapper;
+import javafx.collections.ListChangeListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
@@ -31,8 +32,13 @@ import org.slf4j.LoggerFactory;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.Credentials;
-import qupath.ext.omero.core.entities.repositoryentities.Server;
+import qupath.ext.omero.core.apis.webclient.EntityType;
+import qupath.ext.omero.core.apis.webclient.SimpleServerEntity;
+import qupath.ext.omero.core.apis.json.permissions.Experimenter;
+import qupath.ext.omero.core.apis.json.permissions.ExperimenterGroup;
+import qupath.ext.omero.core.apis.json.repositoryentities.Server;
 import qupath.ext.omero.gui.ImageOpener;
+import qupath.ext.omero.gui.ServerEntityAttribute;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyCell;
 import qupath.ext.omero.gui.browser.hierarchy.HierarchyItem;
 import qupath.ext.omero.gui.login.LoginForm;
@@ -41,13 +47,11 @@ import qupath.lib.gui.QuPathGUI;
 import qupath.fx.dialogs.Dialogs;
 import qupath.ext.omero.gui.browser.advancedsearch.AdvancedSearch;
 import qupath.ext.omero.gui.browser.advancedinformation.AdvancedInformation;
-import qupath.ext.omero.core.entities.permissions.Group;
-import qupath.ext.omero.core.entities.permissions.Owner;
-import qupath.ext.omero.core.entities.repositoryentities.RepositoryEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.ServerEntity;
-import qupath.ext.omero.core.entities.repositoryentities.serverentities.image.Image;
-import qupath.ext.omero.core.entities.repositoryentities.OrphanedFolder;
-import qupath.ext.omero.gui.UiUtilities;
+import qupath.ext.omero.core.apis.json.repositoryentities.RepositoryEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.ServerEntity;
+import qupath.ext.omero.core.apis.json.repositoryentities.serverentities.Image;
+import qupath.ext.omero.core.apis.json.repositoryentities.OrphanedFolder;
+import qupath.ext.omero.gui.UiUtils;
 import qupath.ext.omero.core.pixelapis.PixelApi;
 
 import java.io.IOException;
@@ -57,8 +61,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /**
  * Window allowing the user to browse an OMERO server, get information about OMERO entities
@@ -103,13 +105,11 @@ class Browser extends Stage implements AutoCloseable {
     @FXML
     private Label loadingObjects;
     @FXML
-    private Label loadingOrphaned;
-    @FXML
     private Label loadingThumbnail;
     @FXML
-    private ChoiceBox<Group> group;
+    private ChoiceBox<ExperimenterGroup> group;
     @FXML
-    private ChoiceBox<Owner> owner;
+    private ChoiceBox<Experimenter> owner;
     @FXML
     private TreeView<RepositoryEntity> hierarchy;
     @FXML
@@ -127,11 +127,11 @@ class Browser extends Stage implements AutoCloseable {
     @FXML
     private Canvas canvas;
     @FXML
-    private TableView<Integer> description;
+    private TableView<ServerEntityAttribute> description;
     @FXML
-    private TableColumn<Integer, String> attributeColumn;
+    private TableColumn<ServerEntityAttribute, String> attributeColumn;
     @FXML
-    private TableColumn<Integer, String> valueColumn;
+    private TableColumn<ServerEntityAttribute, String> valueColumn;
     private AdvancedSearch advancedSearch = null;
     private Settings settings = null;
 
@@ -153,7 +153,7 @@ class Browser extends Stage implements AutoCloseable {
         this.onClientCreated = onClientCreated;
         this.browserModel = new BrowserModel(client, server);
 
-        UiUtilities.loadFXML(this, Browser.class.getResource("browser.fxml"));
+        UiUtils.loadFXML(this, Browser.class.getResource("browser.fxml"));
 
         initUI(owner);
         setUpListeners();
@@ -190,7 +190,7 @@ class Browser extends Stage implements AutoCloseable {
         try {
             new LoginForm(
                     this,
-                    client.getApisHandler().getWebServerURI(),
+                    client.getApisHandler().getWebServerUri(),
                     null,
                     client -> Platform.runLater(() -> {
                         logger.debug("Client {} created from login button of browser", client);
@@ -216,7 +216,7 @@ class Browser extends Stage implements AutoCloseable {
         try {
             new LoginForm(
                     this,
-                    client.getApisHandler().getWebServerURI(),
+                    client.getApisHandler().getWebServerUri(),
                     new Credentials(),
                     client -> Platform.runLater(() -> {
                         logger.debug("Client {} created from logout button of browser", client);
@@ -257,7 +257,10 @@ class Browser extends Stage implements AutoCloseable {
 
             if (selectedObject instanceof Image image && image.isSupported(client.getSelectedPixelApi().getValue())) {
                 logger.debug("Double click on tree detected while {} is selected and supported. Opening it", image);
-                ImageOpener.openImageFromUris(List.of(client.getApisHandler().getEntityUri(image)), client.getApisHandler());
+                ImageOpener.openImageFromUris(
+                        List.of(client.getApisHandler().getEntityUri(new SimpleServerEntity(EntityType.IMAGE, image.getId()))),
+                        client.getApisHandler()
+                );
             }
         }
     }
@@ -269,7 +272,7 @@ class Browser extends Stage implements AutoCloseable {
         if (selectedItem != null && selectedItem.getValue() instanceof ServerEntity serverEntity) {
             logger.debug("More info menu clicked on {}. Fetching annotations of it", serverEntity);
 
-            client.getApisHandler().getAnnotations(serverEntity.getId(), serverEntity.getClass()).whenComplete((annotations, error) -> Platform.runLater(() -> {
+            client.getApisHandler().getAnnotations(new SimpleServerEntity(serverEntity)).whenComplete((annotations, error) -> Platform.runLater(() -> {
                 if (annotations == null) {
                     logger.error("Error while retrieving annotations of {}. Cannot open advanced information window", serverEntity, error);
 
@@ -286,7 +289,7 @@ class Browser extends Stage implements AutoCloseable {
 
                 logger.debug("Got annotations {} for {}. Opening advanced information window", annotations, serverEntity);
                 try {
-                    new AdvancedInformation(this, serverEntity, annotations);
+                    new AdvancedInformation(this, server, serverEntity, annotations);
                 } catch (IOException e) {
                     logger.error("Error while creating the advanced information window", e);
                 }
@@ -300,7 +303,7 @@ class Browser extends Stage implements AutoCloseable {
 
         if (selectedItem != null && selectedItem.getValue() instanceof ServerEntity serverEntity) {
             logger.debug("Open in browser menu clicked on {}. Opening it", serverEntity);
-            QuPathGUI.openInBrowser(client.getApisHandler().getEntityUri(serverEntity));
+            QuPathGUI.openInBrowser(client.getApisHandler().getEntityUri(new SimpleServerEntity(serverEntity)));
         }
     }
 
@@ -311,7 +314,7 @@ class Browser extends Stage implements AutoCloseable {
         List<String> URIs = hierarchy.getSelectionModel().getSelectedItems().stream()
                 .map(item -> {
                     if (item.getValue() instanceof ServerEntity serverEntity) {
-                        return client.getApisHandler().getEntityUri(serverEntity);
+                        return client.getApisHandler().getEntityUri(new SimpleServerEntity(serverEntity));
                     } else {
                         return null;
                     }
@@ -380,7 +383,7 @@ class Browser extends Stage implements AutoCloseable {
                         })
                         .filter(Objects::nonNull)
                         .map(serverEntity ->
-                                client.getApisHandler().getEntityUri(serverEntity)
+                                client.getApisHandler().getEntityUri(new SimpleServerEntity(serverEntity))
                         )
                         .toList(),
                 client.getApisHandler()
@@ -388,7 +391,7 @@ class Browser extends Stage implements AutoCloseable {
     }
 
     private void initUI(Stage ownerWindow) {
-        serverHost.setText(client.getApisHandler().getWebServerURI().toString());
+        serverHost.setText(client.getApisHandler().getWebServerUri().toString());
 
         username.setText(switch (client.getApisHandler().getCredentials().userType()) {
             case PUBLIC_USER -> resources.getString("Browser.ServerBrowser.publicUser");
@@ -413,32 +416,32 @@ class Browser extends Stage implements AutoCloseable {
         });
         pixelAPI.getSelectionModel().select(browserModel.getSelectedPixelAPI().getValue());
 
-        group.getItems().setAll(Group.getAllGroupsGroup());
+        group.getItems().setAll(ExperimenterGroup.getAllGroups());
         group.getItems().addAll(server.getGroups());
         group.getSelectionModel().select(server.getDefaultGroup());
         group.setConverter(new StringConverter<>() {
             @Override
-            public String toString(Group object) {
-                return object == null ? "" : object.getName();
+            public String toString(ExperimenterGroup object) {
+                return object == null || object.getName().isEmpty() ? "" : object.getName().get();
             }
 
             @Override
-            public Group fromString(String string) {
+            public ExperimenterGroup fromString(String string) {
                 return null;
             }
         });
 
-        owner.getItems().setAll(Owner.getAllMembersOwner());
-        owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getOwners());
-        owner.getSelectionModel().select(server.getConnectedOwner());
+        owner.getItems().setAll(Experimenter.getAllExperimenters());
+        owner.getItems().addAll(group.getSelectionModel().getSelectedItem().getExperimenters());
+        owner.getSelectionModel().select(server.getConnectedExperimenter());
         owner.setConverter(new StringConverter<>() {
             @Override
-            public String toString(Owner object) {
+            public String toString(Experimenter object) {
                 return object == null ? "" : object.getFullName();
             }
 
             @Override
-            public Owner fromString(String string) {
+            public Experimenter fromString(String string) {
                 return null;
             }
         });
@@ -464,26 +467,25 @@ class Browser extends Stage implements AutoCloseable {
         filterContainer.getChildren().addFirst(predicateTextField);
 
         attributeColumn.setCellValueFactory(cellData -> {
-            var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
-            if (cellData != null && selectedItems.size() == 1 && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
-                return new ReadOnlyObjectWrapper<>(serverEntity.getAttributeName(cellData.getValue()));
-            } else {
+            if (cellData == null) {
                 return new ReadOnlyObjectWrapper<>("");
+            } else {
+                return new ReadOnlyObjectWrapper<>(cellData.getValue().label());
             }
         });
 
         valueColumn.setCellValueFactory(cellData -> {
-            var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
-            if (cellData != null && selectedItems.size() == 1 && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
-                return new ReadOnlyObjectWrapper<>(serverEntity.getAttributeValue(cellData.getValue()));
-            } else {
+            if (cellData == null) {
                 return new ReadOnlyObjectWrapper<>("");
+            } else {
+                return new ReadOnlyObjectWrapper<>(cellData.getValue().value());
             }
         });
         valueColumn.setCellFactory(n -> new TableCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
+
                 if (empty || item == null) {
                     setText(null);
                     setTooltip(null);
@@ -512,8 +514,8 @@ class Browser extends Stage implements AutoCloseable {
         );
         rawPixelAccess.graphicProperty().bind(Bindings
                 .when(rawPixelBindings)
-                .then(UiUtilities.createStateNode(true))
-                .otherwise(UiUtilities.createStateNode(false)));
+                .then(UiUtils.createStateNode(true))
+                .otherwise(UiUtils.createStateNode(false)));
 
         browserModel.getSelectedPixelAPI().addListener((p, o, n) -> pixelAPI.getSelectionModel().select(n));
         pixelAPI.valueProperty().addListener((p, o, n) -> {
@@ -525,34 +527,23 @@ class Browser extends Stage implements AutoCloseable {
         loadingObjects.visibleProperty().bind(Bindings.notEqual(browserModel.getNumberOfEntitiesLoading(), 0));
         loadingObjects.managedProperty().bind(loadingObjects.visibleProperty());
 
-        loadingOrphaned.textProperty().bind(Bindings.concat(
-                resources.getString("Browser.ServerBrowser.loadingOrphanedImages"),
-                " (",
-                browserModel.getNumberOfOrphanedImagesLoaded(),
-                "/",
-                browserModel.getNumberOfOrphanedImages(),
-                ")"
-        ));
-        loadingOrphaned.visibleProperty().bind(browserModel.areOrphanedImagesLoading());
-        loadingOrphaned.managedProperty().bind(loadingOrphaned.visibleProperty());
-
         loadingThumbnail.visibleProperty().bind(Bindings.notEqual(browserModel.getNumberOfThumbnailsLoading(), 0));
         loadingThumbnail.managedProperty().bind(loadingThumbnail.visibleProperty());
 
         browserModel.getSelectedGroup().addListener((p, o, n) -> {
-            owner.getItems().setAll(Owner.getAllMembersOwner());
+            owner.getItems().setAll(Experimenter.getAllExperimenters());
 
             if (n == null) {
                 owner.getSelectionModel().selectFirst();
             } else {
-                if (n.equals(Group.getAllGroupsGroup())) {
-                    owner.getItems().addAll(server.getOwners());
-                    owner.getSelectionModel().select(Owner.getAllMembersOwner());
+                if (n.equals(ExperimenterGroup.getAllGroups())) {
+                    owner.getItems().addAll(server.getExperimenters());
+                    owner.getSelectionModel().select(Experimenter.getAllExperimenters());
                 } else {
-                    owner.getItems().addAll(n.getOwners());
+                    owner.getItems().addAll(n.getExperimenters());
 
-                    if (n.getOwners().contains(server.getConnectedOwner())) {
-                        owner.getSelectionModel().select(server.getConnectedOwner());
+                    if (n.getExperimenters().contains(server.getConnectedExperimenter())) {
+                        owner.getSelectionModel().select(server.getConnectedExperimenter());
                     } else {
                         owner.getSelectionModel().selectFirst();
                     }
@@ -562,7 +553,7 @@ class Browser extends Stage implements AutoCloseable {
         browserModel.getSelectedGroup().bind(group.getSelectionModel().selectedItemProperty());
         browserModel.getSelectedOwner().bind(owner.getSelectionModel().selectedItemProperty());
 
-        hierarchy.getSelectionModel().selectedItemProperty().addListener((v, o, n) -> {
+        hierarchy.getSelectionModel().getSelectedItems().addListener((ListChangeListener<? super TreeItem<RepositoryEntity>>) change -> {
             updateCanvas();
             updateDescription();
             updateImportButton();
@@ -616,7 +607,7 @@ class Browser extends Stage implements AutoCloseable {
                 }
 
                 logger.trace("Got thumbnail {} for {}. Updating canvas with it", thumbnail, image);
-                UiUtilities.paintBufferedImageOnCanvas(thumbnail, canvas);
+                UiUtils.paintBufferedImageOnCanvas(thumbnail, canvas);
             }));
         }
     }
@@ -627,9 +618,7 @@ class Browser extends Stage implements AutoCloseable {
         var selectedItems = hierarchy.getSelectionModel().getSelectedItems();
         if (selectedItems.size() == 1 && selectedItems.getFirst() != null && selectedItems.getFirst().getValue() instanceof ServerEntity serverEntity) {
             logger.trace("One server entity {} selected. Updating description", serverEntity);
-            description.getItems().setAll(
-                    IntStream.rangeClosed(0, serverEntity.getNumberOfAttributes()).boxed().collect(Collectors.toList())
-            );
+            description.getItems().setAll(ServerEntityAttribute.create(server, serverEntity));
         } else {
             logger.trace("Zero or more than one server entity selected. Clearing description");
             description.getItems().clear();
