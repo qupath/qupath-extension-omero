@@ -3,8 +3,6 @@ package qupath.ext.omero.core.apis.commonentities.shapes;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroEllipse;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLabel;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroLine;
@@ -12,6 +10,7 @@ import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPoint;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPolygon;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroPolyline;
 import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroRectangle;
+import qupath.lib.geom.Point2;
 import qupath.lib.objects.PathObject;
 import qupath.lib.roi.EllipseROI;
 import qupath.lib.roi.GeometryROI;
@@ -19,18 +18,21 @@ import qupath.lib.roi.LineROI;
 import qupath.lib.roi.PointsROI;
 import qupath.lib.roi.PolygonROI;
 import qupath.lib.roi.PolylineROI;
+import qupath.lib.roi.ROIs;
 import qupath.lib.roi.RectangleROI;
 import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  * A class to create {@link Shape shapes}.
  */
 public class ShapeCreator {
 
-    private static final Logger logger = LoggerFactory.getLogger(ShapeCreator.class);
     private static final Gson gson = new Gson();
 
     private ShapeCreator() {
@@ -72,6 +74,17 @@ public class ShapeCreator {
 
     /**
      * Create a list of {@link Shape shapes} from a {@link PathObject}.
+     * <ul>
+     *     <li>
+     *         If the {@link ROI} of the path object is a {@link PointsROI}, then a list of {@link Point} is returned.
+     *     </li>
+     *     <li>
+     *         If the {@link ROI} of the path object is a {@link GeometryROI}, then this ROI is {@link RoiTools#splitROI(ROI) split},
+     *         and for each split ROI, a {@link Polygon} is created for the exterior ring and zero or more other {@link Polygon} are
+     *         created for each interior ring.
+     *     </li>
+     *     <li>Else, a corresponding shape is created (e.g. {@link Ellipse} from an {@link EllipseROI}).</li>
+     * </ul>
      *
      * @param pathObject the path object to create the shape from
      * @param fillColor whether the created shapes should have a fill color
@@ -87,20 +100,31 @@ public class ShapeCreator {
             case PolygonROI polygonRoi -> List.of(new Polygon(pathObject, polygonRoi, fillColor));
             case PolylineROI ignored -> List.of(new Polyline(pathObject, fillColor));
             case RectangleROI ignored -> List.of(new Rectangle(pathObject, fillColor));
-            case GeometryROI geometryROI -> {
-                List<Polygon> polygons = RoiTools.splitROI(RoiTools.fillHoles(geometryROI)).stream()
-                        .map(polygonRoi -> new Polygon(pathObject, polygonRoi, fillColor))
-                        .toList();
-                logger.warn(
-                        """
-                        {} is a geometry, so splitting it to convert it to a list of polygons {}.
-                        Note that potential holes will be filled because OMERO shapes do not support holes.
-                        """,
-                        pathObject,
-                        polygons
-                );
-                yield polygons;
-            }
+            case GeometryROI geometryRoi -> RoiTools.splitROI(geometryRoi).stream()
+                    .map(roi -> {
+                        if (roi.getGeometry() instanceof org.locationtech.jts.geom.Polygon polygon) {
+                            return Stream.concat(
+                                    Stream.of(ROIs.createPolygonROI(
+                                            Arrays.stream(polygon.getExteriorRing().getCoordinates())
+                                                    .map(coordinate -> new Point2(coordinate.x, coordinate.y))
+                                                    .toList(),
+                                            roi.getImagePlane()
+                                    )),
+                                    IntStream.range(0, polygon.getNumInteriorRing())
+                                            .mapToObj(i -> ROIs.createPolygonROI(
+                                                    Arrays.stream(polygon.getInteriorRingN(i).getCoordinates())
+                                                            .map(coordinate -> new Point2(coordinate.x, coordinate.y))
+                                                            .toList(),
+                                                    roi.getImagePlane()
+                                            ))
+                            ).toList();
+                        } else {
+                            return List.of(roi);
+                        }
+                    })
+                    .flatMap(List::stream)
+                    .map(polygonRoi -> new Polygon(pathObject, polygonRoi, fillColor))
+                    .toList();
             default -> throw new IllegalArgumentException(String.format("Unexpected ROI %s. Cannot convert it to a shape", pathObject.getROI()));
         };
     }

@@ -413,14 +413,7 @@ public abstract class Shape {
     }
 
     private static ROI createRoi(List<Shape> shapes) {
-        if (shapes.isEmpty()) {
-            return null;
-        }
-
         List<ROI> rois = shapes.stream().map(Shape::createRoi).toList();
-        if (rois.isEmpty()) {
-            return null;
-        }
 
         ROI roi = rois.getFirst();
         for (int i=1; i<rois.size(); i++) {
