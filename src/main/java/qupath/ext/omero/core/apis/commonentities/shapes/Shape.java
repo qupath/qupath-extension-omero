@@ -387,16 +387,16 @@ public abstract class Shape {
         PathObject pathObject = switch (types.getFirst()) {
             case ANNOTATION -> {
                 if (pathClasses.getFirst().equals(PathClass.NULL_CLASS)) {
-                    yield PathObjects.createDetectionObject(createRoi(shapes));
+                    yield PathObjects.createAnnotationObject(createRoi(shapes));
                 } else {
-                    yield PathObjects.createDetectionObject(createRoi(shapes), pathClasses.getFirst());
+                    yield PathObjects.createAnnotationObject(createRoi(shapes), pathClasses.getFirst());
                 }
             }
             case DETECTION -> {
                 if (pathClasses.getFirst().equals(PathClass.NULL_CLASS)) {
-                    yield PathObjects.createAnnotationObject(createRoi(shapes));
+                    yield PathObjects.createDetectionObject(createRoi(shapes));
                 } else {
-                    yield PathObjects.createAnnotationObject(createRoi(shapes), pathClasses.getFirst());
+                    yield PathObjects.createDetectionObject(createRoi(shapes), pathClasses.getFirst());
                 }
             }
         };

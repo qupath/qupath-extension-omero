@@ -34,6 +34,7 @@ import java.net.URI;
 import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
@@ -169,12 +170,14 @@ public class ImageOpener {
         logger.debug("Creating builders for {}", uris);
         CompletableFuture.supplyAsync(() -> uris.stream()
                 .map(uri -> omeroImageServerBuilder.get().buildServer(uri))
+                .filter(Objects::nonNull)
                 .map(ImageServer::getBuilder)
+                .filter(Objects::nonNull)
                 .toList()
         ).whenComplete((builders, error) -> Platform.runLater(() -> {
             waitingWindow.close();
 
-            if (builders == null) {
+            if (builders == null || builders.isEmpty()) {
                 logger.error("Cannot create builders of {}", uris, error);
                 showErrorMessage(uris);
                 return;

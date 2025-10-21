@@ -4,6 +4,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.commonentities.SimpleEntity;
 import qupath.ext.omero.core.apis.json.permissions.Experimenter;
@@ -47,6 +48,17 @@ public class ImportAnnotationForm extends VBox {
 
         UiUtils.loadFXML(this, ImportAnnotationForm.class.getResource("import_annotation_form.fxml"));
 
+        owner.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(SimpleEntity object) {
+                return object.name();
+            }
+
+            @Override
+            public SimpleEntity fromString(String string) {
+                return null;
+            }
+        });
         if (owners.size() > 1) {
             owner.getItems().add(ALL_EXPERIMENTERS);
         }
