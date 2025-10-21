@@ -127,7 +127,6 @@ public class JsonApi implements AutoCloseable {
     private final LoadingCache<Long, Well> wellsCache;
     private record ServerEntityCacheKey(long parentId, long experimenterId, long groupId) {}
 
-    //TODO: handle https://omero.readthedocs.io/en/stable/developers/json-api.html#normalizing-experimenters-and-groups
     /**
      * Create a JSON API client. This will send a few requests to get basic information on the server and
      * authenticate if necessary, so it can take a few seconds. However, this operation is cancellable.
