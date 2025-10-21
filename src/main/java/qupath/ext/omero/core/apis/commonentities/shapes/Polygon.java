@@ -33,10 +33,10 @@ public class Polygon extends Shape {
                 omeroPolygon.text(),
                 omeroPolygon.fillColor() == null ? null : rgbaToColor(omeroPolygon.fillColor()),
                 omeroPolygon.strokeColor() == null ? null : rgbaToColor(omeroPolygon.strokeColor()),
-                omeroPolygon.locked(),
-                omeroPolygon.c(),
-                omeroPolygon.z(),
-                omeroPolygon.t(),
+                omeroPolygon.locked() != null && omeroPolygon.locked(),
+                omeroPolygon.c() == null ? 0 : omeroPolygon.c(),
+                omeroPolygon.z() == null ? 0 : omeroPolygon.z(),
+                omeroPolygon.t() == null ? 0 : omeroPolygon.t(),
                 omeroPolygon.omeroDetails() == null || omeroPolygon.omeroDetails().experimenter() == null ?
                         null :
                         new SimpleEntity(

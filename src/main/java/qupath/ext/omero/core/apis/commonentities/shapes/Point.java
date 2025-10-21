@@ -33,10 +33,10 @@ public class Point extends Shape {
                 omeroPoint.text(),
                 omeroPoint.fillColor() == null ? null : rgbaToColor(omeroPoint.fillColor()),
                 omeroPoint.strokeColor() == null ? null : rgbaToColor(omeroPoint.strokeColor()),
-                omeroPoint.locked(),
-                omeroPoint.c(),
-                omeroPoint.z(),
-                omeroPoint.t(),
+                omeroPoint.locked() != null && omeroPoint.locked(),
+                omeroPoint.c() == null ? 0 : omeroPoint.c(),
+                omeroPoint.z() == null ? 0 : omeroPoint.z(),
+                omeroPoint.t() == null ? 0 : omeroPoint.t(),
                 omeroPoint.omeroDetails() == null || omeroPoint.omeroDetails().experimenter() == null ?
                         null :
                         new SimpleEntity(

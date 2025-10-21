@@ -33,10 +33,10 @@ public class Polyline extends Shape {
                 omeroPolyline.text(),
                 omeroPolyline.fillColor() == null ? null : rgbaToColor(omeroPolyline.fillColor()),
                 omeroPolyline.strokeColor() == null ? null : rgbaToColor(omeroPolyline.strokeColor()),
-                omeroPolyline.locked(),
-                omeroPolyline.c(),
-                omeroPolyline.z(),
-                omeroPolyline.t(),
+                omeroPolyline.locked() != null && omeroPolyline.locked(),
+                omeroPolyline.c() == null ? 0 : omeroPolyline.c(),
+                omeroPolyline.z() == null ? 0 : omeroPolyline.z(),
+                omeroPolyline.t() == null ? 0 : omeroPolyline.t(),
                 omeroPolyline.omeroDetails() == null || omeroPolyline.omeroDetails().experimenter() == null ?
                         null :
                         new SimpleEntity(

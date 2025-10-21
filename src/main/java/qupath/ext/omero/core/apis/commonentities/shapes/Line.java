@@ -35,10 +35,10 @@ public class Line extends Shape {
                 omeroLine.text(),
                 omeroLine.fillColor() == null ? null : rgbaToColor(omeroLine.fillColor()),
                 omeroLine.strokeColor() == null ? null : rgbaToColor(omeroLine.strokeColor()),
-                omeroLine.locked(),
-                omeroLine.c(),
-                omeroLine.z(),
-                omeroLine.t(),
+                omeroLine.locked() != null && omeroLine.locked(),
+                omeroLine.c() == null ? 0 : omeroLine.c(),
+                omeroLine.z() == null ? 0 : omeroLine.z(),
+                omeroLine.t() == null ? 0 : omeroLine.t(),
                 omeroLine.omeroDetails() == null || omeroLine.omeroDetails().experimenter() == null ?
                         null :
                         new SimpleEntity(

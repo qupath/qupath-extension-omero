@@ -34,10 +34,10 @@ public class Ellipse extends Shape {
                 omeroEllipse.text(),
                 omeroEllipse.fillColor() == null ? null : rgbaToColor(omeroEllipse.fillColor()),
                 omeroEllipse.strokeColor() == null ? null : rgbaToColor(omeroEllipse.strokeColor()),
-                omeroEllipse.locked(),
-                omeroEllipse.c(),
-                omeroEllipse.z(),
-                omeroEllipse.t(),
+                omeroEllipse.locked() != null && omeroEllipse.locked(),
+                omeroEllipse.c() == null ? 0 : omeroEllipse.c(),
+                omeroEllipse.z() == null ? 0 : omeroEllipse.z(),
+                omeroEllipse.t() == null ? 0 : omeroEllipse.t(),
                 omeroEllipse.omeroDetails() == null || omeroEllipse.omeroDetails().experimenter() == null ?
                         null :
                         new SimpleEntity(
