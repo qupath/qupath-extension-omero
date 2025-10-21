@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * An orphaned folder is a container for orphaned images (which are described in
- * {@link qupath.ext.omero.core.entities.repositoryentities.serverentities}).
+ * {@link qupath.ext.omero.core.apis.json.repositoryentities.serverentities}).
  */
 public class OrphanedFolder implements RepositoryEntity {
 
