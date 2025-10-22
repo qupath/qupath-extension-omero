@@ -26,6 +26,7 @@ public class TestIViewerApi extends OmeroServer {
 
         @AfterAll
         static void closeApis() throws Exception {
+            iViewerApi.close();
             jsonApi.close();
             requestSender.close();
         }

@@ -132,6 +132,7 @@ public class ApisHandler implements AutoCloseable {
      */
     @Override
     public void close() throws Exception {
+        iViewerApi.close();
         webGatewayApi.close();
         webclientApi.close();
         jsonApi.close();

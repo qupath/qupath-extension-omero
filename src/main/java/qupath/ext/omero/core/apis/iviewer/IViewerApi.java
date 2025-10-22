@@ -6,19 +6,26 @@ import qupath.ext.omero.core.RequestSender;
 import qupath.ext.omero.core.apis.commonentities.shapes.Shape;
 import qupath.ext.omero.core.apis.iviewer.imageentities.ImageData;
 import qupath.ext.omero.core.apis.iviewer.imageentities.OmeroImageData;
+import qupath.ext.omero.core.preferences.PreferencesManager;
+import qupath.lib.common.ThreadTools;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
  * API to communicate with an <a href="https://www.openmicroscopy.org/omero/iviewer/">OMERO.iviewer</a>.
  * <p>
  * It is simply used to send ROIs and retrieve metadata from an OMERO server.
+ * <p>
+ * An instance of this class must be {@link #close() closed} once no longer used.
  */
-public class IViewerApi {
+public class IViewerApi implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(IViewerApi.class);
     private static final String ROIS_URL = "%s/iviewer/persist_rois/";
@@ -37,6 +44,11 @@ public class IViewerApi {
         """;
     private static final String ROIS_REFERER_URL = "%s/iviewer/?images=%d";
     private static final String IMAGE_SETTINGS_URL = "%s/iviewer/image_data/%d/";
+    private static final long DEFAULT_MAX_BODY_SIZE = 2621440;
+    private final ExecutorService executorService = Executors.newFixedThreadPool(
+            Runtime.getRuntime().availableProcessors(),
+            ThreadTools.createThreadFactory("iviewer-api-", true)
+    );
     private final URI webServerUri;
     private final RequestSender requestSender;
     private final String token;
@@ -56,12 +68,22 @@ public class IViewerApi {
     }
 
     @Override
+    public void close() throws Exception {
+        executorService.close();
+    }
+
+    @Override
     public String toString() {
         return String.format("IViewer API of %s", webServerUri);
     }
 
     /**
      * Attempt to add shapes to the provided image on the server.
+     * <p>
+     * An attempt is made to send the provided shapes in batches, so that the size of each request body does not exceed
+     * {@link PreferencesManager#getMaxBodySizeBytes(URI)}. However, if a single shape has a size bigger than
+     * {@link PreferencesManager#getMaxBodySizeBytes(URI)}, then the size of the body of the corresponding request
+     * will be bigger than {@link PreferencesManager#getMaxBodySizeBytes(URI)}.
      * <p>
      * Note that exception handling is left to the caller (the returned CompletableFuture may complete exceptionally
      * if the request failed for example).
@@ -73,6 +95,11 @@ public class IViewerApi {
     public CompletableFuture<Void> addShapes(long imageId, List<? extends Shape> shapesToAdd) {
         logger.debug("Adding shapes {} to image with ID {}", shapesToAdd, imageId);
 
+        if (shapesToAdd.isEmpty()) {
+            logger.debug("No shapes to add to image with ID {}. Returning without sending request", imageId);
+            return CompletableFuture.completedFuture(null);
+        }
+
         URI uri;
         try {
             uri = new URI(String.format(ROIS_URL, webServerUri));
@@ -80,27 +107,47 @@ public class IViewerApi {
             return CompletableFuture.failedFuture(e);
         }
 
-        List<String> roisToAdd = shapesToAdd.stream().map(Shape::createJson).toList();
-        String body = String.format(
-                ROIS_BODY,
-                imageId,
-                roisToAdd.size(),
-                "",
-                String.join(", ", roisToAdd)
+        List<List<String>> roiBatches = BatchCalculator.splitObjectsIntoBatches(
+                shapesToAdd.stream().map(Shape::createJson).toList(),
+                PreferencesManager.getMaxBodySizeBytes(webServerUri).orElse(DEFAULT_MAX_BODY_SIZE),
+                rois -> (long) String.format(
+                        ROIS_BODY,
+                        imageId,
+                        rois.size(),
+                        "",
+                        String.join(", ", rois)
+                ).getBytes(StandardCharsets.UTF_8).length
         );
-        String referer = String.format(ROIS_REFERER_URL, webServerUri, imageId);
-        logger.debug("Sending body {} with referer {} to add shapes {} to image with ID {}", body, referer, shapesToAdd, imageId);
+        logger.debug("Created batches {} for shapes {}", roiBatches, shapesToAdd);
 
-        return requestSender.post(
-                uri,
-                body,
-                referer,
-                token
-        ).thenAccept(response -> {
-            if (response.toLowerCase().contains("error")) {
-                throw new RuntimeException(String.format("Error when adding shapes: %s", response));
-            }
-        });
+        return CompletableFuture.runAsync(
+                () -> {
+                    String referer = String.format(ROIS_REFERER_URL, webServerUri, imageId);
+
+                    for (List<String> roiBatch: roiBatches) {
+                        String body = String.format(
+                                ROIS_BODY,
+                                imageId,
+                                roiBatch.size(),
+                                "",
+                                String.join(", ", roiBatch)
+                        );
+                        logger.debug("Sending body {} with referer {} to add shapes {} to image with ID {}", body, referer, roiBatch, imageId);
+
+                        requestSender.post(
+                                uri,
+                                body,
+                                referer,
+                                token
+                        ).thenAccept(response -> {
+                            if (response.toLowerCase().contains("error")) {
+                                throw new RuntimeException(String.format("Error when adding shapes: %s", response));
+                            }
+                        }).join();
+                    }
+                },
+                executorService
+        );
     }
 
     /**
