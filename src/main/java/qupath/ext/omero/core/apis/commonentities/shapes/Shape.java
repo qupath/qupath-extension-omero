@@ -153,6 +153,16 @@ public abstract class Shape {
      * Create a list of PathObjects corresponding to the provided shapes. The returned
      * list won't include path objects with parents; they can be retrieved with
      * {@link PathObject#getChildObjects()} on the elements of the returned list.
+     * <p>
+     * Shapes are grouped by ID. One PathObject is returned for each group. The {@link ROI} of returned
+     * PathObject is created by:
+     * <ul>
+     *     <li>Converting each {@link Shape} to a {@link ROI}. This gives a list of {@link ROI}.</li>
+     *     <li>Every point of the list of ROI are combined with the {@link RoiTools.CombineOp#ADD} operation.</li>
+     *     <li>Every other {@link ROI} of the list are combined with the XOR operation.</li>
+     *     <li>The resulting two {@link ROI} are combined with the {@link RoiTools.CombineOp#ADD} operation (if they exist).</li>
+     * </ul>
+     * The {@link RoiTools.CombineOp#ADD} operation is used for points because they don't support the XOR operation.
      *
      * @param shapes the shapes to convert to path objects
      * @return a list of PathObjects corresponding to the provided shapes
