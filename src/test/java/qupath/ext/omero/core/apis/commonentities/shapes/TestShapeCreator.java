@@ -18,6 +18,7 @@ import qupath.lib.objects.PathObjects;
 import qupath.lib.objects.classes.PathClass;
 import qupath.lib.regions.ImagePlane;
 import qupath.lib.roi.ROIs;
+import qupath.lib.roi.RoiTools;
 
 import java.util.List;
 
@@ -103,7 +104,7 @@ public class TestShapeCreator {
 
     @Test
     void Check_Point_From_Json() {
-        Shape expectedShape = createPoint();
+        Shape expectedShape = createPoints().getFirst();
         String json = """
             {
                 "@id": 0,
@@ -220,13 +221,15 @@ public class TestShapeCreator {
     void Check_Label_From_Path_Object() {
         PathObject pathObject = PathObjects.createAnnotationObject(
                 ROIs.createPointsROI(
-                        4.5,
-                        -7.5,
+                        List.of(
+                                new Point2(4.5, -7.5),
+                                new Point2(87.4, -4)
+                        ),
                         ImagePlane.getPlaneWithChannel(1, 2, 3)
                 ),
                 PathClass.fromString("some class", 5)
         );
-        List<Shape> expectedShapes = List.of(createPoint());        // A label is not supported and converted to a point
+        List<Shape> expectedShapes = createPoints();        // A label is not supported and converted to a point
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
@@ -256,13 +259,15 @@ public class TestShapeCreator {
     void Check_Point_From_Path_Object() {
         PathObject pathObject = PathObjects.createAnnotationObject(
                 ROIs.createPointsROI(
-                        4.5,
-                        -7.5,
+                        List.of(
+                                new Point2(4.5, -7.5),
+                                new Point2(87.4, -4)
+                        ),
                         ImagePlane.getPlaneWithChannel(1, 2, 3)
                 ),
                 PathClass.fromString("some class", 5)
         );
-        List<Shape> expectedShapes = List.of(createPoint());
+        List<Shape> expectedShapes = createPoints();
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
@@ -322,6 +327,66 @@ public class TestShapeCreator {
                 PathClass.fromString("some class", 5)
         );
         List<Shape> expectedShapes = List.of(createRectangle());
+
+        List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
+
+        TestUtils.assertCollectionsEqualsWithoutOrder(expectedShapes, shapes);
+    }
+
+    @Test
+    void Check_Shapes_From_Complex_Path_Object() {
+        ImagePlane imagePlane = ImagePlane.getPlaneWithChannel(1, 2, 3);
+        PathObject pathObject = PathObjects.createAnnotationObject(
+                RoiTools.difference(
+                        ROIs.createPolygonROI(
+                                List.of(
+                                        new Point2(0, 1),
+                                        new Point2(5, 6),
+                                        new Point2(5, 8),
+                                        new Point2(0, 8)
+                                ),
+                                imagePlane
+                        ),
+                        ROIs.createRectangleROI(1, 4, 2, 3, imagePlane)
+                ),
+                PathClass.fromString("some class", 5)
+        );
+        List<Shape> expectedShapes = List.of(
+                new Polygon(
+                        new OmeroPolygon(
+                                0L,
+                                "",
+                                OmeroPolygon.TYPE,
+                                "",
+                                3,
+                                5,
+                                true,
+                                1,
+                                2,
+                                3,
+                                "0,8 5,8 5,6 3,4 0,1 0,8",
+                                null
+                        ),
+                        53
+                ),
+                new Polygon(
+                        new OmeroPolygon(
+                                0L,
+                                "",
+                                OmeroPolygon.TYPE,
+                                "",
+                                3,
+                                5,
+                                true,
+                                1,
+                                2,
+                                3,
+                                "3,7 1,7 1,4 3,4 3,7",
+                                null
+                        ),
+                        53
+                )
+        );
 
         List<Shape> shapes = ShapeCreator.createShapes(pathObject, false).stream().map(Shape.class::cast).toList();
 
@@ -395,24 +460,44 @@ public class TestShapeCreator {
         );
     }
 
-    private static Point createPoint() {
-        return new Point(
-                new OmeroPoint(
-                        0L,
-                        "",
-                        OmeroPoint.TYPE,
-                        "",
-                        3,
-                        5,
-                        true,
-                        1,
-                        2,
-                        3,
-                        4.5,
-                        -7.5,
-                        null
+    private static List<Shape> createPoints() {
+        return List.of(
+                new Point(
+                    new OmeroPoint(
+                            0L,
+                            "",
+                            OmeroPoint.TYPE,
+                            "",
+                            3,
+                            5,
+                            true,
+                            1,
+                            2,
+                            3,
+                            4.5,
+                            -7.5,
+                            null
+                    ),
+                    53
                 ),
-                53
+                new Point(
+                        new OmeroPoint(
+                                0L,
+                                "",
+                                OmeroPoint.TYPE,
+                                "",
+                                3,
+                                5,
+                                true,
+                                1,
+                                2,
+                                3,
+                                87.4,
+                                -4d,
+                                null
+                        ),
+                        53
+                )
         );
     }
 

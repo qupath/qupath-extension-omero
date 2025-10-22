@@ -36,10 +36,10 @@ public class Label extends Shape {
                 omeroLabel.text(),
                 omeroLabel.fillColor() == null ? null : rgbaToColor(omeroLabel.fillColor()),
                 omeroLabel.strokeColor() == null ? null : rgbaToColor(omeroLabel.strokeColor()),
-                omeroLabel.locked(),
-                omeroLabel.c(),
-                omeroLabel.z(),
-                omeroLabel.t(),
+                omeroLabel.locked() != null && omeroLabel.locked(),
+                omeroLabel.c() == null ? 0 : omeroLabel.c(),
+                omeroLabel.z() == null ? 0 : omeroLabel.z(),
+                omeroLabel.t() == null ? 0 : omeroLabel.t(),
                 omeroLabel.omeroDetails() == null || omeroLabel.omeroDetails().experimenter() == null ?
                         null :
                         new SimpleEntity(

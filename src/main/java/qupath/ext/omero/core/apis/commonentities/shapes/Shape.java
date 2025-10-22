@@ -14,6 +14,7 @@ import qupath.lib.roi.RoiTools;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.awt.Color;
+import java.awt.geom.Area;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -152,6 +153,16 @@ public abstract class Shape {
      * Create a list of PathObjects corresponding to the provided shapes. The returned
      * list won't include path objects with parents; they can be retrieved with
      * {@link PathObject#getChildObjects()} on the elements of the returned list.
+     * <p>
+     * Shapes are grouped by ID. One PathObject is returned for each group. The {@link ROI} of returned
+     * PathObject is created by:
+     * <ul>
+     *     <li>Converting each {@link Shape} to a {@link ROI}. This gives a list of {@link ROI}.</li>
+     *     <li>Every point of the list of ROI are combined with the {@link RoiTools.CombineOp#ADD} operation.</li>
+     *     <li>Every other {@link ROI} of the list are combined with the XOR operation.</li>
+     *     <li>The resulting two {@link ROI} are combined with the {@link RoiTools.CombineOp#ADD} operation (if they exist).</li>
+     * </ul>
+     * The {@link RoiTools.CombineOp#ADD} operation is used for points because they don't support the XOR operation.
      *
      * @param shapes the shapes to convert to path objects
      * @return a list of PathObjects corresponding to the provided shapes
@@ -412,20 +423,46 @@ public abstract class Shape {
         return pathObject;
     }
 
+    /**
+     * Create a single {@link ROI} from the provided list of shapes. This is done by:
+     * <ul>
+     *     <li>Converting each provided {@link Shape} to a {@link ROI}. This gives a list of {@link ROI}.</li>
+     *     <li>Every point of the list of ROI are combined with the {@link RoiTools.CombineOp#ADD} operation.</li>
+     *     <li>Every other {@link ROI} of the list are combined with the XOR operation.</li>
+     *     <li>The resulting two {@link ROI} are combined with the {@link RoiTools.CombineOp#ADD} operation (if they exist).</li>
+     * </ul>
+     * The {@link RoiTools.CombineOp#ADD} operation is used for points because they don't support the XOR operation.
+     *
+     * @param shapes the shapes to convert and combine to a {@link ROI}
+     * @return the created {@link ROI}, or null if the provided list is empty
+     */
     private static ROI createRoi(List<Shape> shapes) {
-        if (shapes.isEmpty()) {
-            return null;
-        }
-
         List<ROI> rois = shapes.stream().map(Shape::createRoi).toList();
-        if (rois.isEmpty()) {
-            return null;
+
+        List<ROI> pointRois = rois.stream().filter(ROI::isPoint).toList();
+        ROI pointsRoi = pointRois.isEmpty() ? null : pointRois.getFirst();
+        for (int i=1; i<pointRois.size(); i++) {
+            pointsRoi = RoiTools.combineROIs(pointsRoi, rois.get(i), RoiTools.CombineOp.ADD);
         }
 
-        ROI roi = rois.getFirst();
-        for (int i=1; i<rois.size(); i++) {
-            roi = RoiTools.combineROIs(roi, rois.get(i), RoiTools.CombineOp.ADD);
+        List<ROI> nonPointRois = rois.stream().filter(roi -> !roi.isPoint()).toList();
+        ROI nonPointsRoi = nonPointRois.isEmpty() ? null : nonPointRois.getFirst();
+        for (int i=1; i<nonPointRois.size(); i++) {
+            Area nonPointArea = new Area(nonPointsRoi.getShape());
+
+            nonPointArea.exclusiveOr(new Area(nonPointRois.get(i).getShape()));
+
+            nonPointsRoi = RoiTools.getShapeROI(nonPointArea, nonPointsRoi.getImagePlane());
         }
-        return roi;
+
+        if (pointsRoi == null && nonPointsRoi == null) {
+            return null;
+        } else if (pointsRoi == null) {
+            return nonPointsRoi;
+        } else if (nonPointsRoi == null) {
+            return pointsRoi;
+        } else {
+            return RoiTools.combineROIs(pointsRoi, nonPointsRoi, RoiTools.CombineOp.ADD);
+        }
     }
 }

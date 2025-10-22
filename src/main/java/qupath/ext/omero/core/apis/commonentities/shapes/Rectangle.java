@@ -34,10 +34,10 @@ public class Rectangle extends Shape {
                 omeroRectangle.text(),
                 omeroRectangle.fillColor() == null ? null : rgbaToColor(omeroRectangle.fillColor()),
                 omeroRectangle.strokeColor() == null ? null : rgbaToColor(omeroRectangle.strokeColor()),
-                omeroRectangle.locked(),
-                omeroRectangle.c(),
-                omeroRectangle.z(),
-                omeroRectangle.t(),
+                omeroRectangle.locked() != null && omeroRectangle.locked(),
+                omeroRectangle.c() == null ? 0 : omeroRectangle.c(),
+                omeroRectangle.z() == null ? 0 : omeroRectangle.z(),
+                omeroRectangle.t() == null ? 0 : omeroRectangle.t(),
                 omeroRectangle.omeroDetails() == null || omeroRectangle.omeroDetails().experimenter() == null ?
                         null :
                         new SimpleEntity(
