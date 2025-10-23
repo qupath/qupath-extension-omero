@@ -22,7 +22,7 @@ class BatchCalculator {
      * Split a list of objects into batches according to a maximal batch size.
      *
      * @param objects the objects to split into batches
-     * @param maxBatchSize the maximal size each batch can have. Note that if the size of a single object is bigger than the batch size,
+     * @param maxBatchSize the exclusive maximal size each batch can have. Note that if the size of a single object is bigger than the batch size,
      *                     then the batch containing the object will be bigger than the maximal size
      * @param batchSizeGetter a function that computes the size of a batch
      * @return batches containing the provided objects
