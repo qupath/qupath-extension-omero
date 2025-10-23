@@ -7,8 +7,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import qupath.ext.omero.OmeroServer;
 import qupath.ext.omero.core.RequestSender;
+import qupath.ext.omero.core.apis.commonentities.shapes.Ellipse;
 import qupath.ext.omero.core.apis.iviewer.imageentities.ImageData;
 import qupath.ext.omero.core.apis.json.JsonApi;
+import qupath.ext.omero.core.apis.json.jsonentities.shapes.OmeroEllipse;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -37,7 +39,26 @@ public class TestIViewerApi extends OmeroServer {
 
             Assertions.assertThrows(
                     ExecutionException.class,
-                    () -> iViewerApi.addShapes(invalidId, List.of()).get()
+                    () -> iViewerApi.addShapes(invalidId, List.of(new Ellipse(
+                            new OmeroEllipse(
+                                    1L,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    null,
+                                    0d,
+                                    0d,
+                                    1d,
+                                    1d,
+                                    null
+                            ),
+                            1
+                    ))).get()
             );
         }
 
