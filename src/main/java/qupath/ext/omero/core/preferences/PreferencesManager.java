@@ -24,6 +24,7 @@ import java.util.function.UnaryOperator;
 public class PreferencesManager {
 
     private static final Logger logger = LoggerFactory.getLogger(PreferencesManager.class);
+    private static final long DEFAULT_MAX_BODY_SIZE = 2621440;
     private static final Gson gson = new Gson();
     private static final StringProperty preference = PathPrefs.createPersistentPreference(
             "omero_ext.servers-information",
@@ -156,10 +157,15 @@ public class PreferencesManager {
      * happen if {@link #getServerPreferences()} contains an entry with the specified web server URI.
      *
      * @param webServerUri the URI of the OMERO web server to whose maximal body size should be set
-     * @param maxBodySizeBytes the maximal body size to set
+     * @param maxBodySizeBytes the maximal body size to set. Must be greater than 0
      * @throws NullPointerException if the provided URI is null and some preferences already exist
+     * @throws IllegalArgumentException if the provided body size is not greater than 0
      */
     public static void setMaxBodySizeBytes(URI webServerUri, long maxBodySizeBytes) {
+        if (maxBodySizeBytes <= 0) {
+            throw new IllegalArgumentException(String.format("The provided max body size %d is not greater than 0", maxBodySizeBytes));
+        }
+
         setProperty(
                 webServerUri,
                 "max body size",
@@ -179,17 +185,17 @@ public class PreferencesManager {
 
     /**
      * Get the saved maximal size in bytes that the body of a request to one the APIs of the provided web server
-     * can have.
+     * can have, or 2621440 if not found.
      *
      * @param maxBodySizeBytes the URI of the OMERO web server to whose maximal body size should be retrieved
-     * @return the maximal body size in bytes, or an empty optional if not found
+     * @return the maximal body size in bytes, or 2621440 if not found
      * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
-    public static Optional<Long> getMaxBodySizeBytes(URI maxBodySizeBytes) {
+    public static long getMaxBodySizeBytes(URI maxBodySizeBytes) {
         return getProperty(
                 maxBodySizeBytes,
                 serverPreference -> Optional.ofNullable(serverPreference.maxBodySizeBytes())
-        );
+        ).orElse(DEFAULT_MAX_BODY_SIZE);
     }
 
     /**

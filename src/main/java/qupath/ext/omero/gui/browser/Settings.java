@@ -16,10 +16,12 @@ import qupath.ext.omero.core.Client;
 import qupath.ext.omero.core.pixelapis.ice.IceApi;
 import qupath.ext.omero.core.pixelapis.mspixelbuffer.MsPixelBufferApi;
 import qupath.ext.omero.core.pixelapis.web.WebApi;
+import qupath.ext.omero.core.preferences.PreferencesManager;
 import qupath.ext.omero.gui.UiUtils;
 import qupath.fx.dialogs.Dialogs;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ResourceBundle;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
@@ -33,6 +35,7 @@ class Settings extends Stage implements AutoCloseable {
 
     private static final Logger logger = LoggerFactory.getLogger(Settings.class);
     private static final ResourceBundle resources = Utils.getResources();
+    private final URI webServerUri;
     private final WebApi webApi;
     private final IceApi iceApi;
     private final MsPixelBufferApi msPixelBufferApi;
@@ -41,6 +44,8 @@ class Settings extends Stage implements AutoCloseable {
     private final ChangeListener<? super Number> omeroPortListener;
     private final ChangeListener<? super Number> numberOfIceReadersListener;
     private final ChangeListener<? super Number> msPixelBufferAPIPortListener;
+    @FXML
+    private CustomTextField maxBodySize;
     @FXML
     private CustomTextField webJpegQuality;
     @FXML
@@ -62,6 +67,7 @@ class Settings extends Stage implements AutoCloseable {
     public Settings(Stage owner, Client client) throws IOException {
         logger.debug("Creating settings window for {}", client);
 
+        this.webServerUri = client.getApisHandler().getWebServerUri();
         this.webApi = client.getPixelAPI(WebApi.class);
         this.iceApi = client.getPixelAPI(IceApi.class);
         this.msPixelBufferApi = client.getPixelAPI(MsPixelBufferApi.class);
@@ -89,6 +95,28 @@ class Settings extends Stage implements AutoCloseable {
 
         UnaryOperator<TextFormatter.Change> floatFilter = change ->
                 Pattern.matches("^\\d*\\.?\\d*$", change.getControlNewText()) ? change : null;
+
+        maxBodySize.setTextFormatter(new TextFormatter<>(floatFilter));
+        maxBodySize.rightProperty().bind(Bindings.createObjectBinding(
+                () -> {
+                    logger.trace("Setting right icon for max body size");
+                    try {
+                        float maxBodySize = Float.parseFloat(this.maxBodySize.getText());
+                        if (maxBodySize > 0) {
+                            logger.trace("Max body size {} greater than 0. No error icon to display", maxBodySize);
+                            return null;
+                        } else {
+                            logger.trace("Max body size {} lower than or equal to 0. Showing error icon", maxBodySize);
+                            return new Label("❌");
+                        }
+                    } catch (NumberFormatException e) {
+                        logger.trace("Cannot convert max body size {} to float. Showing error icon", maxBodySize.getText(), e);
+                        return new Label("❌");
+                    }
+                },
+                maxBodySize.textProperty()
+        ));
+
         webJpegQuality.setTextFormatter(new TextFormatter<>(floatFilter));
         webJpegQuality.rightProperty().bind(Bindings.createObjectBinding(
                 () -> {
@@ -160,6 +188,7 @@ class Settings extends Stage implements AutoCloseable {
     public void resetEntries() {
         logger.debug("Resetting entries to values of pixel APIs");
 
+        maxBodySize.setText(String.valueOf(PreferencesManager.getMaxBodySizeBytes(webServerUri) / 1000000d));
         webJpegQuality.setText(String.valueOf(webApi.getJpegQuality().get()));
         omeroAddress.setText(iceApi.getServerAddress().get());
         omeroPort.setText(String.valueOf(iceApi.getServerPort().get()));
@@ -185,6 +214,18 @@ class Settings extends Stage implements AutoCloseable {
 
     private boolean save() {
         logger.debug("Saving settings");
+
+        try {
+            PreferencesManager.setMaxBodySizeBytes(webServerUri, (long) (Float.parseFloat(maxBodySize.getText()) * 1000000));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Incorrect max body size {}", maxBodySize.getText(), e);
+
+            Dialogs.showErrorMessage(
+                    resources.getString("Browser.ServerBrowser.Settings.error"),
+                    resources.getString("Browser.ServerBrowser.Settings.invalidMaxBodySize")
+            );
+            return false;
+        }
 
         try {
             webApi.setJpegQuality(Float.parseFloat(webJpegQuality.getText()));

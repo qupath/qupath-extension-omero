@@ -44,7 +44,6 @@ public class IViewerApi implements AutoCloseable {
         """;
     private static final String ROIS_REFERER_URL = "%s/iviewer/?images=%d";
     private static final String IMAGE_SETTINGS_URL = "%s/iviewer/image_data/%d/";
-    private static final long DEFAULT_MAX_BODY_SIZE = 2621440;
     private final ExecutorService executorService = Executors.newFixedThreadPool(
             Runtime.getRuntime().availableProcessors(),
             ThreadTools.createThreadFactory("iviewer-api-", true)
@@ -109,7 +108,7 @@ public class IViewerApi implements AutoCloseable {
 
         List<List<String>> roiBatches = BatchCalculator.splitObjectsIntoBatches(
                 shapesToAdd.stream().map(Shape::createJson).toList(),
-                PreferencesManager.getMaxBodySizeBytes(webServerUri).orElse(DEFAULT_MAX_BODY_SIZE),
+                PreferencesManager.getMaxBodySizeBytes(webServerUri),
                 rois -> (long) String.format(
                         ROIS_BODY,
                         imageId,

@@ -19,6 +19,35 @@
     <scene>
         <Scene stylesheets="@../styles.css">
             <VBox>
+            <VBox layoutX="20.0" layoutY="20.0">
+               <children>
+                  <Label styleClass="title" text="%Browser.ServerBrowser.Settings.allAPI" />
+                  <GridPane hgap="5.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" vgap="10.0">
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" />
+                     </columnConstraints>
+                     <rowConstraints>
+                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                     </rowConstraints>
+                     <padding>
+                        <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
+                     </padding>
+                     <children>
+                        <Label layoutX="25.0" layoutY="25.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" text="%Browser.ServerBrowser.Settings.maximalBodySize">
+                           <tooltip>
+                              <Tooltip text="%Browser.ServerBrowser.Settings.maximalBodySizeDescription" />
+                           </tooltip>
+                        </Label>
+                        <CustomTextField fx:id="maxBodySize" layoutX="564.0" layoutY="27.0" GridPane.columnIndex="1">
+                           <tooltip>
+                              <Tooltip text="%Browser.ServerBrowser.Settings.maximalBodySizeDescription" />
+                           </tooltip>
+                        </CustomTextField>
+                     </children>
+                  </GridPane>
+               </children>
+            </VBox>
                <VBox>
                   <Label styleClass="title" text="%Browser.ServerBrowser.Settings.webAPI" />
                   <GridPane hgap="5.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" vgap="10.0">

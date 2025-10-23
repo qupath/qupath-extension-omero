@@ -115,22 +115,24 @@ public class TestPreferencesManager {
     }
 
     @Test
-    void Check_Max_Body_Size_Empty_When_Not_Set() {
+    void Check_Default_Max_Body_Size_Empty_When_Not_Set() {
         URI uri = URI.create("https://github.com/qupath");
+        long expectedMaxBodySizeBytes = 2621440;
 
-        Optional<Long> maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
 
-        Assertions.assertTrue(maxBodySizeBytes.isEmpty());
+        Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
     }
 
     @Test
     void Check_Max_Body_Size_When_Preference_Not_Set() {
         URI uri = URI.create("https://github.com/qupath");
         PreferencesManager.setMaxBodySizeBytes(uri, 456);
+        long expectedMaxBodySizeBytes = 2621440;
 
-        Optional<Long> maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
 
-        Assertions.assertTrue(maxBodySizeBytes.isEmpty());
+        Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
     }
 
     @Test
@@ -140,7 +142,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setMaxBodySizeBytes(uri, expectedMaxBodySizeBytes);
 
-        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri).orElseThrow();
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
 
         Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
     }
@@ -154,7 +156,7 @@ public class TestPreferencesManager {
         PreferencesManager.setMaxBodySizeBytes(uri, unexpectedMaxBodySizeBytes);
         PreferencesManager.setMaxBodySizeBytes(uri, expectedMaxBodySizeBytes);
 
-        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri).orElseThrow();
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
 
         Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
     }
@@ -170,7 +172,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setMaxBodySizeBytes(uri, expectedMaxBodySizeBytes);
 
-        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri).orElseThrow();
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
 
         Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
     }
