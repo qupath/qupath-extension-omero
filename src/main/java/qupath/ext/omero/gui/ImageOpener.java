@@ -23,7 +23,12 @@ import qupath.ext.omero.gui.login.WaitingWindow;
 import qupath.fx.dialogs.Dialogs;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.commands.ProjectCommands;
+import qupath.lib.gui.panes.ImageDetailsPane;
 import qupath.lib.gui.panes.ServerSelector;
+import qupath.lib.gui.prefs.PathPrefs;
+import qupath.lib.gui.tools.GuiTools;
+import qupath.lib.gui.viewer.QuPathViewer;
+import qupath.lib.images.ImageData;
 import qupath.lib.images.servers.ImageServer;
 import qupath.lib.images.servers.ImageServerProvider;
 import qupath.lib.projects.ProjectImageEntry;
@@ -32,7 +37,6 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URI;
 import java.text.MessageFormat;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -133,17 +137,15 @@ public class ImageOpener {
     }
 
     private static void openImagesInCurrentViewer(List<URI> uris) {
-        if (uris.size() == 1) {
-            logger.debug("No project detected and one URI {} provided: opening image in current viewer", uris);
-            try {
-                QuPathGUI.getInstance().openImage(QuPathGUI.getInstance().getViewer(), uris.getFirst().toString(), true, true);
-            } catch (IOException e) {
-                logger.error("Could not open image {}", uris.getFirst(), e);
-            }
+        Optional<OmeroImageServerBuilder> omeroImageServerBuilder = ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream()
+                .filter(serverBuilder -> serverBuilder instanceof OmeroImageServerBuilder)
+                .map(serverBuilder -> (OmeroImageServerBuilder) serverBuilder)
+                .findAny();
+        if (omeroImageServerBuilder.isEmpty()) {
+            logger.error("Cannot find OMERO image server builder");
+            showErrorMessage(uris);
             return;
         }
-
-        logger.debug("No project detected and more than one URI {} provided: prompting which image to open", uris);
 
         WaitingWindow waitingWindow;
         try {
@@ -157,65 +159,47 @@ public class ImageOpener {
         }
         waitingWindow.show();
 
-        Optional<OmeroImageServerBuilder> omeroImageServerBuilder = ImageServerProvider.getInstalledImageServerBuilders(BufferedImage.class).stream()
-                .filter(serverBuilder -> serverBuilder instanceof OmeroImageServerBuilder)
-                .map(serverBuilder -> (OmeroImageServerBuilder) serverBuilder)
-                .findAny();
-        if (omeroImageServerBuilder.isEmpty()) {
-            logger.error("Cannot find OMERO image server builder");
-            showErrorMessage(uris);
-            return;
-        }
-
-        logger.debug("Creating builders for {}", uris);
+        logger.debug("Creating servers for {}", uris);
         CompletableFuture.supplyAsync(() -> uris.stream()
                 .map(uri -> omeroImageServerBuilder.get().buildServer(uri))
                 .filter(Objects::nonNull)
-                .map(ImageServer::getBuilder)
-                .filter(Objects::nonNull)
                 .toList()
-        ).whenComplete((builders, error) -> Platform.runLater(() -> {
+        ).whenComplete((servers, error) -> Platform.runLater(() -> {
             waitingWindow.close();
 
-            if (builders == null || builders.isEmpty()) {
-                logger.error("Cannot create builders of {}", uris, error);
+            if (servers == null || servers.isEmpty()) {
+                logger.error("Cannot create servers of {}", uris, error);
                 showErrorMessage(uris);
                 return;
             }
 
-            try (ImageServer<BufferedImage> server = ServerSelector.createFromBuilders(builders).promptToSelectImage("Open", false)) {
-                if (server == null) {
-                    logger.debug("No image selected. Don't opening anything");
-                    return;
-                }
-
-                Collection<URI> serverUris = server.getURIs();
-                if (serverUris.isEmpty()) {
-                    logger.error("Image {} selected but no URI present. Don't opening anything", server);
-                    showErrorMessage(uris);
-                    return;
-                }
-
-                String uriToOpen = server.getURIs().iterator().next().toString();
-                logger.debug("Image {} selected. Opening {}", server, uriToOpen);
-                QuPathGUI.getInstance().openImage(QuPathGUI.getInstance().getViewer(), uriToOpen, true, true);
-            } catch (Exception e) {
-                logger.error("Cannot create image server from the one of {} selected by user", uris, e);
-
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-
+            QuPathViewer viewer = QuPathGUI.getInstance().getViewer();
+            if (viewer == null) {
+                logger.error("No current viewer found. Cannot open {}", servers);
                 showErrorMessage(uris);
+                return;
+            }
+
+            if (servers.size() == 1) {
+                logger.debug("No project detected and one image {} provided: opening image in current viewer", servers);
+
+                openServerInViewer(servers.getFirst(), viewer, uris);
+            } else {
+                logger.debug(
+                        "No project detected and more than one image {} provided: converting servers to builders and prompting which image to open",
+                        servers
+                );
+
+                openServerInViewer(
+                        ServerSelector.createFromBuilders(servers.stream()
+                                .map(ImageServer::getBuilder)
+                                .toList()
+                        ).promptToSelectImage(resources.getString("ImageOpener.open"), false),
+                        viewer,
+                        uris
+                );
             }
         }));
-    }
-
-    private static void showErrorMessage(List<URI> uris) {
-        Dialogs.showErrorMessage(
-                resources.getString("ImageOpener.imageOpening"),
-                MessageFormat.format(resources.getString("ImageOpener.errorWhileRetrievingImage"), uris)
-        );
     }
 
     private static void openImagesInCurrentProject(List<URI> uris) {
@@ -238,6 +222,54 @@ public class ImageOpener {
             }
         } else {
             logger.debug("Skipping automatic import of key-value pairs and parent dataset information");
+        }
+    }
+
+    private static void showErrorMessage(List<URI> uris) {
+        Dialogs.showErrorMessage(
+                resources.getString("ImageOpener.imageOpening"),
+                MessageFormat.format(resources.getString("ImageOpener.errorWhileRetrievingImage"), uris)
+        );
+    }
+
+    private static void openServerInViewer(ImageServer<BufferedImage> server, QuPathViewer viewer, List<URI> uris) {
+        if (server == null) {
+            logger.debug("No image provided. Don't opening anything");
+            return;
+        }
+
+        ImageData.ImageType estimatedType = switch (PathPrefs.imageTypeSettingProperty().get()) {
+            case AUTO_ESTIMATE, PROMPT -> {
+                try {
+                    yield GuiTools.estimateImageType(server, server.getDefaultThumbnail(0, 0));
+                } catch (IOException e) {
+                    logger.error("Error while getting thumbnail of {}. Cannot auto estimate image type", server, e);
+                    yield ImageData.ImageType.UNSET;
+                }
+            }
+            case NONE -> ImageData.ImageType.UNSET;
+        };
+
+        ImageData<BufferedImage> imageData = new ImageData<>(server, estimatedType);
+
+        if (viewer.hasServer()) {
+            try {
+                viewer.getServer().close();
+            } catch (Exception e) {
+                logger.warn("Error when trying to close server {} of current viewer", viewer.getServer());
+            }
+        }
+
+        try {
+            viewer.setImageData(imageData);
+
+            if (PathPrefs.imageTypeSettingProperty().get() == PathPrefs.ImageTypeSetting.PROMPT) {
+                ImageDetailsPane.promptToSetImageType(imageData, estimatedType);
+            }
+        } catch (IOException e) {
+            logger.error("Cannot set image data {} to {}", imageData, viewer, e);
+
+            showErrorMessage(uris);
         }
     }
 
