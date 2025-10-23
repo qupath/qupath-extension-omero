@@ -24,6 +24,7 @@ import java.util.function.UnaryOperator;
 public class PreferencesManager {
 
     private static final Logger logger = LoggerFactory.getLogger(PreferencesManager.class);
+    private static final long DEFAULT_MAX_BODY_SIZE = 2621440;
     private static final Gson gson = new Gson();
     private static final StringProperty preference = PathPrefs.createPersistentPreference(
             "omero_ext.servers-information",
@@ -52,20 +53,31 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO server to save
      * @param credentials the credentials used to connect to the OMERO server
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static synchronized void addServer(URI webServerUri, Credentials credentials) {
         List<ServerPreference> existingPreferences = serverPreferences.stream()
-                .filter(preference -> preference.webServerUri().equals(webServerUri))
+                .filter(preference -> webServerUri.equals(preference.webServerUri()))
                 .toList();
 
         if (existingPreferences.isEmpty()) {
-            serverPreferences.add(new ServerPreference(webServerUri, credentials, 0, null, 0, 0, 0));
+            serverPreferences.add(new ServerPreference(
+                    webServerUri,
+                    credentials,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
+            ));
             logger.debug("Preference for {} added with the following credentials: {}", webServerUri, credentials);
         } else {
             serverPreferences.removeAll(existingPreferences);
             serverPreferences.add(new ServerPreference(
                     webServerUri,
                     credentials,
+                    existingPreferences.getFirst().maxBodySizeBytes(),
                     existingPreferences.getFirst().webJpegQuality(),
                     existingPreferences.getFirst().iceAddress(),
                     existingPreferences.getFirst().icePort(),
@@ -82,10 +94,11 @@ public class PreferencesManager {
      * Remove a server.
      *
      * @param webServerUri the URI of the OMERO server to remove
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static synchronized void removeServer(URI webServerUri) {
         serverPreferences.removeAll(serverPreferences.stream()
-                .filter(serverPreference -> serverPreference.webServerUri().equals(webServerUri))
+                .filter(serverPreference -> webServerUri.equals(serverPreference.webServerUri()))
                 .toList()
         );
         logger.debug("Preferences for {} removed", webServerUri);
@@ -130,12 +143,59 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose last credentials should be retrieved
      * @return the last saved credentials of the provided OMERO server
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static Optional<Credentials> getCredentials(URI webServerUri) {
         return getProperty(
                 webServerUri,
-                serverPreference -> Optional.of(serverPreference.credentials())
+                serverPreference -> Optional.ofNullable(serverPreference.credentials())
         );
+    }
+
+    /**
+     * Set the maximal size in bytes that the body of a request to one the APIs can have. This will only
+     * happen if {@link #getServerPreferences()} contains an entry with the specified web server URI.
+     *
+     * @param webServerUri the URI of the OMERO web server to whose maximal body size should be set
+     * @param maxBodySizeBytes the maximal body size to set. Must be greater than 0
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
+     * @throws IllegalArgumentException if the provided body size is not greater than 0
+     */
+    public static void setMaxBodySizeBytes(URI webServerUri, long maxBodySizeBytes) {
+        if (maxBodySizeBytes <= 0) {
+            throw new IllegalArgumentException(String.format("The provided max body size %d is not greater than 0", maxBodySizeBytes));
+        }
+
+        setProperty(
+                webServerUri,
+                "max body size",
+                maxBodySizeBytes,
+                serverPreference -> new ServerPreference(
+                        webServerUri,
+                        serverPreference.credentials(),
+                        maxBodySizeBytes,
+                        serverPreference.webJpegQuality(),
+                        serverPreference.iceAddress(),
+                        serverPreference.icePort(),
+                        serverPreference.iceNumberOfReaders(),
+                        serverPreference.msPixelBufferPort()
+                )
+        );
+    }
+
+    /**
+     * Get the saved maximal size in bytes that the body of a request to one the APIs of the provided web server
+     * can have, or 2621440 if not found.
+     *
+     * @param maxBodySizeBytes the URI of the OMERO web server to whose maximal body size should be retrieved
+     * @return the maximal body size in bytes, or 2621440 if not found
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
+     */
+    public static long getMaxBodySizeBytes(URI maxBodySizeBytes) {
+        return getProperty(
+                maxBodySizeBytes,
+                serverPreference -> Optional.ofNullable(serverPreference.maxBodySizeBytes())
+        ).orElse(DEFAULT_MAX_BODY_SIZE);
     }
 
     /**
@@ -144,6 +204,7 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose JPEG quality should be set
      * @param webJpegQuality the JPEG quality to set
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static void setWebJpegQuality(URI webServerUri, float webJpegQuality) {
         setProperty(
@@ -153,6 +214,7 @@ public class PreferencesManager {
                 serverPreference -> new ServerPreference(
                         webServerUri,
                         serverPreference.credentials(),
+                        serverPreference.maxBodySizeBytes(),
                         webJpegQuality,
                         serverPreference.iceAddress(),
                         serverPreference.icePort(),
@@ -167,11 +229,12 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose JPEG quality should be retrieved
      * @return the JPEG quality, or an empty optional if not found
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static Optional<Float> getWebJpegQuality(URI webServerUri) {
         return getProperty(
                 webServerUri,
-                serverPreference -> serverPreference.webJpegQuality() == 0 ? Optional.empty() : Optional.of(serverPreference.webJpegQuality())
+                serverPreference -> Optional.ofNullable(serverPreference.webJpegQuality())
         );
     }
 
@@ -181,6 +244,7 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server address should be set
      * @param iceAddress the OMERO ICE server address to set
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static void setIceAddress(URI webServerUri, String iceAddress) {
         setProperty(
@@ -190,6 +254,7 @@ public class PreferencesManager {
                 serverPreference -> new ServerPreference(
                         webServerUri,
                         serverPreference.credentials(),
+                        serverPreference.maxBodySizeBytes(),
                         serverPreference.webJpegQuality(),
                         iceAddress,
                         serverPreference.icePort(),
@@ -204,6 +269,7 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server address should be retrieved
      * @return the OMERO ICE server address, or an empty optional if not found
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static Optional<String> getIceAddress(URI webServerUri) {
         return getProperty(
@@ -218,6 +284,7 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server port should be set
      * @param icePort the OMERO ICE server port to set
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static void setIcePort(URI webServerUri, int icePort) {
         setProperty(
@@ -227,6 +294,7 @@ public class PreferencesManager {
                 serverPreference -> new ServerPreference(
                         webServerUri,
                         serverPreference.credentials(),
+                        serverPreference.maxBodySizeBytes(),
                         serverPreference.webJpegQuality(),
                         serverPreference.iceAddress(),
                         icePort,
@@ -241,11 +309,12 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server port should be retrieved
      * @return the OMERO ICE server port, or an empty optional if not found
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static Optional<Integer> getIcePort(URI webServerUri) {
         return getProperty(
                 webServerUri,
-                serverPreference -> serverPreference.icePort() == 0 ? Optional.empty() : Optional.of(serverPreference.icePort())
+                serverPreference -> Optional.ofNullable(serverPreference.icePort())
         );
     }
 
@@ -255,6 +324,7 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server number of readers should be set
      * @param numberOfReaders the number of readers to use when opening an image with OMERO ICE
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static void setIceNumberOfReaders(URI webServerUri, int numberOfReaders) {
         setProperty(
@@ -264,6 +334,7 @@ public class PreferencesManager {
                 serverPreference -> new ServerPreference(
                         webServerUri,
                         serverPreference.credentials(),
+                        serverPreference.maxBodySizeBytes(),
                         serverPreference.webJpegQuality(),
                         serverPreference.iceAddress(),
                         serverPreference.icePort(),
@@ -278,11 +349,12 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose OMERO ICE server number of readers should be retrieved
      * @return the OMERO ICE number of readers, or an empty optional if not found
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static Optional<Integer> getIceNumberOfReaders(URI webServerUri) {
         return getProperty(
                 webServerUri,
-                serverPreference -> serverPreference.iceNumberOfReaders() == 0 ? Optional.empty() : Optional.of(serverPreference.iceNumberOfReaders())
+                serverPreference -> Optional.ofNullable(serverPreference.iceNumberOfReaders())
         );
     }
 
@@ -292,6 +364,7 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose pixel buffer microservice port should be set
      * @param msPixelBufferPort the pixel buffer microservice port to set
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static void setMsPixelBufferPort(URI webServerUri, int msPixelBufferPort) {
         setProperty(
@@ -301,6 +374,7 @@ public class PreferencesManager {
                 serverPreference -> new ServerPreference(
                         webServerUri,
                         serverPreference.credentials(),
+                        serverPreference.maxBodySizeBytes(),
                         serverPreference.webJpegQuality(),
                         serverPreference.iceAddress(),
                         serverPreference.icePort(),
@@ -315,24 +389,25 @@ public class PreferencesManager {
      *
      * @param webServerUri the URI of the OMERO web server to whose pixel buffer microservice port should be retrieved
      * @return the pixel buffer microservice port, or an empty optional if not found
+     * @throws NullPointerException if the provided URI is null and some preferences already exist
      */
     public static Optional<Integer> getMsPixelBufferPort(URI webServerUri) {
         return getProperty(
                 webServerUri,
-                serverPreference -> serverPreference.msPixelBufferPort() == 0 ? Optional.empty() : Optional.of(serverPreference.msPixelBufferPort())
+                serverPreference -> Optional.ofNullable(serverPreference.msPixelBufferPort())
         );
     }
 
     private static synchronized <T> Optional<T> getProperty(URI webServerUri, Function<ServerPreference, Optional<T>> preferenceGetter) {
         return serverPreferences.stream()
-                .filter(preference -> preference.webServerUri().equals(webServerUri))
+                .filter(preference -> webServerUri.equals(preference.webServerUri()))
                 .findAny()
                 .flatMap(preferenceGetter);
     }
 
     private static synchronized <T> void setProperty(URI webServerUri, String propertyName, T propertyValue, UnaryOperator<ServerPreference> preferenceCreator) {
         List<ServerPreference> existingPreferences = serverPreferences.stream()
-                .filter(preference -> preference.webServerUri().equals(webServerUri))
+                .filter(preference -> webServerUri.equals(preference.webServerUri()))
                 .toList();
 
         if (existingPreferences.isEmpty()) {

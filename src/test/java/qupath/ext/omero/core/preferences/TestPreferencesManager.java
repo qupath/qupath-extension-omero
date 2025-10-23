@@ -35,11 +35,12 @@ public class TestPreferencesManager {
         ServerPreference serverPreference = new ServerPreference(
                 webServerUri,
                 credentials,
-                0,
                 null,
-                0,
-                0,
-                0
+                null,
+                null,
+                null,
+                null,
+                null
         );
         List<ServerPreference> expectedPreferences = List.of(serverPreference);
 
@@ -81,7 +82,7 @@ public class TestPreferencesManager {
         URI uri = URI.create("https://github.com/qupath");
         PreferencesManager.addServer(uri, expectedCredentials);
 
-        Credentials credentials = PreferencesManager.getCredentials(uri).orElse(null);
+        Credentials credentials = PreferencesManager.getCredentials(uri).orElseThrow();
 
         Assertions.assertEquals(expectedCredentials, credentials);
     }
@@ -94,7 +95,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, unexpectedCredentials);
         PreferencesManager.addServer(uri, expectedCredentials);
 
-        Credentials credentials = PreferencesManager.getCredentials(uri).orElse(null);
+        Credentials credentials = PreferencesManager.getCredentials(uri).orElseThrow();
 
         Assertions.assertEquals(expectedCredentials, credentials);
     }
@@ -108,9 +109,72 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(otherUri, unexpectedCredentials);
         PreferencesManager.addServer(uri, expectedCredentials);
 
-        Credentials credentials = PreferencesManager.getCredentials(uri).orElse(null);
+        Credentials credentials = PreferencesManager.getCredentials(uri).orElseThrow();
 
         Assertions.assertEquals(expectedCredentials, credentials);
+    }
+
+    @Test
+    void Check_Default_Max_Body_Size_Empty_When_Not_Set() {
+        URI uri = URI.create("https://github.com/qupath");
+        long expectedMaxBodySizeBytes = 2621440;
+
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
+
+        Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
+    }
+
+    @Test
+    void Check_Max_Body_Size_When_Preference_Not_Set() {
+        URI uri = URI.create("https://github.com/qupath");
+        PreferencesManager.setMaxBodySizeBytes(uri, 456);
+        long expectedMaxBodySizeBytes = 2621440;
+
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
+
+        Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
+    }
+
+    @Test
+    void Check_Max_Body_Size_When_Preference_Set() {
+        long expectedMaxBodySizeBytes = 5467;
+        URI uri = URI.create("https://github.com/qupath");
+        PreferencesManager.addServer(uri, new Credentials());
+        PreferencesManager.setMaxBodySizeBytes(uri, expectedMaxBodySizeBytes);
+
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
+
+        Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
+    }
+
+    @Test
+    void Check_Max_Body_Size_When_Set_Twice() {
+        long unexpectedMaxBodySizeBytes = 456;
+        long expectedMaxBodySizeBytes = 78;
+        URI uri = URI.create("https://github.com/qupath");
+        PreferencesManager.addServer(uri, new Credentials());
+        PreferencesManager.setMaxBodySizeBytes(uri, unexpectedMaxBodySizeBytes);
+        PreferencesManager.setMaxBodySizeBytes(uri, expectedMaxBodySizeBytes);
+
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
+
+        Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
+    }
+
+    @Test
+    void Check_Max_Body_Size_When_Other_URI_Set() {
+        URI otherUri = URI.create("https://qupath.readthedocs.io");
+        long otherMaxBodySizeBytes = 4;
+        PreferencesManager.addServer(otherUri, new Credentials());
+        PreferencesManager.setMaxBodySizeBytes(otherUri, otherMaxBodySizeBytes);
+        long expectedMaxBodySizeBytes = 4798;
+        URI uri = URI.create("https://github.com/qupath");
+        PreferencesManager.addServer(uri, new Credentials());
+        PreferencesManager.setMaxBodySizeBytes(uri, expectedMaxBodySizeBytes);
+
+        long maxBodySizeBytes = PreferencesManager.getMaxBodySizeBytes(uri);
+
+        Assertions.assertEquals(expectedMaxBodySizeBytes, maxBodySizeBytes);
     }
 
     @Test
@@ -139,7 +203,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
 
-        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElse(-1f);
+        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElseThrow();
 
         Assertions.assertEquals(expectedJpegQuality, jpegQuality);
     }
@@ -153,7 +217,7 @@ public class TestPreferencesManager {
         PreferencesManager.setWebJpegQuality(uri, unexpectedJpegQuality);
         PreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
 
-        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElse(-1f);
+        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElseThrow();
 
         Assertions.assertEquals(expectedJpegQuality, jpegQuality);
     }
@@ -169,7 +233,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setWebJpegQuality(uri, expectedJpegQuality);
 
-        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElse(-1f);
+        float jpegQuality = PreferencesManager.getWebJpegQuality(uri).orElseThrow();
 
         Assertions.assertEquals(expectedJpegQuality, jpegQuality);
     }
@@ -200,7 +264,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setIceAddress(uri, expectedAddress);
 
-        String address = PreferencesManager.getIceAddress(uri).orElse("");
+        String address = PreferencesManager.getIceAddress(uri).orElseThrow();
 
         Assertions.assertEquals(expectedAddress, address);
     }
@@ -214,7 +278,7 @@ public class TestPreferencesManager {
         PreferencesManager.setIceAddress(uri, unexpectedAddress);
         PreferencesManager.setIceAddress(uri, expectedAddress);
 
-        String address = PreferencesManager.getIceAddress(uri).orElse("");
+        String address = PreferencesManager.getIceAddress(uri).orElseThrow();
 
         Assertions.assertEquals(expectedAddress, address);
     }
@@ -230,7 +294,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setIceAddress(uri, expectedAddress);
 
-        String address = PreferencesManager.getIceAddress(uri).orElse("");
+        String address = PreferencesManager.getIceAddress(uri).orElseThrow();
 
         Assertions.assertEquals(expectedAddress, address);
     }
@@ -261,7 +325,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setIcePort(uri, expectedPort);
 
-        int port = PreferencesManager.getIcePort(uri).orElse(-1);
+        int port = PreferencesManager.getIcePort(uri).orElseThrow();
 
         Assertions.assertEquals(expectedPort, port);
     }
@@ -275,7 +339,7 @@ public class TestPreferencesManager {
         PreferencesManager.setIcePort(uri, unexpectedPort);
         PreferencesManager.setIcePort(uri, expectedPort);
 
-        int port = PreferencesManager.getIcePort(uri).orElse(-1);
+        int port = PreferencesManager.getIcePort(uri).orElseThrow();
 
         Assertions.assertEquals(expectedPort, port);
     }
@@ -291,7 +355,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setIcePort(uri, expectedPort);
 
-        int port = PreferencesManager.getIcePort(uri).orElse(-1);
+        int port = PreferencesManager.getIcePort(uri).orElseThrow();
 
         Assertions.assertEquals(expectedPort, port);
     }
@@ -322,7 +386,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setIceNumberOfReaders(uri, expectedNumberOfReaders);
 
-        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElse(-1);
+        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElseThrow();
 
         Assertions.assertEquals(expectedNumberOfReaders, numberOfReaders);
     }
@@ -336,7 +400,7 @@ public class TestPreferencesManager {
         PreferencesManager.setIceNumberOfReaders(uri, unexpectedNumberOfReaders);
         PreferencesManager.setIceNumberOfReaders(uri, expectedNumberOfReaders);
 
-        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElse(-1);
+        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElseThrow();
 
         Assertions.assertEquals(expectedNumberOfReaders, numberOfReaders);
     }
@@ -352,7 +416,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setIceNumberOfReaders(uri, expectedNumberOfReaders);
 
-        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElse(-1);
+        int numberOfReaders = PreferencesManager.getIceNumberOfReaders(uri).orElseThrow();
 
         Assertions.assertEquals(expectedNumberOfReaders, numberOfReaders);
     }
@@ -383,7 +447,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setMsPixelBufferPort(uri, expectedPort);
 
-        int port = PreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
+        int port = PreferencesManager.getMsPixelBufferPort(uri).orElseThrow();
 
         Assertions.assertEquals(expectedPort, port);
     }
@@ -397,7 +461,7 @@ public class TestPreferencesManager {
         PreferencesManager.setMsPixelBufferPort(uri, unexpectedPort);
         PreferencesManager.setMsPixelBufferPort(uri, expectedPort);
 
-        int port = PreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
+        int port = PreferencesManager.getMsPixelBufferPort(uri).orElseThrow();
 
         Assertions.assertEquals(expectedPort, port);
     }
@@ -413,7 +477,7 @@ public class TestPreferencesManager {
         PreferencesManager.addServer(uri, new Credentials());
         PreferencesManager.setMsPixelBufferPort(uri, expectedPort);
 
-        int port = PreferencesManager.getMsPixelBufferPort(uri).orElse(-1);
+        int port = PreferencesManager.getMsPixelBufferPort(uri).orElseThrow();
 
         Assertions.assertEquals(expectedPort, port);
     }
