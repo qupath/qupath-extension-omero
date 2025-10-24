@@ -265,10 +265,17 @@ public class WebGatewayApi implements AutoCloseable {
         logger.debug("Reading tile {} of image with ID {} and JPEG quality {}", tileRequest, imageId, quality);
 
         try {
-            return requestSender.getImage(new URI(String.format(TILE_URL,
-                    webServerUri, imageId, tileRequest.getZ(), tileRequest.getT(),
-                    tileRequest.getLevel(), tileRequest.getTileX() / preferredTileWidth, tileRequest.getTileY() / preferredTileHeight,
-                    preferredTileWidth, preferredTileHeight,
+            return requestSender.getImage(new URI(String.format(
+                    TILE_URL,
+                    webServerUri,
+                    imageId,
+                    tileRequest.getZ(),
+                    tileRequest.getT(),
+                    tileRequest.getLevel(),
+                    tileRequest.getTileX() / preferredTileWidth,
+                    tileRequest.getTileY() / preferredTileHeight,
+                    preferredTileWidth,
+                    preferredTileHeight,
                     TILE_CHANNEL_PARAMETER,
                     quality
             )));

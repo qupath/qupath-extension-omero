@@ -219,7 +219,7 @@ public class RequestSender implements AutoCloseable {
                         BufferedImage image = ImageIO.read(targetStream);
 
                         if (image == null) {
-                            throw new IllegalArgumentException("Could not decode image from response");
+                            throw new IllegalArgumentException(String.format("Could not decode image from response to %s", uri));
                         } else {
                             return image;
                         }
