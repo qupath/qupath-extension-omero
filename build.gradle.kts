@@ -7,7 +7,7 @@ plugins {
 qupathExtension {
     name = "qupath-extension-omero"
     group = "io.github.qupath"
-    version = "0.2.0"
+    version = "0.2.1"
     description = "QuPath extension to support image reading using OMERO APIs"
     automaticModule = "io.github.qupath.extension.omero"
 }
