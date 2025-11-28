@@ -18,13 +18,14 @@ dependencies {
     shadow(libs.qupath.fxtras)
     shadow(libs.qupath.ext.bioformats)
     shadow(libs.guava)
-    shadow("org.openmicroscopy:omero-gateway:5.10.0")
+    shadow("org.openmicroscopy:omero-gateway:5.10.3")
 
     testImplementation(libs.bundles.qupath)
     testImplementation(libs.junit)
+    testImplementation(libs.junit.platform)
     testImplementation(libs.qupath.ext.bioformats)
     testImplementation("org.openjfx:javafx-base:${libs.versions.javafx.get()}")
-    testImplementation("org.openmicroscopy:omero-gateway:5.10.0")
+    testImplementation("org.openmicroscopy:omero-gateway:5.10.3")
     testImplementation("org.testcontainers:testcontainers:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
 }
