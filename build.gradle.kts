@@ -40,6 +40,12 @@ repositories {
         name = "unidata.releases<"
         url = uri("https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases")
     }
+
+    // Required to find cisd:jhdf5:19.04.1
+    maven {
+        name = "SciJava Public"
+        url = uri("https://maven.scijava.org/content/repositories/public/")
+    }
 }
 
 publishing {
