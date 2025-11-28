@@ -361,8 +361,8 @@ public class Client implements AutoCloseable {
 
         return new URI(String.format(
                 "%s://%s%s",
-                Objects.requireNonNull(uri.getScheme()),
-                Objects.requireNonNull(uri.getAuthority()),
+                Objects.requireNonNull(uri.getScheme(), String.format("No scheme (e.g. https) detected in %s", uri)),
+                Objects.requireNonNull(uri.getAuthority(), String.format("No authority (server address) detected in %s", uri)),
                 path
         ));
     }
