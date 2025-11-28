@@ -7,7 +7,7 @@ plugins {
 qupathExtension {
     name = "qupath-extension-omero"
     group = "io.github.qupath"
-    version = "0.2.0"
+    version = "0.2.1"
     description = "QuPath extension to support image reading using OMERO APIs"
     automaticModule = "io.github.qupath.extension.omero"
 }
@@ -39,6 +39,12 @@ repositories {
     maven {
         name = "unidata.releases<"
         url = uri("https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases")
+    }
+
+    // Required to find cisd:jhdf5:19.04.1
+    maven {
+        name = "SciJava Public"
+        url = uri("https://maven.scijava.org/content/repositories/public/")
     }
 }
 

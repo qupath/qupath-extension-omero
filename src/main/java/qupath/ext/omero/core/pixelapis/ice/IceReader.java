@@ -1,5 +1,6 @@
 package qupath.ext.omero.core.pixelapis.ice;
 
+import omero.InternalException;
 import omero.ServerError;
 import omero.api.RawPixelsStorePrx;
 import omero.api.ResolutionDescription;
@@ -126,7 +127,20 @@ class IceReader implements PixelApiReader {
                 }
             }
 
-            reader.setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
+            try {
+                reader.setResolutionLevel(numberOfResolutionLevels - 1 - tileRequest.getLevel());
+            } catch (InternalException e) {
+                // See https://github.com/qupath/qupath-extension-omero/issues/110
+                if (e.message.contains("Cannot set resolution levels on a ROMIO pixel buffer")) {
+                    logger.debug(
+                            "Error when setting resolution level to {}. This is expected from legacy images from OMERO 4 (ROMIO)",
+                            numberOfResolutionLevels - 1 - tileRequest.getLevel(),
+                            e
+                    );
+                } else {
+                    throw e;
+                }
+            }
 
             for (int channel = 0; channel < effectiveNChannels; channel++) {
                 bytes[channel] = reader.getTile(
@@ -208,7 +222,7 @@ class IceReader implements PixelApiReader {
      * @return a modified (or not) version of the provided metadata with the VSI fix
      */
     private ImageServerMetadata vsiResolutionSizeFix(ImageServerMetadata originalMetadata) {
-        if (!imageData.getFormat().equals("CellSens")) {
+        if (!"CellSens".equals(imageData.getFormat())) {
             logger.debug("Image format {} different from CellSens. No VSI resolution fix needed", imageData.getFormat());
             return originalMetadata;
         }
