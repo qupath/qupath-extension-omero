@@ -219,7 +219,9 @@ public class UiUtils {
                 while (change.next()) {
                     if (change.wasAdded()) {
                         listToUpdate.addAll(change.getAddedSubList());
-                    } else {
+                    }
+
+                    if (change.wasRemoved()) {
                         listToUpdate.removeAll(change.getRemoved());
                     }
                 }
@@ -231,7 +233,9 @@ public class UiUtils {
                     while (change.next()) {
                         if (change.wasAdded()) {
                             listToUpdate.addAll(change.getAddedSubList());
-                        } else {
+                        }
+
+                        if (change.wasRemoved()) {
                             listToUpdate.removeAll(change.getRemoved());
                         }
                     }
