@@ -72,6 +72,6 @@ public record OmeroPixels(
      * @return the uncompressed size of this image in MiB, or an empty Optional if it couldn't be computed
      */
     public Optional<Double> sizeMebibyte() {
-        return pixelType().map(pixelType -> sizeX * sizeY * sizeZ * sizeC * sizeT * pixelType.getBytesPerPixel() / (1024d * 1024d));
+        return pixelType().map(pixelType -> (long)sizeX * sizeY * sizeZ * sizeC * sizeT * pixelType.getBytesPerPixel() / (1024d * 1024d));
     }
 }
