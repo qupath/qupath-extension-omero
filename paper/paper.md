@@ -9,6 +9,7 @@ authors:
   - name: Léo Leplat
     orcid: 0009-0006-4178-7980
     affiliation: 1
+    corresponding: true
   - name: Peter Bankhead
     orcid: 0000-0003-4851-8813
     affiliation: 1
