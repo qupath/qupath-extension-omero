@@ -9,14 +9,14 @@ authors:
   - name: Léo Leplat
     orcid: 0009-0006-4178-7980
     affiliation: 1
-    corresponding: true
   - name: Peter Bankhead
     orcid: 0000-0003-4851-8813
     affiliation: 1
+    corresponding: true
 affiliations:
-  - name: Centre for Genomic and Experimental Medicine, Institute of Genetics and Cancer, University of Edinburgh, UK
+  - name: Institute of Genetics and Cancer, University of Edinburgh, Edinburgh, EH4 2XU, UK
     index: 1
-    ror: 01nrxwf90
+    ror: 05hygey35
 date: 16 February 2026
 bibliography: paper.bib
 ---
@@ -79,3 +79,10 @@ As of the beginning of February 2026, the extension was downloaded 26,559 times,
 # AI usage disclosure
 
 No generative AI was used in the software creation, documentation, or paper authoring.
+
+# Acknowledgements
+
+This work was supported by the Wellcome Trust [223750/Z/21/Z].
+This project has been made possible in part by grant number 2021-237595 from the Chan Zuckerberg Initiative DAF, an advised fund of Silicon Valley Community Foundation.
+
+We thank Melvin Gelbard and Rémy Dornier for contributions to earlier QuPath OMERO extensions, and the BIOP team (especially Rémy) for extensive testing and feedback on the current work.
