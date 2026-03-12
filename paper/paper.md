@@ -111,7 +111,7 @@ The javadocs are installed along with the extension and are available to support
 The QuPath OMERO extension was initially released on February 2024.
 Since then, the extension has evolved through contributions, bugs reporting, and feature requests, mainly by the [BioImaging and Optics Platform (BIOP) team](https://biop.epfl.ch/).
 
-As of the beginning of February 2026, the extension was downloaded 26,559 times, demonstrating a broad and active user community. 
+As of the beginning of March 2026, the extension was downloaded 29,727 times, demonstrating a broad and active user community. 
 
 # AI usage disclosure
 
