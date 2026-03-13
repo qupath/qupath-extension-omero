@@ -24,7 +24,8 @@ bibliography: paper.bib
 # Summary
 
 QuPath is open-source software for bioimage analysis.
-Used by labs worldwide to visualise and analyse large and complex images, QuPath is a desktop application that is primarily designed to work with images stored on a local file system -- which limits scalability and collaboration.
+Used by labs worldwide to visualise and analyse large and complex images, QuPath is a desktop application that is primarily designed to work with images stored on a local file system.
+This limits scalability and collaboration.
 
 This paper describes a new extension that enables QuPath to access pixels and metadata from an OMERO server.
 This enhances the software by allowing it to work efficiently with images stored remotely, while also serving as a template for developers who want to connect QuPath to other image management systems.
@@ -37,13 +38,13 @@ With over 900,000 downloads (across all releases) and more than 6,000 paper cita
 QuPath is routinely used to analyse whole slide images, which are common in research and the field of digital pathology.
 A 'small' whole slide image might be 120,000 x 60,000 pixels in size, which equates to around 20 GB uncompressed data (assuming 8-bit, 3-channel RGB pixels).
 Some images used with QuPath can be much larger, such as fluorescence multiplexed whole slide images that often contain dozens of 16-bit or 32-bit channels.
-While lossy compression can somewhat reduce file sizes, data management is a major issue for large studies -- particularly given that QuPath is primarily a desktop application, designed to work with a local file system.
+While lossy compression can somewhat reduce file sizes, data management is a major issue for large studies --- particularly given that QuPath is primarily a desktop application, designed to work with a local file system.
 
 OMERO is a popular, open-source image management solution that enables images to be stored on a central server and viewed through a web browser [@Allan2012].
 OMERO also supports whole slide and multiplexed images.
-It is installed in institutions worldwide and is a key technology powering the Image Data Resource (IDR) [@Williams2017] -- a major repository currently hosting over 400 TB published imaging data.
+It is installed in institutions worldwide and is a key technology powering the Image Data Resource (IDR) [@Williams2017] --- a major repository currently hosting over 400 TB published imaging data.
 
-The QuPath OMERO extension bridges the gap between both tools -- making it possible to apply QuPath analysis to images hosted in OMERO.
+The QuPath OMERO extension bridges the gap between both tools, making it possible to apply QuPath analysis to images hosted in OMERO.
 By efficiently accessing only the required pixels and metadata, the extension avoids the need to download and duplicate entire datasets.
 
 # State of the field
@@ -53,7 +54,7 @@ The current work builds upon lessons learned in the development of two previous 
 Initially, within the QuPath development team we created the [QuPath Web OMERO extension](https://github.com/qupath/qupath-extension-omero-web).
 This lightweight extension could be added to QuPath and used to access images through the OMERO web API.
 As a single jar file without external dependencies, this was easy to install and use.
-However, it had the major limitation of being able to request only JPEG-compressed, 8-bit RGB tiles -- not raw pixel data.
+However, it had the major limitation of being able to request only JPEG-compressed, 8-bit RGB tiles --- not raw pixel data.
 This made it unsuitable for quantitative analysis and incapable of supporting most fluorescence images, which can have different bit-depths and channels.
 
 The [BIOP OMERO extension](https://github.com/BIOP/qupath-extension-biop-omero) started as a fork of our original extension.
@@ -70,7 +71,7 @@ Key features include the ability to:
 4. Run custom scripts within QuPath to interact with the OMERO server.
 
 The new extension also includes extensive unit tests.
-It can be easily installed through QuPath's new extension manager -- which we developed in parallel to this extension, and which supports downloading both the extension and any optional dependencies.
+It can be easily installed through QuPath's new extension manager, which we developed in parallel to this extension and which supports downloading both the extension and any optional dependencies.
 
  
 # Software design
