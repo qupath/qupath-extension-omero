@@ -26,7 +26,9 @@ public class TestRequestSender extends OmeroServer {
 
     @AfterAll
     static void removeClient() throws Exception {
-        requestSender.close();
+        if (requestSender != null) {
+            requestSender.close();
+        }
     }
 
     @Test
