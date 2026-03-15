@@ -1,5 +1,5 @@
 ---
-title: 'QuPath OMERO extension: A QuPath extension to exchange data with OMERO servers'
+title: 'Whole slide and microscopy image analysis with QuPath and OMERO'
 tags:
   - QuPath
   - OMERO
@@ -9,6 +9,9 @@ authors:
   - name: Léo Leplat
     orcid: 0009-0006-4178-7980
     affiliation: 1
+  - name: Alan O'Callaghan
+    orcid: 0000-0003-4817-6171
+    affiliation: 1
   - name: Peter Bankhead
     orcid: 0000-0003-4851-8813
     affiliation: 1
@@ -17,7 +20,7 @@ affiliations:
   - name: Institute of Genetics and Cancer, University of Edinburgh, Edinburgh, EH4 2XU, UK
     index: 1
     ror: 05hygey35
-date: 12 March 2026
+date: 16 March 2026
 bibliography: paper.bib
 ---
 
