@@ -44,7 +44,7 @@ Some images used with QuPath can be much larger, such as fluorescence multiplexe
 While lossy compression can somewhat reduce file sizes, data management remains a major issue for large studies.
 
 OMERO is a popular, open-source image management solution that enables images to be stored on a central server and viewed through a web browser [@Allan2012].
-It is installed in institutions worldwide and is a key technology powering the [Image Data Resource (IDR)](https://idr.openmicroscopy.org) [@Williams2017] --- a major repository currently hosting over 400 TB published imaging data.
+It is installed in institutions worldwide and is a key technology powering the [Image Data Resource (IDR)](https://idr.openmicroscopy.org) [@Williams2017] --- a major repository currently hosting over 400 TB of published imaging data.
 OMERO also supports whole slide and multiplexed images, making it a natural fit for many QuPath use cases.
 
 The QuPath OMERO extension bridges the gap between both tools, making it possible to apply QuPath analysis to images hosted in OMERO.
@@ -73,7 +73,7 @@ Key features include the ability to:
 3. Exchange extra information (e.g., annotated regions of interest) between QuPath and OMERO.
 4. Run custom scripts within QuPath to interact with the OMERO server.
 
-The new extension also the first to include unit tests.
+The new extension is also the first to include unit tests.
 It can be easily installed through QuPath's new extension manager, which we developed in parallel to support downloading both the extension and its optional dependencies.
 
  
@@ -127,7 +127,7 @@ If can further serve as a template for developers to create QuPath extensions th
 
 # AI usage disclosure
 
-No generative AI was used in the software creation, documentation, or paper authoring.
+No generative AI was used to write the software, documentation or paper.
 
 # Acknowledgements
 
