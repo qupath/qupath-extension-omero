@@ -9,7 +9,6 @@ import qupath.ext.omero.core.pixelapis.PixelApiReader;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
 
 /**
  * Read pixel values using the <a href="https://docs.openmicroscopy.org/omero/latest/developers/json-api.html">OMERO JSON API</a>.
@@ -59,11 +58,11 @@ class WebReader implements PixelApiReader {
                     preferredTileHeight,
                     jpegQuality
             ).get();
-        } catch (InterruptedException | ExecutionException e) {
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-
+        } catch (InterruptedException e) {
+            logger.debug("Reading tile {} from web API interrupted. Interrupting current thread", tileRequest, e);
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (Exception e) {
             throw new IOException(e);
         }
     }

@@ -16,6 +16,9 @@ public interface PixelApiReader extends AutoCloseable {
 
     /**
      * Read a tile of an image.
+     * <p>
+     * This function may return null if the calling thread is interrupted. If any other error occurs, an {@link IOException}
+     * is thrown.
      *
      * @param tileRequest the tile parameters
      * @return the resulting image
