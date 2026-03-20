@@ -449,7 +449,7 @@ class Browser extends Stage implements AutoCloseable {
         // doesn't contain any data, but another user called "Public data" does
         if (client.getApisHandler().getWebServerUri().toString().contains("idr.openmicroscopy.org")) {
             owner.getSelectionModel().select(server.getDefaultGroup().getExperimenters().stream()
-                    .filter(e -> !e.equals(server.getConnectedExperimenter()))
+                    .filter(e -> e.getFullName().equals("Public data"))
                     .findAny()
                     .orElse(server.getConnectedExperimenter())
             );
