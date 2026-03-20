@@ -451,7 +451,7 @@ class Browser extends Stage implements AutoCloseable {
             owner.getSelectionModel().select(server.getDefaultGroup().getExperimenters().stream()
                     .filter(e -> !e.equals(server.getConnectedExperimenter()))
                     .findAny()
-                    .orElse(owner.getValue())
+                    .orElse(server.getConnectedExperimenter())
             );
         }
 
