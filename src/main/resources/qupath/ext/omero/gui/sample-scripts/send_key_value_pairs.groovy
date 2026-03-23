@@ -2,16 +2,19 @@ import qupath.ext.omero.core.apis.webclient.Namespace
 import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /*
- * This script sends all key value pairs of a QuPath image to the
- * corresponding image on an OMERO server with the defined namespace.
+ * This script sends all key value pairs of a QuPath image to the corresponding image on an OMERO server with the defined namespace.
  *
- * A QuPath project and an OMERO image must be currently opened in QuPath through
- * the QuPath GUI or through the command line (see the open_image_from_command_line.groovy script).
+ * A QuPath project and an OMERO image must be currently opened in QuPath through the QuPath GUI or through the command
+ * line (see the open_image_from_command_line.groovy script).
  */
 
 // Parameters
-var replaceExistingKeyValuesPairs = true
-var namespace = Namespace.getDefaultNamespace()      // could be a custom namespace with: new Namespace("custom namespace")
+var replaceExistingKeyValuesPairs = true                // whether to replace values when keys already exist on
+                                                                 // the OMERO server
+var namespace = Namespace.getDefaultNamespace()      // key-value pairs are grouped by "namespace" on the OMERO
+                                                                 // server. This parameter defines the namespace the sent
+                                                                 // key-value pairs should have.
+                                                                 // Can be a custom namespace with: new Namespace("custom namespace")
 
 // Get project
 var project = getProject()
@@ -26,15 +29,16 @@ if (imageData == null) {
     println "An image needs to be opened in QuPath before running this script"
     return
 }
+var projectEntry = project.getEntry(imageData)
 
 // Get key value pairs of the QuPath image
-var keyValues = project.getEntry(imageData).getMetadataMap()
+var keyValues = projectEntry.getMetadataMap()
 
 // Get image server
 var server = imageData.getServer()
 var omeroServer = (OmeroImageServer) server
 
-// Attempt to send key value pairs to OMERO
+// Send key value pairs to OMERO
 omeroServer.getClient().getApisHandler().sendKeyValuePairs(
         omeroServer.getId(),
         namespace,

@@ -159,6 +159,25 @@ public class TestServer extends OmeroServer {
 
             TestUtils.assertCollectionsEqualsWithoutOrder(expectedExperimenters, experimenters);
         }
+
+        @Test
+        void Check_Experimenter_ID_When_Exists() {
+            Experimenter experimenter = OmeroServer.getExperimenters(userType).getFirst();
+            List<String> fullNames = List.of(experimenter.getFullName());
+            List<Long> expectedIds = List.of(experimenter.getId());
+
+            List<Long> ids = server.getIdsOfExperimenters(fullNames);
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedIds, ids);
+        }
+
+        @Test
+        void Check_Experimenter_ID_When_Does_Not_Exist() {
+            Experimenter experimenter = OmeroServer.getExperimenters(userType).getFirst();
+            List<String> fullNames = List.of(experimenter.getFullName(), "Some unknown name");
+
+            Assertions.assertThrows(IllegalArgumentException.class, () -> server.getIdsOfExperimenters(fullNames));
+        }
     }
 
     @Nested
