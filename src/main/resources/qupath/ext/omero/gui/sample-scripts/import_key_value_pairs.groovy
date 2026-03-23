@@ -4,16 +4,17 @@ import qupath.ext.omero.core.apis.webclient.annotations.MapAnnotation
 import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /*
- * This script imports all key value pairs of an image stored on an OMERO server
- * and add them to the image in QuPath.
+ * This script imports all key value pairs of an image stored on an OMERO server and add them to the image in QuPath.
  *
- * A QuPath project and an OMERO image must be currently opened in QuPath through
- * the QuPath GUI or through the command line (see the open_image_from_command_line.groovy script).
+ * A QuPath project and an OMERO image must be currently opened in QuPath through the QuPath GUI or through the command
+ * line (see the open_image_from_command_line.groovy script).
  */
 
 // Parameters
-var deleteExistingKeyValuePairs = false
-var replaceExistingKeyValuesPairs = true
+var deleteExistingKeyValuePairs = false     // whether to delete all existing key value pairs of the QuPath image
+                                                     // before importing the key value pairs from OMERO
+var replaceExistingKeyValuesPairs = true    // if some keys already exist on the QuPath image, whether to replace
+                                                     // their values with the OMERO ones
 
 // Get project
 var project = getProject()
@@ -34,10 +35,10 @@ var projectEntry = project.getEntry(imageData)
 var server = imageData.getServer()
 var omeroServer = (OmeroImageServer) server
 
-// Get all annotations from OMERO
+// Get all OMERO annotations (i.e. some metadata) from OMERO of the current image
 var annotations = omeroServer.getClient().getApisHandler().getAnnotations(new SimpleServerEntity(EntityType.IMAGE, omeroServer.getId())).get()
 
-// Filter the retrieved list of annotations by only keeping the map annotations
+// Filter the retrieved list of annotations by only keeping the map annotations, i.e. the ones containing key value pairs
 var mapAnnotations = annotations.findAll {
     it instanceof MapAnnotation
 }

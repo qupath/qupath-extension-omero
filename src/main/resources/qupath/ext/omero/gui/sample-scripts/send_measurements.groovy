@@ -6,20 +6,22 @@ import qupath.lib.objects.PathAnnotationObject
 import qupath.lib.objects.PathDetectionObject
 
 /*
- * This script send the annotation and detections measurements of the current image to the OMERO server as attachments.
- * Existing attachments of specific users can be deleted.
+ * This script sends the annotation and detections measurements of the current image to the OMERO server as attachments.
+ * Existing measurements of specific users can be deleted.
  *
- * A QuPath project and an OMERO image must be currently opened in QuPath through the QuPath GUI or
- * through the command line (see the open_image_from_command_line.groovy script).
+ * A QuPath project and an OMERO image must be currently opened in QuPath through the QuPath GUI or through the command
+ * line (see the open_image_from_command_line.groovy script).
  */
 
 // Parameters
-var deleteExistingAttachments = true
-var idsOfUsersWhoseAttachmentsShouldBeDeleted = [1]     // the OMERO ID of the user whose attachments should be deleted
-var sendAnnotationMeasurements = true
-var sendDetectionMeasurements = true
+var deleteExistingMeasurements = false         // whether to delete existing measurements on the OMERO server
+var measurementOwners = []                              // A list of full names of OMERO users whose measurements should be deleted
+                                                        // (e.g. ["John Smith", "Jane Smith"]).
+                                                        // If deleteExistingMeasurements is false, this parameter is not considered
+var sendAnnotationMeasurements = true          // whether to send annotation measurements to OMERO
+var sendDetectionMeasurements = true           // whether to send detection measurements to OMERO
 
-// Open server
+// Get image data
 var imageData = getCurrentImageData()
 if (imageData == null) {
     println "An image needs to be opened in QuPath before running this script"
@@ -38,23 +40,31 @@ var projectEntry = project.getEntry(imageData)
 var server = imageData.getServer()
 var omeroServer = (OmeroImageServer) server
 
-// Delete existing attachment
-if (deleteExistingAttachments) {
-    omeroServer.getClient().getApisHandler().deleteAttachments(
-            new SimpleServerEntity(EntityType.IMAGE, omeroServer.getId()),
-            idsOfUsersWhoseAttachmentsShouldBeDeleted
-    ).get()
+// Delete existing measurements if necessary
+if (deleteExistingMeasurements) {
+    // Get IDs of provided owners
+    var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenters(measurementOwners)
 
-    println "Existing attachments deleted"
+    if (userIds.isEmpty()) {
+        println "Warning: no owner was provided, so no measurement will be deleted"
+    } else {
+        // Delete measurements on OMERO server
+        omeroServer.getClient().getApisHandler().deleteAttachments(
+                new SimpleServerEntity(EntityType.IMAGE, omeroServer.getId()),
+                userIds
+        ).get()
+
+        println "Existing measurements deleted on the OMERO server"
+    }
 }
 
-// Send annotation measurements
+// Send annotation measurements if necessary
 if (sendAnnotationMeasurements) {
     try (OutputStream outputStream = new ByteArrayOutputStream()) {
         // The image must be saved first because non saved measures won't be exported
         projectEntry.saveImageData(imageData)
 
-        // Get annotation measurements
+        // Get annotation measurements as a text
         new MeasurementExporter()
                 .exportType(PathAnnotationObject.class)
                 .imageList(List.of(projectEntry))
@@ -70,18 +80,16 @@ if (sendAnnotationMeasurements) {
         ).get()
 
         println "Annotation measurements sent"
-    } catch (IOException e) {
-        println "Error when reading annotation measurements: " + e
     }
 }
 
-// Send detection measurements
+// Send detection measurements if necessary
 if (sendDetectionMeasurements) {
     try (OutputStream outputStream = new ByteArrayOutputStream()) {
         // The image must be saved first because non saved measures won't be exported
         projectEntry.saveImageData(imageData)
 
-        // Get detection measurements
+        // Get detection measurements as a text
         new MeasurementExporter()
                 .exportType(PathDetectionObject.class)
                 .imageList(List.of(projectEntry))
@@ -97,7 +105,5 @@ if (sendDetectionMeasurements) {
         ).get()
 
         println "Detection measurements sent"
-    } catch (IOException e) {
-        println "Error when reading detection measurements: " + e
     }
 }

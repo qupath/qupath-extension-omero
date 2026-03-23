@@ -37,12 +37,14 @@ For example, to authenticate with the public user and use the web pixel API with
 --server "[--usertype, PUBLIC_USER, --pixelAPI, Web, --jpegQuality, 1.0]"
  */
 
-// Open server
+// Get image data
 var imageData = getCurrentImageData()
 if (imageData == null) {
     println "Image not found"
     return
 }
+
+// Get OMERO server
 var server = imageData.getServer()
 var omeroServer = (OmeroImageServer) server
 

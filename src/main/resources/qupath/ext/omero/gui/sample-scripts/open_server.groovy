@@ -4,11 +4,11 @@ import qupath.ext.omero.core.apis.webclient.SimpleServerEntity
 import qupath.lib.images.servers.ImageServers
 
 /*
- * This script browses an OMERO server and prints its projects, datasets, and images.
- * An image is also opened and its metadata is printed.
+ * This script browses an OMERO server and prints its projects, datasets, and images. An image is also opened and its
+ * metadata is printed.
  */
 
-// Create a connection to an OMERO server
+// Create a connection to the IDR OMERO server
 var serverURL = "https://idr.openmicroscopy.org/"
 var credentials = new Credentials()                                                     // to skip authentication and use the public account
 //var credentials = new Credentials("some_username", "some_password".toCharArray())     // to authenticate with a regular account

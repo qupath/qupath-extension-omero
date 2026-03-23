@@ -191,4 +191,27 @@ public class Server implements RepositoryEntity {
     public List<Experimenter> getExperimenters() {
         return experimenters;
     }
+
+    /**
+     * Get the IDs corresponding to the provided experimenter full names.
+     *
+     * @param fullNames a list of String corresponding to the {@link Experimenter#getFullName() full name} of some
+     *                  {@link #getExperimenters() experimenters}
+     * @return the IDs corresponding to the provided experimenter full names
+     * @throws IllegalArgumentException if a provided full name was not found in the internal list of experimenters
+     */
+    public List<Long> getIdsOfExperimenters(List<String> fullNames) {
+        return fullNames.stream()
+                .map(fullName -> experimenters.stream()
+                                .filter(experimenter -> experimenter.getFullName().equalsIgnoreCase(fullName))
+                                .findAny()
+                                .map(Experimenter::getId)
+                                .orElseThrow(() -> new IllegalArgumentException(String.format(
+                                        "Experimenter %s not found in list of current experimenters %s",
+                                        fullName,
+                                        experimenters
+                                )))
+                )
+                .toList();
+    }
 }
