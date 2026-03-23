@@ -9,12 +9,12 @@ import qupath.ext.omero.core.imageserver.OmeroImageServer
  */
 
 // Parameters
-var replaceExistingKeyValuesPairs = true                // whether to replace values when keys already exist on
-                                                                 // the OMERO server
-var namespace = Namespace.getDefaultNamespace()      // key-value pairs are grouped by "namespace" on the OMERO
-                                                                 // server. This parameter defines the namespace the sent
-                                                                 // key-value pairs should have.
-                                                                 // Can be a custom namespace with: new Namespace("custom namespace")
+var replaceExistingKeyValuesPairs = true            // whether to replace values when keys already exist on
+                                                    // the OMERO server
+var namespace = Namespace.getDefaultNamespace()     // key-value pairs are grouped by "namespace" on the OMERO
+                                                    // server. This parameter defines the namespace the sent
+                                                    // key-value pairs should have.
+                                                    // Can be a custom namespace with: new Namespace("custom namespace")
 
 // Get project
 var project = getProject()

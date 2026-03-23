@@ -12,9 +12,9 @@ import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 // Parameters
 var deleteExistingKeyValuePairs = false     // whether to delete all existing key value pairs of the QuPath image
-                                                     // before importing the key value pairs from OMERO
+                                            // before importing the key value pairs from OMERO
 var replaceExistingKeyValuesPairs = true    // if some keys already exist on the QuPath image, whether to replace
-                                                     // their values with the OMERO ones
+                                            // their values with the OMERO ones
 
 // Get project
 var project = getProject()

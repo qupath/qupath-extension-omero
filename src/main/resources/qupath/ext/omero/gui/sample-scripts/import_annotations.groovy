@@ -9,9 +9,9 @@ import qupath.ext.omero.core.imageserver.OmeroImageServer
  */
 
 // Parameters
-var annotationOwner = ""     // the full name (first middle last name, e.g. "John Smith") of the OMERO user that
-                                    // should own the annotations to retrieve. Can be empty to retrieve annotations of all
-                                    // users
+var annotationOwner = ""                 // the full name (first middle last name, e.g. "John Smith") of the OMERO user that
+                                         // should own the annotations to retrieve. Can be empty to retrieve annotations of all
+                                         // users
 var deleteExistingAnnotations = false    // whether to delete existing QuPath annotations before importing the OMERO annotations
 var deleteExistingDetections = false     // whether to delete existing QuPath detections before importing the OMERO annotations
 

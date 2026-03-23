@@ -14,12 +14,12 @@ import qupath.lib.objects.PathDetectionObject
  */
 
 // Parameters
-var deleteExistingMeasurements = false         // whether to delete existing measurements on the OMERO server
-var measurementOwners = []                              // A list of full names of OMERO users whose measurements should be deleted
-                                                        // (e.g. ["John Smith", "Jane Smith"]).
-                                                        // If deleteExistingMeasurements is false, this parameter is not considered
-var sendAnnotationMeasurements = true          // whether to send annotation measurements to OMERO
-var sendDetectionMeasurements = true           // whether to send detection measurements to OMERO
+var deleteExistingMeasurements = false      // whether to delete existing measurements on the OMERO server
+var measurementOwners = []                  // A list of full names of OMERO users whose measurements should be deleted
+                                            // (e.g. ["John Smith", "Jane Smith"]).
+                                            // If deleteExistingMeasurements is false, this parameter is not considered
+var sendAnnotationMeasurements = true       // whether to send annotation measurements to OMERO
+var sendDetectionMeasurements = true        // whether to send detection measurements to OMERO
 
 // Get image data
 var imageData = getCurrentImageData()

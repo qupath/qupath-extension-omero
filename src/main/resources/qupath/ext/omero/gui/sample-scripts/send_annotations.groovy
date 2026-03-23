@@ -10,12 +10,12 @@ import qupath.ext.omero.core.imageserver.OmeroImageServer
  */
 
 // Parameters
-var deleteExistingAnnotations = false      // whether to delete existing annotations on the OMERO server before
-                                                    // sending the new ones
-var annotationOwners = []                           // A list of full names of OMERO users whose annotations should be deleted
-                                                    // (e.g. ["John Smith", "Jane Smith"]).
-                                                    // If deleteExistingAnnotations is false, this parameter is not considered
-var fillAnnotationColors = true            // whether the created annotations on OMERO should have a fill color
+var deleteExistingAnnotations = false       // whether to delete existing annotations on the OMERO server before
+                                            // sending the new ones
+var annotationOwners = []                   // A list of full names of OMERO users whose annotations should be deleted
+                                            // (e.g. ["John Smith", "Jane Smith"]).
+                                            // If deleteExistingAnnotations is false, this parameter is not considered
+var fillAnnotationColors = true             // whether the created annotations on OMERO should have a fill color
 
 // Get image data
 var imageData = getCurrentImageData()
