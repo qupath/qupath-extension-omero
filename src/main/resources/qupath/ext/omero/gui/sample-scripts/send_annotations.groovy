@@ -31,7 +31,9 @@ var omeroServer = (OmeroImageServer) server
 // Delete existing annotations if necessary
 if (deleteExistingAnnotations) {
     // Get IDs of provided owners
-    var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenters(annotationOwners)
+    var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenterFromFullNames(annotationOwners)
+    // Alternatively, if annotationOwners contains usernames instead of full names, you can use:
+    // var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimentersFromUsernames(annotationOwners)
 
     if (userIds.isEmpty()) {
         println "Warning: no owner was provided, so no annotation will be deleted"

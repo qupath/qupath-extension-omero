@@ -43,7 +43,9 @@ var omeroServer = (OmeroImageServer) server
 // Delete existing measurements if necessary
 if (deleteExistingMeasurements) {
     // Get IDs of provided owners
-    var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenters(measurementOwners)
+    var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenterFromFullNames(measurementOwners)
+    // Alternatively, if measurementOwners contains usernames or full names, you can use:
+    // var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimentersFromUsernames(measurementOwners)
 
     if (userIds.isEmpty()) {
         println "Warning: no owner was provided, so no measurement will be deleted"

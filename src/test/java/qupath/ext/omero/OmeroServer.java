@@ -1858,6 +1858,7 @@ public abstract class OmeroServer {
                 0L,
                 "root",
                 null,
+                "root",
                 "root"
         );
     }
@@ -1868,7 +1869,8 @@ public abstract class OmeroServer {
                 1L,
                 "Guest",
                 null,
-                "Account"
+                "Account",
+                "guest"
         );
     }
 
@@ -1878,6 +1880,7 @@ public abstract class OmeroServer {
                 2L,
                 "admin",
                 null,
+                "admin",
                 "admin"
         );
     }
@@ -1888,7 +1891,8 @@ public abstract class OmeroServer {
                 3L,
                 "public",
                 null,
-                "access"
+                "access",
+                "public"
         );
     }
 
@@ -1898,6 +1902,7 @@ public abstract class OmeroServer {
                 4L,
                 "user1",
                 null,
+                "user1",
                 "user1"
         );
     }
@@ -1908,6 +1913,7 @@ public abstract class OmeroServer {
                 5L,
                 "user2",
                 null,
+                "user2",
                 "user2"
         );
     }
@@ -1918,6 +1924,7 @@ public abstract class OmeroServer {
                 6L,
                 "user3",
                 null,
+                "user3",
                 "user3"
         );
     }
@@ -1928,6 +1935,7 @@ public abstract class OmeroServer {
                 7L,
                 "user",
                 null,
+                "user",
                 "user"
         );
     }

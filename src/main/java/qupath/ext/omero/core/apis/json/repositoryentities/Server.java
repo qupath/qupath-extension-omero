@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 /**
  * A server is the top element in the OMERO entity hierarchy.
@@ -200,18 +201,47 @@ public class Server implements RepositoryEntity {
      * @return the IDs corresponding to the provided experimenter full names
      * @throws IllegalArgumentException if a provided full name was not found in the internal list of experimenters
      */
-    public List<Long> getIdsOfExperimenters(List<String> fullNames) {
-        return fullNames.stream()
-                .map(fullName -> experimenters.stream()
-                                .filter(experimenter -> experimenter.getFullName().equalsIgnoreCase(fullName))
-                                .findAny()
-                                .map(Experimenter::getId)
-                                .orElseThrow(() -> new IllegalArgumentException(String.format(
-                                        "Experimenter %s not found in list of current experimenters %s",
-                                        fullName,
-                                        experimenters
-                                )))
-                )
+    public List<Long> getIdsOfExperimenterFromFullNames(List<String> fullNames) {
+        return getIdsOfExperimenters(fullNames, experimenter -> Optional.of(experimenter.getFullName()));
+    }
+
+    /**
+     * Get the IDs corresponding to the provided experimenter usernames.
+     *
+     * @param usernames a list of String corresponding to the {@link Experimenter#getUsername() username} of some
+     *                  {@link #getExperimenters() experimenters}
+     * @return the IDs corresponding to the provided experimenter usernames
+     * @throws IllegalArgumentException if a provided username was not found in the internal list of experimenters
+     */
+    public List<Long> getIdsOfExperimentersFromUsernames(List<String> usernames) {
+        return getIdsOfExperimenters(usernames, Experimenter::getUsername);
+    }
+
+    private List<Long> getIdsOfExperimenters(List<String> experimenterNames, Function<Experimenter, Optional<String>> nameGetter) {
+        return experimenterNames.stream()
+                .map(name -> {
+                    List<Experimenter> filteredExperimenters = experimenters.stream()
+                            .filter(experimenter -> nameGetter.apply(experimenter).map(n -> n.equalsIgnoreCase(name)).orElse(false))
+                            .toList();
+
+                    if (filteredExperimenters.isEmpty()) {
+                        throw new IllegalArgumentException(String.format(
+                                "Experimenter %s not found in list of current experimenters %s",
+                                name,
+                                experimenters
+                        ));
+                    } else {
+                        if (filteredExperimenters.size() > 1) {
+                            logger.warn(
+                                    "Multiple experimenters found for {}: {}. Choosing {}",
+                                    name,
+                                    filteredExperimenters,
+                                    filteredExperimenters.getFirst()
+                            );
+                        }
+                        return filteredExperimenters.getFirst().getId();
+                    }
+                })
                 .toList();
     }
 }
