@@ -49,7 +49,9 @@ if (annotationOwner.isEmpty()) {
     // If the full name of an annotation owner is provided, get the annotations of this user
 
     // Get ID of annotation owner
-    var userId = omeroServer.getClient().getServer().get().getIdsOfExperimenters(List.of(annotationOwner))[0]
+    var userId = omeroServer.getClient().getServer().get().getIdsOfExperimenterFromFullNames(List.of(annotationOwner))[0]
+    // Alternatively, if annotationOwner contains usernames instead of full names, you can use:
+    // var userId = omeroServer.getClient().getServer().get().getIdsOfExperimentersFromUsernames(List.of(annotationOwner))[0]
 
     // Get OMERO shapes and then convert them to QuPath annotations
     var shapes = omeroServer.getClient().getApisHandler().getShapes(omeroServer.getId(), userId).get()
