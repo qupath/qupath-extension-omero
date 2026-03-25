@@ -130,7 +130,8 @@ public class TestPolygon {
                                         73L,
                                         "first",
                                         "middle",
-                                        "last"
+                                        "last",
+                                        "user"
                                 ),
                                 null,
                                 new OmeroPermissions(false, true, true)

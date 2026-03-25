@@ -4,6 +4,7 @@ import qupath.ext.omero.Utils;
 import qupath.ext.omero.core.apis.json.jsonentities.experimenters.OmeroExperimenter;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.ResourceBundle;
 
 /**
@@ -14,10 +15,12 @@ public class Experimenter {
     private static final ResourceBundle resources = Utils.getResources();
     private static final Experimenter ALL_EXPERIMENTERS = new Experimenter(
             -1,
-            resources.getString("Entities.Permissions.Experimenter.allExperimenters")
+            resources.getString("Entities.Permissions.Experimenter.allExperimenters"),
+            null
     );
     private final long id;
     private final String fullName;
+    private final String username;
 
     /**
      * Create an experimenter from a {@link OmeroExperimenter}.
@@ -26,12 +29,13 @@ public class Experimenter {
      * @throws NullPointerException if the provided OMERO experimenter is null
      */
     public Experimenter(OmeroExperimenter omeroExperimenter) {
-        this(omeroExperimenter.id(), omeroExperimenter.fullName());
+        this(omeroExperimenter.id(), omeroExperimenter.fullName(), omeroExperimenter.username());
     }
 
-    private Experimenter(long id, String fullName) {
+    private Experimenter(long id, String fullName, String username) {
         this.id = id;
         this.fullName = fullName;
+        this.username = username;
     }
 
     /**
@@ -72,5 +76,12 @@ public class Experimenter {
      */
     public String getFullName() {
         return fullName;
+    }
+
+    /**
+     * @return the username of the experimenter, or an empty Optional if not found
+     */
+    public Optional<String> getUsername() {
+        return Optional.ofNullable(username);
     }
 }

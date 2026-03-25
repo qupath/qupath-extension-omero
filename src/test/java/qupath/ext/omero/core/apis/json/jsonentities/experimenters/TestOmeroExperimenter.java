@@ -15,6 +15,7 @@ public class TestOmeroExperimenter {
                         null,
                         "",
                         "",
+                        "",
                         ""
                 )
         );
@@ -28,7 +29,8 @@ public class TestOmeroExperimenter {
                 54L,
                 "first",
                 "middle",
-                "last"
+                "last",
+                "user"
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -44,7 +46,8 @@ public class TestOmeroExperimenter {
                 54L,
                 null,
                 "middle",
-                "last"
+                "last",
+                "user"
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -60,7 +63,8 @@ public class TestOmeroExperimenter {
                 54L,
                 "first",
                 null,
-                "last"
+                "last",
+                "user"
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -76,7 +80,8 @@ public class TestOmeroExperimenter {
                 54L,
                 "first",
                 null,
-                null
+                null,
+                "user"
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -92,7 +97,8 @@ public class TestOmeroExperimenter {
                 54L,
                 null,
                 null,
-                null
+                null,
+                "user"
         );
 
         String fullName = omeroExperimenter.fullName();
@@ -107,7 +113,8 @@ public class TestOmeroExperimenter {
                 54L,
                 "first",
                 "middle",
-                "last"
+                "last",
+                "user"
         );
 
         OmeroExperimenter omeroExperimenter = new Gson().fromJson(
@@ -117,7 +124,8 @@ public class TestOmeroExperimenter {
                     "@id": 54,
                     "FirstName": "first",
                     "MiddleName": "middle",
-                    "LastName": "last"
+                    "LastName": "last",
+                    "UserName": "user"
                 }
                 """,
                 OmeroExperimenter.class
