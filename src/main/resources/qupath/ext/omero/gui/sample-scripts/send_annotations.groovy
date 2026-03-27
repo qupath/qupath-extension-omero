@@ -14,6 +14,7 @@ var deleteExistingAnnotations = false       // whether to delete existing annota
                                             // sending the new ones
 var annotationOwners = []                   // A list of full names of OMERO users whose annotations should be deleted
                                             // (e.g. ["John Smith", "Jane Smith"]).
+                                            // If the name "All members" is provided, all annotations are deleted
                                             // If deleteExistingAnnotations is false, this parameter is not considered
 var fillAnnotationColors = true             // whether the created annotations on OMERO should have a fill color
 
@@ -31,9 +32,16 @@ var omeroServer = (OmeroImageServer) server
 // Delete existing annotations if necessary
 if (deleteExistingAnnotations) {
     // Get IDs of provided owners
-    var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenterFromFullNames(annotationOwners)
-    // Alternatively, if annotationOwners contains usernames instead of full names, you can use:
-    // var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimentersFromUsernames(annotationOwners)
+    var userIds
+    if (annotationOwners.contains("All members")) {
+        // If "All members" is provided, delete annotations of all users
+        userIds = [-1L]
+    } else {
+        // Else, delete annotations of provided users
+        userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenterFromFullNames(annotationOwners)
+        // Alternatively, if annotationOwners contains usernames instead of full names, you can use:
+        // var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimentersFromUsernames(annotationOwners)
+    }
 
     if (userIds.isEmpty()) {
         println "Warning: no owner was provided, so no annotation will be deleted"

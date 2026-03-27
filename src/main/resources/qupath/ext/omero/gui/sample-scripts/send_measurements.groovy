@@ -17,6 +17,7 @@ import qupath.lib.objects.PathDetectionObject
 var deleteExistingMeasurements = false      // whether to delete existing measurements on the OMERO server
 var measurementOwners = []                  // A list of full names of OMERO users whose measurements should be deleted
                                             // (e.g. ["John Smith", "Jane Smith"]).
+                                            // If the name "All members" is provided, all measurements are deleted
                                             // If deleteExistingMeasurements is false, this parameter is not considered
 var sendAnnotationMeasurements = true       // whether to send annotation measurements to OMERO
 var sendDetectionMeasurements = true        // whether to send detection measurements to OMERO
@@ -43,9 +44,17 @@ var omeroServer = (OmeroImageServer) server
 // Delete existing measurements if necessary
 if (deleteExistingMeasurements) {
     // Get IDs of provided owners
-    var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenterFromFullNames(measurementOwners)
-    // Alternatively, if measurementOwners contains usernames or full names, you can use:
-    // var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimentersFromUsernames(measurementOwners)
+    var userIds
+    if (measurementOwners.contains("All members")) {
+        // If "All members" is provided, delete measurements of all users
+        userIds = [-1L]
+    } else {
+        // Else, delete measurements of provided users
+        userIds = omeroServer.getClient().getServer().get().getIdsOfExperimenterFromFullNames(measurementOwners)
+        // Alternatively, if measurementOwners contains usernames or full names, you can use:
+        // var userIds = omeroServer.getClient().getServer().get().getIdsOfExperimentersFromUsernames(measurementOwners)
+    }
+
 
     if (userIds.isEmpty()) {
         println "Warning: no owner was provided, so no measurement will be deleted"
