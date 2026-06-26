@@ -18,13 +18,15 @@ import java.util.stream.Stream;
  * @param firstName the first name of the experimenter. Optional
  * @param middleName the middle name of the experimenter. Optional
  * @param lastName the last name of the experimenter. Optional
+ * @param username the username of the experimenter. Optional
  */
 public record OmeroExperimenter(
         @SerializedName(value = "@type") String type,
         @SerializedName(value = "@id") Long id,
         @SerializedName(value = "FirstName") String firstName,
         @SerializedName(value = "MiddleName") String middleName,
-        @SerializedName(value = "LastName") String lastName
+        @SerializedName(value = "LastName") String lastName,
+        @SerializedName(value = "UserName") String username
 ) {
     public static final String TYPE = "http://www.openmicroscopy.org/Schemas/OME/2016-06#Experimenter";
     private static final Logger logger = LoggerFactory.getLogger(OmeroExperimenter.class);

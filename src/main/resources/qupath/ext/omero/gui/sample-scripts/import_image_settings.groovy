@@ -1,21 +1,21 @@
 import qupath.ext.omero.core.imageserver.OmeroImageServer
 
 /*
- * This script imports the image settings (image name, channel names, channel colors, channel display ranges)
- * of an image stored on an OMERO server and add them to the image in QuPath.
+ * This script imports the image settings (image name, channel names, channel colors, channel display ranges) of an image
+ * stored on an OMERO server and add them to the image in QuPath.
  *
- * An OMERO image must be currently opened in QuPath through the QuPath GUI or through
- * the command line (see the open_image_from_command_line.groovy script).
+ * An OMERO image must be currently opened in QuPath through the QuPath GUI or through the command line (see the
+ * open_image_from_command_line.groovy script).
  *
  * If the image name is imported, a QuPath project must be opened.
  * If one of the channel settings is imported, the image must not have the RGB format.
  */
 
 // Parameters
-var importImageName = true
-var importChannelNames = true
-var importChannelColors = true
-var importChannelDisplayRanges = true
+var importImageName = true              // whether to import the image name
+var importChannelNames = true           // whether to import the channel names
+var importChannelColors = true          // whether to import the channel colors
+var importChannelDisplayRanges = true   // whether to import the channel display ranges
 
 // Check that a project is opened (if needed)
 if (importImageName && getProject() == null) {
@@ -49,7 +49,7 @@ var channelSettings = imageSettings.getChannelSettings()
 
 if (importImageName) {
     getProject().getEntry(imageData).setImageName(imageName)
-    println "Image name imported"
+    println "Image name " + imageName + " imported"
 }
 
 if (importChannelNames) {
@@ -59,7 +59,7 @@ if (importChannelNames) {
     } as String[]
 
     setChannelNames(channelNames)
-    println "Channel names imported"
+    println "Channel names " + channelNames + " imported"
 }
 
 if (importChannelColors) {

@@ -24,6 +24,7 @@ public class TestExperimenter {
                 expectedId,
                 null,
                 null,
+                null,
                 null
         ));
 
@@ -40,11 +41,29 @@ public class TestExperimenter {
                 54L,
                 "first",
                 "middle",
-                "last"
+                "last",
+                "user"
         ));
 
         String fullName = experimenter.getFullName();
 
         Assertions.assertEquals(expectedFullName, fullName);
+    }
+
+    @Test
+    void Check_Username() {
+        String expectedUsername = "user";
+        Experimenter experimenter = new Experimenter(new OmeroExperimenter(
+                "http://www.openmicroscopy.org/Schemas/OME/2016-06#Experimenter",
+                54L,
+                "first",
+                "middle",
+                "last",
+                expectedUsername
+        ));
+
+        String username = experimenter.getUsername().orElseThrow();
+
+        Assertions.assertEquals(expectedUsername, username);
     }
 }

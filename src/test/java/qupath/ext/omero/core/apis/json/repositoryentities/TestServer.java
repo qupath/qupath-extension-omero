@@ -159,6 +159,44 @@ public class TestServer extends OmeroServer {
 
             TestUtils.assertCollectionsEqualsWithoutOrder(expectedExperimenters, experimenters);
         }
+
+        @Test
+        void Check_Experimenter_ID_From_Full_Name_When_Exists() {
+            Experimenter experimenter = OmeroServer.getExperimenters(userType).getFirst();
+            List<String> fullNames = List.of(experimenter.getFullName());
+            List<Long> expectedIds = List.of(experimenter.getId());
+
+            List<Long> ids = server.getIdsOfExperimenterFromFullNames(fullNames);
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedIds, ids);
+        }
+
+        @Test
+        void Check_Experimenter_ID_From_Full_Name_When_Does_Not_Exist() {
+            Experimenter experimenter = OmeroServer.getExperimenters(userType).getFirst();
+            List<String> fullNames = List.of(experimenter.getFullName(), "Some unknown name");
+
+            Assertions.assertThrows(IllegalArgumentException.class, () -> server.getIdsOfExperimenterFromFullNames(fullNames));
+        }
+
+        @Test
+        void Check_Experimenter_ID_From_Username_When_Exists() {
+            Experimenter experimenter = OmeroServer.getExperimenters(userType).getFirst();
+            List<String> usernames = List.of(experimenter.getUsername().orElseThrow());
+            List<Long> expectedIds = List.of(experimenter.getId());
+
+            List<Long> ids = server.getIdsOfExperimentersFromUsernames(usernames);
+
+            TestUtils.assertCollectionsEqualsWithoutOrder(expectedIds, ids);
+        }
+
+        @Test
+        void Check_Experimenter_ID_From_Name_When_Does_Not_Exist() {
+            Experimenter experimenter = OmeroServer.getExperimenters(userType).getFirst();
+            List<String> usernames = List.of(experimenter.getFullName(), "Some unknown username");
+
+            Assertions.assertThrows(IllegalArgumentException.class, () -> server.getIdsOfExperimentersFromUsernames(usernames));
+        }
     }
 
     @Nested

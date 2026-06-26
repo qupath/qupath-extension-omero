@@ -129,7 +129,8 @@ public class TestPolyline {
                                         73L,
                                         "first",
                                         "middle",
-                                        "last"
+                                        "last",
+                                        "user"
                                 ),
                                 null,
                                 new OmeroPermissions(false, true, true)

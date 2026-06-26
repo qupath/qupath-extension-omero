@@ -1,22 +1,23 @@
 import qupath.ext.omero.core.apis.commonentities.ChannelSettings
 import qupath.ext.omero.core.imageserver.OmeroImageServer
+import qupath.lib.images.servers.ImageChannel
 
 /*
- * This script send the image settings (image name, channel names, channel colors, channel display ranges)
- * of a QuPath image to the corresponding image on an OMERO server.
+ * This script sends the image settings (image name, channel names, channel colors, channel display ranges) of a QuPath image
+ * to the corresponding image on an OMERO server.
  *
- * An OMERO image must be currently opened in QuPath through the QuPath GUI or through
- * the command line (see the open_image_from_command_line.groovy script).
+ * An OMERO image must be currently opened in QuPath through the QuPath GUI or through the command line (see the
+ * open_image_from_command_line.groovy script).
  *
  * If the image name is sent, a QuPath project must be opened.
  * If one of the channel settings is sent, the image must not have the RGB format.
  */
 
 // Parameters
-var sendImageName = true
-var sendChannelNames = true
-var sendChannelColors = true
-var sendChannelDisplayRanges = true
+var sendImageName = true                // whether to send the image name to OMERO
+var sendChannelNames = true             // whether to send channel names to OMERO
+var sendChannelColors = true            // whether to send channels colors to OMERO
+var sendChannelDisplayRanges = true     // whether to send channel display ranges to OMERO
 
 // Check that a project is opened (if needed)
 if (sendImageName && getProject() == null) {
@@ -41,6 +42,7 @@ if ((sendChannelNames || sendChannelColors || sendChannelDisplayRanges) && omero
     return
 }
 
+// Send image name if necessary
 if (sendImageName) {
     // Retrieve current image name
     var imageName = omeroServer.getMetadata().getName()
@@ -51,6 +53,7 @@ if (sendImageName) {
     println "Image name sent"
 }
 
+// Send channel names if necessary
 if (sendChannelNames) {
     // Retrieve channel names from current image
     var channelNames = omeroServer.getMetadata().getChannels().stream().map(ImageChannel::getName).toList()
@@ -61,6 +64,7 @@ if (sendChannelNames) {
     println "Channel names sent"
 }
 
+// Send channel colors if necessary
 if (sendChannelColors) {
     // Retrieve channel colors from current image
     var channelColors = omeroServer.getMetadata().getChannels().stream().map(ImageChannel::getColor).toList()
@@ -71,6 +75,7 @@ if (sendChannelColors) {
     println "Channel colors sent"
 }
 
+// Send channel display ranges if necessary
 if (sendChannelDisplayRanges) {
     // Retrieve display ranges from current image
     var displayRanges = getCurrentViewer().getImageDisplay().availableChannels().stream()
