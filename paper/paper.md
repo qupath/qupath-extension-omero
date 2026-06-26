@@ -36,7 +36,7 @@ This enhances the software by allowing it to work efficiently with images stored
 # Statement of need
 
 QuPath is a popular, open-source application for image analysis, written in Java [@Bankhead2017].
-With over 900,000 downloads (across all releases) and more than 6,000 paper citations to date, QuPath's support for large and complex images have helped establish the software as a key biomedical research tool.
+With over 1,000,000 software downloads and more than 6,000 paper citations to date, QuPath's support for large and complex images have helped establish the software as a key biomedical research tool.
 
 QuPath is routinely used to analyse whole slide images, which are common in research and the field of digital pathology.
 A 'small' whole slide image might be 120,000 x 60,000 pixels in size, which equates to around 20 GB uncompressed data (assuming 8-bit, 3-channel RGB pixels).
@@ -116,14 +116,14 @@ The javadocs are installed along with the extension and are available via QuPath
 # Research impact statement
 
 The QuPath OMERO extension was initially released on February 2024.
-Since then, the extension has evolved through contributions, bug reporting, and feature requests.
+Since then, it has evolved through contributions, bug reporting, and feature requests.
 
-As of the beginning of March 2026, the QuPath OMERO extension has been downloaded 29,727 times.
-This demonstrates a broad and active user community.
+The latest extension (v0.2.4) was downloaded more than 4,000 times within the first three months since release.
+Community enthusiasm for connecting QuPath and OMERO is also reflected in numerous resources and articles that reference the current and previous extensions, while also providing additional documentation [@OME2024; @BIOP2026; @Fan2023; @Burri2022; @Gkotsoulias2025; @Wicks2023].
 
 The usefulness of this work is not limited to users at institutions where images are managed using OMERO.
 Because OMERO is also used by major public imaging resources, such as the IDR, the extension can help anyone access these resources and explore the data within QuPath.
-If can further serve as a template for developers to create QuPath extensions that connect to other image management systems.
+It can further serve as a template for developers to create QuPath extensions that connect to other image management systems.
 
 # AI usage disclosure
 

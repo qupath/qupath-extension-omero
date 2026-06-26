@@ -445,6 +445,15 @@ class Browser extends Stage implements AutoCloseable {
                 return null;
             }
         });
+        // See https://github.com/qupath/qupath-extension-omero/issues/120: the default public user of the IDR server
+        // doesn't contain any data, but another user called "Public data" does
+        if (client.getApisHandler().getWebServerUri().toString().contains("idr.openmicroscopy.org")) {
+            owner.getSelectionModel().select(server.getDefaultGroup().getExperimenters().stream()
+                    .filter(e -> e.getFullName().equals("Public data"))
+                    .findAny()
+                    .orElse(server.getConnectedExperimenter())
+            );
+        }
 
         PredicateTextField<RepositoryEntity> predicateTextField = new PredicateTextField<>(RepositoryEntity::getLabel);
         predicateTextField.setPromptText(resources.getString("Browser.ServerBrowser.filterNames"));

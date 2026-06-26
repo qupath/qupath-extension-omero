@@ -24,9 +24,9 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.stream.IntStream;
 
 /**
@@ -80,19 +80,29 @@ class MsPixelBufferReader implements PixelApiReader {
         // OMERO expects resolutions to be specified in reverse order
         int level = numberOfLevels - tileRequest.getLevel() - 1;
 
-        List<BufferedImage> images;
-        try {
-            images = IntStream.range(0, numberOfChannels)
-                    .mapToObj(i -> readTile(
-                            imageID,
-                            i,
-                            level,
-                            tileRequest
-                    ))
-                    .map(CompletableFuture::join)
-                    .toList();
-        } catch (CompletionException e) {
-            throw new IOException(e);
+        List<CompletableFuture<BufferedImage>> imageRequests = IntStream.range(0, numberOfChannels)
+                .mapToObj(i -> readTile(
+                        imageID,
+                        i,
+                        level,
+                        tileRequest
+                ))
+                .toList();
+        List<BufferedImage> images = new ArrayList<>();
+        for (var request: imageRequests) {
+            try {
+                images.add(request.get());
+            } catch (InterruptedException e) {
+                logger.debug(
+                        "Reading tile {} from pixel buffer microservice API interrupted. Interrupting current thread",
+                        tileRequest,
+                        e
+                );
+                Thread.currentThread().interrupt();
+                return null;
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
         }
         logger.debug("Got images {} for {}. Combining them", images, tileRequest);
 

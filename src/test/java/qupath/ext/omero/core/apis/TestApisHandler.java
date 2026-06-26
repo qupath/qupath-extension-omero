@@ -220,10 +220,16 @@ public class TestApisHandler extends OmeroServer {
         abstract void Check_Shapes_Deleted() throws ExecutionException, InterruptedException;
 
         @Test
+        abstract void Check_Shapes_Deleted_With_All_Id() throws ExecutionException, InterruptedException;
+
+        @Test
         abstract void Check_Attachments_Sent() throws ExecutionException, InterruptedException;
 
         @Test
         abstract void Check_Existing_Attachments_Deleted() throws ExecutionException, InterruptedException;
+
+        @Test
+        abstract void Check_Existing_Attachments_Deleted_With_All_Id() throws ExecutionException, InterruptedException;
     }
 
     @Nested
@@ -284,9 +290,19 @@ public class TestApisHandler extends OmeroServer {
         @Test
         @Override
         void Check_Shapes_Deleted() {
+            long userId = OmeroServer.getConnectedExperimenter(userType).getId();
             long imageId = OmeroServer.getAnnotableImage(userType).id();
 
-            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId, List.of()).get());
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId, List.of(userId)).get());
+        }
+
+        @Test
+        @Override
+        void Check_Shapes_Deleted_With_All_Id() {
+            long userId = -1;
+            long imageId = OmeroServer.getAnnotableImage(userType).id();
+
+            Assertions.assertThrows(ExecutionException.class, () -> apisHandler.deleteShapes(imageId, List.of(userId)).get());
         }
 
         @Test
@@ -312,6 +328,12 @@ public class TestApisHandler extends OmeroServer {
         @Test
         @Override
         void Check_Existing_Attachments_Deleted() {
+            // Empty because attachments can't be changed, see Check_Attachments_Sent
+        }
+
+        @Test
+        @Override
+        void Check_Existing_Attachments_Deleted_With_All_Id() {
             // Empty because attachments can't be changed, see Check_Attachments_Sent
         }
     }
@@ -456,6 +478,28 @@ public class TestApisHandler extends OmeroServer {
 
         @Test
         @Override
+        void Check_Shapes_Deleted_With_All_Id() throws ExecutionException, InterruptedException {
+            long userId = -1;
+            long imageId = OmeroServer.getAnnotableImage(userType).id();
+            List<Shape> shapes = List.of(
+                    new Rectangle(
+                            PathObjects.createAnnotationObject(ROIs.createRectangleROI(10, 10, 100, 100, ImagePlane.getDefaultPlane())),
+                            false
+                    ),
+                    new Line(
+                            PathObjects.createAnnotationObject(ROIs.createLineROI(20, 20, 50, 50, ImagePlane.getDefaultPlane())),
+                            false
+                    )
+            );
+            apisHandler.addShapes(imageId, shapes).get();
+
+            apisHandler.deleteShapes(imageId, List.of(userId)).get();
+
+            Assertions.assertTrue(apisHandler.getShapes(imageId, userId).get().isEmpty());
+        }
+
+        @Test
+        @Override
         void Check_Attachments_Sent() {
             SimpleServerEntity image = OmeroServer.getAnnotableImage(userType);
 
@@ -475,6 +519,18 @@ public class TestApisHandler extends OmeroServer {
         @Override
         void Check_Existing_Attachments_Deleted() throws ExecutionException, InterruptedException {
             long ownerId = OmeroServer.getConnectedExperimenter(userType).getId();
+            SimpleServerEntity image = OmeroServer.getAnnotableImage(userType);
+            apisHandler.sendAttachment(image,"annotations1.csv", "test1").get();
+            apisHandler.sendAttachment(image,"annotations2.csv", "test2").get();
+            apisHandler.sendAttachment(image,"annotations3.csv", "test3").get();
+
+            Assertions.assertDoesNotThrow(() -> apisHandler.deleteAttachments(image, List.of(ownerId)).get());
+        }
+
+        @Test
+        @Override
+        void Check_Existing_Attachments_Deleted_With_All_Id() throws ExecutionException, InterruptedException {
+            long ownerId = -1;
             SimpleServerEntity image = OmeroServer.getAnnotableImage(userType);
             apisHandler.sendAttachment(image,"annotations1.csv", "test1").get();
             apisHandler.sendAttachment(image,"annotations2.csv", "test2").get();

@@ -153,6 +153,10 @@ class IceReader implements PixelApiReader {
                         tileRequest.getTileHeight()
                 );
             }
+        } catch (InterruptedException e) {
+            logger.debug("Reading tile {} from ICE API interrupted. Interrupting current thread", tileRequest, e);
+            Thread.currentThread().interrupt();
+            return null;
         } catch (Exception e) {
             throw new IOException(e);
         } finally {

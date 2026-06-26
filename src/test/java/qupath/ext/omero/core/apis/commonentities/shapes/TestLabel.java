@@ -128,7 +128,8 @@ public class TestLabel {
                                         73L,
                                         "first",
                                         "middle",
-                                        "last"
+                                        "last",
+                                        "user"
                                 ),
                                 null,
                                 new OmeroPermissions(false, true, true)

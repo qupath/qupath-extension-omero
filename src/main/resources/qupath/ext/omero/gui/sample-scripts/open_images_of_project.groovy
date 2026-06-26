@@ -1,15 +1,18 @@
 /*
- * This script iterates over the images of the currently opened project.
- * Each image is opened, their metadata is printed, and a part of the images is read.
- * This script it not specific to OMERO but is a good way to see if all images of a project
- * are supported.
+ * This script iterates over the images of the currently opened project. Each image is opened, their metadata is printed,
+ * and a part of the images is read.
+ *
+ * This script it not specific to OMERO but is a good way to see if all images of a project are supported.
  */
+
+// Get QuPath project
 var project = getProject()
 if (project == null) {
     println "A project needs to be opened in QuPath before running this script"
     return
 }
 
+// Iterate over project entries and print some information on them
 for (entry in project.getImageList()) {
     println "Opening " + entry.getImageName()
     
