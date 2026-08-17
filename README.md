@@ -32,6 +32,10 @@ Javadocs can be viewed at:
 - Version specific: https://qupath.github.io/qupath-extension-omero/{VERSION}/ (note: many early versions have not been published in this way)
 - Latest version (current main): https://qupath.github.io/qupath-extension-omero/stable/
 
+## Getting help
+
+For support, questions and discussions, use the forum at [forum.image.sc](https://forum.image.sc/tags/qupath).
+
 
 ## Building
 
