@@ -59,5 +59,5 @@ You can also contribute by submitting pull requests to this extension.
 It is usually better to discuss any proposed changes first on the [forum](https://forum.image.sc/tags/qupath) or by [opening an issue](https://github.com/qupath/qupath/issues).
 It may be that someone is already working on what you'd like to change, or it might not be compatible with some other work-in-progress.
 
-In accordance with [GitHub's Terms of Service](https://help.github.com/en/articles/github-terms-of-service#6-contributions-under-repository-license), any contributions you _do_ make are under the [same license as this extension](LICENSE.md).
+In accordance with [GitHub's Terms of Service](https://help.github.com/en/articles/github-terms-of-service#6-contributions-under-repository-license), any contributions you _do_ make are under the [same license as this extension](LICENSE).
 Please make sure you have the rights for any code that you contribute, and you attribute any dependencies appropriately.
