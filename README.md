@@ -27,6 +27,12 @@ If you want to use the ICE pixel API (see the [documentation](https://qupath.rea
 
 The main documentation for the extension is at https://qupath.readthedocs.io/en/latest/docs/advanced/omero.html.
 
+Javadocs can be viewed at:
+- Stable version: https://qupath.github.io/qupath-extension-omero/stable/
+- Version specific: https://qupath.github.io/qupath-extension-omero/{VERSION}/ (note: many early versions have not been published in this way)
+- Latest version (current main): https://qupath.github.io/qupath-extension-omero/stable/
+
+
 ## Building
 
 You can build the extension using OpenJDK 21 or later with
