@@ -35,12 +35,13 @@ Javadocs can be viewed at:
 ## Getting help
 
 For support, questions and discussions, use the forum at [forum.image.sc](https://forum.image.sc/tags/qupath).
+If you've gone to the forum and still need help, please feel free to [open a new GitHub issue]https://github.com/qupath/qupath-extension-omero/issues/new!
 
 ## Contributing
 
 We welcome new contributions!
 
-If you are interested in contributing to the QuPath OMERO extension, please first read our [contributing guide]().
+If you are interested in contributing to the QuPath OMERO extension, please first read our [contributing guide](https://github.com/qupath/qupath-extension-omero/blob/main/CONTRIBUTING.md).
 Usually, the first step is to discuss your idea with us and the community on [forum.image.sc](https://forum.image.sc/tags/qupath) or in a [GitHub issue](https://github.com/qupath/qupath-extension-omero/issues/new).
 
 ## Building
