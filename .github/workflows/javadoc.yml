@@ -14,3 +14,5 @@ jobs:
       pages: write
     uses: qupath/actions/.github/workflows/javadoc.yml@main
     name: Build and upload javadoc
+    with:
+      java-version: 25
