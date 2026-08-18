@@ -27,6 +27,23 @@ If you want to use the ICE pixel API (see the [documentation](https://qupath.rea
 
 The main documentation for the extension is at https://qupath.readthedocs.io/en/latest/docs/advanced/omero.html.
 
+Javadocs can be viewed at:
+- Stable version: https://qupath.github.io/qupath-extension-omero/stable/
+- Version specific: https://qupath.github.io/qupath-extension-omero/{VERSION}/ (note: many early versions have not been published in this way)
+- Latest version (current main): https://qupath.github.io/qupath-extension-omero/stable/
+
+## Getting help
+
+For support, questions and discussions, use the forum at [forum.image.sc](https://forum.image.sc/tags/qupath).
+If you've gone to the forum and still need help, please feel free to [open a new GitHub issue]https://github.com/qupath/qupath-extension-omero/issues/new!
+
+## Contributing
+
+We welcome new contributions!
+
+If you are interested in contributing to the QuPath OMERO extension, please first read our [contributing guide](https://github.com/qupath/qupath-extension-omero/blob/main/CONTRIBUTING.md).
+Usually, the first step is to discuss your idea with us and the community on [forum.image.sc](https://forum.image.sc/tags/qupath) or in a [GitHub issue](https://github.com/qupath/qupath-extension-omero/issues/new).
+
 ## Building
 
 You can build the extension using OpenJDK 21 or later with
