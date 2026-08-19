@@ -35,7 +35,7 @@ Javadocs can be viewed at:
 ## Getting help
 
 For support, questions and discussions, use the forum at [forum.image.sc](https://forum.image.sc/tags/qupath).
-If you've gone to the forum and still need help, please feel free to [open a new GitHub issue]https://github.com/qupath/qupath-extension-omero/issues/new)!
+If you've gone to the forum and still need help, please feel free to [open a new GitHub issue](https://github.com/qupath/qupath-extension-omero/issues/new)!
 
 ## Contributing
 
