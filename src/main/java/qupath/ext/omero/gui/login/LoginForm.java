@@ -40,7 +40,7 @@ public class LoginForm extends Stage {
 
     private static final Logger logger = LoggerFactory.getLogger(LoginForm.class);
     private static final ResourceBundle resources = Utils.getResources();
-    private static final String DEFAULT_URL = "https://idr.openmicroscopy.org/";
+    private static final String DEFAULT_URL = "";
     private final Consumer<Client> onClientCreated;
     private Client createdClient;
     @FXML
