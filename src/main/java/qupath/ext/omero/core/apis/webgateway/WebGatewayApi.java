@@ -3,7 +3,9 @@ package qupath.ext.omero.core.apis.webgateway;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableIntegerValue;
@@ -396,7 +398,11 @@ public class WebGatewayApi implements AutoCloseable {
                 referer,
                 token
         ).thenAccept(response -> {
-            if (!response.equals("true")) {
+            // can be "true" or true
+            JsonElement parsedResponse = JsonParser.parseString(response);
+            boolean success = parsedResponse.isJsonPrimitive() &&
+                Boolean.valueOf(parsedResponse.getAsString());
+            if (!success) {
                 throw new RuntimeException(String.format("Change channel display ranges and colors response %s not true", response));
             }
         });
