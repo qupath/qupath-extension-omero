@@ -1,4 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+# see remarks in server.sh
+set -euo pipefail
+IFS=$'\n\t'
 
 # Import the /OMERO folder from the OMERO server container. This is needed for the
 # pixel buffer microservice to work

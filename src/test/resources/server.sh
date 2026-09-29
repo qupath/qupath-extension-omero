@@ -1,10 +1,26 @@
-#!/bin/sh
+#!/usr/bin/env bash
+## bash is a lot more firendly than bare sh, and /usr/bin/env will reliably find it cross-platform
+
+## some would call this bash "strict mode".
+## it makes bash a bit more strict on substitutions and variable evaluation
+set -euo pipefail
+#-e exit when commands fail
+# -u unset variables error rather than eval to ""
+# -o pipefail makes a pipe fail if any part fails, not just the last part.
+# eg `cat myfile | grep foo` fails if cat myfile fails... helpful.
+IFS=$'\n\t' # narrows word splitting to only tab and newline
+
+
+
+
 
 # This script will start a local OMERO server using four Docker containers.
 # Docker must be installed and running before running this script. The script works on Linux and MacOS.
 # The server will be accessible at http://localhost:4080/.
 # To make the unit tests use this server, set the OmeroServer.IS_LOCAL_OMERO_SERVER_RUNNING variable to true.
 
+
+# find the absolute path of this script and cd to the same directory
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # Create network if not exist
@@ -41,7 +57,7 @@ docker run -d \
   -p 4064:4064 \
   --privileged \
   --platform linux/x86_64 \
-  --mount type=bind,src=$SCRIPT_DIR"/omero-server",target=/resources \
+  --mount "type=bind,src=$SCRIPT_DIR/omero-server,target=/resources" \
   openmicroscopy/omero-server
 
 # Start OMERO web server
@@ -57,7 +73,7 @@ docker run -d \
   -e CONFIG_omero_web_session__engine=django.contrib.sessions.backends.cache \
   -p 4080:4080 -p 8082:8082 \
   --privileged \
-  --mount type=bind,src=$SCRIPT_DIR"/omero-web",target=/resources \
+  --mount "type=bind,src=$SCRIPT_DIR/omero-web,target=/resources" \
   openmicroscopy/omero-web-standalone
 
 # Wait for server to come online

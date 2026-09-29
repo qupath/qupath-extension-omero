@@ -1,4 +1,8 @@
-#!/bin/sh
+#!/usr/bin/env bash
+
+# see remarks in server.sh
+set -euo pipefail
+IFS=$'\n\t'
 
 # Configure the pixel buffer microservice
 cd /omero-ms-pixel-buffer/build/install/omero-ms-pixel-buffer/conf/
